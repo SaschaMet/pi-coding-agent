@@ -3,6 +3,11 @@
     "defaultProvider": "github-copilot",
     "defaultModel": "gpt-5.3-codex",
     "defaultThinkingLevel": "medium",
+    "compaction": {
+        "enabled": true,
+        "reserveTokens": 12288,
+        "keepRecentTokens": 16384
+    },
     "theme": "codex-dark",
     "envService": {
         "envFile": "/Users/saschametzger/Projects/pi-coding-agent/.env",
