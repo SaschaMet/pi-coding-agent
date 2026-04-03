@@ -1,0 +1,249 @@
+{
+    "version": 1,
+    "defaultAction": "deny",
+    "protectedPathSegments": [
+        ".git"
+    ],
+    "protectedBasenames": [
+        ".env"
+    ],
+    "protectedBasenamePrefixes": [
+        ".env."
+    ],
+    "tools": {
+        "bash": {
+            "mode": "allow",
+            "nonInteractivePolicy": "deny",
+            "bashPolicy": {
+                "defaultAction": "block",
+                "nonInteractiveConfirm": "deny",
+                "rules": [
+                    {
+                        "pattern": "^\\s*ls\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*pwd\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*cat\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*head\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*tail\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*more\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*less\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*grep\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*rg\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*find\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*fd\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*wc\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*sort\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*uniq\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*diff\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*file\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*stat\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*du\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*df\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*tree\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*(echo|printf)\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*(which|whereis|type)\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*(uname|whoami|id|date|cal|uptime|ps|top|htop|free)\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*git\\s+(status|log|diff|show|branch|remote|config\\s+--get)\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*git\\s+ls-",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*npm\\s+(test|run\\s+(test|smoke|typecheck|test:coverage|docs:sync-pi)|list|ls|view|info|search|outdated|audit)\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*yarn\\s+(test|list|info|why|audit)\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*pnpm\\s+(test|list|info|why|audit)\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*node\\s+--version\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*python\\s+--version\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "\\bgit\\s+(push|pull|rebase|revert|reset|merge|cherry-pick|commit|tag|checkout|switch|branch\\s+-[dD])\\b",
+                        "action": "confirm",
+                        "reason": "Potentially dangerous git command"
+                    },
+                    {
+                        "pattern": "\\b(rm\\s+(-rf?|--recursive)|sudo\\b|(chmod|chown)\\b.*777)",
+                        "action": "confirm",
+                        "reason": "Potentially dangerous command"
+                    }
+                ],
+                "sensitivePatterns": [
+                    "\\b(printenv|env)\\b",
+                    "\\b(process\\.env|os\\.environ|getenv\\s*\\(|/proc/self/environ|%ENV)\\b",
+                    "\\b(echo|printf)\\b[^\\n;&|]*\\$\\{?[A-Za-z_][A-Za-z0-9_]*\\}?",
+                    "(^|\\s|['\"`])\\.env(\\.[\\w.-]+)?($|\\s|['\"`])",
+                    "(^|\\s|['\"`])(\\.git)(/|\\b)"
+                ],
+                "networkDenyCommands": [
+                    "curl",
+                    "wget",
+                    "nc",
+                    "ncat",
+                    "netcat",
+                    "ssh",
+                    "scp",
+                    "sftp",
+                    "ftp",
+                    "telnet"
+                ],
+                "networkAllowPatterns": [],
+                "envAllowlist": [
+                    "PATH",
+                    "HOME",
+                    "SHELL",
+                    "PWD",
+                    "TMPDIR",
+                    "TMP",
+                    "TEMP",
+                    "LANG",
+                    "LC_ALL",
+                    "LC_CTYPE",
+                    "TERM",
+                    "COLORTERM",
+                    "NO_COLOR",
+                    "TZ",
+                    "USER",
+                    "LOGNAME",
+                    "EDITOR"
+                ]
+            }
+        },
+        "read": {
+            "mode": "allow",
+            "pathPolicy": {
+                "denyProtectedPaths": true
+            }
+        },
+        "write": {
+            "mode": "allow",
+            "pathPolicy": {
+                "denyProtectedPaths": true
+            }
+        },
+        "edit": {
+            "mode": "allow",
+            "pathPolicy": {
+                "denyProtectedPaths": true
+            }
+        },
+        "ls": {
+            "mode": "allow",
+            "pathPolicy": {
+                "denyProtectedPaths": true
+            }
+        },
+        "grep": {
+            "mode": "allow",
+            "pathPolicy": {
+                "denyProtectedPaths": true,
+                "confirmSearchScopeIncludingProtectedRoots": true
+            }
+        },
+        "find": {
+            "mode": "allow",
+            "pathPolicy": {
+                "denyProtectedPaths": true,
+                "confirmSearchScopeIncludingProtectedRoots": true
+            }
+        },
+        "ask_questions": {
+            "mode": "allow"
+        },
+        "ask": {
+            "mode": "allow"
+        },
+        "web_search": {
+            "mode": "confirm",
+            "nonInteractivePolicy": "deny"
+        },
+        "fetch_web_page": {
+            "mode": "confirm",
+            "nonInteractivePolicy": "deny"
+        },
+        "subagent": {
+            "mode": "allow"
+        }
+    }
+}

@@ -1,0 +1,9 @@
+{
+  "enableSkillCommands": true,
+  "theme": "codex-dark",
+  "skills": [
+    "~/.codex/skills",
+    "~/.pi/agent/skills/pi-skills",
+    ".pi/skills"
+  ]
+}

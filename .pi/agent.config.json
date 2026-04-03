@@ -1,0 +1,29 @@
+{
+  "search": {
+    "defaultProvider": "brave",
+    "providers": {
+      "brave": {
+        "apiKeyEnv": "BRAVE_API_KEY",
+        "baseUrl": "https://api.search.brave.com/res/v1/web/search"
+      },
+      "tavily": {
+        "apiKeyEnv": "TAVILY_API_KEY",
+        "baseUrl": "https://api.tavily.com/search"
+      },
+      "serper": {
+        "apiKeyEnv": "SERPER_API_KEY",
+        "baseUrl": "https://google.serper.dev/search"
+      }
+    }
+  },
+  "subagent": {
+    "defaultAgentScope": "both",
+    "maxParallelTasks": 8,
+    "maxConcurrency": 4
+  },
+  "security": {
+    "capabilitiesFile": ".pi/security/capabilities.json",
+    "enforceCoverageAtStartup": true,
+    "strictSubagentLocalRuntime": true
+  }
+}

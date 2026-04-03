@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pi.local/security/capabilities.schema.json",
+  "title": "PI Capability Policy",
+  "type": "object",
+  "required": [
+    "version",
+    "defaultAction",
+    "tools"
+  ],
+  "properties": {
+    "version": {
+      "type": "number",
+      "minimum": 1
+    },
+    "defaultAction": {
+      "type": "string",
+      "const": "deny"
+    },
+    "protectedPathSegments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "protectedBasenames": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "protectedBasenamePrefixes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "allow",
+              "block",
+              "confirm"
+            ]
+          },
+          "nonInteractivePolicy": {
+            "type": "string",
+            "enum": [
+              "allow",
+              "deny"
+            ]
+          },
+          "pathPolicy": {
+            "type": "object",
+            "properties": {
+              "denyProtectedPaths": {
+                "type": "boolean"
+              },
+              "denySearchScopeIncludingProtectedRoots": {
+                "type": "boolean"
+              },
+              "confirmSearchScopeIncludingProtectedRoots": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "bashPolicy": {
+            "type": "object",
+            "required": [
+              "defaultAction",
+              "nonInteractiveConfirm",
+              "rules",
+              "sensitivePatterns",
+              "networkDenyCommands",
+              "networkAllowPatterns",
+              "envAllowlist"
+            ],
+            "properties": {
+              "defaultAction": {
+                "type": "string",
+                "enum": [
+                  "allow",
+                  "block",
+                  "confirm"
+                ]
+              },
+              "nonInteractiveConfirm": {
+                "type": "string",
+                "enum": [
+                  "allow",
+                  "deny"
+                ]
+              },
+              "rules": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "pattern",
+                    "action"
+                  ],
+                  "properties": {
+                    "pattern": {
+                      "type": "string"
+                    },
+                    "action": {
+                      "type": "string",
+                      "enum": [
+                        "allow",
+                        "block",
+                        "confirm"
+                      ]
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "sensitivePatterns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "networkDenyCommands": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "networkAllowPatterns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "envAllowlist": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

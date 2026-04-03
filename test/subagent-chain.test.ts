@@ -1,0 +1,341 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createFakePi } from "./helpers/fake-pi.ts";
+
+const { spawnMock } = vi.hoisted(() => ({ spawnMock: vi.fn() }));
+
+vi.mock("node:child_process", () => ({
+  spawn: (...args: any[]) => spawnMock(...args),
+}));
+
+import subagentExtension from "../.pi/extensions/subagent/index.ts";
+
+function createMockProcess(lines: string[], exitCode = 0): any {
+  const proc = new EventEmitter() as any;
+  proc.stdout = new PassThrough();
+  proc.stderr = new PassThrough();
+  proc.killed = false;
+  proc.kill = vi.fn(() => {
+    proc.killed = true;
+    setImmediate(() => proc.emit("close", exitCode));
+    return true;
+  });
+
+  setImmediate(() => {
+    for (const line of lines) {
+      proc.stdout.write(`${line}\n`);
+    }
+    proc.stdout.end();
+    proc.stderr.end();
+    proc.emit("close", exitCode);
+  });
+
+  return proc;
+}
+
+describe("subagent chain execution", () => {
+  afterEach(() => {
+    spawnMock.mockReset();
+  });
+
+  it("runs a configured skill as a subagent", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-skill-test-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "skills", "interactive-planner"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "node_modules", ".bin"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, "node_modules", ".bin", "pi"), "#!/bin/sh\nexit 0\n", "utf-8");
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "settings.json"),
+      JSON.stringify({ enableSkillCommands: false, skills: [".pi/skills"] }, null, 2),
+      "utf-8",
+    );
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "skills", "interactive-planner", "SKILL.md"),
+      [
+        "---",
+        "name: interactive-planner",
+        "description: Planner skill",
+        "---",
+        "You are the interactive planner skill.",
+      ].join("\n"),
+      "utf-8",
+    );
+
+    let appendedSystemPrompt = "";
+    spawnMock.mockImplementation((command: string, args: string[]) => {
+      const promptFlagIndex = args.indexOf("--append-system-prompt");
+      expect(promptFlagIndex).toBeGreaterThan(-1);
+      appendedSystemPrompt = fs.readFileSync(args[promptFlagIndex + 1], "utf-8");
+      expect(args.some((arg) => arg.includes("Task: plan the repo"))).toBe(true);
+
+      const eventLine = JSON.stringify({
+        type: "message_end",
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "skill-plan" }],
+          usage: {
+            input: 12,
+            output: 4,
+            cacheRead: 0,
+            cacheWrite: 0,
+            cost: { total: 0.001 },
+            totalTokens: 16,
+          },
+          model: "claude-sonnet-4-5",
+          stopReason: "stop",
+        },
+      });
+      return createMockProcess([eventLine], 0);
+    });
+
+    const pi = createFakePi();
+    subagentExtension(pi as any);
+    const tool = pi.tools.get("subagent");
+    expect(tool).toBeDefined();
+
+    const result = await tool!.execute(
+      "call-skill-subagent",
+      {
+        agent: "interactive-planner",
+        task: "plan the repo",
+        agentScope: "project",
+        confirmProjectAgents: false,
+      },
+      undefined,
+      undefined,
+      { cwd: tmp, hasUI: false },
+    );
+
+    expect(result.isError).not.toBe(true);
+    expect(result.content[0].text).toContain("skill-plan");
+    expect(appendedSystemPrompt).toContain("You are the interactive planner skill.");
+  });
+
+  it("runs chain mode with previous-output interpolation and mocked subprocesses", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-test-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agents"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "node_modules", ".bin"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, "node_modules", ".bin", "pi"), "#!/bin/sh\nexit 0\n", "utf-8");
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agents", "explorer.md"),
+      [
+        "---",
+        "name: explorer",
+        "description: Explorer",
+        "tools: read, grep, find, ls",
+        "model: claude-haiku-4-5",
+        "---",
+        "You are explorer.",
+      ].join("\n"),
+      "utf-8",
+    );
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agents", "planner.md"),
+      [
+        "---",
+        "name: planner",
+        "description: Planner",
+        "tools: read, grep, find, ls",
+        "model: claude-sonnet-4-5",
+        "---",
+        "You are planner.",
+      ].join("\n"),
+      "utf-8",
+    );
+
+    const spawnCalls: Array<{ command: string; args: string[] }> = [];
+    spawnMock.mockImplementation((command: string, args: string[]) => {
+      spawnCalls.push({ command, args });
+      const firstCall = spawnCalls.length === 1;
+      const assistantText = firstCall ? "scout-output" : "final-plan";
+      const eventLine = JSON.stringify({
+        type: "message_end",
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: assistantText }],
+          usage: {
+            input: 10,
+            output: 5,
+            cacheRead: 0,
+            cacheWrite: 0,
+            cost: { total: 0.001 },
+            totalTokens: 15,
+          },
+          model: "claude-sonnet-4-5",
+          stopReason: "stop",
+        },
+      });
+      return createMockProcess([eventLine], 0);
+    });
+
+    const pi = createFakePi();
+    subagentExtension(pi as any);
+    const tool = pi.tools.get("subagent");
+    expect(tool).toBeDefined();
+
+    const result = await tool!.execute(
+      "call-subagent",
+      {
+        chain: [
+          { agent: "explorer", task: "gather context" },
+          { agent: "planner", task: "plan with {previous}" },
+        ],
+        agentScope: "project",
+        confirmProjectAgents: false,
+      },
+      undefined,
+      undefined,
+      { cwd: tmp, hasUI: false },
+    );
+
+    expect(result.isError).not.toBe(true);
+    expect(result.details.mode).toBe("chain");
+    expect(result.details.results).toHaveLength(2);
+    expect(result.content[0].text).toContain("final-plan");
+    expect(spawnCalls[1].args.some((arg) => arg.includes("Task: plan with scout-output"))).toBe(true);
+  });
+
+  it("returns actionable guidance for unknown agent in single mode", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-unknown-single-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agents"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agents", "planner.md"),
+      [
+        "---",
+        "name: planner",
+        "description: Planner",
+        "---",
+        "You are planner.",
+      ].join("\n"),
+      "utf-8",
+    );
+
+    const pi = createFakePi();
+    subagentExtension(pi as any);
+    const tool = pi.tools.get("subagent");
+
+    const result = await tool!.execute(
+      "call-subagent-unknown-single",
+      {
+        agent: "interactive-planner",
+        task: "plan",
+        agentScope: "project",
+        confirmProjectAgents: false,
+      },
+      undefined,
+      undefined,
+      { cwd: tmp, hasUI: false },
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Discovered agents (scope: project): planner (project)');
+    expect(result.content[0].text).toContain("interactive-planner -> planner");
+    expect(result.content[0].text).toContain("tdd-coding -> tdd-red, tdd-green, tdd-refactor");
+    expect(result.content[0].text).toContain("configured skill roots");
+  });
+
+  it("returns actionable guidance when chain hits an unknown agent", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-unknown-chain-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agents"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "node_modules", ".bin"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, "node_modules", ".bin", "pi"), "#!/bin/sh\nexit 0\n", "utf-8");
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agents", "explorer.md"),
+      [
+        "---",
+        "name: explorer",
+        "description: Explorer",
+        "---",
+        "You are explorer.",
+      ].join("\n"),
+      "utf-8",
+    );
+
+    spawnMock.mockImplementation(() => {
+      const eventLine = JSON.stringify({
+        type: "message_end",
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "scout-output" }],
+          usage: {
+            input: 10,
+            output: 5,
+            cacheRead: 0,
+            cacheWrite: 0,
+            cost: { total: 0.001 },
+            totalTokens: 15,
+          },
+          model: "claude-sonnet-4-5",
+          stopReason: "stop",
+        },
+      });
+      return createMockProcess([eventLine], 0);
+    });
+
+    const pi = createFakePi();
+    subagentExtension(pi as any);
+    const tool = pi.tools.get("subagent");
+
+    const result = await tool!.execute(
+      "call-subagent-unknown-chain",
+      {
+        chain: [
+          { agent: "explorer", task: "gather context" },
+          { agent: "interactive-planner", task: "plan with {previous}" },
+        ],
+        agentScope: "project",
+        confirmProjectAgents: false,
+      },
+      undefined,
+      undefined,
+      { cwd: tmp, hasUI: false },
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Discovered agents (scope: project): explorer (project)');
+    expect(result.content[0].text).toContain("interactive-planner -> planner");
+    expect(result.content[0].text).toContain("configured skill roots");
+  });
+
+  it("fails closed when strict local runtime is enabled and local pi binary is missing", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-strict-test-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agents"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agents", "planner.md"),
+      [
+        "---",
+        "name: planner",
+        "description: Planner",
+        "tools: read, grep, find, ls",
+        "---",
+        "You are planner.",
+      ].join("\n"),
+      "utf-8",
+    );
+
+    const pi = createFakePi();
+    subagentExtension(pi as any);
+    const tool = pi.tools.get("subagent");
+    expect(tool).toBeDefined();
+
+    const result = await tool!.execute(
+      "call-subagent-strict",
+      {
+        agent: "planner",
+        task: "plan",
+        agentScope: "project",
+        confirmProjectAgents: false,
+      },
+      undefined,
+      undefined,
+      { cwd: tmp, hasUI: false },
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("strict local runtime");
+    expect(spawnMock).not.toHaveBeenCalled();
+  });
+});
