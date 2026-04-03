@@ -1,9 +1,17 @@
 {
-  "enableSkillCommands": true,
-  "theme": "codex-dark",
-  "skills": [
-    "~/.codex/skills",
-    "~/.pi/agent/skills/pi-skills",
-    ".pi/skills"
-  ]
+    "enableSkillCommands": true,
+    "defaultProvider": "github-copilot",
+    "defaultModel": "gpt-5.3-codex",
+    "defaultThinkingLevel": "medium",
+    "theme": "codex-dark",
+    "envService": {
+        "envFile": "/Users/saschametzger/Projects/pi-coding-agent/.env",
+        "useProjectEnv": true
+    },
+    "skills": [
+        "~/.codex/skills",
+        "~/.pi/agent/skills/pi-skills",
+        ".pi/skills"
+    ],
+    "lastChangelogVersion": "0.64.0"
 }

@@ -1,5 +1,7 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import process from "node:process";
 
 export type CapabilityAction = "allow" | "block" | "confirm";
 
@@ -63,9 +65,12 @@ export interface CapabilityDecision {
     reason?: string;
 }
 
-export function loadSecurityRuntimeConfig(cwd: string): SecurityRuntimeConfig {
-    const configPath = path.join(cwd, ".pi", "agent.config.json");
-    if (!fs.existsSync(configPath)) return DEFAULT_SECURITY_RUNTIME_CONFIG;
+function resolveGlobalConfigDir(): string {
+    return process.env.PI_CODING_AGENT_DIR || path.join(os.homedir(), ".pi", "agent");
+}
+
+function parseSecurityRuntimeConfig(configPath: string): SecurityRuntimeConfig | undefined {
+    if (!fs.existsSync(configPath)) return undefined;
 
     try {
         const parsed = JSON.parse(fs.readFileSync(configPath, "utf-8")) as {
@@ -87,11 +92,35 @@ export function loadSecurityRuntimeConfig(cwd: string): SecurityRuntimeConfig {
     }
 }
 
+export function loadSecurityRuntimeConfig(cwd: string): SecurityRuntimeConfig {
+    const localConfigPath = path.join(cwd, ".pi", "agent.config.json");
+    const localConfig = parseSecurityRuntimeConfig(localConfigPath);
+    if (localConfig) return localConfig;
+
+    const globalConfigPath = path.join(resolveGlobalConfigDir(), "agent.config.json");
+    const globalConfig = parseSecurityRuntimeConfig(globalConfigPath);
+    if (globalConfig) return globalConfig;
+
+    return DEFAULT_SECURITY_RUNTIME_CONFIG;
+}
+
 function resolveCapabilitiesPath(cwd: string): string {
-    const securityConfig = loadSecurityRuntimeConfig(cwd);
-    return path.isAbsolute(securityConfig.capabilitiesFile)
-        ? securityConfig.capabilitiesFile
-        : path.join(cwd, securityConfig.capabilitiesFile);
+    const localConfigPath = path.join(cwd, ".pi", "agent.config.json");
+    if (fs.existsSync(localConfigPath)) {
+        const localConfig = loadSecurityRuntimeConfig(cwd);
+        return path.isAbsolute(localConfig.capabilitiesFile)
+            ? localConfig.capabilitiesFile
+            : path.join(cwd, localConfig.capabilitiesFile);
+    }
+
+    const globalConfigDir = resolveGlobalConfigDir();
+    const globalCapabilitiesPath = path.join(globalConfigDir, "security", "capabilities.json");
+    if (fs.existsSync(globalCapabilitiesPath)) return globalCapabilitiesPath;
+
+    const fallbackConfig = loadSecurityRuntimeConfig(cwd);
+    return path.isAbsolute(fallbackConfig.capabilitiesFile)
+        ? fallbackConfig.capabilitiesFile
+        : path.join(cwd, fallbackConfig.capabilitiesFile);
 }
 
 export function loadCapabilityConfig(cwd: string): CapabilityConfig {

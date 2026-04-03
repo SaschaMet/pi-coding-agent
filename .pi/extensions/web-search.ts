@@ -3,7 +3,7 @@ import path from "node:path";
 import { StringEnum } from "@mariozechner/pi-ai";
 import type { AgentToolUpdateCallback, ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import { getScopedSecret } from "../../src/secrets.ts";
+import { getEnvSecret } from "./shared/env-service.ts";
 
 export type SearchProvider = "brave" | "tavily" | "serper";
 
@@ -176,7 +176,7 @@ async function runSearchWithProvider(
     cwd: string,
 ): Promise<SearchResultItem[]> {
     const providerConfig = config.providers[provider];
-    const apiKey = getScopedSecret(cwd, providerConfig.apiKeyEnv);
+    const apiKey = getEnvSecret(cwd, providerConfig.apiKeyEnv);
 
     if (!apiKey) {
         throw new Error(`Missing API key. Set ${providerConfig.apiKeyEnv}.`);

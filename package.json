@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "docs:sync-pi": "tsx scripts/sync-pi-docs.ts"
+    "docs:sync-pi": "tsx scripts/sync-pi-docs.ts",
+    "pi:pull-global": "tsx scripts/sync-pi-config.ts pull",
+    "pi:sync-global": "tsx scripts/sync-pi-config.ts push"
   },
   "keywords": [],
   "author": "",

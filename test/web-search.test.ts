@@ -16,6 +16,8 @@ describe("web_search tool", () => {
     delete process.env.BRAVE_API_KEY;
     delete process.env.SERPER_API_KEY;
     delete process.env.TAVILY_API_KEY;
+    delete process.env.PI_CODING_AGENT_DIR;
+    delete process.env.PI_CODER_REPO;
   });
 
   it("normalizes provider payloads", () => {
@@ -104,6 +106,58 @@ describe("web_search tool", () => {
     expect(result.details.provider).toBe("brave");
     expect(result.details.results[0].url).toBe("https://example.com");
     expect(process.env.BRAVE_API_KEY).toBeUndefined();
+  });
+
+  it("loads API key from configured envService file in global settings", async () => {
+    const tmpGlobal = fs.mkdtempSync(path.join(os.tmpdir(), "pi-global-config-"));
+    process.env.PI_CODING_AGENT_DIR = tmpGlobal;
+
+    const tmpRepo = fs.mkdtempSync(path.join(os.tmpdir(), "pi-coder-repo-"));
+    process.env.PI_CODER_REPO = tmpRepo;
+    fs.writeFileSync(path.join(tmpRepo, ".env"), "BRAVE_API_KEY=repo-env-key\n", "utf-8");
+
+    fs.writeFileSync(
+      path.join(tmpGlobal, "settings.json"),
+      JSON.stringify(
+        {
+          envService: {
+            envFile: "${PI_CODER_REPO}/.env",
+            useProjectEnv: true,
+          },
+        },
+        null,
+        2,
+      ),
+      "utf-8",
+    );
+
+    const tmpCwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-random-project-"));
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          web: { results: [{ title: "Result", url: "https://example.com", description: "snippet" }] },
+        }),
+      })),
+    );
+
+    const pi = createFakePi();
+    webSearchExtension(pi as any);
+    const tool = pi.tools.get("web_search");
+
+    const result = await tool!.execute(
+      "call-search-global-env-service",
+      { query: "test query", provider: "brave" },
+      undefined,
+      undefined,
+      { cwd: tmpCwd },
+    );
+
+    expect(result.isError).toBeFalsy();
+    expect(result.details.provider).toBe("brave");
+    expect(result.details.results[0].url).toBe("https://example.com");
   });
 
   it("returns deterministic error payload when provider call fails", async () => {
