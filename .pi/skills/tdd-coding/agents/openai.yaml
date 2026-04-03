@@ -1,0 +1,4 @@
+interface:
+  display_name: "TDD Coder"
+  short_description: "Strict TDD with red-green-refactor phases, unit tests, and optional integration tests"
+  default_prompt: "Use $tdd-coding to implement this change with failing tests first, minimal code, coverage checks, and optional integration tests with input/output pairs."

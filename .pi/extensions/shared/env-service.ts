@@ -107,7 +107,7 @@ function resolveConfiguredEnvFile(cwd: string): string | undefined {
     if (!rawPath) return undefined;
 
     const expanded = expandTemplatePath(rawPath);
-    return path.isAbsolute(expanded) ? path.normalize(expanded) : path.resolve(loaded.baseDir, expanded);
+    return path.isAbsolute(expanded) ? path.normalize(expanded) : path.resolve(loaded!.baseDir, expanded);
 }
 
 function shouldUseProjectEnvFallback(cwd: string): boolean {

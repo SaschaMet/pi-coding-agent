@@ -1,0 +1,7 @@
+interface:
+  display_name: "GAN Coder"
+  short_description: "Generator-critic coding loop using subagents"
+  default_prompt: "Use $gan-coder to implement this task. For each slice, spawn gan_generator first and gan_critic second; only fall back to generic model-based subagents if those named agents are unavailable."
+
+policy:
+  allow_implicit_invocation: true

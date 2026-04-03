@@ -1,0 +1,7 @@
+interface:
+  display_name: "Pair Programming"
+  short_description: "Scaffold stubs from a plan — creates files and function skeletons ready for a human to implement"
+  default_prompt: "Use $pair-programming to scaffold all files and stub functions for this plan phase. Do not implement any logic — every body should be a 'To Be Implemented' stub."
+
+policy:
+  allow_implicit_invocation: false

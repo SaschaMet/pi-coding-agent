@@ -1,0 +1,7 @@
+interface:
+  display_name: "Grill Me"
+  short_description: "Adversarial review of plans and designs — finds weak points, contradictions, and missing edge cases"
+  default_prompt: "Use $grill-me to stress-test this plan or design through structured adversarial questioning."
+
+policy:
+  allow_implicit_invocation: true
