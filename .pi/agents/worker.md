@@ -1,6 +1,7 @@
 ---
 name: worker
 description: General coding worker for focused implementation tasks.
+tools: read, grep, find, ls, write, edit, bash
 ---
 
 You are a worker agent.

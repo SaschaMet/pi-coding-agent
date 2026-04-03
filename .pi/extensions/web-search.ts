@@ -1,8 +1,7 @@
-import fs from "node:fs";
-import path from "node:path";
 import { StringEnum } from "@mariozechner/pi-ai";
 import type { AgentToolUpdateCallback, ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
+import { loadProjectAgentConfig } from "./shared/agent-config.ts";
 import { getEnvSecret } from "./shared/env-service.ts";
 
 export type SearchProvider = "brave" | "tavily" | "serper";
@@ -62,39 +61,31 @@ interface SearchParams {
 }
 
 export function loadSearchConfig(cwd: string): SearchToolConfig {
-    const configPath = path.join(cwd, ".pi", "agent.config.json");
-    if (!fs.existsSync(configPath)) {
-        return DEFAULT_CONFIG;
-    }
+    const parsed = loadProjectAgentConfig<{
+        search?: {
+            defaultProvider?: SearchProvider;
+            providers?: Partial<SearchToolConfig["providers"]>;
+        };
+    }>(cwd);
 
-    try {
-        const parsed = JSON.parse(fs.readFileSync(configPath, "utf-8")) as {
-            search?: {
-                defaultProvider?: SearchProvider;
-                providers?: Partial<SearchToolConfig["providers"]>;
-            };
-        };
-        const merged: SearchToolConfig = {
-            defaultProvider: parsed.search?.defaultProvider ?? DEFAULT_CONFIG.defaultProvider,
-            providers: {
-                brave: {
-                    ...DEFAULT_CONFIG.providers.brave,
-                    ...(parsed.search?.providers?.brave ?? {}),
-                },
-                tavily: {
-                    ...DEFAULT_CONFIG.providers.tavily,
-                    ...(parsed.search?.providers?.tavily ?? {}),
-                },
-                serper: {
-                    ...DEFAULT_CONFIG.providers.serper,
-                    ...(parsed.search?.providers?.serper ?? {}),
-                },
+    const merged: SearchToolConfig = {
+        defaultProvider: parsed?.search?.defaultProvider ?? DEFAULT_CONFIG.defaultProvider,
+        providers: {
+            brave: {
+                ...DEFAULT_CONFIG.providers.brave,
+                ...(parsed?.search?.providers?.brave ?? {}),
             },
-        };
-        return merged;
-    } catch {
-        return DEFAULT_CONFIG;
-    }
+            tavily: {
+                ...DEFAULT_CONFIG.providers.tavily,
+                ...(parsed?.search?.providers?.tavily ?? {}),
+            },
+            serper: {
+                ...DEFAULT_CONFIG.providers.serper,
+                ...(parsed?.search?.providers?.serper ?? {}),
+            },
+        },
+    };
+    return merged;
 }
 
 function recencyToBraveFreshness(recencyDays?: number): string | undefined {

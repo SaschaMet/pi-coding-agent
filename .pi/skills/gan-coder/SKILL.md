@@ -7,29 +7,29 @@ description: Adversarial coding workflow that implements tasks through a generat
 
 ## Overview
 
-Run coding work as a bounded adversarial loop. You are the orchestrator: you own the plan, slice the work, and gate progress. You delegate implementation to `gan_generator` and validation to `gan_critic`. You do not write implementation code yourself.
+Run coding work as a bounded adversarial loop. You are the orchestrator: you own the plan, slice the work, and gate progress. You delegate implementation to `gan-generator` and validation to `gan-critic`. You do not write implementation code yourself.
 
 ## Custom Agents
 
-| Role | Agent name | Config |
-|---|---|---|
-| Implementation | `gan_generator` | `.codex/agents/gan-generator.toml` |
-| Review & gate | `gan_critic` | `.codex/agents/gan-critic.toml` |
+| Role           | Agent name      | Config                        |
+| -------------- | --------------- | ----------------------------- |
+| Implementation | `gan-generator` | `.pi/agents/gan-generator.md` |
+| Review & gate  | `gan-critic`    | `.pi/agents/gan-critic.md`    |
 
-- `gan_generator` - smaller model with `medium` reasoning — fast, focused, scope-constrained.
-- `gan_critic` - larger model with `high` reasoning in `read-only` sandbox — thorough, can run tests, cannot edit files.
-
+- `gan-generator` - smaller model with `medium` reasoning — fast, focused, scope-constrained.
+- `gan-critic` - larger model with `high` reasoning in `read-only` sandbox — thorough, can run tests, cannot edit files.
 
 ## Core Rules
 
 - Keep orchestration in the parent thread. Subagents must not spawn further agents (`max_depth = 1`).
 - Own the plan yourself. Subagents execute and evaluate slices; they do not redefine scope.
+- If requirements are ambiguous, ask the user first and re-run the current subagent step with a `Clarifications` section containing the answers.
 - Slice the work into narrow, reviewable steps with explicit acceptance criteria.
 - Run generator and critic sequentially per slice — the critic depends on the generator's output.
 - Bound retries: at most `3` generator attempts per slice before surfacing the blocker.
 - Treat the critic as a gate, not a co-author. Verdicts and defects only — not rewrites.
 - Parallelize only across independent slices with disjoint file ownership.
-- If the task is high-risk or the plan is weak, run `$grill-me` on the plan before starting the loop.
+- If the task is high-risk or the plan is weak, run `grill-me` via `subagent` on the plan before starting the loop.
 
 ## Workflow
 
@@ -46,7 +46,7 @@ Keep slices small enough that one generator attempt can finish without drifting 
 
 ### 2. Spawn the generator
 
-Spawn `gan_generator`. Give it:
+Spawn `gan-generator`. Give it:
 
 - This slice only — not the full plan
 - The exact files it owns
@@ -58,7 +58,7 @@ Require the generator to return all four sections: **files changed**, **commands
 
 ### 3. Spawn the critic
 
-Spawn `gan_critic`. Give it:
+Spawn `gan-critic`. Give it:
 
 - The slice brief and acceptance criteria
 - The generator's output summary and changed files
@@ -72,7 +72,7 @@ Enforce that the critic returns exactly one verdict: `PASS`, `REVISE`, or `BLOCK
 Act on the verdict:
 
 - `PASS` → mark the slice completed in `update_plan`, advance to the next slice
-- `REVISE` → send only the defect list back to `gan_generator`; keep slice scope fixed; increment retry count
+- `REVISE` → send only the defect list back to `gan-generator`; keep slice scope fixed; increment retry count
 - `BLOCKED` → surface the structural issue to the user; repair the slice definition before resuming
 - **3 failed generator attempts** → stop the loop, surface the blocker, ask the user how to proceed
 
@@ -83,7 +83,7 @@ If the loop stalls because the critic keeps shifting the target, stop and repair
 After all slices pass:
 
 1. Run the full validation suite in the parent thread using `shell_command`.
-2. For multi-slice or high-risk tasks, spawn `gan_critic` once more for a final whole-change review.
+2. For multi-slice or high-risk tasks, spawn `gan-critic` once more for a final whole-change review.
 3. Report: slices completed, commands run, accepted risks, suggested next steps.
 
 ## Prompt Contracts
@@ -91,7 +91,7 @@ After all slices pass:
 ### Generator Contract
 
 ```text
-You are gan_generator. Implement only this slice.
+You are gan-generator. Implement only this slice.
 Own only these files: <files>.
 
 Use apply_patch for all file edits.
@@ -117,7 +117,7 @@ Return exactly:
 ### Critic Contract
 
 ```text
-You are gan_critic. Review this slice as a hard gate. Do not edit any file.
+You are gan-critic. Review this slice as a hard gate. Do not edit any file.
 
 Read the slice brief and all changed files. Run the listed test commands using
 shell_command when practical. Check for: correctness against the acceptance
@@ -151,10 +151,10 @@ Test commands:
 - Architecture debates return to the parent thread — never let generator and critic argue about design mid-loop.
 - Use the project's existing tests and tooling. Do not invent a new validation stack inside the skill.
 - Use `apply_patch` for all file edits inside subagents — it is the most in-distribution edit tool for Codex models.
-- If subagent support is unavailable, simulate the same loop in one thread: draft → critique → revise → implement.
+- If a requested subagent name is unavailable, use the documented subagent fallback chain via `subagent` rather than simulating inline.
 
 ## References
 
-- Custom agent configs: [`.codex/agents/gan-generator.toml`](.codex/agents/gan-generator.toml), [`.codex/agents/gan-critic.toml`](.codex/agents/gan-critic.toml)
+- Agent prompts: [`.pi/agents/gan-generator.md`](.pi/agents/gan-generator.md), [`.pi/agents/gan-critic.md`](.pi/agents/gan-critic.md)
 - Codex agent template conventions: [`references/custom-agent-templates.md`](references/custom-agent-templates.md)
 - Copilot agent templates (for the `.github/agents/` equivalents): [`references/copilot-agent-templates.md`](references/copilot-agent-templates.md)

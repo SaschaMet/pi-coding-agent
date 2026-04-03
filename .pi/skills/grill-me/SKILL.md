@@ -26,11 +26,11 @@ Do NOT ask questions the codebase already answers. Your credibility depends on d
 Silently categorize risks using [references/risk-taxonomy.md](references/risk-taxonomy.md).
 Rank into three tiers:
 
-| Tier | Definition | Action |
-|---|---|---|
-| **Critical** | Would cause data loss, security breach, or system outage | Must be resolved — no moving on |
-| **High** | Would cause significant rework, performance degradation, or user-facing bugs | Should be resolved or explicitly accepted as risk |
-| **Medium** | Design smell, maintainability concern, unclear edge case | Raise once, accept the answer |
+| Tier         | Definition                                                                   | Action                                            |
+| ------------ | ---------------------------------------------------------------------------- | ------------------------------------------------- |
+| **Critical** | Would cause data loss, security breach, or system outage                     | Must be resolved — no moving on                   |
+| **High**     | Would cause significant rework, performance degradation, or user-facing bugs | Should be resolved or explicitly accepted as risk |
+| **Medium**   | Design smell, maintainability concern, unclear edge case                     | Raise once, accept the answer                     |
 
 Skip low-risk nitpicks entirely. Focus time on what hurts most.
 
@@ -44,16 +44,19 @@ _"Does industry best practice, common sense, or a well-known default already ans
 **If yes — flag it, don't ask about it.**
 
 Flag it with: the problem, the standard approach, and a one-line check:
+
 > [High] No retry logic on the external API call. Standard practice is exponential backoff
 > with jitter (e.g., 3 retries, 1s/2s/4s). Does the plan include this or is it intentionally
 > deferred?
 
 Only ask an open question when:
+
 - The answer depends on a decision only the user can make (e.g., business trade-offs, team constraints)
 - The codebase contradicts the standard approach and you need to understand why
 - The standard approach is ambiguous for this specific context
 
 **Do NOT ask questions like:**
+
 - "Have you considered pagination?" — flag missing pagination directly
 - "What about error handling?" — flag the specific unhandled error path
 - "Did you think about security?" — name the exact attack surface
@@ -101,7 +104,7 @@ summary using [references/summary-template.md](references/summary-template.md):
 3. **Open Issues** — unresolved questions that need more research or a different stakeholder.
 4. **Recommended Next Steps** — concrete actions, not vague advice.
 
-If the `$interactive-planner` skill is available, suggest handing off there for implementation planning.
+If the `interactive-planner` subagent is available, suggest handing off there for implementation planning.
 Do NOT produce an implementation plan yourself.
 
 ## What Not to Do

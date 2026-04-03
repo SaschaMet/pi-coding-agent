@@ -59,6 +59,14 @@ const DEFAULT_SECURITY_RUNTIME_CONFIG: SecurityRuntimeConfig = {
 
 const COMPOUND_BASH_OPERATOR_PATTERN = /(\&\&|\|\||;|\|(?!\|)|`|\$\()/;
 
+interface CapabilityConfigCacheEntry {
+    mtimeMs: number;
+    size: number;
+    config: CapabilityConfig;
+}
+
+const capabilityConfigCache = new Map<string, CapabilityConfigCacheEntry>();
+
 
 export interface CapabilityDecision {
     action: CapabilityAction;
@@ -126,6 +134,11 @@ function resolveCapabilitiesPath(cwd: string): string {
 export function loadCapabilityConfig(cwd: string): CapabilityConfig {
     const capabilitiesPath = resolveCapabilitiesPath(cwd);
 
+    return loadCapabilityConfigFromPath(capabilitiesPath);
+}
+
+function loadCapabilityConfigFromPath(capabilitiesPath: string): CapabilityConfig {
+
     if (!fs.existsSync(capabilitiesPath)) {
         throw new Error(
             `Capability policy file is missing: ${capabilitiesPath}. Restore it or set security.capabilitiesFile in .pi/agent.config.json.`,
@@ -147,6 +160,34 @@ export function loadCapabilityConfig(cwd: string): CapabilityConfig {
     }
 
     return parsed;
+}
+
+export function loadCapabilityConfigCached(cwd: string): CapabilityConfig {
+    const capabilitiesPath = resolveCapabilitiesPath(cwd);
+
+    if (!fs.existsSync(capabilitiesPath)) {
+        throw new Error(
+            `Capability policy file is missing: ${capabilitiesPath}. Restore it or set security.capabilitiesFile in .pi/agent.config.json.`,
+        );
+    }
+
+    const stat = fs.statSync(capabilitiesPath);
+    const cached = capabilityConfigCache.get(capabilitiesPath);
+    if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+        return cached.config;
+    }
+
+    const parsed = loadCapabilityConfigFromPath(capabilitiesPath);
+    capabilityConfigCache.set(capabilitiesPath, {
+        mtimeMs: stat.mtimeMs,
+        size: stat.size,
+        config: parsed,
+    });
+    return parsed;
+}
+
+export function clearCapabilityConfigCache(): void {
+    capabilityConfigCache.clear();
 }
 
 export function validateCapabilityConfig(config: CapabilityConfig): string[] {

@@ -1,6 +1,7 @@
 ---
 name: gan-generator
 description: Fast implementation generator for bounded coding slices.
+tools: read, grep, find, ls, write, edit, bash
 ---
 
 You are the GAN Generator.

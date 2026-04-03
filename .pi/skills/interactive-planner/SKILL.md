@@ -54,15 +54,15 @@ Ask questions **only about things the codebase cannot answer**.
 
 Cover these topics. Offer concrete defaults for each; let the user accept or override.
 
-| Topic                       | Example Default                                                    |
-| --------------------------- | ------------------------------------------------------------------ |
-| Scope confirmation          | "Based on my research, this affects X, Y, Z. Correct?"             |
-| External docs or references | "Do you have a spec, PRD, or design doc to include?"               |
-| Testing strategy            | "Unit tests with pytest + 70% coverage. Integration tests needed?" |
-| Manual verification         | "I'll include curl/browser steps for API changes."                 |
-| Plan output location        | `docs/plans/plan-{feature}.md`                                     |
-| Phasing preference          | "I'll break this into N phases. Want fewer/more?"                  |
-| Risk tolerance              | "There's a data migration involved. Want a rollback plan?"         |
+| Topic                       | Example Default                                                                                                                                    |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Scope confirmation          | "Based on my research, this affects X, Y, Z. Correct?"                                                                                             |
+| External docs or references | "Do you have a spec, PRD, or design doc to include?"                                                                                               |
+| Testing strategy            | "Unit tests with pytest + 70% coverage. Integration tests needed?"                                                                                 |
+| Manual verification         | "I'll include curl/browser steps for API changes."                                                                                                 |
+| Plan output location        | `docs/plans/plan-{feature}.md`                                                                                                                     |
+| Phasing preference          | "I'll break this into N phases. Want fewer/more?"                                                                                                  |
+| Risk tolerance              | "There's a data migration involved. Want a rollback plan?"                                                                                         |
 | Architecture diagram        | Only if the plan introduces major structural changes — default is to include one automatically in that case. Otherwise ask whether one is desired. |
 
 ### Follow-up Rounds
@@ -145,15 +145,15 @@ For small or additive changes (new endpoint, bug fix, minor refactor), skip diag
 
 Choose the diagram type that best communicates the change:
 
-| Change type | Diagram type | Mermaid syntax |
-|---|---|---|
-| Data / request flow | Flowchart | `flowchart TD` |
-| Service interactions | Sequence diagram | `sequenceDiagram` |
+| Change type                | Diagram type         | Mermaid syntax             |
+| -------------------------- | -------------------- | -------------------------- |
+| Data / request flow        | Flowchart            | `flowchart TD`             |
+| Service interactions       | Sequence diagram     | `sequenceDiagram`          |
 | Module/component structure | Architecture / block | `graph LR` or `block-beta` |
-| Data model | Class diagram | `classDiagram` |
+| Data model                 | Class diagram        | `classDiagram`             |
 
 Place the diagram in a dedicated `## Architecture Overview` section immediately after `## Summary`.
-If the change modifies an *existing* flow, show the before and after states as two separate diagrams
+If the change modifies an _existing_ flow, show the before and after states as two separate diagrams
 labeled **Before** and **After**.
 
 ### Manual Test Checklist
@@ -169,8 +169,8 @@ manual verification steps from every phase into a single flat checklist**.
 This is the section a human tester or reviewer uses to sign off on the implementation without
 needing to read the full plan.
 
-- **For implementation**: "Use `$tdd-coding` to implement each phase in TDD order."
-- **For review**: "Use `$grill-me` to stress-test this plan before implementing." (if the plan is large or risky)
+- **For implementation**: "Use `tdd-coding` via `subagent` to implement each phase in TDD order."
+- **For review**: "Use `grill-me` via `subagent` to stress-test this plan before implementing." (if the plan is large or risky)
 - **For integration tests**: "During implementation, the TDD skill will ask about integration test input/output pairs."
 
 ## Step 6 — Write the Output

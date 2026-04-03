@@ -68,13 +68,13 @@ This plan avoids large architectural changes and keeps the runtime model intact.
 
 ## Risks & Dependencies
 
-| # | Risk | Severity | Mitigation | One-Way Door? |
-|---|---|---|---|---|
-| 1 | Skill names and available agents diverge again, causing workflow failures | High | Add runtime-level availability messaging + docs + tests for fallback hints | No |
-| 2 | Local mirrored PI docs become stale vs installed package | Medium | Add sync script + version stamp + manual refresh step in verification | No |
-| 3 | Expanding command allowlist increases execution surface | High | Allow only explicit repo scripts/commands; keep deny-by-default baseline | No |
-| 4 | Coverage fix introduces version skew with Vitest | Medium | Pin compatible coverage package version and validate with `npm run test:coverage` | No |
-| 5 | Docs and policy drift (matrix/docs not matching JSON behavior) | Medium | Update docs and add policy regression tests in same phase | No |
+| #   | Risk                                                                      | Severity | Mitigation                                                                        | One-Way Door? |
+| --- | ------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------- | ------------- |
+| 1   | Skill names and available agents diverge again, causing workflow failures | High     | Add runtime-level availability messaging + docs + tests for fallback hints        | No            |
+| 2   | Local mirrored PI docs become stale vs installed package                  | Medium   | Add sync script + version stamp + manual refresh step in verification             | No            |
+| 3   | Expanding command allowlist increases execution surface                   | High     | Allow only explicit repo scripts/commands; keep deny-by-default baseline          | No            |
+| 4   | Coverage fix introduces version skew with Vitest                          | Medium   | Pin compatible coverage package version and validate with `npm run test:coverage` | No            |
+| 5   | Docs and policy drift (matrix/docs not matching JSON behavior)            | Medium   | Update docs and add policy regression tests in same phase                         | No            |
 
 **Data risks**: none (no persistent schema/data changes).
 
@@ -113,7 +113,7 @@ Eliminate ambiguity between documented skill-backed workflows and actual runtime
 - `.pi/agents/AGENTS.md`
 
 **Files to create**:
-- `docs/reference/subagent-skill-mapping.md`
+- Inline fallback table in `.pi/agents/AGENTS.md`
 
 **Spec**
 - Clarify distinction between:
@@ -424,41 +424,41 @@ Confirm docs are short, actionable, and referenced from the main entrypoint docs
 
 ## Summary of Planned File Changes
 
-| File | Change Type | Phase |
-|---|---|---|
-| `docs/plans/plan-implementation-friction-remediation.md` | Create | 0 |
-| `.pi/extensions/subagent/index.ts` | Modify | 1 |
-| `.pi/extensions/subagent/agents.ts` | Modify (optional helper extraction) | 1 |
-| `test/subagent-chain.test.ts` | Modify | 1 |
-| `test/subagent-discovery.test.ts` | Modify | 1 |
-| `test/subagent-availability-hints.test.ts` | Create (optional) | 1 |
-| `docs/reference/subagent-skill-mapping.md` | Create | 1 |
-| `README.md` | Modify | 1-4 |
-| `.pi/agents/AGENTS.md` | Modify | 1 |
-| `scripts/sync-pi-docs.ts` | Create | 2 |
-| `docs/vendor/pi-coding-agent/**` | Create/refresh | 2 |
-| `scripts/smoke.ts` | Modify | 2-3 |
-| `package.json` | Modify | 2-3 |
-| `vitest.config.ts` | Modify | 3 |
-| `.pi/security/capabilities.json` | Modify | 2-3 |
-| `.pi/security/capabilities.schema.json` | Modify (if needed) | 3 |
-| `.pi/extensions/capability-policy.ts` | Modify (remove embedded default policy, fail-closed loader) | 2-3 |
-| `src/main.ts` | Modify (fail-closed startup messaging hook if needed) | 3 |
-| `test/capability-policy.test.ts` | Modify | 3 |
-| `test/safety-hooks.test.ts` | Modify (if needed) | 3 |
-| `docs/security/capability-matrix.md` | Modify | 3 |
-| `docs/security/sandboxing.md` | Modify | 3 |
-| `docs/reference/implementation-workflow.md` | Create | 4 |
-| `docs/plans/implementation-friction-notes.md` | Modify | 2,4 |
+| File                                                     | Change Type                                                 | Phase |
+| -------------------------------------------------------- | ----------------------------------------------------------- | ----- |
+| `docs/plans/plan-implementation-friction-remediation.md` | Create                                                      | 0     |
+| `.pi/extensions/subagent/index.ts`                       | Modify                                                      | 1     |
+| `.pi/extensions/subagent/agents.ts`                      | Modify (optional helper extraction)                         | 1     |
+| `test/subagent-chain.test.ts`                            | Modify                                                      | 1     |
+| `test/subagent-discovery.test.ts`                        | Modify                                                      | 1     |
+| `test/subagent-availability-hints.test.ts`               | Create (optional)                                           | 1     |
+| Inline fallback table in `.pi/agents/AGENTS.md`          | Documented                                                  | 1     |
+| `README.md`                                              | Modify                                                      | 1-4   |
+| `.pi/agents/AGENTS.md`                                   | Modify                                                      | 1     |
+| `scripts/sync-pi-docs.ts`                                | Create                                                      | 2     |
+| `docs/vendor/pi-coding-agent/**`                         | Create/refresh                                              | 2     |
+| `scripts/smoke.ts`                                       | Modify                                                      | 2-3   |
+| `package.json`                                           | Modify                                                      | 2-3   |
+| `vitest.config.ts`                                       | Modify                                                      | 3     |
+| `.pi/security/capabilities.json`                         | Modify                                                      | 2-3   |
+| `.pi/security/capabilities.schema.json`                  | Modify (if needed)                                          | 3     |
+| `.pi/extensions/capability-policy.ts`                    | Modify (remove embedded default policy, fail-closed loader) | 2-3   |
+| `src/main.ts`                                            | Modify (fail-closed startup messaging hook if needed)       | 3     |
+| `test/capability-policy.test.ts`                         | Modify                                                      | 3     |
+| `test/safety-hooks.test.ts`                              | Modify (if needed)                                          | 3     |
+| `docs/security/capability-matrix.md`                     | Modify                                                      | 3     |
+| `docs/security/sandboxing.md`                            | Modify                                                      | 3     |
+| `docs/reference/implementation-workflow.md`              | Create                                                      | 4     |
+| `docs/plans/implementation-friction-notes.md`            | Modify                                                      | 2,4   |
 
 ## Open Questions / Deferred Decisions
 
-| # | Question | Owner | Blocking? |
-|---|---|---|---|
-| 1 | Should unknown skill names be auto-remapped to fallback agents, or remain explicit with suggestions only? | Maintainer | Yes (Phase 1 behavior) |
-| 2 | How much PI vendor content should be mirrored (minimal required subset vs broad mirror)? | Maintainer | Yes (Phase 2 scope) |
-| 3 | Should coverage thresholds be enforced now, or just make reporting runnable first? | Maintainer | No |
-| 4 | Should command allowlist include `npx vitest` parity, or enforce npm-script-only policy? | Maintainer | No |
+| #   | Question                                                                                                  | Owner      | Blocking?              |
+| --- | --------------------------------------------------------------------------------------------------------- | ---------- | ---------------------- |
+| 1   | Should unknown skill names be auto-remapped to fallback agents, or remain explicit with suggestions only? | Maintainer | Yes (Phase 1 behavior) |
+| 2   | How much PI vendor content should be mirrored (minimal required subset vs broad mirror)?                  | Maintainer | Yes (Phase 2 scope)    |
+| 3   | Should coverage thresholds be enforced now, or just make reporting runnable first?                        | Maintainer | No                     |
+| 4   | Should command allowlist include `npx vitest` parity, or enforce npm-script-only policy?                  | Maintainer | No                     |
 
 ## Manual Test Checklist
 

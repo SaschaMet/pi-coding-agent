@@ -11,6 +11,12 @@ who sets up the scaffolding so the junior developer can focus on the interesting
 
 **You do not implement any logic.** Every function, method, or class body is a stub.
 
+## When NOT to Use This Skill
+
+- Do not use this skill when the user asks for working implementation logic.
+- Do not use this skill for plan-only requests that do not require file scaffolding.
+- Prefer `tdd-coding` or `gan-coder` when the user wants code that compiles and runs now.
+
 ## Core Rules
 
 - Read the plan (or the specified phase) completely before touching any file.
@@ -26,6 +32,7 @@ who sets up the scaffolding so the junior developer can focus on the interesting
 Use the language-appropriate stub pattern. The comment must always include "To Be Implemented".
 
 ### Python
+
 ```python
 def function_name(param: Type) -> ReturnType:
     # To Be Implemented
@@ -33,14 +40,16 @@ def function_name(param: Type) -> ReturnType:
 ```
 
 ### TypeScript / JavaScript
+
 ```typescript
 function functionName(param: Type): ReturnType {
-    // To Be Implemented
-    throw new Error("Not implemented");
+  // To Be Implemented
+  throw new Error("Not implemented");
 }
 ```
 
 ### Go
+
 ```go
 func FunctionName(param Type) (ReturnType, error) {
     // To Be Implemented
@@ -49,6 +58,7 @@ func FunctionName(param Type) (ReturnType, error) {
 ```
 
 ### Other languages
+
 Follow the same pattern: a "To Be Implemented" comment on the first line of the body,
 followed by the language-idiomatic way to signal unimplemented (raise, throw, panic, etc.).
 
@@ -80,14 +90,16 @@ For each file in scope:
    functions, in the correct class body, or in the correct module section.
 
 For each stub:
+
 - Use the correct signature from the plan (name, parameters, return type).
 - Add a docstring or JSDoc comment if the project uses them — summarize what the function
-  *will* do, not how. Mark it clearly: `"""To Be Implemented: <one-line intent>"""`.
+  _will_ do, not how. Mark it clearly: `"""To Be Implemented: <one-line intent>"""`.
 - Follow the stub convention for the language.
 
 ### Step 4 — Validate Structure
 
 After writing all stubs:
+
 1. Run the project's type-checker or linter if available (`mypy`, `tsc --noEmit`,
    `go build ./...`, `cargo check`) using `shell_command` to confirm the scaffolding
    is syntactically valid.
@@ -110,9 +122,9 @@ After scaffolding is complete, suggest the natural next step:
 
 - **Human co-author session**: "All stubs are scaffolded. Open the files and fill in each
   'To Be Implemented' body one at a time."
-- **TDD Red phase**: "Use `$tdd-coding` to write failing tests against these stubs, then
+- **TDD Red phase**: "Use `tdd-coding` via `subagent` to write failing tests against these stubs, then
   implement them green."
-- **GAN Coder**: "Use `$gan-coder` to implement each stub as a separate slice with
+- **GAN Coder**: "Use `gan-coder` via `subagent` to implement each stub as a separate slice with
   generator-critic review."
 
 ## What Not to Do

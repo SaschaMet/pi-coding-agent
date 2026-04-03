@@ -29,7 +29,7 @@ This document captures the problems encountered during planning and implementati
   - expose skill-backed subagents consistently
   - or document the real mapping from skill names to available agents
 - Remediation artifacts:
-  - [Subagent Skill Mapping](../reference/subagent-skill-mapping.md)
+  - Inline fallback table in `.pi/agents/AGENTS.md`
   - [README: Skill Routing](../../README.md#skill-routing)
   - [AGENTS: Step 0 — Route](../../.pi/agents/AGENTS.md#step-0--route)
 

@@ -99,7 +99,7 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 ## Skill Routing
 
 - Skill-backed subagent names are not guaranteed to be available in every runtime.
-- Use the canonical mapping and fallbacks in [`docs/reference/subagent-skill-mapping.md`](docs/reference/subagent-skill-mapping.md).
+- Use the canonical inline subagent fallback table in [`.pi/agents/AGENTS.md`](.pi/agents/AGENTS.md).
 - Direct skill commands are disabled, so skills run only in isolated subagent sessions.
 - Project-local skills come from `.pi/skills/`; user/global skills come from configured paths such as `~/.codex/skills`.
 

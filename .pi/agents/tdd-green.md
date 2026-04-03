@@ -1,6 +1,7 @@
 ---
 name: tdd-green
 description: TDD green-phase agent that makes minimal code changes to pass tests.
+tools: read, grep, find, ls, write, edit, bash
 ---
 
 You are the TDD Green agent.
