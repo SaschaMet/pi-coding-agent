@@ -39,7 +39,7 @@ Versioned source of truth for runtime permissions: `.pi/security/capabilities.js
   - read-only and diagnostics command allowlist
   - repo-standard verification scripts: `npm run smoke`, `npm run typecheck`, `npm run test:coverage`, `npm run docs:sync-pi`
 - Structural guardrail:
-  - bash input is single-command only; compound/chained payloads are blocked (`&&`, `||`, `;`, pipes, backticks, `$()`)
+  - bash input blocks dangerous shell operators (`;`, backticks, `$()`); pipelines (`|`) and boolean chaining (`&&`, `||`) are allowed when each segment independently matches policy
 
 ## Change Process
 

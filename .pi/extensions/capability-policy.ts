@@ -57,7 +57,8 @@ const DEFAULT_SECURITY_RUNTIME_CONFIG: SecurityRuntimeConfig = {
     strictSubagentLocalRuntime: true,
 };
 
-const COMPOUND_BASH_OPERATOR_PATTERN = /(\&\&|\|\||;|\|(?!\|)|`|\$\()/;
+const DISALLOWED_BASH_OPERATOR_PATTERN = /(;|`|\$\()/;
+const BOOLEAN_CHAIN_OPERATOR_PATTERN = /&&|\|\|/;
 
 interface CapabilityConfigCacheEntry {
     mtimeMs: number;
@@ -313,43 +314,23 @@ function includesNetworkCommand(command: string, deniedCommands: string[]): stri
     return undefined;
 }
 
-function isSingleShellCommand(command: string): boolean {
-    return !COMPOUND_BASH_OPERATOR_PATTERN.test(command);
+function hasAllowedShellStructure(command: string): boolean {
+    return !DISALLOWED_BASH_OPERATOR_PATTERN.test(command);
 }
 
-export function evaluateBashCommand(
+function splitBooleanChainedCommands(command: string): string[] {
+    const segments = command
+        .split(BOOLEAN_CHAIN_OPERATOR_PATTERN)
+        .map((segment) => segment.trim())
+        .filter((segment) => segment.length > 0);
+    return segments.length > 0 ? segments : [command.trim()];
+}
+
+function evaluateBashCommandRules(
     command: string,
     hasUI: boolean,
-    config: CapabilityConfig,
+    capability: ToolCapability & { bashPolicy: BashCapabilityPolicy },
 ): CapabilityDecision {
-    const capability = config.tools.bash;
-    if (!capability || !capability.bashPolicy) {
-        return { action: "block", reason: "bash tool has no capability policy" };
-    }
-    if (capability.mode === "block") {
-        return { action: "block", reason: "bash is blocked by capability policy" };
-    }
-
-    if (!isSingleShellCommand(command)) {
-        return { action: "block", reason: "Only single command bash payloads are allowed by capability policy" };
-    }
-
-    for (const sensitivePattern of capability.bashPolicy.sensitivePatterns) {
-        if (new RegExp(sensitivePattern, "i").test(command)) {
-            return { action: "block", reason: "Sensitive data access command blocked by policy" };
-        }
-    }
-
-    const networkCommand = includesNetworkCommand(command, capability.bashPolicy.networkDenyCommands);
-    if (networkCommand) {
-        const allowedByPattern = capability.bashPolicy.networkAllowPatterns.some((pattern) =>
-            new RegExp(pattern, "i").test(command),
-        );
-        if (!allowedByPattern) {
-            return { action: "block", reason: `Network command '${networkCommand}' blocked by capability policy` };
-        }
-    }
-
     for (const rule of capability.bashPolicy.rules) {
         if (new RegExp(rule.pattern, "i").test(command)) {
             if (rule.action === "confirm") {
@@ -375,6 +356,51 @@ export function evaluateBashCommand(
         return { action: "block", reason: "Command not allowed by capability policy" };
     }
     return { action: "allow" };
+}
+
+export function evaluateBashCommand(
+    command: string,
+    hasUI: boolean,
+    config: CapabilityConfig,
+): CapabilityDecision {
+    const capability = config.tools.bash;
+    if (!capability || !capability.bashPolicy) {
+        return { action: "block", reason: "bash tool has no capability policy" };
+    }
+    if (capability.mode === "block") {
+        return { action: "block", reason: "bash is blocked by capability policy" };
+    }
+
+    if (!hasAllowedShellStructure(command)) {
+        return { action: "block", reason: "Disallowed shell operator in bash payload (`;`, backticks, `$()`) by capability policy" };
+    }
+
+    for (const sensitivePattern of capability.bashPolicy.sensitivePatterns) {
+        if (new RegExp(sensitivePattern, "i").test(command)) {
+            return { action: "block", reason: "Sensitive data access command blocked by policy" };
+        }
+    }
+
+    const networkCommand = includesNetworkCommand(command, capability.bashPolicy.networkDenyCommands);
+    if (networkCommand) {
+        const allowedByPattern = capability.bashPolicy.networkAllowPatterns.some((pattern) =>
+            new RegExp(pattern, "i").test(command),
+        );
+        if (!allowedByPattern) {
+            return { action: "block", reason: `Network command '${networkCommand}' blocked by capability policy` };
+        }
+    }
+
+    let confirmDecision: CapabilityDecision | undefined;
+    for (const segment of splitBooleanChainedCommands(command)) {
+        const decision = evaluateBashCommandRules(segment, hasUI, capability);
+        if (decision.action === "block") return decision;
+        if (decision.action === "confirm" && !confirmDecision) {
+            confirmDecision = decision;
+        }
+    }
+
+    return confirmDecision ?? { action: "allow" };
 }
 
 export function getDefaultBashEnvAllowlist(config: CapabilityConfig): string[] {

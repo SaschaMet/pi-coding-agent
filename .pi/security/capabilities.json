@@ -55,6 +55,10 @@
                         "action": "allow"
                     },
                     {
+                        "pattern": "^\\s*jq\\b",
+                        "action": "allow"
+                    },
+                    {
                         "pattern": "^\\s*find\\b",
                         "action": "allow"
                     },

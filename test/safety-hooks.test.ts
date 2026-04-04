@@ -44,7 +44,7 @@ describe("safety extensions", () => {
     }
   });
 
-  it("blocks allowlisted commands when chained", async () => {
+  it("blocks disallowed shell operators", async () => {
     const pi = createFakePi();
     permissionGateExtension(pi as any);
     const handlers = pi.handlers.get("tool_call") ?? [];
@@ -52,13 +52,53 @@ describe("safety extensions", () => {
     const result = await handlers[0](
       {
         toolName: "bash",
-        input: { command: "npm run smoke && printenv" },
+        input: { command: "npm run smoke ; printenv" },
       },
       { hasUI: false },
     );
 
     expect(result?.block).toBe(true);
-    expect(result?.reason).toContain("single command");
+    expect(result?.reason).toContain("Disallowed shell operator");
+  });
+
+  it("allows safe command pipelines", async () => {
+    const pi = createFakePi();
+    permissionGateExtension(pi as any);
+    const handlers = pi.handlers.get("tool_call") ?? [];
+
+    const result = await handlers[0](
+      {
+        toolName: "bash",
+        input: { command: "jq 'keys' example-chat.json | head -100" },
+      },
+      { hasUI: false },
+    );
+
+    expect(result).toBeUndefined();
+  });
+
+  it("allows safe boolean command chaining", async () => {
+    const pi = createFakePi();
+    permissionGateExtension(pi as any);
+    const handlers = pi.handlers.get("tool_call") ?? [];
+
+    const resultAnd = await handlers[0](
+      {
+        toolName: "bash",
+        input: { command: "npm run smoke && npm run typecheck" },
+      },
+      { hasUI: false },
+    );
+    expect(resultAnd).toBeUndefined();
+
+    const resultOr = await handlers[0](
+      {
+        toolName: "bash",
+        input: { command: "npm run smoke || npm run typecheck" },
+      },
+      { hasUI: false },
+    );
+    expect(resultOr).toBeUndefined();
   });
 
   it("blocks env exfiltration commands", async () => {

@@ -8,7 +8,7 @@
 - Protected path blocking (`.env*`, `.git`)
 - Bash env sanitization with strict allowlist
 - Bash network command deny-by-default
-- Bash single-command enforcement (compound/chained payloads blocked)
+- Bash operator enforcement (`;`, backticks, `$()` blocked; `|`, `&&`, `||` allowed with per-segment policy checks)
 - `confirm` actions auto-denied when `hasUI=false`
 - Subagent strict local runtime (`node_modules/.bin/pi`) with fail-closed behavior
 

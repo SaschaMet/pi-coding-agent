@@ -16,6 +16,9 @@
                 },
                 {
                     "id": "zai-org/glm-4.7-flash"
+                },
+                {
+                    "id": "qwen3-coder-30b-a3b-instruct"
                 }
             ]
         }

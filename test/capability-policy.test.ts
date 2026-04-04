@@ -67,12 +67,29 @@ describe("capability policy", () => {
         expect(evaluateBashCommand("npm run docs:sync-pi", false, config).action).toBe("allow");
     });
 
-    it("blocks command chaining before allowlist evaluation", () => {
+    it("blocks disallowed shell operators", () => {
         const config = loadCapabilityConfig(process.cwd());
 
-        const chained = evaluateBashCommand("npm run smoke && printenv", false, config);
+        const chained = evaluateBashCommand("npm run smoke ; printenv", false, config);
         expect(chained.action).toBe("block");
-        expect(chained.reason).toContain("single command");
+        expect(chained.reason).toContain("Disallowed shell operator");
+    });
+
+    it("allows safe command pipelines", () => {
+        const config = loadCapabilityConfig(process.cwd());
+
+        const piped = evaluateBashCommand("jq 'keys' example-chat.json | head -100", false, config);
+        expect(piped.action).toBe("allow");
+    });
+
+    it("allows safe boolean command chaining", () => {
+        const config = loadCapabilityConfig(process.cwd());
+
+        const chainedAnd = evaluateBashCommand("npm run smoke && npm run typecheck", false, config);
+        expect(chainedAnd.action).toBe("allow");
+
+        const chainedOr = evaluateBashCommand("npm run smoke || npm run typecheck", false, config);
+        expect(chainedOr.action).toBe("allow");
     });
 
     it("requires confirmation for dangerous git commands and blocks in non-UI", () => {
