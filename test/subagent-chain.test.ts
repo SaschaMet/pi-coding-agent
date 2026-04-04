@@ -300,6 +300,99 @@ describe("subagent chain execution", () => {
     expect(result.content[0].text).toContain("configured skill roots");
   });
 
+  it("returns actionable validation guidance for mixed/partial mode payloads", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-invalid-mode-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agents"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agents", "planner.md"),
+      ["---", "name: planner", "description: Planner", "---", "You are planner."].join("\n"),
+      "utf-8",
+    );
+
+    const pi = createFakePi();
+    subagentExtension(pi as any);
+    const tool = pi.tools.get("subagent");
+
+    const result = await tool!.execute(
+      "call-subagent-invalid-mode",
+      {
+        agent: "planner",
+        chain: [{ agent: "planner", task: "plan" }],
+        agentScope: "project",
+        confirmProjectAgents: false,
+      } as any,
+      undefined,
+      undefined,
+      { cwd: tmp, hasUI: false },
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("Invalid parameters");
+    expect(result.content[0].text).toContain("single mode");
+    expect(result.content[0].text).toContain("Examples:");
+  });
+
+  it("passes scoped extension args to avoid duplicate extension loading", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-extension-scope-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agents"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, ".pi", "extensions"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "node_modules", ".bin"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, "node_modules", ".bin", "pi"), "#!/bin/sh\nexit 0\n", "utf-8");
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agents", "planner.md"),
+      ["---", "name: planner", "description: Planner", "---", "You are planner."].join("\n"),
+      "utf-8",
+    );
+    fs.writeFileSync(path.join(tmp, ".pi", "extensions", "alpha.ts"), "export default () => undefined;", "utf-8");
+    fs.writeFileSync(path.join(tmp, ".pi", "extensions", "beta.ts"), "export default () => undefined;", "utf-8");
+
+    spawnMock.mockImplementation((command: string, args: string[]) => {
+      expect(command).toContain("node_modules/.bin/pi");
+      expect(args).toContain("--no-extensions");
+      expect(args).toContain("-e");
+      expect(args.some((arg) => arg.endsWith(path.join(".pi", "extensions", "alpha.ts")))).toBe(true);
+      expect(args.some((arg) => arg.endsWith(path.join(".pi", "extensions", "beta.ts")))).toBe(true);
+
+      const eventLine = JSON.stringify({
+        type: "message_end",
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "ok" }],
+          usage: {
+            input: 1,
+            output: 1,
+            cacheRead: 0,
+            cacheWrite: 0,
+            cost: { total: 0.001 },
+            totalTokens: 2,
+          },
+          stopReason: "stop",
+        },
+      });
+      return createMockProcess([eventLine], 0);
+    });
+
+    const pi = createFakePi();
+    subagentExtension(pi as any);
+    const tool = pi.tools.get("subagent");
+
+    const result = await tool!.execute(
+      "call-subagent-extension-scope",
+      {
+        agent: "planner",
+        task: "plan",
+        agentScope: "project",
+        confirmProjectAgents: false,
+      },
+      undefined,
+      undefined,
+      { cwd: tmp, hasUI: false },
+    );
+
+    expect(result.isError).not.toBe(true);
+    expect(result.content[0].text).toContain("ok");
+  });
+
   it("fails closed when strict local runtime is enabled and local pi binary is missing", async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-strict-test-"));
     fs.mkdirSync(path.join(tmp, ".pi", "agents"), { recursive: true });

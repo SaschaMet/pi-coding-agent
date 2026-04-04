@@ -363,8 +363,17 @@ After completing a step, include a [DONE:n] tag in your response.`,
         updateStatus(ctx);
     }
 
-    // Restore state on initial session load
-    pi.on("session_start", async (_event, ctx) => {
+    function shouldIncludePlanFlag(event: unknown): boolean {
+        const sessionEvent = event as { source?: string; reason?: string };
+        if (sessionEvent.source === "session_established") {
+            return false;
+        }
+
+        return sessionEvent.reason !== "new" && sessionEvent.reason !== "resume";
+    }
+
+    // Restore state on initial session load and on session establishment notifications.
+    pi.on("session_start", async (event, ctx) => {
         const cwd = ctx.cwd ?? process.cwd();
         const config = loadPlanModeConfig(cwd);
         planModeTools = resolvePlanModeTools(pi, config);
@@ -380,7 +389,17 @@ After completing a step, include a [DONE:n] tag in your response.`,
         }
 
         resetSessionState();
-        restoreSessionState(ctx, true);
+        restoreSessionState(ctx, shouldIncludePlanFlag(event));
+    });
+
+    pi.on("session_switch", async (_event, ctx) => {
+        resetSessionState();
+        restoreSessionState(ctx, false);
+    });
+
+    pi.on("session_established", async (_event, ctx) => {
+        resetSessionState();
+        restoreSessionState(ctx, false);
     });
 
     // Clear visible plan UI before a session change is applied.
@@ -389,9 +408,4 @@ After completing a step, include a [DONE:n] tag in your response.`,
         updateStatus(ctx);
     });
 
-    // Keep plan state in sync when user creates/switches sessions in the same process
-    pi.on("session_switch", async (_event, ctx) => {
-        resetSessionState();
-        restoreSessionState(ctx, false);
-    });
 }

@@ -1,14 +1,23 @@
 {
-  "providers": {
-    "lmstudio": {
-      "baseUrl": "http://127.0.0.1:1234/v1/",
-      "api": "openai-responses",
-      "apiKey": "lmstudio",
-      "models": [
-        {
-          "id": "qwen3-coder-next"
+    "providers": {
+        "lmstudio": {
+            "baseUrl": "http://127.0.0.1:1234/v1/",
+            "api": "openai-responses",
+            "apiKey": "lmstudio",
+            "models": [
+                {
+                    "id": "qwen3-coder-next"
+                },
+                {
+                    "id": "google/gemma-4-26b-a4b"
+                },
+                {
+                    "id": "essentialai/rnj-1"
+                },
+                {
+                    "id": "zai-org/glm-4.7-flash"
+                }
+            ]
         }
-      ]
     }
-  }
 }

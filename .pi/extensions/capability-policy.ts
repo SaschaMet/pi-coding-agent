@@ -254,6 +254,15 @@ function isSameOrParent(parentPath: string, childPath: string): boolean {
 }
 
 function isSearchScopeIncludingProtectedRoots(targetPath: string, cwd: string, config: CapabilityConfig): boolean {
+    const normalizedCwd = path.normalize(path.resolve(cwd));
+    const normalizedTarget = path.normalize(targetPath);
+
+    // Allow repo-root searches (`.`) without an extra confirmation step.
+    // Protected leaf paths remain blocked by denyProtectedPaths checks.
+    if (normalizedTarget === normalizedCwd) {
+        return false;
+    }
+
     const protectedRoots = [
         ...config.protectedBasenames.map((entry) => path.resolve(cwd, entry)),
         ...config.protectedPathSegments.map((entry) => path.resolve(cwd, entry)),

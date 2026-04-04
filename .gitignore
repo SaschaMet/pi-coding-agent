@@ -1,2 +1,5 @@
 node_modules
 .env
+.pi/logs/token-efficiency.jsonl
+coverage
+docs/plans/**

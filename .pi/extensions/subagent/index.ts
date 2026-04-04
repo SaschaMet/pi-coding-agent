@@ -23,7 +23,7 @@ import { type ExtensionAPI, getMarkdownTheme, withFileMutationQueue } from "@mar
 import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.ts";
-import { loadSubagentRuntimeConfig } from "./config.ts";
+import { findNearestProjectPiDir, loadSubagentRuntimeConfig } from "./config.ts";
 const COLLAPSED_ITEM_COUNT = 10;
 
 function formatTokens(count: number): string {
@@ -243,6 +243,37 @@ function getPiInvocation(
     return { command: "pi", args };
 }
 
+function listExtensionFilesRecursively(dirPath: string): string[] {
+    if (!fs.existsSync(dirPath)) return [];
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    const files: string[] = [];
+    for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name);
+        if (entry.isDirectory()) {
+            files.push(...listExtensionFilesRecursively(fullPath));
+            continue;
+        }
+        if (!entry.isFile()) continue;
+        if (/\.(mjs|cjs|js|ts)$/i.test(entry.name)) files.push(fullPath);
+    }
+    return files;
+}
+
+function getScopedExtensionArgs(searchCwd: string): string[] {
+    const projectPiDir = findNearestProjectPiDir(searchCwd);
+    if (!projectPiDir) return [];
+
+    const extensionsDir = path.join(projectPiDir, "extensions");
+    const extensionFiles = listExtensionFilesRecursively(extensionsDir).sort();
+    if (extensionFiles.length === 0) return [];
+
+    const scopedArgs = ["--no-extensions"];
+    for (const extensionFile of extensionFiles) {
+        scopedArgs.push("-e", extensionFile);
+    }
+    return scopedArgs;
+}
+
 type OnUpdateCallback = (partial: AgentToolResult<SubagentDetails>) => void;
 
 function buildUnknownAgentGuidance(agentName: string, agents: AgentConfig[], agentScope: AgentScope): string {
@@ -283,7 +314,7 @@ async function runSingleAgent(
         };
     }
 
-    const args: string[] = ["--mode", "json", "-p", "--no-session"];
+    const args: string[] = ["--mode", "json", "-p", "--no-session", ...getScopedExtensionArgs(cwd ?? defaultCwd)];
     if (agent.model) args.push("--model", agent.model);
     if (agent.tools && agent.tools.length > 0) args.push("--tools", agent.tools.join(","));
 
@@ -476,9 +507,17 @@ export default function (pi: ExtensionAPI) {
             const agents = discovery.agents;
             const confirmProjectAgents = params.confirmProjectAgents ?? true;
 
-            const hasChain = (params.chain?.length ?? 0) > 0;
-            const hasTasks = (params.tasks?.length ?? 0) > 0;
-            const hasSingle = Boolean(params.agent && params.task);
+            const normalizedChain = (params.chain ?? []).filter((step) => Boolean(step?.agent && step?.task));
+            const normalizedTasks = (params.tasks ?? []).filter((step) => Boolean(step?.agent && step?.task));
+            const normalizedSingleAgent = (params.agent ?? "").trim();
+            const normalizedSingleTask = (params.task ?? "").trim();
+
+            const hasChain = normalizedChain.length > 0;
+            const hasTasks = normalizedTasks.length > 0;
+            const hasSingle = normalizedSingleAgent.length > 0 && normalizedSingleTask.length > 0;
+            const hasPartialSingle =
+                (normalizedSingleAgent.length > 0 && normalizedSingleTask.length === 0) ||
+                (normalizedSingleTask.length > 0 && normalizedSingleAgent.length === 0);
             const modeCount = Number(hasChain) + Number(hasTasks) + Number(hasSingle);
 
             const makeDetails =
@@ -490,16 +529,25 @@ export default function (pi: ExtensionAPI) {
                         results,
                     });
 
-            if (modeCount !== 1) {
+            if (modeCount !== 1 || hasPartialSingle) {
                 const available = agents.map((a) => `${a.name} (${a.source})`).join(", ") || "none";
+                const examples = [
+                    'single: {"agent":"planner","task":"Plan this feature"}',
+                    'parallel: {"tasks":[{"agent":"explorer","task":"Map code"},{"agent":"planner","task":"Create plan"}]}',
+                    'chain: {"chain":[{"agent":"explorer","task":"Gather context"},{"agent":"planner","task":"Plan with {previous}"}]}',
+                ].join("\n");
+                const reason = hasPartialSingle
+                    ? "`agent` and `task` must be provided together for single mode."
+                    : "Provide exactly one mode.";
                 return {
                     content: [
                         {
                             type: "text",
-                            text: `Invalid parameters. Provide exactly one mode.\nAvailable agents: ${available}`,
+                            text: `Invalid parameters. ${reason}\nAvailable agents: ${available}\nExamples:\n${examples}`,
                         },
                     ],
                     details: makeDetails("single")([]),
+                    isError: true,
                 };
             }
 
@@ -528,12 +576,12 @@ export default function (pi: ExtensionAPI) {
                 }
             }
 
-            if (params.chain && params.chain.length > 0) {
+            if (hasChain) {
                 const results: SingleResult[] = [];
                 let previousOutput = "";
 
-                for (let i = 0; i < params.chain.length; i++) {
-                    const step = params.chain[i];
+                for (let i = 0; i < normalizedChain.length; i++) {
+                    const step = normalizedChain[i];
                     const taskWithContext = step.task.replace(/\{previous\}/g, previousOutput);
 
                     // Create update callback that includes all previous results
@@ -585,27 +633,27 @@ export default function (pi: ExtensionAPI) {
                 };
             }
 
-            if (params.tasks && params.tasks.length > 0) {
-                if (params.tasks.length > maxParallelTasks)
+            if (hasTasks) {
+                if (normalizedTasks.length > maxParallelTasks)
                     return {
                         content: [
                             {
                                 type: "text",
-                                text: `Too many parallel tasks (${params.tasks.length}). Max is ${maxParallelTasks}.`,
+                                text: `Too many parallel tasks (${normalizedTasks.length}). Max is ${maxParallelTasks}.`,
                             },
                         ],
                         details: makeDetails("parallel")([]),
                     };
 
                 // Track all results for streaming updates
-                const allResults: SingleResult[] = new Array(params.tasks.length);
+                const allResults: SingleResult[] = new Array(normalizedTasks.length);
 
                 // Initialize placeholder results
-                for (let i = 0; i < params.tasks.length; i++) {
+                for (let i = 0; i < normalizedTasks.length; i++) {
                     allResults[i] = {
-                        agent: params.tasks[i].agent,
+                        agent: normalizedTasks[i].agent,
                         agentSource: "unknown",
-                        task: params.tasks[i].task,
+                        task: normalizedTasks[i].task,
                         exitCode: -1, // -1 = still running
                         messages: [],
                         stderr: "",
@@ -626,7 +674,7 @@ export default function (pi: ExtensionAPI) {
                     }
                 };
 
-                const results = await mapWithConcurrencyLimit(params.tasks, maxConcurrency, async (t, index) => {
+                const results = await mapWithConcurrencyLimit(normalizedTasks, maxConcurrency, async (t, index) => {
                     const result = await runSingleAgent(
                         ctx.cwd,
                         agents,
@@ -673,8 +721,8 @@ export default function (pi: ExtensionAPI) {
                     ctx.cwd,
                     agents,
                     agentScope,
-                    params.agent,
-                    params.task,
+                    normalizedSingleAgent,
+                    normalizedSingleTask,
                     params.cwd,
                     undefined,
                     signal,
@@ -702,6 +750,7 @@ export default function (pi: ExtensionAPI) {
             return {
                 content: [{ type: "text", text: `Invalid parameters. Available agents: ${available}` }],
                 details: makeDetails("single")([]),
+                isError: true,
             };
         },
 

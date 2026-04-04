@@ -169,6 +169,86 @@ describe("plan mode behavior", () => {
         expect(ui.setStatus.mock.calls.some(([key, value]) => key === "plan-mode" && value === undefined)).toBe(true);
     });
 
+    it("restores cleared plan state on session_switch", async () => {
+        const pi = createFakePi();
+        planModeExtension(pi as any);
+        pi.getFlag = () => false;
+
+        const ui = createUi();
+        const ctx = {
+            hasUI: true,
+            ui,
+            sessionManager: {
+                getEntries: () => [],
+            },
+        };
+
+        await pi.handlers.get("session_start")?.[0]({}, ctx);
+        await (pi as any).commands.get("plan")?.handler({}, ctx);
+        await pi.handlers.get("agent_end")?.[0](
+            {
+                messages: [
+                    {
+                        role: "assistant",
+                        content: [
+                            {
+                                type: "text",
+                                text: "Plan:\n1. First step\n2. Second step",
+                            },
+                        ],
+                    },
+                ],
+            },
+            ctx,
+        );
+
+        await pi.handlers.get("session_switch")?.[0]({}, ctx);
+
+        await (pi as any).commands.get("todos")?.handler({}, ctx);
+        expect(ui.notify.mock.calls.some(([message]) => String(message).includes("No todos"))).toBe(true);
+        expect(ui.setStatus.mock.calls.some(([key, value]) => key === "plan-mode" && value === undefined)).toBe(true);
+    });
+
+    it("restores cleared plan state on session_established", async () => {
+        const pi = createFakePi();
+        planModeExtension(pi as any);
+        pi.getFlag = () => false;
+
+        const ui = createUi();
+        const ctx = {
+            hasUI: true,
+            ui,
+            sessionManager: {
+                getEntries: () => [],
+            },
+        };
+
+        await pi.handlers.get("session_start")?.[0]({}, ctx);
+        await (pi as any).commands.get("plan")?.handler({}, ctx);
+        await pi.handlers.get("agent_end")?.[0](
+            {
+                messages: [
+                    {
+                        role: "assistant",
+                        content: [
+                            {
+                                type: "text",
+                                text: "Plan:\n1. First step\n2. Second step",
+                            },
+                        ],
+                    },
+                ],
+            },
+            ctx,
+        );
+
+        await pi.handlers.get("session_established")?.[0]({}, ctx);
+
+        await (pi as any).commands.get("todos")?.handler({}, ctx);
+        expect(ui.notify.mock.calls.some(([message]) => String(message).includes("No todos"))).toBe(true);
+        expect(ui.setStatus.mock.calls.some(([key, value]) => key === "plan-mode" && value === undefined)).toBe(true);
+    });
+
     it("does not leak todos into a fresh session without persisted plan state", async () => {
         const pi = createFakePi();
         planModeExtension(pi as any);
@@ -208,7 +288,7 @@ describe("plan mode behavior", () => {
 
         // Simulate creating/switching to a brand-new session in the same process.
         entries = [];
-        await pi.handlers.get("session_switch")?.[0]({ reason: "new" }, ctx);
+        await pi.handlers.get("session_start")?.[0]({ reason: "new" }, ctx);
 
         await (pi as any).commands.get("todos")?.handler({}, ctx);
         expect(ui.notify.mock.calls.some(([message]) => String(message).includes("No todos"))).toBe(true);

@@ -1,6 +1,7 @@
 # PI Coding Agent Parity Stack
 
 Project-local PI runtime that adds:
+
 - Codex-style plan mode
 - Subagents with curated specialist roles
 - Shared skills (including `~/.codex/skills`)
@@ -12,16 +13,19 @@ Project-local PI runtime that adds:
 ## Quick Start
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
 
-2. Set at least one model provider key (for PI itself), for example:
+1. Set at least one model provider key (for PI itself), for example:
+
 ```bash
 export ANTHROPIC_API_KEY=...
 ```
 
-3. Configure web search key(s) in your shell or a local `.env` file:
+1. Configure web search key(s) in your shell or a local `.env` file:
+
 ```bash
 export BRAVE_API_KEY=...
 # optional:
@@ -32,12 +36,14 @@ export BRAVE_API_KEY=...
 The runtime no longer hydrates `.env` globally into `process.env`.
 Secrets are resolved via scoped access where needed (for example in `web_search`).
 
-4. Run smoke checks:
+1. Run smoke checks:
+
 ```bash
 npm run smoke
 ```
 
-5. Start the agent:
+1. Start the agent:
+
 ```bash
 npm run agent
 ```
@@ -52,6 +58,7 @@ npm run agent
 - `npm run pi:sync-global` - sync this repo's `.pi/` resources into global `~/.pi/agent` (or `PI_CODING_AGENT_DIR`)
 
 Notes:
+
 - Sync only covers shareable config/resources (`settings.json`, `models.json`, `keybindings.json`, `agent.config.json`, `extensions/`, `skills/`, `prompts/`, `themes/`, `agents/`, `security/`).
 - It intentionally does not touch personal runtime data like `auth.json` or `sessions/`.
 - Secrets can be centralized via `envService` in `settings.json` (e.g. `"envFile": "${PI_CODER_REPO}/.env"`).
@@ -61,14 +68,19 @@ Notes:
 From the cloned repo root:
 
 1. Import any existing global config into the repo copy (one-time, optional):
+
 ```bash
 npm run pi:pull-global
 ```
+
 2. Point envService at this repository's `.env` file:
+
 ```bash
 export PI_CODER_REPO="$(pwd)"
 ```
+
 3. Push this repo's `.pi/` stack to the colleague's global PI directory:
+
 ```bash
 npm run pi:sync-global
 ```
@@ -80,7 +92,7 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 - [`src/main.ts`](/Users/saschametzger/Projects/pi-coding-agent/src/main.ts): embedded PI runtime entrypoint (`createAgentSession` + `InteractiveMode`)
 - `.pi/settings.json`: project-level PI settings (skills path integration; direct skill commands disabled so skills run via subagents)
 - `.pi/agent.config.json`: search/subagent config contract
-- `.pi/extensions/`: custom + vendored extensions
+- `.pi/extensions/`: custom extensions
 - `.pi/security/`: capability policy schema + matrix source (`capabilities.schema.json`, `capabilities.json`)
 - `.pi/agents/`: project-local subagent role definitions
 - `.pi/prompts/`: workflow prompt templates
@@ -125,6 +137,7 @@ See [`.pi/extensions/plan-mode/README.md`](.pi/extensions/plan-mode/README.md) f
 - `Ctrl+Alt+P` - toggle plan mode
 - Widget toggle shortcut defaults to `Ctrl+Alt+W`
 - Override the widget shortcut in `.pi/agent.config.json`:
+
 ```json
 {
   "planMode": {
@@ -136,16 +149,19 @@ See [`.pi/extensions/plan-mode/README.md`](.pi/extensions/plan-mode/README.md) f
 ## Tool Interfaces
 
 ### `ask_questions` / `ask`
+
 - Input: `questions[]` where each item has `id`, `label`, `question`, `options[]`, optional `allow_other`
 - Output: `details.answers` keyed by `id`
 - Non-interactive fallback: deterministic first-option selection
 
 ### `web_search`
+
 - Input: `query`, `provider?`, `topK?`, `domains?`, `recency?`, `includeContent?`
 - Output: normalized `results[]` with `title`, `url`, `snippet`, optional `content`
 - Provider default is configured via `.pi/agent.config.json`
 
 ### `fetch_web_page`
+
 - Input: `url`
 - Output: readable page text extracted from the fetched page, plus `details` with `finalUrl`, `status`, `contentType`, `title`, and `text`
 - Intended for fetching a specific page when you already know the URL
@@ -163,6 +179,15 @@ See [`.pi/extensions/plan-mode/README.md`](.pi/extensions/plan-mode/README.md) f
   - Confirm `.pi/settings.json` includes the path.
 - Subagent not running:
   - Ensure local PI binary exists in `node_modules/.bin/pi` or global `pi` is installed.
+  - For subagent payloads, provide exactly one mode:
+    - single: `{ agent, task }`
+    - parallel: `{ tasks: [{ agent, task }, ...] }`
+    - chain: `{ chain: [{ agent, task }, ...] }`
+  - Do not mix `agent/task` with `tasks` or `chain` in the same call.
+- Subagent tool conflict errors:
+  - Subagent subprocesses now use scoped project extension loading (`--no-extensions` + project `.pi/extensions/*`) to avoid duplicate tool registration from overlapping user/project extension sets.
+- `grep`/`find` on `.`:
+  - Repository-root search is supported; explicit protected paths such as `.git` and `.env*` remain blocked by capability policy.
 
 ## Failure Handling Notes
 

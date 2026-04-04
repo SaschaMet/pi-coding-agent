@@ -86,14 +86,17 @@ describe("capability policy", () => {
         expect(ui.action).toBe("confirm");
     });
 
-    it("blocks protected path access and confirms root grep scope", () => {
+    it("blocks protected path access and allows root grep scope", () => {
         const config = loadCapabilityConfig(process.cwd());
 
         const readEnv = evaluatePathToolAccess("read", ".env", process.cwd(), config);
         expect(readEnv.action).toBe("block");
 
         const grepRoot = evaluatePathToolAccess("grep", ".", process.cwd(), config);
-        expect(grepRoot.action).toBe("confirm");
+        expect(grepRoot.action).toBe("allow");
+
+        const grepProtected = evaluatePathToolAccess("grep", ".git", process.cwd(), config);
+        expect(grepProtected.action).toBe("block");
 
         const grepScoped = evaluatePathToolAccess("grep", "src", process.cwd(), config);
         expect(grepScoped.action).toBe("allow");

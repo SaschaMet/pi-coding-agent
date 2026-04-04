@@ -1,13 +1,16 @@
+import { existsSync } from "node:fs";
 import process from "node:process";
 import {
   AuthStorage,
-  createAgentSession,
-  DefaultResourceLoader,
+  createAgentSessionFromServices,
+  createAgentSessionRuntime,
+  createAgentSessionServices,
+  getAgentDir,
   InteractiveMode,
-  ModelRegistry,
+  type SessionContext,
   SessionManager,
-  SettingsManager,
 } from "@mariozechner/pi-coding-agent";
+import type { SessionEstablishedEvent } from "./session-established-event.ts";
 import { discoverAgents } from "../.pi/extensions/subagent/agents.ts";
 import {
   getMissingCapabilityTools,
@@ -38,36 +41,69 @@ function assertCapabilityCoverage(cwd: string, toolNames: string[]): void {
 
 async function main(): Promise<void> {
   const cwd = process.cwd();
-  const settingsManager = SettingsManager.create(cwd);
-  const resourceLoader = new DefaultResourceLoader({
-    cwd,
-    settingsManager,
-  });
-  await resourceLoader.reload();
-
   const authStorage = AuthStorage.create();
-  const modelRegistry = ModelRegistry.create(authStorage);
+  const sessionManager = SessionManager.continueRecent(cwd);
+  const sessionFile = sessionManager.getSessionFile();
+  const didLoadExistingSessionFile = sessionFile !== undefined && existsSync(sessionFile);
 
-  const { session, extensionsResult, modelFallbackMessage } = await createAgentSession({
-    cwd,
-    resourceLoader,
-    settingsManager,
-    authStorage,
-    modelRegistry,
-    sessionManager: SessionManager.continueRecent(cwd),
-  });
+  let sessionEstablishedEmitted = false;
+  const runtime = await createAgentSessionRuntime(
+    async ({ cwd: runtimeCwd, agentDir, sessionManager: runtimeSessionManager, sessionStartEvent }) => {
+      const services = await createAgentSessionServices({
+        cwd: runtimeCwd,
+        agentDir,
+        authStorage,
+      });
 
-  const runtimeTools = session.getAllTools().map((tool) => tool.name);
+      const created = await createAgentSessionFromServices({
+        services,
+        sessionManager: runtimeSessionManager,
+        sessionStartEvent,
+      });
+
+      const session = created.session;
+      const originalBindExtensions = session.bindExtensions.bind(session);
+      session.bindExtensions = async (bindings: Parameters<typeof originalBindExtensions>[0]) => {
+        await originalBindExtensions(bindings);
+
+        if (sessionEstablishedEmitted || bindings.uiContext === undefined) return;
+
+        const ctx: SessionContext = session.sessionManager.buildSessionContext();
+        const reason: "new" | "resume" = didLoadExistingSessionFile ? "resume" : "new";
+        const event: SessionEstablishedEvent = {
+          type: "session_established",
+          reason,
+          ctx,
+        };
+        sessionEstablishedEmitted = true;
+        await session.extensionRunner?.emit(event);
+      };
+
+      return {
+        ...created,
+        services,
+        diagnostics: services.diagnostics,
+      };
+    },
+    {
+      cwd,
+      agentDir: getAgentDir(),
+      sessionManager,
+    },
+  );
+
+  const runtimeTools = runtime.session.getAllTools().map((tool) => tool.name);
   const subagentTools = getSubagentExposedTools(cwd);
   assertCapabilityCoverage(cwd, [...runtimeTools, ...subagentTools]);
 
-  if (extensionsResult.errors.length > 0) {
-    for (const extErr of extensionsResult.errors) {
+  const extensionErrors = runtime.services.resourceLoader.getExtensions().errors;
+  if (extensionErrors.length > 0) {
+    for (const extErr of extensionErrors) {
       console.error(`[extension-load-error] ${extErr.path}: ${extErr.error}`);
     }
   }
 
-  const mode = new InteractiveMode(session, { modelFallbackMessage });
+  const mode = new InteractiveMode(runtime, { modelFallbackMessage: runtime.modelFallbackMessage });
   await mode.run();
 }
 

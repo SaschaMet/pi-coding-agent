@@ -1,6 +1,4 @@
-import fs from "node:fs";
 import os from "node:os";
-import path from "node:path";
 import type { AssistantMessage } from "@mariozechner/pi-ai";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import {
@@ -13,10 +11,8 @@ import {
     createWriteTool,
 } from "@mariozechner/pi-coding-agent";
 import { CURSOR_MARKER, Text, truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
-import { loadProjectAgentConfig } from "./shared/agent-config.ts";
 
 const DEFAULT_PLACEHOLDER = "Find and fix a bug in @filename";
-const DEFAULT_TOKEN_EFFICIENCY_LOG_PATH = ".pi/logs/token-efficiency.jsonl";
 const toolCache = new Map<string, ReturnType<typeof createBuiltInTools>>();
 const tokenEfficiencyLogPathCache = new Map<string, string | null>();
 
@@ -78,23 +74,6 @@ function formatContextInfo(contextUsage: { contextWindow: number; percent: numbe
     return `ctx ${contextUsage.percent.toFixed(1)}%/${contextWindow}`;
 }
 
-function resolveTokenEfficiencyLogPath(cwd: string): string | null {
-    const cached = tokenEfficiencyLogPathCache.get(cwd);
-    if (cached !== undefined) return cached;
-
-    const config = loadProjectAgentConfig<{ codexUi?: CodexUiConfig }>(cwd)?.codexUi?.tokenEfficiencyLog;
-    if (config?.enabled === false) {
-        tokenEfficiencyLogPathCache.set(cwd, null);
-        return null;
-    }
-
-    const configured = typeof config?.path === "string" ? config.path.trim() : "";
-    const finalPath = configured.length > 0 ? configured : DEFAULT_TOKEN_EFFICIENCY_LOG_PATH;
-    const resolved = path.isAbsolute(finalPath) ? finalPath : path.join(cwd, finalPath);
-    tokenEfficiencyLogPathCache.set(cwd, resolved);
-    return resolved;
-}
-
 function getAssistantUsage(message: unknown): { input: number; output: number; costTotal: number } | null {
     if (!message || typeof message !== "object") return null;
 
@@ -110,18 +89,6 @@ function getAssistantUsage(message: unknown): { input: number; output: number; c
         typeof usage.cost?.total === "number" && Number.isFinite(usage.cost.total) ? usage.cost.total : 0;
 
     return { input, output, costTotal };
-}
-
-export function writeTokenEfficiencyLog(cwd: string, payload: Record<string, unknown>): void {
-    const logPath = resolveTokenEfficiencyLogPath(cwd);
-    if (!logPath) return;
-
-    try {
-        fs.mkdirSync(path.dirname(logPath), { recursive: true });
-        fs.appendFileSync(logPath, `${JSON.stringify(payload)}\n`, "utf-8");
-    } catch {
-        // Ignore logging failures to avoid interrupting interaction flow.
-    }
 }
 
 function wantsToolExpansion(text: string): boolean {
@@ -470,21 +437,5 @@ export default function codexUiExtension(pi: ExtensionAPI): void {
         });
 
         ctx.ui.setEditorComponent((tui, theme, keybindings) => new CodexEditor(tui, theme, keybindings));
-    });
-
-    pi.on("turn_end", async (event, ctx) => {
-        const contextUsage = typeof ctx.getContextUsage === "function" ? ctx.getContextUsage() : undefined;
-        const usage = getAssistantUsage((event as { message?: unknown }).message);
-        if (!contextUsage && !usage) return;
-
-        writeTokenEfficiencyLog(ctx.cwd, {
-            timestamp: new Date().toISOString(),
-            modelId: ctx.model?.id,
-            contextWindow: contextUsage?.contextWindow ?? null,
-            contextPercent: contextUsage?.percent ?? null,
-            inputTokens: usage?.input ?? 0,
-            outputTokens: usage?.output ?? 0,
-            costTotal: usage?.costTotal ?? 0,
-        });
     });
 }

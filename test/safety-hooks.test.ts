@@ -154,7 +154,7 @@ describe("safety extensions", () => {
     expect(readResult?.block).toBe(true);
   });
 
-  it("requires confirmation for grep/find scopes that include protected roots", async () => {
+  it("allows root grep scope but still blocks explicit protected paths", async () => {
     const pi = createFakePi();
     protectedPathsExtension(pi as any);
     const handlers = pi.handlers.get("tool_call") ?? [];
@@ -166,23 +166,16 @@ describe("safety extensions", () => {
       },
       { hasUI: false },
     );
-    expect(grepRootResult?.block).toBe(true);
-    expect(grepRootResult?.reason).toContain("no UI for confirmation");
+    expect(grepRootResult).toBeUndefined();
 
-    const grepConfirmedResult = await handlers[0](
+    const protectedScopedResult = await handlers[0](
       {
         toolName: "grep",
-        input: { pattern: "foo", path: "." },
+        input: { pattern: "foo", path: ".git" },
       },
-      {
-        hasUI: true,
-        ui: {
-          select: async () => "Yes",
-          notify: () => undefined,
-        },
-      },
+      { hasUI: false },
     );
-    expect(grepConfirmedResult).toBeUndefined();
+    expect(protectedScopedResult?.block).toBe(true);
 
     const safeScopedResult = await handlers[0](
       {
