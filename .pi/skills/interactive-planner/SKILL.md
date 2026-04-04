@@ -196,7 +196,6 @@ needing to read the full plan.
 - Always make manual verification specific: commands, URLs, inputs, expected results.
 - Always include a Manual Test Checklist at the end of every plan.
 - Always include open questions or deferred decisions when they remain.
-- Always include token-efficiency notes for the implementation pass.
 - Always flag one-way doors and data risks explicitly.
 - Include an architecture diagram whenever the plan introduces major structural changes or the user requests one.
 

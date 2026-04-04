@@ -139,8 +139,12 @@ export default function toolsExtension(pi: ExtensionAPI) {
 		restoreFromBranch(ctx);
 	});
 
-	// Restore state after forking
-	pi.on("session_fork", async (_event, ctx) => {
-		restoreFromBranch(ctx);
-	});
+	// Restore state after forking.
+	// Runtime emits this event, but some ExtensionAPI typings may not include it yet.
+	(pi.on as unknown as (event: string, handler: (event: unknown, ctx: ExtensionContext) => Promise<void>) => void)(
+		"session_fork",
+		async (_event, ctx) => {
+			restoreFromBranch(ctx);
+		},
+	);
 }

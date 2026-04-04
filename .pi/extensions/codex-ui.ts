@@ -14,16 +14,6 @@ import { CURSOR_MARKER, Text, truncateToWidth, visibleWidth } from "@mariozechne
 
 const DEFAULT_PLACEHOLDER = "Find and fix a bug in @filename";
 const toolCache = new Map<string, ReturnType<typeof createBuiltInTools>>();
-const tokenEfficiencyLogPathCache = new Map<string, string | null>();
-
-interface TokenEfficiencyLogConfig {
-    enabled?: boolean;
-    path?: string | null;
-}
-
-interface CodexUiConfig {
-    tokenEfficiencyLog?: TokenEfficiencyLogConfig;
-}
 
 function createBuiltInTools(cwd: string) {
     return {

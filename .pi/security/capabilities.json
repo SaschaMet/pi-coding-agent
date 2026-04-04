@@ -131,6 +131,10 @@
                         "action": "allow"
                     },
                     {
+                        "pattern": "^\\s*pnpm\\s+(-s\\s+)?tsc\\b(?=.*\\s--noEmit\\b)",
+                        "action": "allow"
+                    },
+                    {
                         "pattern": "^\\s*node\\s+--version\\b",
                         "action": "allow"
                     },

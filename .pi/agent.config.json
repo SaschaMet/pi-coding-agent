@@ -25,18 +25,5 @@
         "capabilitiesFile": ".pi/security/capabilities.json",
         "enforceCoverageAtStartup": true,
         "strictSubagentLocalRuntime": true
-    },
-    "tokenEfficiency": {
-        "toolResultPreprocess": {
-            "enabled": true,
-            "maxChars": 2200,
-            "headChars": 1400,
-            "tailChars": 500,
-            "tools": [
-                "bash",
-                "read",
-                "fetch_web_page"
-            ]
-        }
     }
 }

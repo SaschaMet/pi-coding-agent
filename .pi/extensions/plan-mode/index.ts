@@ -324,9 +324,10 @@ After completing a step, include a [DONE:n] tag in your response.`,
             pi.setActiveTools(normalModeTools.length > 0 ? normalModeTools : pi.getAllTools().map((tool) => tool.name));
             updateStatus(ctx);
 
+            const firstTodo = todoItems[0];
             const execMessage =
-                todoItems.length > 0
-                    ? `Execute the plan. Start with: ${todoItems[0].text}`
+                firstTodo
+                    ? `Execute the plan. Start with: ${firstTodo.text}`
                     : "Execute the plan you just created.";
             pi.sendMessage(
                 { customType: "plan-mode-execute", content: execMessage, display: false },
@@ -392,15 +393,22 @@ After completing a step, include a [DONE:n] tag in your response.`,
         restoreSessionState(ctx, shouldIncludePlanFlag(event));
     });
 
-    pi.on("session_switch", async (_event, ctx) => {
-        resetSessionState();
-        restoreSessionState(ctx, false);
-    });
+    // Runtime emits these events, but older ExtensionAPI typings may not include them yet.
+    (pi.on as unknown as (event: string, handler: (event: unknown, ctx: ExtensionContext) => Promise<void>) => void)(
+        "session_switch",
+        async (_event, ctx) => {
+            resetSessionState();
+            restoreSessionState(ctx, false);
+        },
+    );
 
-    pi.on("session_established", async (_event, ctx) => {
-        resetSessionState();
-        restoreSessionState(ctx, false);
-    });
+    (pi.on as unknown as (event: string, handler: (event: unknown, ctx: ExtensionContext) => Promise<void>) => void)(
+        "session_established",
+        async (_event, ctx) => {
+            resetSessionState();
+            restoreSessionState(ctx, false);
+        },
+    );
 
     // Clear visible plan UI before a session change is applied.
     pi.on("session_before_switch", async (_event, ctx) => {

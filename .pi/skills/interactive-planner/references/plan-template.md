@@ -1,8 +1,8 @@
 # Plan Template
 
 Use this structure for the final plan file. Collapse sections that are not
-needed for small tasks, but keep phase boundaries, testing guidance, review
-checkpoints, and token-efficiency notes explicit.
+needed for small tasks, but keep phase boundaries, testing guidance, and review
+checkpoints explicit.
 
 ```md
 # Plan: {Feature Name}
