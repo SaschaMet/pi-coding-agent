@@ -24,6 +24,7 @@
 Before doing any work, decide whether to delegate. **All agents and all skills must be executed through the `subagent` tool.**
 Do not invoke skills inline or rely on direct skill commands in the parent thread.
 Skill-backed subagent names are not guaranteed in every runtime; use the inline fallback table below.
+For implementation work, default to `pair-programming` at each handoff unless the user explicitly requests a different coding workflow.
 
 When a task is delegated, include all relevant user clarifications in the delegated prompt.
 If clarifications are missing, ask the user first, wait for answers, then re-run the selected subagent with the answers embedded.
@@ -32,11 +33,11 @@ If clarifications are missing, ask the user first, wait for answers, then re-run
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | "plan", "design", feature/epic scoping, migration strategy       | `interactive-planner` (fallback: `planner`)                                                                                                       |
 | "grill", "review my plan", "stress-test", pressure-test a design | `grill-me` (fallback: `reviewer`)                                                                                                                 |
-| Code change with test expectations, bug fix, refactor, TDD       | `tdd-coding` (fallback: `tdd-red` → `tdd-green` → `tdd-refactor`), `gan-coder` (fallback: `gan-generator` → `gan-critic`), or explicit TDD agents |
+| Code change with test expectations, bug fix, refactor, TDD       | `pair-programming` (fallback: `worker`) unless user explicitly requests `tdd-coding`, `gan-coder`, or explicit TDD agents                           |
 | End-to-end plan → review → implementation                        | `orchestrator` (fallback: `planner` → `reviewer` → `tdd-red` → `tdd-green` → `tdd-refactor`)                                                      |
 | Simple question, explanation, or single-line fix                 | Handle inline — no delegation needed                                                                                                              |
 
-If the request spans planning *and* coding, start with the `interactive-planner` subagent, then hand off to `gan-coder` or `tdd-coding` via `subagent`.
+If the request spans planning *and* coding, start with the `interactive-planner` subagent, then hand off to `pair-programming` via `subagent`.
 
 ### Step 1 — Understand
 
@@ -52,6 +53,7 @@ If the request spans planning *and* coding, start with the `interactive-planner`
 - If you ask the user questions before delegation, pass the answers to the delegated subagent in a `Clarifications` section.
 - Keep clarifications verbatim and scoped to constraints, acceptance criteria, and preferences.
 - For retries after user feedback, re-invoke the same subagent with updated clarifications instead of continuing inline.
+- For implementation retries and phase handoffs, continue using `pair-programming` unless the user requested a different agent.
 
 ### Step 2 — Research the Codebase
 

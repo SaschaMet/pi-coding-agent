@@ -1,6 +1,6 @@
 ---
 name: pair-programming
-description: Scaffold a plan or plan phase into real files and stub functions ready for a human to implement. Takes a plan (or a single phase), creates or selects the exact files, and writes all necessary functions/classes/methods as stubs with a "To Be Implemented" comment. Produces no working logic — only the skeleton. Use before a TDD or implementation session to let a human co-author fill in the bodies.
+description: Scaffold a plan or plan phase into real files and stub functions ready for a human to implement. Takes a plan (or a single phase), creates or selects the exact files, writes all necessary stubs with a "To Be Implemented" comment, and provides explicit human-driver implementation ToDos. Produces no working logic — only the skeleton plus execution guidance.
 ---
 
 # Pair Programming
@@ -15,7 +15,7 @@ who sets up the scaffolding so the junior developer can focus on the interesting
 
 - Do not use this skill when the user asks for working implementation logic.
 - Do not use this skill for plan-only requests that do not require file scaffolding.
-- Prefer `tdd-coding` or `gan-coder` when the user wants code that compiles and runs now.
+- This skill is the default implementation handoff; use it unless the user explicitly requests another coding workflow.
 
 ## Core Rules
 
@@ -26,6 +26,7 @@ who sets up the scaffolding so the junior developer can focus on the interesting
 - Match the project's existing language, naming conventions, import style, and file layout exactly.
 - Never write working implementation logic. Every body must be a stub.
 - Never modify existing tests. Never delete existing code.
+- Always provide a concrete human-driver ToDo checklist for each scaffolded file and stub.
 
 ## Stub Convention
 
@@ -80,7 +81,7 @@ followed by the language-idiomatic way to signal unimplemented (raise, throw, pa
    - Module/package structure to follow.
    - Base classes or interfaces already defined that stubs should extend or implement.
 
-### Step 3 — Scaffold Files and Stubs
+### Step 3 — Scaffold Files, Stubs, and Human ToDos
 
 For each file in scope:
 
@@ -95,6 +96,11 @@ For each stub:
 - Add a docstring or JSDoc comment if the project uses them — summarize what the function
   _will_ do, not how. Mark it clearly: `"""To Be Implemented: <one-line intent>"""`.
 - Follow the stub convention for the language.
+- Add a paired human ToDo entry that is specific and actionable:
+  - exact file path and symbol name
+  - behavior to implement
+  - key edge cases to handle
+  - verification command(s) to run after implementation
 
 ### Step 4 — Validate Structure
 
@@ -113,19 +119,17 @@ Return:
 **Files created**: each new file with a one-line summary.
 **Files modified**: each existing file with a list of stubs added.
 **Stubs scaffolded**: total count; list by name.
+**Human ToDos**: ordered checklist grouped by file, one item per stub/symbol, with behavior + edge cases + verification command.
 **Checks run**: type-check/lint command and result; test command and result.
-**Ready for**: name of the next step (e.g., "TDD Red phase", "implementation session").
+**Ready for**: "human-driver implementation session".
 
 ## Handoff Guidance
 
 After scaffolding is complete, suggest the natural next step:
 
 - **Human co-author session**: "All stubs are scaffolded. Open the files and fill in each
-  'To Be Implemented' body one at a time."
-- **TDD Red phase**: "Use `tdd-coding` via `subagent` to write failing tests against these stubs, then
-  implement them green."
-- **GAN Coder**: "Use `gan-coder` via `subagent` to implement each stub as a separate slice with
-  generator-critic review."
+  'To Be Implemented' body one at a time using the Human ToDos checklist."
+- **Default follow-up handoff**: "Continue with `pair-programming` via `subagent` for the next phase or module so handoffs stay consistent."
 
 ## What Not to Do
 

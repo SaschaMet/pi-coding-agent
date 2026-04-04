@@ -137,9 +137,9 @@ One sentence describing what this phase achieves.
 
 ## Handoff
 
-- **Implementation**: Use `$tdd-coding` to implement each phase in TDD order.
+- **Implementation**: Use `$pair-programming` for each implementation handoff.
 - **Review** *(large or risky plans)*: Use `$grill-me` to stress-test this plan before implementing.
-- **Integration tests**: During implementation, the TDD skill will ask about integration test input/output pairs.
+- **Integration tests**: During implementation, include input/output pairs in handoff notes for the coding agent.
 
 
 | File               | Action | Phase | Notes |
@@ -152,9 +152,9 @@ One sentence describing what this phase achieves.
 
 ## Handoff
 
-- **Implementation**: Use `$tdd-coding` to implement each phase in TDD order.
+- **Implementation**: Use `$pair-programming` for each implementation handoff.
 - **Review** (optional): Use `$grill-me` to stress-test this plan before starting.
-- **Integration tests**: During implementation, the TDD skill will ask about input/output pairs.
+- **Integration tests**: During implementation, include input/output pairs in handoff notes for the coding agent.
 ```
 
 ## Open Questions
