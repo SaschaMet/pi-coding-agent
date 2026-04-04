@@ -178,7 +178,11 @@ See [`.pi/extensions/plan-mode/README.md`](.pi/extensions/plan-mode/README.md) f
   - Ensure `~/.codex/skills` exists and is readable.
   - Confirm `.pi/settings.json` includes the path.
 - Subagent not running:
-  - Ensure local PI binary exists in `node_modules/.bin/pi` or global `pi` is installed.
+  - With strict local runtime enabled, ensure `node_modules/.bin/pi` exists in either:
+    - the delegated task `cwd`,
+    - the nearest project root for that `cwd` (directory containing `.pi`),
+    - or the PI runtime anchor repo (this repository).
+  - If strict local runtime is disabled, non-local fallback (`process.execPath`/`pi` from `PATH`) is used.
   - For subagent payloads, provide exactly one mode:
     - single: `{ agent, task }`
     - parallel: `{ tasks: [{ agent, task }, ...] }`

@@ -10,7 +10,10 @@
 - Bash network command deny-by-default
 - Bash operator enforcement (`;`, backticks, `$()` blocked; `|`, `&&`, `||` allowed with per-segment policy checks)
 - `confirm` actions auto-denied when `hasUI=false`
-- Subagent strict local runtime (`node_modules/.bin/pi`) with fail-closed behavior
+- Subagent strict local runtime (`node_modules/.bin/pi`) with fail-closed behavior, resolved in order from:
+  - delegated task `cwd`
+  - nearest project root for that `cwd` (directory containing `.pi`)
+  - PI runtime anchor repo
 
 ## Quick Verification
 

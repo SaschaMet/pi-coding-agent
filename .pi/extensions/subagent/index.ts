@@ -16,6 +16,7 @@ import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { AgentToolResult } from "@mariozechner/pi-agent-core";
 import type { Message } from "@mariozechner/pi-ai";
 import { StringEnum } from "@mariozechner/pi-ai";
@@ -25,6 +26,16 @@ import { Type } from "@sinclair/typebox";
 import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.ts";
 import { findNearestProjectPiDir, loadSubagentRuntimeConfig } from "./config.ts";
 const COLLAPSED_ITEM_COUNT = 10;
+const RUNTIME_ANCHOR_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+const RUNTIME_ANCHOR_OVERRIDE_ENV = "PI_SUBAGENT_RUNTIME_ANCHOR_ROOT";
+
+function getRuntimeAnchorRoot(): string {
+    const override = process.env.VITEST === "true" ? process.env[RUNTIME_ANCHOR_OVERRIDE_ENV] : undefined;
+    if (typeof override === "string" && override.trim().length > 0) {
+        return path.resolve(override.trim());
+    }
+    return RUNTIME_ANCHOR_ROOT;
+}
 
 function formatTokens(count: number): string {
     if (count < 1000) return count.toString();
@@ -220,9 +231,16 @@ function getPiInvocation(
     strictLocalRuntime: boolean,
     searchCwd: string,
 ): { command: string; args: string[] } | null {
-    const localPi = path.join(searchCwd, "node_modules", ".bin", "pi");
-    if (fs.existsSync(localPi)) {
-        return { command: localPi, args };
+    const candidateRoots = new Set<string>([path.resolve(searchCwd)]);
+    const nearestProjectPiDir = findNearestProjectPiDir(searchCwd);
+    if (nearestProjectPiDir) candidateRoots.add(path.dirname(nearestProjectPiDir));
+    candidateRoots.add(getRuntimeAnchorRoot());
+
+    for (const candidateRoot of candidateRoots) {
+        const localPi = path.join(candidateRoot, "node_modules", ".bin", "pi");
+        if (fs.existsSync(localPi)) {
+            return { command: localPi, args };
+        }
     }
 
     if (strictLocalRuntime) {

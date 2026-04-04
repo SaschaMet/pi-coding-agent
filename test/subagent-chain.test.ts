@@ -145,6 +145,11 @@ describe("subagent chain execution", () => {
       ].join("\n"),
       "utf-8",
     );
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agent.config.json"),
+      JSON.stringify({ security: { strictSubagentLocalRuntime: true } }, null, 2),
+      "utf-8",
+    );
 
     const spawnCalls: Array<{ command: string; args: string[] }> = [];
     spawnMock.mockImplementation((command: string, args: string[]) => {
@@ -210,6 +215,11 @@ describe("subagent chain execution", () => {
         "---",
         "You are planner.",
       ].join("\n"),
+      "utf-8",
+    );
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agent.config.json"),
+      JSON.stringify({ security: { strictSubagentLocalRuntime: true } }, null, 2),
       "utf-8",
     );
 
@@ -409,26 +419,102 @@ describe("subagent chain execution", () => {
       "utf-8",
     );
 
-    const pi = createFakePi();
-    subagentExtension(pi as any);
-    const tool = pi.tools.get("subagent");
-    expect(tool).toBeDefined();
+    const originalRuntimeAnchorOverride = process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT;
+    process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT = path.join(tmp, "no-runtime-anchor");
 
-    const result = await tool!.execute(
-      "call-subagent-strict",
-      {
-        agent: "planner",
-        task: "plan",
-        agentScope: "project",
-        confirmProjectAgents: false,
-      },
-      undefined,
-      undefined,
-      { cwd: tmp, hasUI: false },
+    try {
+      const pi = createFakePi();
+      subagentExtension(pi as any);
+      const tool = pi.tools.get("subagent");
+      expect(tool).toBeDefined();
+
+      const result = await tool!.execute(
+        "call-subagent-strict",
+        {
+          agent: "planner",
+          task: "plan",
+          agentScope: "project",
+          confirmProjectAgents: false,
+        },
+        undefined,
+        undefined,
+        { cwd: tmp, hasUI: false },
+      );
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("strict local runtime");
+      expect(spawnMock).not.toHaveBeenCalled();
+    } finally {
+      if (originalRuntimeAnchorOverride === undefined) delete process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT;
+      else process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT = originalRuntimeAnchorOverride;
+    }
+  });
+
+  it("uses runtime-anchor local pi in strict mode when target cwd has no local pi", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-strict-runtime-anchor-test-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agents"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agents", "planner.md"),
+      [
+        "---",
+        "name: planner",
+        "description: Planner",
+        "tools: read, grep, find, ls",
+        "---",
+        "You are planner.",
+      ].join("\n"),
+      "utf-8",
     );
 
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain("strict local runtime");
-    expect(spawnMock).not.toHaveBeenCalled();
+    const originalRuntimeAnchorOverride = process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT;
+    process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT = process.cwd();
+
+    try {
+      const expectedRuntimeAnchorPi = path.join(process.cwd(), "node_modules", ".bin", "pi");
+      spawnMock.mockImplementation((command: string) => {
+        expect(command).toBe(expectedRuntimeAnchorPi);
+        const eventLine = JSON.stringify({
+          type: "message_end",
+          message: {
+            role: "assistant",
+            content: [{ type: "text", text: "runtime-anchor-ok" }],
+            usage: {
+              input: 1,
+              output: 1,
+              cacheRead: 0,
+              cacheWrite: 0,
+              cost: { total: 0.001 },
+              totalTokens: 2,
+            },
+            stopReason: "stop",
+          },
+        });
+        return createMockProcess([eventLine], 0);
+      });
+
+      const pi = createFakePi();
+      subagentExtension(pi as any);
+      const tool = pi.tools.get("subagent");
+      expect(tool).toBeDefined();
+
+      const result = await tool!.execute(
+        "call-subagent-strict-runtime-anchor",
+        {
+          agent: "planner",
+          task: "plan",
+          agentScope: "project",
+          confirmProjectAgents: false,
+        },
+        undefined,
+        undefined,
+        { cwd: tmp, hasUI: false },
+      );
+
+      expect(result.isError).not.toBe(true);
+      expect(result.content[0].text).toContain("runtime-anchor-ok");
+    } finally {
+      if (originalRuntimeAnchorOverride === undefined) delete process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT;
+      else process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT = originalRuntimeAnchorOverride;
+    }
   });
 });

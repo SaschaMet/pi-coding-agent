@@ -99,7 +99,7 @@ export function loadSubagentRuntimeConfig(cwd: string): SubagentRuntimeConfig {
         defaultAgentScope: "both",
         maxParallelTasks: DEFAULT_MAX_PARALLEL_TASKS,
         maxConcurrency: DEFAULT_MAX_CONCURRENCY,
-        strictLocalRuntime: true,
+        strictLocalRuntime: false,
     };
 
     const parsed = loadProjectAgentConfig<{
