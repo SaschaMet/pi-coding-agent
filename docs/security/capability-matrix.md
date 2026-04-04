@@ -29,15 +29,20 @@ Versioned source of truth for runtime permissions: `.pi/security/capabilities.js
 
 ## Bash Rule Summary
 
-- Hard block:
+- Default block:
   - secret exfiltration patterns (`env`, `printenv`, `.env`, `process.env`, etc.)
   - network commands by default (`curl`, `wget`, `ssh`, `scp`, ...)
+  - Note: with UI available, blocked `bash` commands can now be user-overridden via explicit confirmation prompt.
 - Confirm:
   - dangerous git operations (`push`, `pull`, `rebase`, `revert`, ...)
   - destructive shell operations (`rm -rf`, `sudo`, `chmod/chown ...777`)
 - Allow:
   - read-only and diagnostics command allowlist
   - repo-standard verification scripts: `npm run smoke`, `npm run typecheck`, `npm run test:coverage`, `npm run docs:sync-pi`
+  - JS/package-manager execution commands: `npm`, `pnpm`, `yarn`, `npx`, `bun`, `bunx`
+  - Python execution commands (`python`, `python3`, module/script entrypoints)
+  - PHP/composer execution commands: `php`, `composer`
+  - `uv run` execution commands (including `uv run --python 3.12 ...`)
 - Structural guardrail:
   - bash input blocks dangerous shell operators (`;`, backticks, `$()`); pipelines (`|`) and boolean chaining (`&&`, `||`) are allowed when each segment independently matches policy
 

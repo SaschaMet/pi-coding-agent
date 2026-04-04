@@ -127,11 +127,31 @@
                         "action": "allow"
                     },
                     {
+                        "pattern": "^\\s*npm\\b",
+                        "action": "allow"
+                    },
+                    {
                         "pattern": "^\\s*yarn\\s+(test|list|info|why|audit)\\b",
                         "action": "allow"
                     },
                     {
+                        "pattern": "^\\s*yarn\\b",
+                        "action": "allow"
+                    },
+                    {
                         "pattern": "^\\s*pnpm\\s+(test|list|info|why|audit)\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*pnpm\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*npx\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*bunx?\\b",
                         "action": "allow"
                     },
                     {
@@ -144,6 +164,34 @@
                     },
                     {
                         "pattern": "^\\s*python\\s+--version\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*php\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*composer\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*python3?\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*python3\\s+(-V|--version)\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*uv\\s+(-V|--version)\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*uv\\s+run\\b",
+                        "action": "allow"
+                    },
+                    {
+                        "pattern": "^\\s*uv\\s+run\\s+--python\\s+3\\.12\\s+python3?\\s+(-V|--version)\\b",
                         "action": "allow"
                     },
                     {

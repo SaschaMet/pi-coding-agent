@@ -9,7 +9,13 @@ import process from "node:process";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { evaluatePathToolAccess, loadCapabilityConfigCached } from "./capability-policy.ts";
 
+const PROTECTED_PATHS_REGISTERED = Symbol.for("pi.extensions.protected-paths.registered");
+
 export default function (pi: ExtensionAPI) {
+    const guardPi = pi as ExtensionAPI & Record<PropertyKey, unknown>;
+    if (guardPi[PROTECTED_PATHS_REGISTERED]) return;
+    guardPi[PROTECTED_PATHS_REGISTERED] = true;
+
     pi.on("tool_call", async (event, ctx) => {
         const appliesToTool =
             event.toolName === "read" ||

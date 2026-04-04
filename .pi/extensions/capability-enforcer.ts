@@ -6,6 +6,8 @@ import {
     loadCapabilityConfigCached,
 } from "./capability-policy.ts";
 
+const CAPABILITY_ENFORCER_REGISTERED = Symbol.for("pi.extensions.capability-enforcer.registered");
+
 function getToolPathInput(toolName: string, input: Record<string, unknown>): string {
     const explicitPath = (input.path as string | undefined) ?? (input.file_path as string | undefined);
     if (explicitPath) return explicitPath;
@@ -14,6 +16,10 @@ function getToolPathInput(toolName: string, input: Record<string, unknown>): str
 }
 
 export default function capabilityEnforcerExtension(pi: ExtensionAPI): void {
+    const guardPi = pi as ExtensionAPI & Record<PropertyKey, unknown>;
+    if (guardPi[CAPABILITY_ENFORCER_REGISTERED]) return;
+    guardPi[CAPABILITY_ENFORCER_REGISTERED] = true;
+
     pi.on("session_start", async (_event, ctx) => {
         const cwd = process.cwd();
         const capabilityConfig = loadCapabilityConfigCached(cwd);

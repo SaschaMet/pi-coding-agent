@@ -4,6 +4,15 @@ import protectedPathsExtension from "../.pi/extensions/protected-paths.ts";
 import { createFakePi } from "./helpers/fake-pi.ts";
 
 describe("safety extensions", () => {
+  it("registers permission gate only once per runtime", async () => {
+    const pi = createFakePi();
+    permissionGateExtension(pi as any);
+    permissionGateExtension(pi as any);
+
+    const handlers = pi.handlers.get("tool_call") ?? [];
+    expect(handlers).toHaveLength(1);
+  });
+
   it("blocks dangerous bash commands without UI", async () => {
     const pi = createFakePi();
     permissionGateExtension(pi as any);
@@ -31,6 +40,81 @@ describe("safety extensions", () => {
       "npm run typecheck",
       "npm run test:coverage",
       "npm run docs:sync-pi",
+    ]) {
+      const result = await handlers[0](
+        {
+          toolName: "bash",
+          input: { command },
+        },
+        { hasUI: false },
+      );
+
+      expect(result).toBeUndefined();
+    }
+  });
+
+  it("allows python and uv version diagnostics", async () => {
+    const pi = createFakePi();
+    permissionGateExtension(pi as any);
+    const handlers = pi.handlers.get("tool_call") ?? [];
+
+    for (const command of [
+      "python3 --version",
+      "python3 -V",
+      "uv --version",
+      "uv -V",
+      "uv run --python 3.12 python3 --version",
+    ]) {
+      const result = await handlers[0](
+        {
+          toolName: "bash",
+          input: { command },
+        },
+        { hasUI: false },
+      );
+
+      expect(result).toBeUndefined();
+    }
+  });
+
+  it("allows python and uv run execution workflows", async () => {
+    const pi = createFakePi();
+    permissionGateExtension(pi as any);
+    const handlers = pi.handlers.get("tool_call") ?? [];
+
+    for (const command of [
+      "python3 scripts/app.py",
+      "python -m http.server 8000",
+      "uv run --python 3.12 python3 scripts/app.py",
+      "uv run pytest -q",
+    ]) {
+      const result = await handlers[0](
+        {
+          toolName: "bash",
+          input: { command },
+        },
+        { hasUI: false },
+      );
+
+      expect(result).toBeUndefined();
+    }
+  });
+
+  it("allows npm/bun/php and related execution workflows", async () => {
+    const pi = createFakePi();
+    permissionGateExtension(pi as any);
+    const handlers = pi.handlers.get("tool_call") ?? [];
+
+    for (const command of [
+      "npm run dev",
+      "npm install",
+      "pnpm run build",
+      "yarn dev",
+      "npx tsx scripts/smoke.ts",
+      "bun run dev",
+      "bunx vitest",
+      "php artisan serve",
+      "composer install",
     ]) {
       const result = await handlers[0](
         {
@@ -118,6 +202,49 @@ describe("safety extensions", () => {
     expect(result?.reason).toContain("Sensitive data");
   });
 
+  it("allows blocked bash commands after explicit UI override", async () => {
+    const pi = createFakePi();
+    permissionGateExtension(pi as any);
+    const handlers = pi.handlers.get("tool_call") ?? [];
+
+    const result = await handlers[0](
+      {
+        toolName: "bash",
+        input: { command: "printenv" },
+      },
+      {
+        hasUI: true,
+        ui: {
+          select: async () => "Yes",
+        },
+      },
+    );
+
+    expect(result).toBeUndefined();
+  });
+
+  it("keeps blocked bash commands blocked when user declines override", async () => {
+    const pi = createFakePi();
+    permissionGateExtension(pi as any);
+    const handlers = pi.handlers.get("tool_call") ?? [];
+
+    const result = await handlers[0](
+      {
+        toolName: "bash",
+        input: { command: "printenv" },
+      },
+      {
+        hasUI: true,
+        ui: {
+          select: async () => "No",
+        },
+      },
+    );
+
+    expect(result?.block).toBe(true);
+    expect(result?.reason).toBe("Blocked by user");
+  });
+
   it("requires confirmation for dangerous git commands without UI", async () => {
     const pi = createFakePi();
     permissionGateExtension(pi as any);
@@ -192,6 +319,15 @@ describe("safety extensions", () => {
       { hasUI: false },
     );
     expect(readResult?.block).toBe(true);
+  });
+
+  it("registers protected paths extension only once per runtime", async () => {
+    const pi = createFakePi();
+    protectedPathsExtension(pi as any);
+    protectedPathsExtension(pi as any);
+
+    const handlers = pi.handlers.get("tool_call") ?? [];
+    expect(handlers).toHaveLength(1);
   });
 
   it("allows root grep scope but still blocks explicit protected paths", async () => {

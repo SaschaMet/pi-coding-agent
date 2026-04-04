@@ -67,6 +67,40 @@ describe("capability policy", () => {
         expect(evaluateBashCommand("npm run docs:sync-pi", false, config).action).toBe("allow");
     });
 
+    it("allows python and uv version diagnostics", () => {
+        const config = loadCapabilityConfig(process.cwd());
+
+        expect(evaluateBashCommand("python --version", false, config).action).toBe("allow");
+        expect(evaluateBashCommand("python3 --version", false, config).action).toBe("allow");
+        expect(evaluateBashCommand("python3 -V", false, config).action).toBe("allow");
+        expect(evaluateBashCommand("uv --version", false, config).action).toBe("allow");
+        expect(evaluateBashCommand("uv -V", false, config).action).toBe("allow");
+        expect(evaluateBashCommand("uv run --python 3.12 python3 --version", false, config).action).toBe("allow");
+    });
+
+    it("allows python and uv run execution workflows", () => {
+        const config = loadCapabilityConfig(process.cwd());
+
+        expect(evaluateBashCommand("python3 scripts/app.py", false, config).action).toBe("allow");
+        expect(evaluateBashCommand("python -m http.server 8000", false, config).action).toBe("allow");
+        expect(evaluateBashCommand("uv run --python 3.12 python3 scripts/app.py", false, config).action).toBe("allow");
+        expect(evaluateBashCommand("uv run pytest -q", false, config).action).toBe("allow");
+    });
+
+    it("allows npm/bun/php and related execution workflows", () => {
+        const config = loadCapabilityConfig(process.cwd());
+
+        expect(evaluateBashCommand("npm run dev", false, config).action).toBe("allow");
+        expect(evaluateBashCommand("npm install", false, config).action).toBe("allow");
+        expect(evaluateBashCommand("pnpm run build", false, config).action).toBe("allow");
+        expect(evaluateBashCommand("yarn dev", false, config).action).toBe("allow");
+        expect(evaluateBashCommand("npx tsx scripts/smoke.ts", false, config).action).toBe("allow");
+        expect(evaluateBashCommand("bun run dev", false, config).action).toBe("allow");
+        expect(evaluateBashCommand("bunx vitest", false, config).action).toBe("allow");
+        expect(evaluateBashCommand("php artisan serve", false, config).action).toBe("allow");
+        expect(evaluateBashCommand("composer install", false, config).action).toBe("allow");
+    });
+
     it("blocks disallowed shell operators", () => {
         const config = loadCapabilityConfig(process.cwd());
 

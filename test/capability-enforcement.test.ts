@@ -3,6 +3,17 @@ import capabilityEnforcerExtension from "../.pi/extensions/capability-enforcer.t
 import { createFakePi } from "./helpers/fake-pi.ts";
 
 describe("capability enforcer extension", () => {
+  it("registers capability enforcer only once per runtime", async () => {
+    const pi = createFakePi();
+    capabilityEnforcerExtension(pi as any);
+    capabilityEnforcerExtension(pi as any);
+
+    const sessionHandlers = pi.handlers.get("session_start") ?? [];
+    const toolHandlers = pi.handlers.get("tool_call") ?? [];
+    expect(sessionHandlers).toHaveLength(1);
+    expect(toolHandlers).toHaveLength(1);
+  });
+
   it("blocks tool calls that do not have capability entries", async () => {
     const pi = createFakePi();
     capabilityEnforcerExtension(pi as any);
