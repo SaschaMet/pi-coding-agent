@@ -203,9 +203,11 @@ describe("subagent chain execution", () => {
     expect(spawnCalls[1].args.some((arg) => arg.includes("Task: plan with scout-output"))).toBe(true);
   });
 
-  it("returns actionable guidance for unknown agent in single mode", async () => {
+  it("falls back from interactive-planner to planner in single mode", async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-unknown-single-"));
     fs.mkdirSync(path.join(tmp, ".pi", "agents"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "node_modules", ".bin"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, "node_modules", ".bin", "pi"), "#!/bin/sh\nexit 0\n", "utf-8");
     fs.writeFileSync(
       path.join(tmp, ".pi", "agents", "planner.md"),
       [
@@ -217,11 +219,26 @@ describe("subagent chain execution", () => {
       ].join("\n"),
       "utf-8",
     );
-    fs.writeFileSync(
-      path.join(tmp, ".pi", "agent.config.json"),
-      JSON.stringify({ security: { strictSubagentLocalRuntime: true } }, null, 2),
-      "utf-8",
-    );
+
+    spawnMock.mockImplementation(() => {
+      const eventLine = JSON.stringify({
+        type: "message_end",
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "fallback-plan" }],
+          usage: {
+            input: 3,
+            output: 2,
+            cacheRead: 0,
+            cacheWrite: 0,
+            cost: { total: 0.001 },
+            totalTokens: 5,
+          },
+          stopReason: "stop",
+        },
+      });
+      return createMockProcess([eventLine], 0);
+    });
 
     const pi = createFakePi();
     subagentExtension(pi as any);
@@ -240,26 +257,24 @@ describe("subagent chain execution", () => {
       { cwd: tmp, hasUI: false },
     );
 
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain('Discovered agents (scope: project): planner (project)');
-    expect(result.content[0].text).toContain("interactive-planner -> planner");
-    expect(result.content[0].text).toContain("tdd-coding -> tdd-red, tdd-green, tdd-refactor");
-    expect(result.content[0].text).toContain("configured skill roots");
+    expect(result.isError).not.toBe(true);
+    expect(result.content[0].text).toContain("fallback-plan");
+    expect(result.details.results[0].agent).toBe("planner");
   });
 
-  it("returns actionable guidance when chain hits an unknown agent", async () => {
+  it("resolves underscore aliases for hyphenated agent names", async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-unknown-chain-"));
     fs.mkdirSync(path.join(tmp, ".pi", "agents"), { recursive: true });
     fs.mkdirSync(path.join(tmp, "node_modules", ".bin"), { recursive: true });
     fs.writeFileSync(path.join(tmp, "node_modules", ".bin", "pi"), "#!/bin/sh\nexit 0\n", "utf-8");
     fs.writeFileSync(
-      path.join(tmp, ".pi", "agents", "explorer.md"),
+      path.join(tmp, ".pi", "agents", "gan-generator.md"),
       [
         "---",
-        "name: explorer",
-        "description: Explorer",
+        "name: gan-generator",
+        "description: GAN generator",
         "---",
-        "You are explorer.",
+        "You are gan generator.",
       ].join("\n"),
       "utf-8",
     );
@@ -269,7 +284,7 @@ describe("subagent chain execution", () => {
         type: "message_end",
         message: {
           role: "assistant",
-          content: [{ type: "text", text: "scout-output" }],
+          content: [{ type: "text", text: "alias-ok" }],
           usage: {
             input: 10,
             output: 5,
@@ -290,12 +305,94 @@ describe("subagent chain execution", () => {
     const tool = pi.tools.get("subagent");
 
     const result = await tool!.execute(
-      "call-subagent-unknown-chain",
+      "call-subagent-alias",
       {
-        chain: [
-          { agent: "explorer", task: "gather context" },
-          { agent: "interactive-planner", task: "plan with {previous}" },
-        ],
+        agent: "gan_generator",
+        task: "implement this slice",
+        agentScope: "project",
+        confirmProjectAgents: false,
+      },
+      undefined,
+      undefined,
+      { cwd: tmp, hasUI: false },
+    );
+
+    expect(result.isError).not.toBe(true);
+    expect(result.content[0].text).toContain("alias-ok");
+    expect(result.details.results[0].agent).toBe("gan-generator");
+  });
+
+  it("falls back from gan-coder to gan-generator when gan-coder is unavailable", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-gan-fallback-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agents"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "node_modules", ".bin"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, "node_modules", ".bin", "pi"), "#!/bin/sh\nexit 0\n", "utf-8");
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agents", "gan-generator.md"),
+      ["---", "name: gan-generator", "description: GAN generator", "---", "You are gan generator."].join("\n"),
+      "utf-8",
+    );
+
+    spawnMock.mockImplementation(() => {
+      const eventLine = JSON.stringify({
+        type: "message_end",
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "gan-fallback-ok" }],
+          usage: {
+            input: 6,
+            output: 4,
+            cacheRead: 0,
+            cacheWrite: 0,
+            cost: { total: 0.001 },
+            totalTokens: 10,
+          },
+          stopReason: "stop",
+        },
+      });
+      return createMockProcess([eventLine], 0);
+    });
+
+    const pi = createFakePi();
+    subagentExtension(pi as any);
+    const tool = pi.tools.get("subagent");
+
+    const result = await tool!.execute(
+      "call-subagent-gan-fallback",
+      {
+        agent: "gan-coder",
+        task: "implement this",
+        agentScope: "project",
+        confirmProjectAgents: false,
+      },
+      undefined,
+      undefined,
+      { cwd: tmp, hasUI: false },
+    );
+
+    expect(result.isError).not.toBe(true);
+    expect(result.content[0].text).toContain("gan-fallback-ok");
+    expect(result.details.results[0].agent).toBe("gan-generator");
+  });
+
+  it("returns actionable guidance when no alias or fallback can be resolved", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-unknown-guidance-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agents"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agents", "explorer.md"),
+      ["---", "name: explorer", "description: Explorer", "---", "You are explorer."].join("\n"),
+      "utf-8",
+    );
+
+    const pi = createFakePi();
+    subagentExtension(pi as any);
+    const tool = pi.tools.get("subagent");
+
+    const result = await tool!.execute(
+      "call-subagent-unknown-guidance",
+      {
+        agent: "missing-agent",
+        task: "plan",
         agentScope: "project",
         confirmProjectAgents: false,
       },
@@ -306,7 +403,6 @@ describe("subagent chain execution", () => {
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('Discovered agents (scope: project): explorer (project)');
-    expect(result.content[0].text).toContain("interactive-planner -> planner");
     expect(result.content[0].text).toContain("configured skill roots");
   });
 

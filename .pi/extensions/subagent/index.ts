@@ -294,12 +294,75 @@ function getScopedExtensionArgs(searchCwd: string): string[] {
 
 type OnUpdateCallback = (partial: AgentToolResult<SubagentDetails>) => void;
 
+const FALLBACK_AGENT_CANDIDATES: Record<string, string[]> = {
+    "interactive-planner": ["planner"],
+    "grill-me": ["reviewer"],
+    "gan-coder": ["gan-generator", "worker"],
+    "tdd-coding": ["tdd-red", "tdd-green", "tdd-refactor", "worker"],
+    orchestrator: ["planner", "reviewer", "tdd-red", "tdd-green", "tdd-refactor", "worker"],
+};
+
+function findAgentByName(agents: AgentConfig[], name: string): AgentConfig | undefined {
+    return agents.find((a) => a.name === name);
+}
+
+function agentNameVariants(name: string): string[] {
+    const trimmed = name.trim();
+    if (!trimmed) return [];
+    const variants = new Set<string>([trimmed]);
+    variants.add(trimmed.replace(/_/g, "-"));
+    variants.add(trimmed.replace(/-/g, "_"));
+    return Array.from(variants);
+}
+
+function resolveAgent(
+    agents: AgentConfig[],
+    requestedName: string,
+): { agent?: AgentConfig; resolutionNote?: string; attemptedFallbacks?: string[] } {
+    const direct = findAgentByName(agents, requestedName);
+    if (direct) return { agent: direct };
+
+    for (const variant of agentNameVariants(requestedName)) {
+        if (variant === requestedName) continue;
+        const aliased = findAgentByName(agents, variant);
+        if (aliased) {
+            return {
+                agent: aliased,
+                resolutionNote: `Resolved agent alias "${requestedName}" to "${aliased.name}".`,
+            };
+        }
+    }
+
+    const fallbackKey = requestedName.replace(/_/g, "-").toLowerCase();
+    const candidates = FALLBACK_AGENT_CANDIDATES[fallbackKey] ?? [];
+    for (const candidate of candidates) {
+        const resolved = findAgentByName(agents, candidate);
+        if (resolved) {
+            return {
+                agent: resolved,
+                resolutionNote: `Fell back from "${requestedName}" to "${resolved.name}".`,
+                attemptedFallbacks: candidates,
+            };
+        }
+    }
+
+    return { attemptedFallbacks: candidates };
+}
+
 function buildUnknownAgentGuidance(agentName: string, agents: AgentConfig[], agentScope: AgentScope): string {
     const discovered = agents.map((a) => `${a.name} (${a.source})`).join(", ") || "none";
+    const fallbackKey = agentName.replace(/_/g, "-").toLowerCase();
+    const fallbackCandidates = FALLBACK_AGENT_CANDIDATES[fallbackKey] ?? [];
+    const fallbackText =
+        fallbackCandidates.length > 0
+            ? `Configured fallbacks for "${agentName}": ${fallbackCandidates.join(", ")}.`
+            : "No configured fallback candidates matched this agent name.";
     return [
         `Unknown agent: "${agentName}".`,
         `Discovered agents (scope: ${agentScope}): ${discovered}.`,
-        "Likely fallbacks: interactive-planner -> planner; tdd-coding -> tdd-red, tdd-green, tdd-refactor.",
+        'Name aliases are normalized for "-" and "_" (for example: gan_generator <-> gan-generator).',
+        "Likely fallbacks: interactive-planner -> planner; grill-me -> reviewer; gan-coder -> gan-generator; tdd-coding -> tdd-red, tdd-green, tdd-refactor.",
+        fallbackText,
         `Note: discovery depends on agentScope="${agentScope}" and configured skill roots (.pi/settings.json -> skills, plus project .pi/skills when present).`,
     ].join(" ");
 }
@@ -317,7 +380,8 @@ async function runSingleAgent(
     makeDetails: (results: SingleResult[]) => SubagentDetails,
     strictLocalRuntime: boolean,
 ): Promise<SingleResult> {
-    const agent = agents.find((a) => a.name === agentName);
+    const resolved = resolveAgent(agents, agentName);
+    const agent = resolved.agent;
 
     if (!agent) {
         return {
@@ -340,12 +404,12 @@ async function runSingleAgent(
     let tmpPromptPath: string | null = null;
 
     const currentResult: SingleResult = {
-        agent: agentName,
+        agent: agent.name,
         agentSource: agent.source,
         task,
         exitCode: 0,
         messages: [],
-        stderr: "",
+        stderr: resolved.resolutionNote ?? "",
         usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, contextTokens: 0, turns: 0 },
         model: agent.model,
         step,

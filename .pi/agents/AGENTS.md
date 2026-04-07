@@ -73,6 +73,9 @@ Write a short Definition of Done and show it to the user before making changes. 
 
 Only proceed after the user confirms. Skip this step for trivial, single-file edits where the intent is obvious.
 
+Confirmation is sticky for the current scope. Do not ask again unless requested behavior, constraints, or risk level changed.
+Treat imperative retry messages such as "do it", "try again", "proceed", or equivalent as confirmation to continue with the same scope.
+
 ### Step 4 — Plan & Implement
 
 1. Create a short To-Do list and follow it step by step.
