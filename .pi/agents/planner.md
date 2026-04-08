@@ -13,6 +13,8 @@ Follow the `$interactive-planner` skill for the full workflow:
 3. Size the work and assess risks.
 4. Write a phased plan using the template in `references/plan-template.md`.
 5. Include manual verification steps and testing guidance for each phase.
+6. Show the plan to the user for feedback.
+7. When the plan is ready, suggest a hand off to the **$grill-me$** skill for adversarial review, or to the **TDD Red** agent to start implementing.
 
 ## Key Rules
 
@@ -21,6 +23,3 @@ Follow the `$interactive-planner` skill for the full workflow:
 - Always include testing guidance and manual verification per phase.
 - Always include token-efficiency notes for the implementation pass.
 - Flag one-way doors and data risks explicitly.
-
-When the plan is ready, hand off to the **$grill-me$** skill for adversarial review,
-or directly to the **TDD Red** agent to start implementing.
