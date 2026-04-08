@@ -30,9 +30,11 @@ Rank into three tiers:
 | ------------ | ---------------------------------------------------------------------------- | ------------------------------------------------- |
 | **Critical** | Would cause data loss, security breach, or system outage                     | Must be resolved — no moving on                   |
 | **High**     | Would cause significant rework, performance degradation, or user-facing bugs | Should be resolved or explicitly accepted as risk |
-| **Medium**   | Design smell, maintainability concern, unclear edge case                     | Raise once, accept the answer                     |
+| **Medium**   | Design smell, maintainability concern, unclear edge case                     | Do not ask by default; note only if still useful  |
 
 Skip low-risk nitpicks entirely. Focus time on what hurts most.
+The default question budget is `0-3` total questions for the whole grilling session.
+If you already have enough information to recommend safe defaults, do not spend the budget.
 
 ## Step 3 — Apply Common Sense Before Asking
 
@@ -41,19 +43,27 @@ Skip low-risk nitpicks entirely. Focus time on what hurts most.
 Before turning any risk into a question, ask yourself:
 _"Does industry best practice, common sense, or a well-known default already answer this?"_
 
-**If yes — flag it, don't ask about it.**
+**If yes — do not ask. Record the default change you would make.**
 
-Flag it with: the problem, the standard approach, and a one-line check:
+Use this format:
 
-> [High] No retry logic on the external API call. Standard practice is exponential backoff
-> with jitter (e.g., 3 retries, 1s/2s/4s). Does the plan include this or is it intentionally
-> deferred?
+> [High] Missing retry/backoff on an external API call.
+> Default change: add idempotent exponential backoff with jitter.
+> No question needed unless the team has a known reason to avoid retries.
 
 Only ask an open question when:
 
 - The answer depends on a decision only the user can make (e.g., business trade-offs, team constraints)
 - The codebase contradicts the standard approach and you need to understand why
 - The standard approach is ambiguous for this specific context
+
+Examples of defaults you should apply without asking first:
+
+- API surface changed and no documentation approach is named: use OpenAPI/Swagger unless the repo already uses something else
+- External API call with no resiliency noted: add timeouts, retries, and backoff if the operation is safe to retry
+- New async/background work with no visibility noted: add structured logging and success/failure metrics
+- New write path with no tests noted: add focused regression tests for the write and failure path
+- New rollout risk with no deployment guidance: prefer a feature flag or other reversible rollout if the stack supports it
 
 **Do NOT ask questions like:**
 
@@ -65,7 +75,7 @@ Only ask an open question when:
 ## Step 4 — Questioning
 
 For risks that genuinely need a user decision, work through them one at a time,
-starting with Critical tier.
+starting with Critical tier. Keep the session short.
 
 ### Rules
 
@@ -74,6 +84,10 @@ starting with Critical tier.
 - Keep questions concrete and specific. No abstract "what about scalability?" — instead:
   "This stores session state in memory. What happens to in-flight requests during a rolling deploy?"
 - Use a structured question tool (like 'askquestions') when available.
+- Ask only `Critical` and `High` questions by default.
+- Do not ask more than `3` questions total unless a critical blocker remains unresolved.
+- If the first answer resolves the remaining high risks through an obvious default, stop asking and move to the summary.
+- If there are no decision-forcing questions, skip questioning entirely and go straight to the summary.
 
 ### Questioning Techniques
 
@@ -99,10 +113,12 @@ starting with Critical tier.
 When all Critical and High risks are addressed (or explicitly accepted), produce a structured
 summary using [references/summary-template.md](references/summary-template.md):
 
-1. **Decisions Made** — what was agreed and why.
-2. **Risks Accepted** — what the user knowingly chose to defer or live with.
-3. **Open Issues** — unresolved questions that need more research or a different stakeholder.
-4. **Recommended Next Steps** — concrete actions, not vague advice.
+1. **Questions Asked** — only the questions that were truly necessary.
+2. **Answers Given** — the user's answers, mapped directly to each question.
+3. **Default Changes** — the improvements you would make automatically from common sense and best practice.
+4. **Risks Accepted** — what the user knowingly chose to defer or live with.
+5. **Open Issues** — unresolved questions that need more research or a different stakeholder.
+6. **Recommended Next Steps** — concrete actions, not vague advice.
 
 If the `interactive-planner` subagent is available, suggest handing off there for implementation planning.
 Do NOT produce an implementation plan yourself.
@@ -111,9 +127,10 @@ Do NOT produce an implementation plan yourself.
 
 - Do not ask questions the codebase answers.
 - Do not ask questions that common sense or best practice already answers — flag them instead.
+- Do not use the full question budget unless the design actually needs it.
 - Do not soften critical feedback. Be direct.
 - Do not batch multiple questions or flags into one message.
-- Do not suggest solutions or alternative designs — you're the questioner, not the designer.
+- Do not brainstorm alternative architectures. Obvious baseline fixes are allowed in the `Default Changes` section.
 - Do not produce implementation code or plans.
 - Do not waste time on low-risk style preferences or cosmetic issues.
 - Do not repeat a question the user already answered clearly.

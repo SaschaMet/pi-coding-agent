@@ -1,62 +1,119 @@
 # Risk Taxonomy
 
-Categories of risk to probe during a grilling session. Not every category applies
-to every design — focus on the ones relevant to the target.
+Use this taxonomy to decide whether a question is worth asking at all.
+It is not a generic checklist. Prefer silent defaults over interrogation.
 
-## Correctness
+## How To Use It
 
-- Does the logic handle all documented input cases?
-- What are the boundary conditions (empty, null, max, negative, unicode, concurrent)?
-- Are error states handled explicitly, not silently swallowed?
-- Is there a mismatch between the spec/requirements and the proposed behavior?
+For each relevant category:
 
-## Security
+1. Check whether the risk is `Critical`, `High`, or lower.
+2. Apply the default change if best practice is obvious.
+3. Ask a question only if the user must make a decision or the repo contradicts the default.
 
-- Who can access this? What are the authentication and authorization boundaries?
-- What untrusted input flows through this path? Is it validated and sanitized?
-- Are secrets stored safely? Could they leak through logs, errors, or responses?
-- Does this expand the attack surface? (new endpoints, new permissions, new data stores)
-- Could this be abused? (rate limiting, resource exhaustion, privilege escalation)
+If a category does not expose a real `Critical` or `High` decision, skip it.
 
-## Data Integrity
+## High-Signal Categories
 
-- What happens if the operation fails halfway? Is there a partial state?
-- Are writes atomic or is there a window for inconsistency?
-- Is data validated at the boundary before storage?
-- What's the migration path for existing data?
-- Can this cause data loss, corruption, or silent overwrite?
+### 1. Security Boundary
 
-## Scalability & Performance
+Ask only if the plan changes who can access something, exposes new untrusted input,
+or increases privilege.
 
-- What's the expected load? How does behavior change at 10x, 100x?
-- Are there N+1 queries, unbounded loops, or full-table scans?
-- Is there a hot path that becomes a bottleneck?
-- What resources are consumed (memory, connections, file handles) and how are they bounded?
+Default changes:
 
-## Reliability & Operations
+- Require existing authn/authz patterns on new endpoints or actions
+- Validate and sanitize untrusted input at the boundary
+- Avoid logging secrets or sensitive payloads
+- Add rate limiting or abuse controls when a public or expensive path is introduced
 
-- What happens when a dependency is down, slow, or returning errors?
-- Is there retry logic? Is it idempotent? Does it have backoff?
-- How do you know this is broken in production? (monitoring, alerts, health checks)
-- What does the rollback plan look like?
-- Is there a graceful degradation path?
+### 2. Data Mutation & Integrity
 
-## Maintainability
+Ask only if the change can lose, corrupt, duplicate, or silently overwrite data,
+or if there is a one-way migration.
 
-- Is this change easy to understand for someone who didn't write it?
-- Does it introduce coupling between previously independent modules?
-- Will this be painful to change in 6 months?
-- Does it duplicate logic that already exists elsewhere?
+Default changes:
 
-## Dependencies & Integration
+- Make writes atomic where possible
+- Add validation before persistence
+- Prefer idempotent write paths
+- Add migration and rollback notes for schema or stored-data changes
 
-- Are there implicit dependencies (ordering, timing, shared state)?
-- What's the contract with external services? Is it version-pinned?
-- What if the dependency changes behavior without notice?
-- Is the integration tested, or only assumed to work?
+### 3. External Dependency Failure
 
-## Reversibility
+Ask only if the user must choose between strict failure, degraded behavior,
+or eventual consistency.
 
-- If this is wrong, how expensive is it to undo?
-- Can you feature-flag this and roll back without a deploy?
-- Does this create a one-way door? (schema migration, public API, data format change)
+Default changes:
+
+- Add timeouts on remote calls
+- Add retries with bounded exponential backoff when the operation is safe to retry
+- Define a graceful failure path for dependency outages
+- Pin or explicitly document external contracts when feasible
+
+### 4. Rollout, Reversibility & Blast Radius
+
+Ask only if the change is expensive to undo, affects many users at once,
+or lacks a safe rollout path.
+
+Default changes:
+
+- Prefer feature flags or staged rollout when supported
+- Add rollback steps for risky deploys
+- Scope the first release narrowly when the blast radius is broad
+
+### 5. Observability & Operability
+
+Ask only if production failure would be hard to detect or diagnose and the user
+must decide on monitoring ownership or thresholds.
+
+Default changes:
+
+- Add structured logs on important failure paths
+- Add health signals, metrics, or alerts for new operationally important flows
+- Make failure modes visible instead of silent
+
+### 6. API & Contract Changes
+
+Ask only if the contract is intentionally ambiguous, externally owned,
+or breaking behavior is being considered.
+
+Default changes:
+
+- Document API changes using the repo's existing standard
+- If no standard is stated and this is an HTTP/API surface, use OpenAPI/Swagger
+- Add versioning or compatibility notes for breaking contract changes
+- Add contract or integration tests for the changed boundary
+
+### 7. Performance Hot Paths
+
+Ask only if the change sits on a known hot path, introduces an unbounded operation,
+or load expectations materially affect the design.
+
+Default changes:
+
+- Avoid obvious N+1 queries and unbounded scans
+- Bound memory, concurrency, and queue growth
+- Add a benchmark or regression guard if the path is known to be hot
+
+### 8. Testability & Regression Safety
+
+Ask only if the user must choose between test depth, cost, or delivery speed.
+
+Default changes:
+
+- Add focused tests for the changed behavior
+- Cover the main failure path when the change writes data, calls dependencies, or changes auth
+- Reuse existing test patterns instead of inventing a new harness
+
+## Categories Usually Not Worth A Question
+
+These should almost never become explicit questions unless they hide a critical business trade-off:
+
+- Maintainability
+- Code style
+- Naming
+- Minor edge cases already covered by standard validation
+- Generic "what about scalability?" concerns without evidence this path is hot
+
+Convert them into defaults, short notes, or ignore them entirely.

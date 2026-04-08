@@ -8,12 +8,26 @@ Use this structure when producing the final summary after all questioning is com
 > Date: {date}
 > Scope: {one-line description of what was reviewed}
 
-## Decisions Made
+## Questions Asked
 
-| #   | Decision | Rationale |
-| --- | -------- | --------- |
-| 1   | ...      | ...       |
-| 2   | ...      | ...       |
+| #   | Tier | Question | Why It Was Worth Asking |
+| --- | ---- | -------- | ----------------------- |
+| 1   | High | ...      | ...                     |
+| 2   | ...  | ...      | ...                     |
+
+## Answers Given
+
+| #   | Question # | User Answer | Resulting Decision |
+| --- | ---------- | ----------- | ------------------ |
+| 1   | 1          | ...         | ...                |
+| 2   | ...        | ...         | ...                |
+
+## Default Changes
+
+| #   | Tier | Change The AI Would Make By Default | Why No Question Was Needed |
+| --- | ---- | ----------------------------------- | -------------------------- |
+| 1   | High | ...                                 | ...                        |
+| 2   | ...  | ...                                 | ...                        |
 
 ## Risks Accepted
 
@@ -36,8 +50,9 @@ Use this structure when producing the final summary after all questioning is com
 
 ## Guidelines
 
-- **Decisions Made**: Include only decisions that were actively discussed and resolved.
-  Don't list things that were obvious or uncontested.
+- **Questions Asked**: Keep this short. If you asked more than 3 questions, you should have a strong reason.
+- **Answers Given**: Map answers directly to the questions. Do not add unrelated commentary.
+- **Default Changes**: This is where obvious best-practice actions go. Example: OpenAPI/Swagger for API docs when the plan changes an API and the repo does not specify another standard.
 - **Risks Accepted**: The user explicitly acknowledged the risk and chose to proceed.
   Include their reasoning so the decision is auditable.
 - **Open Issues**: Questions that could not be resolved in this session.

@@ -1,6 +1,0 @@
-interface:
-  display_name: "Orchestrator"
-  short_description: "Plan → Grill → TDD pipeline using subagents"
-
-policy:
-  allow_implicit_invocation: false
