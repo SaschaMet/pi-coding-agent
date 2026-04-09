@@ -3,3 +3,4 @@ node_modules
 .pi/logs/token-efficiency.jsonl
 coverage
 docs/plans/**
+.DS_Store
