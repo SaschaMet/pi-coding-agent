@@ -28,8 +28,7 @@
 ### Step 0 — Instructions & Delegation
 
 - All agents and all skills should be executed through the subagent tool if available.
-- Default to the `pair-programming` agent at each handoff unless the user explicitly requests a different coding workflow.
-- For implementation work, default to the `gan-coder` agent.
+- For any coding or implementation work, default to the `pair-programming` agent unless the user explicitly requests a different agent or workflow.
 
 ### Step 1 — Understand
 
