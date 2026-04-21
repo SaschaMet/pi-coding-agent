@@ -14,7 +14,7 @@
         "useProjectEnv": true
     },
     "skills": [
-        "~/.pi/agent/skills/pi-skills",
+        "~/.pi/agent/skills",
         ".pi/skills"
     ],
     "lastChangelogVersion": "0.64.0"

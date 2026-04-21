@@ -24,6 +24,8 @@ export interface AgentDiscoveryResult {
     projectAgentsDir: string | null;
 }
 
+const AGENT_DIR_CANDIDATES = ["agents", "agent"] as const;
+
 function loadMarkdownConfigFile(filePath: string, source: "user" | "project"): AgentConfig | null {
     let content: string;
     try {
@@ -93,10 +95,20 @@ function isFile(p: string): boolean {
 function findNearestProjectAgentsDir(cwd: string): string | null {
     const projectPiDir = findNearestProjectPiDir(cwd);
     if (!projectPiDir) return null;
-    const agentsDir = path.join(projectPiDir, "agents");
-    return isDirectory(agentsDir) ? agentsDir : null;
+    for (const dirName of AGENT_DIR_CANDIDATES.slice().reverse()) {
+        const agentsDir = path.join(projectPiDir, dirName);
+        if (isDirectory(agentsDir)) return agentsDir;
+    }
+    return null;
 }
 
+function loadAgentsFromCandidateDirs(baseDir: string, source: "user" | "project"): AgentConfig[] {
+    const discovered: AgentConfig[] = [];
+    for (const dirName of AGENT_DIR_CANDIDATES) {
+        discovered.push(...loadAgentsFromDir(path.join(baseDir, dirName), source));
+    }
+    return discovered;
+}
 
 function scanSkillFiles(rootDir: string, maxDepth = 4): string[] {
     const found = new Set<string>();
@@ -139,13 +151,13 @@ function loadSkillsFromRoots(roots: string[], source: "user" | "project"): Agent
 }
 
 export function discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryResult {
-    const userDir = path.join(getAgentDir(), "agents");
+    const userHomeDir = getAgentDir();
     const projectAgentsDir = findNearestProjectAgentsDir(cwd);
     const skillRoots = loadConfiguredSkillRoots(cwd);
 
     const userSkills = scope === "project" ? [] : loadSkillsFromRoots(skillRoots.user, "user");
     const projectSkills = scope === "user" ? [] : loadSkillsFromRoots(skillRoots.project, "project");
-    const userAgents = scope === "project" ? [] : loadAgentsFromDir(userDir, "user");
+    const userAgents = scope === "project" ? [] : loadAgentsFromCandidateDirs(userHomeDir, "user");
     const projectAgents = scope === "user" || !projectAgentsDir ? [] : loadAgentsFromDir(projectAgentsDir, "project");
 
     const agentMap = new Map<string, AgentConfig>();

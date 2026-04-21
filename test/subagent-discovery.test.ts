@@ -81,4 +81,42 @@ describe("subagent discovery", () => {
     expect(byName.get("worker")?.filePath).toContain(`${path.sep}.pi${path.sep}agents${path.sep}worker.md`);
     expect(byName.get("worker")?.systemPrompt.trim()).toBe("Agent-backed worker.");
   });
+
+  it("discovers singular .pi/agent directory and prefers it over .pi/agents on collisions", () => {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-discovery-project-singular-"));
+    fs.mkdirSync(path.join(projectRoot, ".pi", "agent"), { recursive: true });
+    fs.mkdirSync(path.join(projectRoot, ".pi", "agents"), { recursive: true });
+
+    fs.writeFileSync(
+      path.join(projectRoot, ".pi", "agent", "planner.md"),
+      [
+        "---",
+        "name: planner",
+        "description: Planner from singular dir",
+        "---",
+        "Planner from .pi/agent",
+      ].join("\n"),
+      "utf-8",
+    );
+
+    fs.writeFileSync(
+      path.join(projectRoot, ".pi", "agents", "planner.md"),
+      [
+        "---",
+        "name: planner",
+        "description: Planner from plural dir",
+        "---",
+        "Planner from .pi/agents",
+      ].join("\n"),
+      "utf-8",
+    );
+
+    const discovery = discoverAgents(projectRoot, "project");
+    const planner = discovery.agents.find((agent) => agent.name === "planner");
+
+    expect(planner?.source).toBe("project");
+    expect(planner?.description).toBe("Planner from singular dir");
+    expect(planner?.filePath).toContain(`${path.sep}.pi${path.sep}agent${path.sep}planner.md`);
+    expect(discovery.projectAgentsDir).toContain(`${path.sep}.pi${path.sep}agent`);
+  });
 });
