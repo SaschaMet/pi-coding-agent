@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pair Programmer"
+  short_description: "Plan-driven scaffolding with stubs only via sub-agent orchestration"
+  default_prompt: "Use $pair-programmer for this task. Spawn a pair-programming sub-agent via the subagent tool, keep scope to scaffold stubs only, and do not add implementation logic or tests."

@@ -8,7 +8,7 @@
         "reserveTokens": 12288,
         "keepRecentTokens": 16384
     },
-    "theme": "codex-dark",
+    "theme": "dark",
     "envService": {
         "envFile": "/Users/saschametzger/Projects/pi-coding-agent/.env",
         "useProjectEnv": true
