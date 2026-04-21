@@ -5,10 +5,10 @@
 - Capability-mode policy via `.pi/security/capabilities.json`
 - Deny-by-default for missing tool entries
 - Startup coverage enforcement for active + subagent-exposed tools
-- Protected path blocking (`.env*`, `.git`)
+- Protected-path confirmation for `.env*` reads
 - Bash env sanitization with strict allowlist
-- Bash network command deny-by-default
-- Bash operator enforcement (`;`, backticks, `$()` blocked; `|`, `&&`, `||` allowed with per-segment policy checks)
+- Bash network command allow-by-default
+- Bash confirmation for delete/remove commands and `.env` reads
 - `confirm` actions auto-denied when `hasUI=false`
 - Subagent strict local runtime (`node_modules/.bin/pi`) with fail-closed behavior, resolved in order from:
   - delegated task `cwd`
@@ -20,12 +20,11 @@
 1. `npm test`
 2. `npm run smoke`
 3. Manual checks:
-   - `grep` with `path: "."` is blocked
-   - `read` on `.env` is blocked
-   - `bash` `printenv` is blocked
-   - `bash` `curl https://example.com` is blocked
-   - dangerous git command prompts in UI and denies in non-UI
-   - `bash` `npm run smoke && printenv` is blocked as chained payload
+   - `read` on `.env` requires confirmation (denied in non-UI)
+   - `bash` `cat .env` requires confirmation (denied in non-UI)
+   - `bash` `rm -rf /tmp/foo` requires confirmation (denied in non-UI)
+   - `bash` `printenv` is allowed
+   - `bash` `curl https://example.com` is allowed
 
 ## Emergency Override (Temporary)
 
@@ -44,7 +43,6 @@ Use only for local debugging and revert immediately:
 
 - **Command unexpectedly blocked**
   - Check bash rule order and regex in capability file
-  - Confirm whether command is treated as networked or sensitive
 
 ## Roadmap (Not Yet Enforced)
 

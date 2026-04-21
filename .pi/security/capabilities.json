@@ -1,9 +1,7 @@
 {
     "version": 1,
     "defaultAction": "deny",
-    "protectedPathSegments": [
-        ".git"
-    ],
+    "protectedPathSegments": [],
     "protectedBasenames": [
         ".env"
     ],
@@ -15,9 +13,19 @@
             "mode": "allow",
             "nonInteractivePolicy": "deny",
             "bashPolicy": {
-                "defaultAction": "block",
+                "defaultAction": "allow",
                 "nonInteractiveConfirm": "deny",
                 "rules": [
+                    {
+                        "pattern": "(^|\\s)(cat|head|tail|less|more|grep|rg|awk|sed)\\b[^\\n]*\\s(\\./)?\\.env(\\.[\\w.-]+)?(\\s|$)",
+                        "action": "confirm",
+                        "reason": "Reading .env files requires confirmation"
+                    },
+                    {
+                        "pattern": "\\b(rm|rmdir|unlink|del|erase)\\b|\\bgit\\s+(rm|branch\\s+-[dD])\\b",
+                        "action": "confirm",
+                        "reason": "Delete/remove command requires confirmation"
+                    },
                     {
                         "pattern": "^\\s*ls\\b",
                         "action": "allow"
@@ -193,37 +201,10 @@
                     {
                         "pattern": "^\\s*uv\\s+run\\s+--python\\s+3\\.12\\s+python3?\\s+(-V|--version)\\b",
                         "action": "allow"
-                    },
-                    {
-                        "pattern": "\\bgit\\s+(push|pull|rebase|revert|reset|merge|cherry-pick|commit|tag|checkout|switch|branch\\s+-[dD])\\b",
-                        "action": "confirm",
-                        "reason": "Potentially dangerous git command"
-                    },
-                    {
-                        "pattern": "\\b(rm\\s+(-rf?|--recursive)|sudo\\b|(chmod|chown)\\b.*777)",
-                        "action": "confirm",
-                        "reason": "Potentially dangerous command"
                     }
                 ],
-                "sensitivePatterns": [
-                    "\\b(printenv|env)\\b",
-                    "\\b(process\\.env|os\\.environ|getenv\\s*\\(|/proc/self/environ|%ENV)\\b",
-                    "\\b(echo|printf)\\b[^\\n;&|]*\\$\\{?[A-Za-z_][A-Za-z0-9_]*\\}?",
-                    "(^|\\s|['\"`])\\.env(\\.[\\w.-]+)?($|\\s|['\"`])",
-                    "(^|\\s|['\"`])(\\.git)(/|\\b)"
-                ],
-                "networkDenyCommands": [
-                    "curl",
-                    "wget",
-                    "nc",
-                    "ncat",
-                    "netcat",
-                    "ssh",
-                    "scp",
-                    "sftp",
-                    "ftp",
-                    "telnet"
-                ],
+                "sensitivePatterns": [],
+                "networkDenyCommands": [],
                 "networkAllowPatterns": [],
                 "envAllowlist": [
                     "PATH",
@@ -253,36 +234,19 @@
             }
         },
         "write": {
-            "mode": "allow",
-            "pathPolicy": {
-                "denyProtectedPaths": true
-            }
+            "mode": "allow"
         },
         "edit": {
-            "mode": "allow",
-            "pathPolicy": {
-                "denyProtectedPaths": true
-            }
+            "mode": "allow"
         },
         "ls": {
-            "mode": "allow",
-            "pathPolicy": {
-                "denyProtectedPaths": true
-            }
+            "mode": "allow"
         },
         "grep": {
-            "mode": "allow",
-            "pathPolicy": {
-                "denyProtectedPaths": true,
-                "confirmSearchScopeIncludingProtectedRoots": true
-            }
+            "mode": "allow"
         },
         "find": {
-            "mode": "allow",
-            "pathPolicy": {
-                "denyProtectedPaths": true,
-                "confirmSearchScopeIncludingProtectedRoots": true
-            }
+            "mode": "allow"
         },
         "ask_questions": {
             "mode": "allow"
@@ -291,12 +255,10 @@
             "mode": "allow"
         },
         "web_search": {
-            "mode": "confirm",
-            "nonInteractivePolicy": "deny"
+            "mode": "allow"
         },
         "fetch_web_page": {
-            "mode": "confirm",
-            "nonInteractivePolicy": "deny"
+            "mode": "allow"
         },
         "subagent": {
             "mode": "allow"

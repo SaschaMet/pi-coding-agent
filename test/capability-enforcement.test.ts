@@ -47,7 +47,7 @@ describe("capability enforcer extension", () => {
     expect(result).toBeUndefined();
   });
 
-  it("requires confirmation for confirmation-gated tools without UI", async () => {
+  it("allows web_search without UI confirmation", async () => {
     const pi = createFakePi();
     capabilityEnforcerExtension(pi as any);
     const handlers = pi.handlers.get("tool_call") ?? [];
@@ -60,11 +60,10 @@ describe("capability enforcer extension", () => {
       { hasUI: false },
     );
 
-    expect(result?.block).toBe(true);
-    expect(result?.reason).toContain("requires confirmation");
+    expect(result).toBeUndefined();
   });
 
-  it("allows confirmation-gated tools after explicit UI confirmation", async () => {
+  it("allows fetch_web_page without UI confirmation", async () => {
     const pi = createFakePi();
     capabilityEnforcerExtension(pi as any);
     const handlers = pi.handlers.get("tool_call") ?? [];
@@ -74,12 +73,7 @@ describe("capability enforcer extension", () => {
         toolName: "fetch_web_page",
         input: { url: "https://example.com" },
       },
-      {
-        hasUI: true,
-        ui: {
-          select: async () => "Yes",
-        },
-      },
+      { hasUI: false },
     );
 
     expect(result).toBeUndefined();

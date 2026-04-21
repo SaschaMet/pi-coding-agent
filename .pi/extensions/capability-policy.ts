@@ -57,7 +57,6 @@ const DEFAULT_SECURITY_RUNTIME_CONFIG: SecurityRuntimeConfig = {
     strictSubagentLocalRuntime: true,
 };
 
-const DISALLOWED_BASH_OPERATOR_PATTERN = /(;|`|\$\()/;
 const BOOLEAN_CHAIN_OPERATOR_PATTERN = /&&|\|\|/;
 
 interface CapabilityConfigCacheEntry {
@@ -290,6 +289,9 @@ export function evaluatePathToolAccess(
 
     const targetPath = resolvePathFromCwd(inputPath, cwd);
     if (capability.pathPolicy.denyProtectedPaths && isProtectedLeafPath(targetPath, config)) {
+        if (toolName === "read") {
+            return { action: "confirm", reason: `Path '${inputPath}' requires confirmation` };
+        }
         return { action: "block", reason: `Path '${inputPath}' is protected` };
     }
 
@@ -312,10 +314,6 @@ function includesNetworkCommand(command: string, deniedCommands: string[]): stri
         if (pattern.test(command)) return commandName;
     }
     return undefined;
-}
-
-function hasAllowedShellStructure(command: string): boolean {
-    return !DISALLOWED_BASH_OPERATOR_PATTERN.test(command);
 }
 
 function splitBooleanChainedCommands(command: string): string[] {
@@ -369,10 +367,6 @@ export function evaluateBashCommand(
     }
     if (capability.mode === "block") {
         return { action: "block", reason: "bash is blocked by capability policy" };
-    }
-
-    if (!hasAllowedShellStructure(command)) {
-        return { action: "block", reason: "Disallowed shell operator in bash payload (`;`, backticks, `$()`) by capability policy" };
     }
 
     for (const sensitivePattern of capability.bashPolicy.sensitivePatterns) {

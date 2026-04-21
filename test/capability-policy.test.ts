@@ -45,17 +45,27 @@ describe("capability policy", () => {
         expect(missing).toEqual(["unknown_tool"]);
     });
 
-    it("blocks sensitive and network bash commands, allows safe ones", () => {
+    it("allows non-delete bash commands and confirms delete/.env reads", () => {
         const config = loadCapabilityConfig(process.cwd());
 
-        const sensitive = evaluateBashCommand("printenv", false, config);
-        expect(sensitive.action).toBe("block");
+        const env = evaluateBashCommand("printenv", false, config);
+        expect(env.action).toBe("allow");
 
-        const network = evaluateBashCommand("curl https://example.com", true, config);
-        expect(network.action).toBe("block");
+        const network = evaluateBashCommand("curl https://example.com", false, config);
+        expect(network.action).toBe("allow");
 
         const safe = evaluateBashCommand("ls -la src", false, config);
         expect(safe.action).toBe("allow");
+
+        const deleteNonUi = evaluateBashCommand("rm -rf /tmp/foo", false, config);
+        expect(deleteNonUi.action).toBe("block");
+        expect(deleteNonUi.reason).toContain("no UI");
+
+        const deleteUi = evaluateBashCommand("rm -rf /tmp/foo", true, config);
+        expect(deleteUi.action).toBe("confirm");
+
+        const envFileUi = evaluateBashCommand("cat .env", true, config);
+        expect(envFileUi.action).toBe("confirm");
     });
 
     it("allows repo-standard npm verification scripts", () => {
@@ -101,12 +111,11 @@ describe("capability policy", () => {
         expect(evaluateBashCommand("composer install", false, config).action).toBe("allow");
     });
 
-    it("blocks disallowed shell operators", () => {
+    it("allows shell separators when command does not match confirm rules", () => {
         const config = loadCapabilityConfig(process.cwd());
 
         const chained = evaluateBashCommand("npm run smoke ; printenv", false, config);
-        expect(chained.action).toBe("block");
-        expect(chained.reason).toContain("Disallowed shell operator");
+        expect(chained.action).toBe("allow");
     });
 
     it("allows safe command pipelines", () => {
@@ -126,38 +135,34 @@ describe("capability policy", () => {
         expect(chainedOr.action).toBe("allow");
     });
 
-    it("requires confirmation for dangerous git commands and blocks in non-UI", () => {
+    it("does not require confirmation for non-delete git commands", () => {
         const config = loadCapabilityConfig(process.cwd());
 
         const nonUi = evaluateBashCommand("git push origin main", false, config);
-        expect(nonUi.action).toBe("block");
-        expect(nonUi.reason).toContain("no UI");
-
-        const ui = evaluateBashCommand("git push origin main", true, config);
-        expect(ui.action).toBe("confirm");
+        expect(nonUi.action).toBe("allow");
     });
 
-    it("blocks protected path access and allows root grep scope", () => {
+    it("confirms .env reads and allows other path access", () => {
         const config = loadCapabilityConfig(process.cwd());
 
         const readEnv = evaluatePathToolAccess("read", ".env", process.cwd(), config);
-        expect(readEnv.action).toBe("block");
+        expect(readEnv.action).toBe("confirm");
 
         const grepRoot = evaluatePathToolAccess("grep", ".", process.cwd(), config);
         expect(grepRoot.action).toBe("allow");
 
         const grepProtected = evaluatePathToolAccess("grep", ".git", process.cwd(), config);
-        expect(grepProtected.action).toBe("block");
+        expect(grepProtected.action).toBe("allow");
 
         const grepScoped = evaluatePathToolAccess("grep", "src", process.cwd(), config);
         expect(grepScoped.action).toBe("allow");
     });
 
-    it("requires confirmation for web tools", () => {
+    it("allows web tools without confirmation", () => {
         const config = loadCapabilityConfig(process.cwd());
 
-        expect(config.tools.web_search?.mode).toBe("confirm");
-        expect(config.tools.fetch_web_page?.mode).toBe("confirm");
+        expect(config.tools.web_search?.mode).toBe("allow");
+        expect(config.tools.fetch_web_page?.mode).toBe("allow");
     });
 
     it("fails closed when capabilities file is missing", () => {

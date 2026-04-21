@@ -128,7 +128,7 @@ describe("safety extensions", () => {
     }
   });
 
-  it("blocks disallowed shell operators", async () => {
+  it("allows shell separators when command does not match confirm rules", async () => {
     const pi = createFakePi();
     permissionGateExtension(pi as any);
     const handlers = pi.handlers.get("tool_call") ?? [];
@@ -141,8 +141,7 @@ describe("safety extensions", () => {
       { hasUI: false },
     );
 
-    expect(result?.block).toBe(true);
-    expect(result?.reason).toContain("Disallowed shell operator");
+    expect(result).toBeUndefined();
   });
 
   it("allows safe command pipelines", async () => {
@@ -185,7 +184,7 @@ describe("safety extensions", () => {
     expect(resultOr).toBeUndefined();
   });
 
-  it("blocks env exfiltration commands", async () => {
+  it("does not block environment inspection commands", async () => {
     const pi = createFakePi();
     permissionGateExtension(pi as any);
     const handlers = pi.handlers.get("tool_call") ?? [];
@@ -198,11 +197,10 @@ describe("safety extensions", () => {
       { hasUI: false },
     );
 
-    expect(result?.block).toBe(true);
-    expect(result?.reason).toContain("Sensitive data");
+    expect(result).toBeUndefined();
   });
 
-  it("allows blocked bash commands after explicit UI override", async () => {
+  it("allows .env read commands after explicit UI confirmation", async () => {
     const pi = createFakePi();
     permissionGateExtension(pi as any);
     const handlers = pi.handlers.get("tool_call") ?? [];
@@ -210,7 +208,7 @@ describe("safety extensions", () => {
     const result = await handlers[0](
       {
         toolName: "bash",
-        input: { command: "printenv" },
+        input: { command: "cat .env" },
       },
       {
         hasUI: true,
@@ -223,7 +221,7 @@ describe("safety extensions", () => {
     expect(result).toBeUndefined();
   });
 
-  it("keeps blocked bash commands blocked when user declines override", async () => {
+  it("keeps .env read commands blocked when user declines confirmation", async () => {
     const pi = createFakePi();
     permissionGateExtension(pi as any);
     const handlers = pi.handlers.get("tool_call") ?? [];
@@ -231,7 +229,7 @@ describe("safety extensions", () => {
     const result = await handlers[0](
       {
         toolName: "bash",
-        input: { command: "printenv" },
+        input: { command: "cat .env" },
       },
       {
         hasUI: true,
@@ -245,7 +243,7 @@ describe("safety extensions", () => {
     expect(result?.reason).toBe("Blocked by user");
   });
 
-  it("requires confirmation for dangerous git commands without UI", async () => {
+  it("does not require confirmation for non-delete git commands", async () => {
     const pi = createFakePi();
     permissionGateExtension(pi as any);
     const handlers = pi.handlers.get("tool_call") ?? [];
@@ -256,28 +254,6 @@ describe("safety extensions", () => {
         input: { command: "git pull --rebase" },
       },
       { hasUI: false },
-    );
-
-    expect(result?.block).toBe(true);
-    expect(result?.reason).toContain("no UI for confirmation");
-  });
-
-  it("allows dangerous git commands after explicit UI confirmation", async () => {
-    const pi = createFakePi();
-    permissionGateExtension(pi as any);
-    const handlers = pi.handlers.get("tool_call") ?? [];
-
-    const result = await handlers[0](
-      {
-        toolName: "bash",
-        input: { command: "git push origin main" },
-      },
-      {
-        hasUI: true,
-        ui: {
-          select: async () => "Yes",
-        },
-      },
     );
 
     expect(result).toBeUndefined();
@@ -297,7 +273,7 @@ describe("safety extensions", () => {
     expect(result).toBeUndefined();
   });
 
-  it("blocks write/edit/read on protected paths", async () => {
+  it("requires confirmation only for .env reads on protected-path tools", async () => {
     const pi = createFakePi();
     protectedPathsExtension(pi as any);
     const handlers = pi.handlers.get("tool_call") ?? [];
@@ -309,16 +285,17 @@ describe("safety extensions", () => {
       },
       { hasUI: false },
     );
-    expect(writeResult?.block).toBe(true);
+    expect(writeResult).toBeUndefined();
 
     const readResult = await handlers[0](
       {
         toolName: "read",
-        input: { path: ".git/config" },
+        input: { path: ".env" },
       },
       { hasUI: false },
     );
     expect(readResult?.block).toBe(true);
+    expect(readResult?.reason).toContain("no UI for confirmation");
   });
 
   it("registers protected paths extension only once per runtime", async () => {
@@ -330,7 +307,7 @@ describe("safety extensions", () => {
     expect(handlers).toHaveLength(1);
   });
 
-  it("allows root grep scope but still blocks explicit protected paths", async () => {
+  it("allows grep on root and previously protected paths", async () => {
     const pi = createFakePi();
     protectedPathsExtension(pi as any);
     const handlers = pi.handlers.get("tool_call") ?? [];
@@ -351,7 +328,7 @@ describe("safety extensions", () => {
       },
       { hasUI: false },
     );
-    expect(protectedScopedResult?.block).toBe(true);
+    expect(protectedScopedResult).toBeUndefined();
 
     const safeScopedResult = await handlers[0](
       {
