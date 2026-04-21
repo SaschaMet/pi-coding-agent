@@ -24,6 +24,6 @@
     "security": {
         "capabilitiesFile": ".pi/security/capabilities.json",
         "enforceCoverageAtStartup": true,
-        "strictSubagentLocalRuntime": true
+        "strictSubagentLocalRuntime": false
     }
 }
