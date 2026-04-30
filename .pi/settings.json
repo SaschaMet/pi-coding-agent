@@ -1,7 +1,7 @@
 {
     "enableSkillCommands": true,
-    "defaultProvider": "github-copilot",
-    "defaultModel": "gpt-5.3-codex",
+    "defaultProvider": "lmstudio",
+    "defaultModel": "qwen/qwen3.6-35b-a3b",
     "defaultThinkingLevel": "medium",
     "compaction": {
         "enabled": true,

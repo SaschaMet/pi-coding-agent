@@ -6,19 +6,8 @@
             "apiKey": "lmstudio",
             "models": [
                 {
-                    "id": "qwen3-coder-next"
-                },
-                {
-                    "id": "google/gemma-4-26b-a4b"
-                },
-                {
-                    "id": "essentialai/rnj-1"
-                },
-                {
-                    "id": "zai-org/glm-4.7-flash"
-                },
-                {
-                    "id": "qwen3-coder-30b-a3b-instruct"
+                    "id": "qwen/qwen3.6-35b-a3b",
+                    "name": "Qwen3.6"
                 }
             ]
         }
