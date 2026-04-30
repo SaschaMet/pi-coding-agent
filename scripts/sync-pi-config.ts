@@ -5,24 +5,7 @@ import process from "node:process";
 
 type Mode = "pull" | "push";
 
-type SyncEntry = {
-    kind: "file" | "dir";
-    relativePath: string;
-    mergeJson?: boolean;
-};
-
-const ENTRIES: SyncEntry[] = [
-    { kind: "file", relativePath: "settings.json", mergeJson: true },
-    { kind: "file", relativePath: "models.json", mergeJson: true },
-    { kind: "file", relativePath: "keybindings.json", mergeJson: true },
-    { kind: "file", relativePath: "agent.config.json", mergeJson: true },
-    { kind: "dir", relativePath: "extensions" },
-    { kind: "dir", relativePath: "skills" },
-    { kind: "dir", relativePath: "prompts" },
-    { kind: "dir", relativePath: "themes" },
-    { kind: "dir", relativePath: "agent" },
-    { kind: "dir", relativePath: "security" },
-];
+const EXCLUDED_TOP_LEVEL_PATHS = new Set(["auth.json", "sessions"]);
 
 function resolveGlobalAgentDir(): string {
     const fromEnv = process.env.PI_CODING_AGENT_DIR?.trim();
@@ -42,47 +25,42 @@ function ensureDir(dirPath: string): void {
     fs.mkdirSync(dirPath, { recursive: true });
 }
 
-function listFilesRecursive(root: string): string[] {
+function isManagedRelativePath(relativePath: string): boolean {
+    const normalized = relativePath.split(path.sep).join("/");
+    if (!normalized) return false;
+    if (path.posix.basename(normalized) === ".DS_Store") return false;
+
+    const topLevel = normalized.split("/")[0];
+    return !EXCLUDED_TOP_LEVEL_PATHS.has(topLevel);
+}
+
+function listRelativeFilesRecursive(root: string): string[] {
     if (!fs.existsSync(root)) return [];
     const files: string[] = [];
-    const walk = (dir: string) => {
-        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-            const fullPath = path.join(dir, entry.name);
-            if (entry.isDirectory()) walk(fullPath);
-            if (entry.isFile()) files.push(fullPath);
+
+    const walk = (relativeDir: string) => {
+        const absoluteDir = relativeDir ? path.join(root, relativeDir) : root;
+
+        for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
+            const relativePath = relativeDir
+                ? path.posix.join(relativeDir.split(path.sep).join("/"), entry.name)
+                : entry.name;
+
+            if (!isManagedRelativePath(relativePath)) continue;
+
+            if (entry.isDirectory()) {
+                walk(relativePath);
+                continue;
+            }
+
+            if (entry.isFile()) {
+                files.push(relativePath);
+            }
         }
     };
-    walk(root);
+
+    walk("");
     return files.sort();
-}
-
-function deepMerge(base: unknown, override: unknown): unknown {
-    if (Array.isArray(base) || Array.isArray(override)) {
-        return override ?? base;
-    }
-
-    if (isObject(base) && isObject(override)) {
-        const merged: Record<string, unknown> = { ...base };
-        for (const [key, value] of Object.entries(override)) {
-            merged[key] = deepMerge((base as Record<string, unknown>)[key], value);
-        }
-        return merged;
-    }
-
-    return override ?? base;
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function readJson(filePath: string): Record<string, unknown> {
-    return JSON.parse(fs.readFileSync(filePath, "utf-8")) as Record<string, unknown>;
-}
-
-function writeJson(filePath: string, value: unknown): void {
-    ensureDir(path.dirname(filePath));
-    fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
 function copyFileIfChanged(source: string, target: string): boolean {
@@ -96,47 +74,59 @@ function copyFileIfChanged(source: string, target: string): boolean {
     return true;
 }
 
-function copyDirIfChanged(sourceDir: string, targetDir: string): number {
-    if (!fs.existsSync(sourceDir)) return 0;
-
-    let changed = 0;
-    for (const sourceFile of listFilesRecursive(sourceDir)) {
-        const rel = path.relative(sourceDir, sourceFile);
-        const targetFile = path.join(targetDir, rel);
-        if (copyFileIfChanged(sourceFile, targetFile)) changed += 1;
-    }
-    return changed;
-}
-
-function mergeJsonFile(source: string, target: string): boolean {
-    if (!fs.existsSync(source)) return false;
-    const sourceJson = readJson(source);
-    const targetJson = fs.existsSync(target) ? readJson(target) : {};
-    const merged = deepMerge(targetJson, sourceJson);
-    const mergedText = `${JSON.stringify(merged, null, 2)}\n`;
-    const previousText = fs.existsSync(target) ? fs.readFileSync(target, "utf-8") : "";
-    if (mergedText === previousText) return false;
-    ensureDir(path.dirname(target));
-    fs.writeFileSync(target, mergedText);
+function removeFileIfExists(filePath: string): boolean {
+    if (!fs.existsSync(filePath)) return false;
+    fs.rmSync(filePath);
     return true;
 }
 
-function syncEntry(mode: Mode, localPiDir: string, globalAgentDir: string, entry: SyncEntry): number {
-    const sourceRoot = mode === "push" ? localPiDir : globalAgentDir;
-    const targetRoot = mode === "push" ? globalAgentDir : localPiDir;
+function pruneEmptyManagedDirectories(root: string, relativeDir = ""): void {
+    const absoluteDir = relativeDir ? path.join(root, relativeDir) : root;
+    if (!fs.existsSync(absoluteDir)) return;
 
-    const sourcePath = path.join(sourceRoot, entry.relativePath);
-    const targetPath = path.join(targetRoot, entry.relativePath);
+    for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
 
-    if (entry.kind === "file") {
-        if (entry.mergeJson) {
-            return mergeJsonFile(sourcePath, targetPath) ? 1 : 0;
-        }
-        if (!fs.existsSync(sourcePath)) return 0;
-        return copyFileIfChanged(sourcePath, targetPath) ? 1 : 0;
+        const childRelative = relativeDir
+            ? path.posix.join(relativeDir.split(path.sep).join("/"), entry.name)
+            : entry.name;
+
+        if (!isManagedRelativePath(childRelative)) continue;
+        pruneEmptyManagedDirectories(root, childRelative);
     }
 
-    return copyDirIfChanged(sourcePath, targetPath);
+    if (!relativeDir) return;
+
+    if (fs.readdirSync(absoluteDir).length === 0) {
+        fs.rmdirSync(absoluteDir);
+    }
+}
+
+function syncManagedPiDirectory(mode: Mode, localPiDir: string, globalAgentDir: string): { updated: number; deleted: number } {
+    const sourceRoot = mode === "push" ? localPiDir : globalAgentDir;
+    const targetRoot = mode === "push" ? globalAgentDir : localPiDir;
+    ensureDir(targetRoot);
+
+    const sourceFiles = listRelativeFilesRecursive(sourceRoot);
+    const sourceSet = new Set(sourceFiles);
+
+    let updated = 0;
+    for (const relativePath of sourceFiles) {
+        const sourcePath = path.join(sourceRoot, relativePath);
+        const targetPath = path.join(targetRoot, relativePath);
+        if (copyFileIfChanged(sourcePath, targetPath)) updated += 1;
+    }
+
+    let deleted = 0;
+    for (const targetRelativePath of listRelativeFilesRecursive(targetRoot)) {
+        if (sourceSet.has(targetRelativePath)) continue;
+        const targetPath = path.join(targetRoot, targetRelativePath);
+        if (removeFileIfExists(targetPath)) deleted += 1;
+    }
+
+    pruneEmptyManagedDirectories(targetRoot);
+
+    return { updated, deleted };
 }
 
 function main(): void {
@@ -151,15 +141,13 @@ function main(): void {
 
     ensureDir(globalAgentDir);
 
-    let changes = 0;
-    for (const entry of ENTRIES) {
-        changes += syncEntry(mode, localPiDir, globalAgentDir, entry);
-    }
+    const result = syncManagedPiDirectory(mode, localPiDir, globalAgentDir);
 
     console.log(`Mode: ${mode}`);
     console.log(`Local: ${localPiDir}`);
     console.log(`Global: ${globalAgentDir}`);
-    console.log(`Updated files: ${changes}`);
+    console.log(`Updated files: ${result.updated}`);
+    console.log(`Deleted files: ${result.deleted}`);
 }
 
 main();

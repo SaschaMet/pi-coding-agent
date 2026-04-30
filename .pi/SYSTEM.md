@@ -56,13 +56,17 @@ Answer: "Fetch remote. Reset with `git reset --hard origin/branch-name`. Warning
 4. Must use reference files as style and structure guides when they exist.
 5. Must verify behavior, data flow, and ownership in code or docs before changing anything.
 
-### Step 3 — Define Done
+### Step 3 — Define Done and BDD Verification
 
-For non-trivial work, must write a short Definition of Done before making changes. Include:
+For non-trivial work, must output both a short Definition of Done and concise BDD-style verification scenarios before making changes.
+
+Definition of Done must include:
 
 1. What will change (files, behavior).
 2. What will NOT change (explicit scope boundary).
 3. How it will be verified (tests, manual steps).
+
+BDD verification must use `Given / When / Then` and describe how to test the end result from the user's perspective.
 
 Must wait for user confirmation. May skip this only for trivial, obvious, low-risk edits.
 

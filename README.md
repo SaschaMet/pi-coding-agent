@@ -54,13 +54,13 @@ npm run agent
 - `npm run agent` - run interactive agent
 - `npm run smoke` - extension/resource discovery smoke check
 - `npm test` - run unit/integration tests
-- `npm run pi:pull-global` - merge global PI config/resources into this repo's `.pi/`
+- `npm run pi:pull-global` - mirror global PI config/resources into this repo's `.pi/`
 - `npm run pi:sync-global` - sync this repo's `.pi/` resources into global `~/.pi/agent` (or `PI_CODING_AGENT_DIR`)
 
 Notes:
 
-- Sync only covers shareable config/resources (`settings.json`, `models.json`, `keybindings.json`, `agent.config.json`, `extensions/`, `skills/`, `prompts/`, `themes/`, `agents/`, `security/`).
-- It intentionally does not touch personal runtime data like `auth.json` or `sessions/`.
+- Sync mirrors managed files under `.pi/` (including `.pi/SYSTEM.md`) and removes stale managed files in the target.
+- It intentionally excludes personal runtime data like `auth.json`, `sessions/`, and `.DS_Store`.
 - Secrets can be centralized via `envService` in `settings.json` (e.g. `"envFile": "${PI_CODER_REPO}/.env"`).
 
 ## Sharing Setup with Colleagues
@@ -73,13 +73,13 @@ From the cloned repo root:
 npm run pi:pull-global
 ```
 
-2. Point envService at this repository's `.env` file:
+1. Point envService at this repository's `.env` file:
 
 ```bash
 export PI_CODER_REPO="$(pwd)"
 ```
 
-3. Push this repo's `.pi/` stack to the colleague's global PI directory:
+1. Push this repo's `.pi/` stack to the colleague's global PI directory:
 
 ```bash
 npm run pi:sync-global
