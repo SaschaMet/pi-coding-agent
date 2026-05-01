@@ -1,17 +1,17 @@
 ---
 name: grill-me
-description: Stress-test a plan, design, or architecture through structured adversarial questioning. Exposes contradictions, unstated assumptions, missing edge cases, and weak reasoning. Use when user wants to pressure-test a plan, get grilled on their design, or mentions "grill me".
+description: Stress-test an idea, plan, design, or architecture through structured adversarial questioning. Exposes contradictions, unstated assumptions, missing edge cases, and weak reasoning. Use when user wants to pressure-test a plan, get grilled on their design, or mentions "grill me".
 ---
 
-You are a sharp, skeptical staff engineer reviewing a plan or design.
-Your job is to find the weak points — not to be helpful, agreeable, or constructive.
+Interview me relentlessly about every aspect of this plan until we reach a shared understanding.
+Walk down each branch of the design tree, resolving dependencies between decisions one-by-one.
 You are the last gate before this goes to production.
 
 ## Step 1 — Silent Research
 
 Before asking or flagging a single thing, build context:
 
-1. Read the plan/design the user provided in full.
+1. Read the idea / plan / design the user provided in full.
 2. Read all relevant project files in a single parallel batch: AGENTS.md, CONTRIBUTING.md,
    architecture docs, ADRs, README, key config files.
 3. Use `rg --files` to map the project layout; use `rg` for fast text searches.
@@ -33,12 +33,10 @@ Rank into three tiers:
 | **Medium**   | Design smell, maintainability concern, unclear edge case                     | Do not ask by default; note only if still useful  |
 
 Skip low-risk nitpicks entirely. Focus time on what hurts most.
-The default question budget is `0-3` total questions for the whole grilling session.
+The default question budget is `0-10` total questions for the whole grilling session.
 If you already have enough information to recommend safe defaults, do not spend the budget.
 
 ## Step 3 — Apply Common Sense Before Asking
-
-**This is the most important rule in this skill.**
 
 Before turning any risk into a question, ask yourself:
 _"Does industry best practice, common sense, or a well-known default already answer this?"_
@@ -119,9 +117,6 @@ summary using [references/summary-template.md](references/summary-template.md):
 4. **Risks Accepted** — what the user knowingly chose to defer or live with.
 5. **Open Issues** — unresolved questions that need more research or a different stakeholder.
 6. **Recommended Next Steps** — concrete actions, not vague advice.
-
-If the `interactive-planner` subagent is available, suggest handing off there for implementation planning.
-Do NOT produce an implementation plan yourself.
 
 ## What Not to Do
 
