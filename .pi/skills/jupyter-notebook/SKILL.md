@@ -23,7 +23,6 @@ Prefer the bundled templates and the helper script for consistent structure and 
 
 - Do not use this skill for non-notebook tasks (plain scripts, services, CLIs, or frontend components).
 - Do not use this skill when the user asks for production application logic rather than exploratory or tutorial notebook workflows.
-- Prefer `tdd-coding` for test-first implementation tasks in source files.
 
 ## Decision tree
 

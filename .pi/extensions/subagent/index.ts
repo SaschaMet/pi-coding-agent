@@ -298,7 +298,7 @@ const FALLBACK_AGENT_CANDIDATES: Record<string, string[]> = {
     "interactive-planner": ["planner"],
     "grill-me": ["reviewer"],
     "gan-coder": ["gan-generator", "worker"],
-    "tdd-coding": ["tdd-red", "tdd-green", "tdd-refactor", "worker"],
+    "tdd-coder": ["tdd-red", "tdd-green", "tdd-refactor", "worker"],
     orchestrator: ["planner", "reviewer", "tdd-red", "tdd-green", "tdd-refactor", "worker"],
 };
 
@@ -361,7 +361,7 @@ function buildUnknownAgentGuidance(agentName: string, agents: AgentConfig[], age
         `Unknown agent: "${agentName}".`,
         `Discovered agents (scope: ${agentScope}): ${discovered}.`,
         'Name aliases are normalized for "-" and "_" (for example: gan_generator <-> gan-generator).',
-        "Likely fallbacks: interactive-planner -> planner; grill-me -> reviewer; gan-coder -> gan-generator; tdd-coding -> tdd-red, tdd-green, tdd-refactor.",
+        "Likely fallbacks: interactive-planner -> planner; grill-me -> reviewer; gan-coder -> gan-generator; tdd-coder -> tdd-red, tdd-green, tdd-refactor.",
         fallbackText,
         `Note: discovery depends on agentScope="${agentScope}" and configured skill roots (.pi/settings.json -> skills, plus project .pi/skills when present).`,
     ].join(" ");

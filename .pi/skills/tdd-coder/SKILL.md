@@ -1,5 +1,5 @@
 ---
-name: tdd-coding
+name: tdd-coder
 description: Implement features, bug fixes, and refactors with strict test-driven development. Runs phased red-green-refactor cycles with unit tests first, optional integration tests with user-defined input/output pairs, and coverage validation. Use when code must be written or modified following TDD discipline.
 ---
 
@@ -27,6 +27,7 @@ Read all project config files you need in a single parallel batch before writing
 Use `rg --files` to map the project layout; use `rg` for fast text searches instead of `grep`.
 
 Check:
+
 - Languages, frameworks, test runners, coverage tools, CI config
 - `pyproject.toml`, `package.json`, `Makefile`, `pom.xml`, `Cargo.toml`, etc.
 - Existing test conventions: file naming, directory layout, assertion style

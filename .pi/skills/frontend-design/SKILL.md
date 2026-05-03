@@ -11,7 +11,7 @@ The user provides frontend requirements: a component, page, application, or inte
 
 - Do not use this skill for backend-only, CLI-only, or infrastructure tasks.
 - Do not use this skill when the user explicitly requests strict adherence to an existing design system and no visual experimentation.
-- Prefer `tdd-coding` when the request is primarily behavior-driven logic changes with minimal or no UI work.
+- Prefer `tdd-coder` when the request is primarily behavior-driven logic changes with minimal or no UI work.
 
 ## Design Thinking
 

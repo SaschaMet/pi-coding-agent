@@ -514,6 +514,17 @@ describe("subagent chain execution", () => {
       ].join("\n"),
       "utf-8",
     );
+    // Create local agent.config.json with strict local runtime enabled
+    // to ensure the test isolates the strict mode behavior
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agent.config.json"),
+      JSON.stringify({
+        security: {
+          strictSubagentLocalRuntime: true,
+        },
+      }),
+      "utf-8",
+    );
 
     const originalRuntimeAnchorOverride = process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT;
     process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT = path.join(tmp, "no-runtime-anchor");
