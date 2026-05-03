@@ -94,7 +94,7 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 - `.pi/agent.config.json`: search/subagent config contract
 - `.pi/extensions/`: custom extensions
 - `.pi/security/`: capability policy schema + matrix source (`capabilities.schema.json`, `capabilities.json`)
-- `.pi/agents/`: project-local subagent role definitions
+- `.pi/agent/`: project-local subagent role definitions
 - `.pi/prompts/`: workflow prompt templates
 - `.pi/skills/`: project-local skills (includes `brave-search` wrapper)
 - `docs/security/`: operator runbook and human-readable capability matrix
@@ -111,7 +111,7 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 ## Skill Routing
 
 - Skill-backed subagent names are not guaranteed to be available in every runtime.
-- Use the canonical inline subagent fallback table in [`.pi/agents/AGENTS.md`](.pi/agents/AGENTS.md).
+- Use the inline subagent fallback table in [`.pi/extensions/subagent/index.ts`](.pi/extensions/subagent/index.ts).
 - Direct skill commands are disabled, so skills run only in isolated subagent sessions.
 - Project-local skills come from `.pi/skills/`; user/global skills come from configured paths such as `~/.codex/skills`
 

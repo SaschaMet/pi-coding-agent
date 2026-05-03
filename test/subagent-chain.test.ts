@@ -203,6 +203,160 @@ describe("subagent chain execution", () => {
     expect(spawnCalls[1].args.some((arg) => arg.includes("Task: plan with scout-output"))).toBe(true);
   });
 
+  it("runs fetch then summarize using chain mode with previous handoff", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-fetch-summarize-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agent"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "node_modules", ".bin"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, "node_modules", ".bin", "pi"), "#!/bin/sh\nexit 0\n", "utf-8");
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agent", "researcher.md"),
+      ["---", "name: researcher", "description: Researcher", "---", "You are researcher."].join("\n"),
+      "utf-8",
+    );
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agent", "summarizer.md"),
+      ["---", "name: summarizer", "description: Summarizer", "---", "You are summarizer."].join("\n"),
+      "utf-8",
+    );
+
+    const spawnCalls: Array<{ command: string; args: string[] }> = [];
+    spawnMock.mockImplementation((command: string, args: string[]) => {
+      spawnCalls.push({ command, args });
+      const firstCall = spawnCalls.length === 1;
+      const assistantText = firstCall ? "fetched-page-content" : "summary-output";
+      const eventLine = JSON.stringify({
+        type: "message_end",
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: assistantText }],
+          usage: {
+            input: 8,
+            output: 4,
+            cacheRead: 0,
+            cacheWrite: 0,
+            cost: { total: 0.001 },
+            totalTokens: 12,
+          },
+          stopReason: "stop",
+        },
+      });
+      return createMockProcess([eventLine], 0);
+    });
+
+    const pi = createFakePi();
+    subagentExtension(pi as any);
+    const tool = pi.tools.get("subagent");
+
+    const result = await tool!.execute(
+      "call-subagent-fetch-summarize",
+      {
+        chain: [
+          { agent: "researcher", task: "fetch https://example.com" },
+          { agent: "summarizer", task: "summarize: {previous}" },
+        ],
+        agentScope: "project",
+        confirmProjectAgents: false,
+      },
+      undefined,
+      undefined,
+      { cwd: tmp, hasUI: false },
+    );
+
+    expect(result.isError).not.toBe(true);
+    expect(result.details.mode).toBe("chain");
+    expect(spawnCalls).toHaveLength(2);
+    expect(spawnCalls[1].args.some((arg) => arg.includes("Task: summarize: fetched-page-content"))).toBe(true);
+  });
+
+  it("uses tool-result text for chain handoff when assistant text is empty", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-chain-tool-result-handoff-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agent"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "node_modules", ".bin"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, "node_modules", ".bin", "pi"), "#!/bin/sh\nexit 0\n", "utf-8");
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agent", "researcher.md"),
+      ["---", "name: researcher", "description: Researcher", "---", "You are researcher."].join("\n"),
+      "utf-8",
+    );
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agent", "summarizer.md"),
+      ["---", "name: summarizer", "description: Summarizer", "---", "You are summarizer."].join("\n"),
+      "utf-8",
+    );
+
+    const spawnCalls: Array<{ command: string; args: string[] }> = [];
+    spawnMock.mockImplementation((_command: string, args: string[]) => {
+      spawnCalls.push({ command: "pi", args });
+      const firstCall = spawnCalls.length === 1;
+      if (firstCall) {
+        const toolResultLine = JSON.stringify({
+          type: "tool_result_end",
+          message: {
+            role: "tool",
+            content: [{ type: "text", text: "fetched-from-tool-result" }],
+          },
+        });
+        const messageEndLine = JSON.stringify({
+          type: "message_end",
+          message: {
+            role: "assistant",
+            content: [{ type: "text", text: "" }],
+            usage: {
+              input: 5,
+              output: 1,
+              cacheRead: 0,
+              cacheWrite: 0,
+              cost: { total: 0.001 },
+              totalTokens: 6,
+            },
+            stopReason: "stop",
+          },
+        });
+        return createMockProcess([toolResultLine, messageEndLine], 0);
+      }
+
+      const secondLine = JSON.stringify({
+        type: "message_end",
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "summary-from-second-step" }],
+          usage: {
+            input: 5,
+            output: 2,
+            cacheRead: 0,
+            cacheWrite: 0,
+            cost: { total: 0.001 },
+            totalTokens: 7,
+          },
+          stopReason: "stop",
+        },
+      });
+      return createMockProcess([secondLine], 0);
+    });
+
+    const pi = createFakePi();
+    subagentExtension(pi as any);
+    const tool = pi.tools.get("subagent");
+
+    const result = await tool!.execute(
+      "call-subagent-tool-result-handoff",
+      {
+        chain: [
+          { agent: "researcher", task: "fetch" },
+          { agent: "summarizer", task: "summarize {previous}" },
+        ],
+        agentScope: "project",
+        confirmProjectAgents: false,
+      },
+      undefined,
+      undefined,
+      { cwd: tmp, hasUI: false },
+    );
+
+    expect(result.isError).not.toBe(true);
+    expect(spawnCalls[1].args.some((arg) => arg.includes("Task: summarize fetched-from-tool-result"))).toBe(true);
+  });
+
   it("falls back from interactive-planner to planner in single mode", async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-unknown-single-"));
     fs.mkdirSync(path.join(tmp, ".pi", "agents"), { recursive: true });

@@ -181,6 +181,30 @@ function getFinalOutput(messages: Message[]): string {
     return "";
 }
 
+function getLastTextPart(content: unknown): string {
+    if (!Array.isArray(content)) return "";
+    for (let i = content.length - 1; i >= 0; i--) {
+        const part = content[i] as Record<string, unknown>;
+        if (part?.type === "text" && typeof part.text === "string" && part.text.trim().length > 0) {
+            return part.text;
+        }
+    }
+    return "";
+}
+
+function getBestHandoffOutput(messages: Message[]): string {
+    const assistantOutput = getFinalOutput(messages).trim();
+    if (assistantOutput.length > 0) return assistantOutput;
+
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i] as unknown as { content?: unknown };
+        const text = getLastTextPart(msg.content);
+        if (text.length > 0) return text;
+    }
+
+    return "";
+}
+
 type DisplayItem = { type: "text"; text: string } | { type: "toolCall"; name: string; args: Record<string, any> };
 
 function getDisplayItems(messages: Message[]): DisplayItem[] {
@@ -707,7 +731,7 @@ export default function (pi: ExtensionAPI) {
                             isError: true,
                         };
                     }
-                    previousOutput = getFinalOutput(result.messages);
+                    previousOutput = getBestHandoffOutput(result.messages);
                 }
                 return {
                     content: [{ type: "text", text: getFinalOutput(results[results.length - 1].messages) || "(no output)" }],

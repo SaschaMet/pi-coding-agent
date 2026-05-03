@@ -119,4 +119,25 @@ describe("subagent discovery", () => {
     expect(planner?.filePath).toContain(`${path.sep}.pi${path.sep}agent${path.sep}planner.md`);
     expect(discovery.projectAgentsDir).toContain(`${path.sep}.pi${path.sep}agent`);
   });
+
+  it("discovers researcher and summarizer project agents by name", () => {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-discovery-project-research-"));
+    fs.mkdirSync(path.join(projectRoot, ".pi", "agent"), { recursive: true });
+
+    fs.writeFileSync(
+      path.join(projectRoot, ".pi", "agent", "researcher.md"),
+      ["---", "name: researcher", "description: Research agent", "---", "Research prompts."].join("\n"),
+      "utf-8",
+    );
+    fs.writeFileSync(
+      path.join(projectRoot, ".pi", "agent", "summarizer.md"),
+      ["---", "name: summarizer", "description: Summarizer agent", "---", "Summary prompts."].join("\n"),
+      "utf-8",
+    );
+
+    const discovery = discoverAgents(projectRoot, "project");
+    const names = new Set(discovery.agents.map((agent) => agent.name));
+    expect(names.has("researcher")).toBe(true);
+    expect(names.has("summarizer")).toBe(true);
+  });
 });
