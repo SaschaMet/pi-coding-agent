@@ -113,15 +113,9 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 - Skill-backed subagent names are not guaranteed to be available in every runtime.
 - Use the canonical inline subagent fallback table in [`.pi/agents/AGENTS.md`](.pi/agents/AGENTS.md).
 - Direct skill commands are disabled, so skills run only in isolated subagent sessions.
-- Project-local skills come from `.pi/skills/`; user/global skills come from configured paths such as `~/.codex/skills`.
+- Project-local skills come from `.pi/skills/`; user/global skills come from configured paths such as `~/.codex/skills`
 
 ## Workflow Prompts
-
-- `/scout-plan <task>` - explorer -> planner
-- `/implement <task>` - explorer -> planner -> worker
-- `/implement-review <task>` - worker -> reviewer -> worker
-- `/tdd-cycle <task>` - red -> green -> refactor
-- `/gan-loop <task>` - generator -> critic (+ optional revise pass)
 
 ## Implementation Workflow
 
@@ -203,6 +197,25 @@ See [`.pi/extensions/plan-mode/README.md`](.pi/extensions/plan-mode/README.md) f
 - `bash-sandbox` uses capability env allowlist and strips non-allowlisted env vars from shell execution.
 - `web_search` and `fetch_web_page` require explicit user confirmation before use.
 - `web_search` returns structured error text and `isError: true` when provider calls fail.
+
+## Upstream Docs
+
+The underlying [`@mariozechner/pi-coding-agent`](https://www.npmjs.com/package/@mariozechner/pi-coding-agent) package ships comprehensive docs:
+
+- [README](https://www.npmjs.com/package/@mariozechner/pi-coding-agent) — overview, quick start, CLI reference
+- [Providers & Models](node_modules/@mariozechner/pi-coding-agent/docs/providers.md)
+- [Settings](node_modules/@mariozechner/pi-coding-agent/docs/settings.md)
+- [Skills](node_modules/@mariozechner/pi-coding-agent/docs/skills.md)
+- [Extensions](node_modules/@mariozechner/pi-coding-agent/docs/extensions.md)
+- [Prompt Templates](node_modules/@mariozechner/pi-coding-agent/docs/prompt-templates.md)
+- [Sessions & Compaction](node_modules/@mariozechner/pi-coding-agent/docs/session.md)
+- [Keybindings](node_modules/@mariozechner/pi-coding-agent/docs/keybindings.md)
+- [Themes](node_modules/@mariozechner/pi-coding-agent/docs/themes.md)
+- [SDK](node_modules/@mariozechner/pi-coding-agent/docs/sdk.md)
+- [RPC](node_modules/@mariozechner/pi-coding-agent/docs/rpc.md)
+- [Terminal Setup](node_modules/@mariozechner/pi-coding-agent/docs/terminal-setup.md)
+- [Windows](node_modules/@mariozechner/pi-coding-agent/docs/windows.md)
+- [Development](node_modules/@mariozechner/pi-coding-agent/docs/development.md)
 
 ## Token Efficiency Guidance
 
