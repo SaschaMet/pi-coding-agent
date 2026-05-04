@@ -24,7 +24,7 @@ Use tool `browser` with this schema:
 - Use `open` to launch a page in a browser.
 - Use `navigate` to change the URL in an existing front window/tab.
 - Use `screenshot` after `open`/`navigate` when visual verification is requested.
-- Use `close` only when user asks to close, or at end of a browser-specific task that clearly requires cleanup.
+- Use `close` unless a user asks to keep the browser open.
 
 ## Standard Flow
 
