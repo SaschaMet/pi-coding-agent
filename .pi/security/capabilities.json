@@ -260,6 +260,9 @@
         "fetch_web_page": {
             "mode": "allow"
         },
+        "mcp": {
+            "mode": "allow"
+        },
         "browser": {
             "mode": "allow"
         },

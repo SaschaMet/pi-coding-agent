@@ -102,7 +102,7 @@ async function main(): Promise<void> {
         }
     }
 
-    const builtInTools = ["read", "bash", "edit", "write", "grep", "find", "ls"];
+    const builtInTools = ["read", "bash", "edit", "write", "grep", "find", "ls", "mcp"];
     const registeredTools = fakePi.getAllTools().map((tool) => tool.name);
     const { agents } = discoverAgents(cwd, "both");
     const subagentTools = agents.flatMap((agent) => agent.tools ?? []);

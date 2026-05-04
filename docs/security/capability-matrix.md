@@ -25,6 +25,7 @@ Versioned source of truth for runtime permissions: `.pi/security/capabilities.js
 | `ask` | allow | unrestricted |
 | `web_search` | allow | unrestricted |
 | `fetch_web_page` | allow | unrestricted |
+| `mcp` | allow | unrestricted; server access governed by MCP config/transport |
 | `subagent` | allow | strict local runtime enforced separately |
 
 ## Bash Rule Summary

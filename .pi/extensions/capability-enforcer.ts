@@ -26,8 +26,13 @@ export default function capabilityEnforcerExtension(pi: ExtensionAPI): void {
 
         const allTools = pi.getAllTools().map((tool) => tool.name);
         const missingTools = getMissingCapabilityTools(allTools, capabilityConfig);
-        if (missingTools.length > 0 && ctx.hasUI) {
-            ctx.ui.notify(`Missing capability entries: ${missingTools.join(", ")}`, "warning");
+        if (missingTools.length > 0) {
+            const message = `Missing capability entries: ${missingTools.join(", ")}`;
+            if (ctx.hasUI) {
+                ctx.ui.notify(message, "warning");
+            } else {
+                console.warn(`[capability-enforcer] ${message}`);
+            }
         }
     });
 

@@ -63,6 +63,22 @@ describe("capability enforcer extension", () => {
     expect(result).toBeUndefined();
   });
 
+  it("allows mcp without UI confirmation", async () => {
+    const pi = createFakePi();
+    capabilityEnforcerExtension(pi as any);
+    const handlers = pi.handlers.get("tool_call") ?? [];
+
+    const result = await handlers[0](
+      {
+        toolName: "mcp",
+        input: { server: "n8n" },
+      },
+      { hasUI: false },
+    );
+
+    expect(result).toBeUndefined();
+  });
+
   it("allows fetch_web_page without UI confirmation", async () => {
     const pi = createFakePi();
     capabilityEnforcerExtension(pi as any);

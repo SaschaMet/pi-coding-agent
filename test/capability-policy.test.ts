@@ -45,6 +45,21 @@ describe("capability policy", () => {
         expect(missing).toEqual(["unknown_tool"]);
     });
 
+    it("includes mcp in capability coverage", () => {
+        const config = loadCapabilityConfig(process.cwd());
+        const missing = getMissingCapabilityTools(["read", "mcp"], config);
+        expect(missing).toEqual([]);
+    });
+
+    it("flags missing mcp when runtime exposes it but config omits it", () => {
+        const config = loadCapabilityConfig(process.cwd());
+        const tools = { ...config.tools };
+        delete tools.mcp;
+
+        const missing = getMissingCapabilityTools(["read", "mcp"], { ...config, tools });
+        expect(missing).toEqual(["mcp"]);
+    });
+
     it("allows non-delete bash commands and confirms delete/.env reads", () => {
         const config = loadCapabilityConfig(process.cwd());
 
