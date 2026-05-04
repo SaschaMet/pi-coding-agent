@@ -111,7 +111,11 @@ async function main(): Promise<void> {
     if (capabilityErrors.length > 0) {
         throw new Error(`Capability config invalid: ${capabilityErrors.join("; ")}`);
     }
-    const missingCapabilities = getMissingCapabilityTools([...builtInTools, ...registeredTools, ...subagentTools], capabilityConfig);
+    const missingCapabilities = getMissingCapabilityTools(
+        [...builtInTools, ...registeredTools, ...subagentTools],
+        capabilityConfig,
+        cwd,
+    );
     if (missingCapabilities.length > 0) {
         throw new Error(`Capability coverage missing entries for: ${missingCapabilities.join(", ")}`);
     }

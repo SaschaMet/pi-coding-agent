@@ -66,11 +66,136 @@ interface CapabilityConfigCacheEntry {
 }
 
 const capabilityConfigCache = new Map<string, CapabilityConfigCacheEntry>();
+interface StringSetCacheEntry {
+    mtimeMs: number;
+    size: number;
+    value: Set<string>;
+    dependencyKey?: string;
+}
+const mcpServerNameCache = new Map<string, StringSetCacheEntry>();
+const mcpDirectToolNameCache = new Map<string, StringSetCacheEntry>();
 
 
 export interface CapabilityDecision {
     action: CapabilityAction;
     reason?: string;
+}
+
+function loadJsonFileCached(
+    filePath: string,
+    cache: Map<string, StringSetCacheEntry>,
+    parser: (parsed: unknown) => Set<string>,
+    dependencyKey?: string,
+): Set<string> {
+    if (!fs.existsSync(filePath)) return new Set<string>();
+
+    const stat = fs.statSync(filePath);
+    const cached = cache.get(filePath);
+    if (
+        cached
+        && cached.mtimeMs === stat.mtimeMs
+        && cached.size === stat.size
+        && cached.dependencyKey === dependencyKey
+    ) {
+        return cached.value;
+    }
+
+    let value = new Set<string>();
+    try {
+        value = parser(JSON.parse(fs.readFileSync(filePath, "utf-8")));
+    } catch {
+        value = new Set<string>();
+    }
+
+    cache.set(filePath, {
+        mtimeMs: stat.mtimeMs,
+        size: stat.size,
+        value,
+        dependencyKey,
+    });
+    return value;
+}
+
+function loadMcpServerNames(cwd: string): Set<string> {
+    const mcpConfigPath = path.join(cwd, ".mcp.json");
+    return loadJsonFileCached(mcpConfigPath, mcpServerNameCache, (parsed) => {
+        const mcpConfig = parsed as {
+            mcpServers?: Record<string, unknown>;
+            servers?: Record<string, unknown>;
+        };
+        const servers = mcpConfig.mcpServers ?? mcpConfig.servers ?? {};
+        if (!servers || typeof servers !== "object") return new Set<string>();
+        return new Set(Object.keys(servers));
+    });
+}
+
+function sanitizeToolToken(value: string): string {
+    return value.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "").replace(/_+/g, "_");
+}
+
+function stripMcpSuffix(serverName: string): string {
+    return serverName.replace(/-mcp$/i, "");
+}
+
+function resolveMcpCachePath(cwd: string): string {
+    const localPath = path.join(cwd, ".pi", "mcp-cache.json");
+    if (fs.existsSync(localPath)) return localPath;
+    return path.join(resolveGlobalConfigDir(), "mcp-cache.json");
+}
+
+function loadMcpDirectToolNames(cwd: string): Set<string> {
+    const mcpCachePath = resolveMcpCachePath(cwd);
+    const mcpConfigPath = path.join(cwd, ".mcp.json");
+    let mcpConfigDependencyKey = "missing";
+    if (fs.existsSync(mcpConfigPath)) {
+        const mcpConfigStat = fs.statSync(mcpConfigPath);
+        mcpConfigDependencyKey = `${mcpConfigStat.mtimeMs}:${mcpConfigStat.size}`;
+    }
+
+    return loadJsonFileCached(mcpCachePath, mcpDirectToolNameCache, (parsed) => {
+        const configuredServers = loadMcpServerNames(cwd);
+        if (configuredServers.size === 0) return new Set<string>();
+
+        const cache = parsed as {
+            servers?: Record<string, { tools?: Array<{ name?: string }> }>;
+        };
+        if (!cache.servers || typeof cache.servers !== "object") return new Set<string>();
+
+        const names = new Set<string>();
+        for (const serverName of configuredServers) {
+            const server = cache.servers[serverName];
+            const tools = Array.isArray(server?.tools) ? server.tools : [];
+            const shortServer = stripMcpSuffix(serverName);
+            const normalizedServerNames = new Set<string>([
+                serverName,
+                shortServer,
+                sanitizeToolToken(serverName),
+                sanitizeToolToken(shortServer),
+            ]);
+
+            for (const tool of tools) {
+                if (!tool?.name || typeof tool.name !== "string") continue;
+                const toolName = tool.name;
+                const normalizedToolName = sanitizeToolToken(toolName);
+
+                names.add(toolName);
+                names.add(normalizedToolName);
+
+                for (const normalizedServerName of normalizedServerNames) {
+                    if (!normalizedServerName) continue;
+                    names.add(`${normalizedServerName}_${toolName}`);
+                    names.add(`${normalizedServerName}_${normalizedToolName}`);
+                }
+            }
+        }
+        return names;
+    }, mcpConfigDependencyKey);
+}
+
+function hasMcpBackedToolCapability(toolName: string, cwd: string, config: CapabilityConfig): boolean {
+    if (!config.tools.mcp) return false;
+    const directToolNames = loadMcpDirectToolNames(cwd);
+    return directToolNames.has(toolName);
 }
 
 function resolveGlobalConfigDir(): string {
@@ -188,6 +313,8 @@ export function loadCapabilityConfigCached(cwd: string): CapabilityConfig {
 
 export function clearCapabilityConfigCache(): void {
     capabilityConfigCache.clear();
+    mcpServerNameCache.clear();
+    mcpDirectToolNameCache.clear();
 }
 
 export function validateCapabilityConfig(config: CapabilityConfig): string[] {
@@ -221,13 +348,20 @@ export function validateCapabilityConfig(config: CapabilityConfig): string[] {
     return errors;
 }
 
-export function getMissingCapabilityTools(toolNames: string[], config: CapabilityConfig): string[] {
+export function getMissingCapabilityTools(toolNames: string[], config: CapabilityConfig, cwd: string = process.cwd()): string[] {
     const unique = [...new Set(toolNames)];
-    return unique.filter((toolName) => !config.tools[toolName]);
+    return unique.filter((toolName) => !config.tools[toolName] && !hasMcpBackedToolCapability(toolName, cwd, config));
 }
 
-export function getToolCapability(toolName: string, config: CapabilityConfig): ToolCapability | undefined {
-    return config.tools[toolName];
+export function getToolCapability(
+    toolName: string,
+    config: CapabilityConfig,
+    cwd: string = process.cwd(),
+): ToolCapability | undefined {
+    const directCapability = config.tools[toolName];
+    if (directCapability) return directCapability;
+    if (hasMcpBackedToolCapability(toolName, cwd, config)) return config.tools.mcp;
+    return undefined;
 }
 
 function resolvePathFromCwd(rawPath: string, cwd: string): string {

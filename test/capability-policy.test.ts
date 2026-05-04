@@ -13,10 +13,16 @@ import {
 } from "../.pi/extensions/capability-policy.ts";
 
 const tempDirs: string[] = [];
+const originalPiAgentDir = process.env.PI_CODING_AGENT_DIR;
 
 afterEach(() => {
     for (const dir of tempDirs.splice(0)) {
         fs.rmSync(dir, { recursive: true, force: true });
+    }
+    if (originalPiAgentDir === undefined) {
+        delete process.env.PI_CODING_AGENT_DIR;
+    } else {
+        process.env.PI_CODING_AGENT_DIR = originalPiAgentDir;
     }
 });
 
@@ -58,6 +64,105 @@ describe("capability policy", () => {
 
         const missing = getMissingCapabilityTools(["read", "mcp"], { ...config, tools });
         expect(missing).toEqual(["mcp"]);
+    });
+
+    it("treats dynamic mcp tool names as covered when server prefix exists in .mcp.json", () => {
+        const cwd = createTempDir("cap-mcp-covered-");
+        process.env.PI_CODING_AGENT_DIR = cwd;
+        fs.writeFileSync(
+            path.join(cwd, ".mcp.json"),
+            JSON.stringify({
+                mcpServers: {
+                    n8n: {
+                        transport: "http",
+                        url: "https://example.test/mcp",
+                    },
+                },
+            }),
+        );
+        fs.writeFileSync(
+            path.join(cwd, "mcp-cache.json"),
+            JSON.stringify({
+                version: 1,
+                servers: {
+                    n8n: {
+                        tools: [{ name: "search_workflows" }],
+                    },
+                },
+            }),
+        );
+
+        const config = loadCapabilityConfig(process.cwd());
+        const missing = getMissingCapabilityTools(["n8n_search_workflows"], config, cwd);
+        expect(missing).toEqual([]);
+    });
+
+    it("requires explicit capability when dynamic mcp server prefix is not configured", () => {
+        const cwd = createTempDir("cap-mcp-missing-");
+        process.env.PI_CODING_AGENT_DIR = cwd;
+        fs.writeFileSync(path.join(cwd, ".mcp.json"), JSON.stringify({ mcpServers: { other: {} } }));
+        fs.writeFileSync(
+            path.join(cwd, "mcp-cache.json"),
+            JSON.stringify({
+                version: 1,
+                servers: {
+                    other: {
+                        tools: [{ name: "search_workflows" }],
+                    },
+                },
+            }),
+        );
+
+        const config = loadCapabilityConfig(process.cwd());
+        const missing = getMissingCapabilityTools(["n8n_search_workflows"], config, cwd);
+        expect(missing).toEqual(["n8n_search_workflows"]);
+    });
+
+    it("requires explicit capability when dynamic mcp tool is not present in mcp cache", () => {
+        const cwd = createTempDir("cap-mcp-spoofed-");
+        process.env.PI_CODING_AGENT_DIR = cwd;
+        fs.writeFileSync(path.join(cwd, ".mcp.json"), JSON.stringify({ mcpServers: { n8n: {} } }));
+        fs.writeFileSync(
+            path.join(cwd, "mcp-cache.json"),
+            JSON.stringify({
+                version: 1,
+                servers: {
+                    n8n: {
+                        tools: [{ name: "execute_workflow" }],
+                    },
+                },
+            }),
+        );
+
+        const config = loadCapabilityConfig(process.cwd());
+        const missing = getMissingCapabilityTools(["n8n_search_workflows"], config, cwd);
+        expect(missing).toEqual(["n8n_search_workflows"]);
+    });
+
+    it("re-evaluates dynamic mcp capability coverage when .mcp.json changes", () => {
+        const cwd = createTempDir("cap-mcp-reconfig-");
+        process.env.PI_CODING_AGENT_DIR = cwd;
+        fs.writeFileSync(path.join(cwd, ".mcp.json"), JSON.stringify({ mcpServers: { n8n: {} } }));
+        fs.writeFileSync(
+            path.join(cwd, "mcp-cache.json"),
+            JSON.stringify({
+                version: 1,
+                servers: {
+                    n8n: {
+                        tools: [{ name: "search_workflows" }],
+                    },
+                },
+            }),
+        );
+
+        const config = loadCapabilityConfig(process.cwd());
+        const initiallyMissing = getMissingCapabilityTools(["n8n_search_workflows"], config, cwd);
+        expect(initiallyMissing).toEqual([]);
+
+        fs.writeFileSync(path.join(cwd, ".mcp.json"), JSON.stringify({ mcpServers: { other: {} } }));
+
+        const missingAfterReconfig = getMissingCapabilityTools(["n8n_search_workflows"], config, cwd);
+        expect(missingAfterReconfig).toEqual(["n8n_search_workflows"]);
     });
 
     it("allows non-delete bash commands and confirms delete/.env reads", () => {

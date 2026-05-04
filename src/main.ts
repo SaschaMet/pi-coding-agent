@@ -33,7 +33,7 @@ function assertCapabilityCoverage(cwd: string, toolNames: string[]): void {
     throw new Error(`Capability policy config is invalid: ${capabilityErrors.join("; ")}`);
   }
 
-  const missing = getMissingCapabilityTools(toolNames, capabilityConfig);
+  const missing = getMissingCapabilityTools(toolNames, capabilityConfig, cwd);
   if (missing.length > 0) {
     throw new Error(`Capability coverage check failed. Missing entries for: ${missing.join(", ")}`);
   }

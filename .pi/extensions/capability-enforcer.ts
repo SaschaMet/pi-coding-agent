@@ -25,7 +25,7 @@ export default function capabilityEnforcerExtension(pi: ExtensionAPI): void {
         const capabilityConfig = loadCapabilityConfigCached(cwd);
 
         const allTools = pi.getAllTools().map((tool) => tool.name);
-        const missingTools = getMissingCapabilityTools(allTools, capabilityConfig);
+        const missingTools = getMissingCapabilityTools(allTools, capabilityConfig, cwd);
         if (missingTools.length > 0) {
             const message = `Missing capability entries: ${missingTools.join(", ")}`;
             if (ctx.hasUI) {
@@ -40,7 +40,7 @@ export default function capabilityEnforcerExtension(pi: ExtensionAPI): void {
         const cwd = process.cwd();
         const capabilityConfig = loadCapabilityConfigCached(cwd);
 
-        const capability = getToolCapability(event.toolName, capabilityConfig);
+        const capability = getToolCapability(event.toolName, capabilityConfig, cwd);
         if (!capability) {
             return { block: true, reason: `Tool '${event.toolName}' has no capability entry` };
         }
