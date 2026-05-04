@@ -8,7 +8,12 @@
 
 ## How I implemented it
 
--
+- 
+
+## Before / After Screenshots (if applicable)
+
+- Before: 
+- After: 
 
 ## How to verify it
 

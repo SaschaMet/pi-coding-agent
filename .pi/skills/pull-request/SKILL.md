@@ -11,6 +11,7 @@ Trigger: only when user explicitly invokes this skill.
 ## Required Inputs
 
 - PR description template: `references/pr_description_template.md`.
+- For UI-visible changes, use `browser-desktop` skill to capture screenshots.
 
 ## Workflow
 
@@ -90,7 +91,23 @@ Trigger: only when user explicitly invokes this skill.
   - Breaking changes or migration requirements
   - Risks, rollback strategy, and reviewer focus areas
 
-8. Fill verification section
+8. Capture visual evidence (when applicable)
+
+- Applicable when changes affect UI, layout, styling, or user-visible browser behavior.
+- Use `browser-desktop` skill flow:
+  - `list`
+  - `open` or `navigate` with target URL
+  - `screenshot`
+- Capture both states:
+  - before screenshot
+  - after screenshot
+- Save screenshots in repository so PR markdown renders them, for example:
+  - `docs/pr_screenshots/pr-{pr_number}/before.png`
+  - `docs/pr_screenshots/pr-{pr_number}/after.png`
+- Add screenshot files to the commit when created.
+- If not applicable or capture fails, state this explicitly in PR description.
+
+9. Fill verification section
 
 - For each checklist item under "How to verify it":
   - Auto-run only safe, read-only commands.
@@ -99,7 +116,7 @@ Trigger: only when user explicitly invokes this skill.
   - Leave `- [ ]` on failure/manual-only checks and add a short note.
 - Include manual test notes when automation is not possible.
 
-9. Generate description
+10. Generate description
 
 - Fill every section from the template.
 - Keep it specific, concise, and scannable.
@@ -108,8 +125,9 @@ Trigger: only when user explicitly invokes this skill.
   - areas needing extra scrutiny
   - known limitations
   - follow-up work (if any)
+- For UI changes, include markdown image links to before/after screenshots.
 
-10. Save and update PR body
+11. Save and update PR body
 
 - Write description file to the selected output path.
 - Update existing PR body:
@@ -128,3 +146,4 @@ Trigger: only when user explicitly invokes this skill.
   - What changed?
   - How was it verified?
   - What can still go wrong?
+- For UI changes, include clear before/after screenshots.
