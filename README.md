@@ -109,7 +109,7 @@ picoder() {
 Notes:
 
 - Sync mirrors managed files under `.pi/` (including `.pi/SYSTEM.md`) and removes stale managed files in the target.
-- It intentionally excludes personal runtime data like `auth.json`, `sessions/`, and `.DS_Store`.
+- It intentionally excludes personal/runtime data like `auth.json`, `sessions/`, `npm/`, and `.DS_Store`.
 - Secrets can be centralized via `envService` in `settings.json` (e.g. `"envFile": "${PI_CODER_REPO}/.env"`).
 - This launcher is optional and mainly useful for local parity-stack development.
 

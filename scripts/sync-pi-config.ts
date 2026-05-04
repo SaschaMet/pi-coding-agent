@@ -5,7 +5,7 @@ import process from "node:process";
 
 type Mode = "pull" | "push";
 
-const EXCLUDED_TOP_LEVEL_PATHS = new Set(["auth.json", "sessions"]);
+const EXCLUDED_TOP_LEVEL_PATHS = new Set(["auth.json", "sessions", "npm"]);
 
 function resolveGlobalAgentDir(): string {
     const fromEnv = process.env.PI_CODING_AGENT_DIR?.trim();
@@ -141,6 +141,7 @@ function main(): void {
 
     ensureDir(globalAgentDir);
 
+    console.log(`Sync start: mode=${mode} local=${localPiDir} global=${globalAgentDir}`);
     const result = syncManagedPiDirectory(mode, localPiDir, globalAgentDir);
 
     console.log(`Mode: ${mode}`);
