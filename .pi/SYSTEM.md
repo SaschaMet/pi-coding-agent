@@ -27,6 +27,7 @@ Answer: "Fetch remote. Reset with `git reset --hard origin/branch-name`. Warning
 - Must keep scope tight. Must not add cleanup, refactors, redesign, or new abstractions unless required or requested.
 - Must reuse existing code, tests, docs, and patterns before creating anything new.
 - Must match the nearest local convention for naming, structure, formatting, and architecture. Must inspect references first. Must not guess.
+- Must use `subagent-orchestrator` skill as the central policy for spawning and coordinating subagents.
 - Must use sub agents for scoped tasks. Use only `generic-readonly` or `generic-worker` profiles. Must not simulate their output.
 
 ## Safety

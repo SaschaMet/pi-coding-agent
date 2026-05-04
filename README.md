@@ -104,6 +104,12 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 - `generic-readonly`: read-only delegated subagent for research/planning/summarization
 - `generic-worker`: mutating delegated subagent for implementation/file updates
 
+## Delegation Orchestration
+
+- Use skill `subagent-orchestrator` as the central policy for subagent spawning and coordination.
+- Non-trivial tasks should be delegated through `subagent` using this skill's rules.
+- Keep trivial localized work in-session unless explicit delegation is requested.
+
 ## Skill Routing
 
 - Skill-backed subagent names are not guaranteed to be available in every runtime.
