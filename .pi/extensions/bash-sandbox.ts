@@ -1,8 +1,8 @@
 /**
  * Bash Sandbox Extension
  *
- * Overrides the built-in bash tool and strips most environment variables
- * from spawned commands to reduce secret exposure.
+ * Provides bash env sanitization and only overrides `bash` when no other
+ * extension has registered it yet (e.g. pi-container-sandbox).
  */
 
 import process from "node:process";
@@ -30,6 +30,9 @@ export function sanitizeBashEnv(
 }
 
 export default function (pi: ExtensionAPI) {
+	const hasBashTool = pi.getAllTools().some((tool) => tool.name === "bash");
+	if (hasBashTool) return;
+
 	const cwd = process.cwd();
 	const bashTool = createBashTool(cwd, {
 		spawnHook: ({ command, cwd, env }) => ({

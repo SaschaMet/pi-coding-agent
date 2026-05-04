@@ -98,6 +98,10 @@ For `zsh`:
 export PI_CODER_REPO="${PI_CODER_REPO:-$HOME/Projects/pi-coding-agent}"
 
 picoder() {
+  if [[ "$PWD" == "$HOME" ]]; then
+    echo "Refusing to start from \$HOME (would mount your full home directory into the container). cd into a project directory."
+    return 1
+  fi
   node "$PI_CODER_REPO/node_modules/tsx/dist/cli.mjs" \
     "$PI_CODER_REPO/src/main.ts" \
     --container --no-container-net --no-container-mount-skills \
@@ -246,7 +250,7 @@ See [`.pi/extensions/plan-mode/README.md`](.pi/extensions/plan-mode/README.md) f
 - Startup coverage checks fail closed when active/exposed tools are missing capability entries.
 - `permission-gate` applies capability policy for bash, including non-interactive deny for confirmation-required commands.
 - `protected-paths` applies capability path policy, blocking `.env*`, `.git`, and `node_modules`, and requiring confirmation for root-scoped grep/find.
-- `bash-sandbox` uses capability env allowlist and strips non-allowlisted env vars from shell execution.
+- `bash-sandbox` uses capability env allowlist and strips non-allowlisted env vars from shell execution when it is the active `bash` provider; if another extension already provides `bash` (for example `pi-container-sandbox`), `bash-sandbox` now skips registration to avoid tool conflicts.
 - `web_search` and `fetch_web_page` require explicit user confirmation before use.
 - `web_search` returns structured error text and `isError: true` when provider calls fail.
 
