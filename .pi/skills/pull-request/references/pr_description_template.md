@@ -26,7 +26,13 @@
 
 ### Manual Testing
 
-- [ ]
+- [ ] 
+
+### Manual BDD Scenarios (if manual testing is used)
+
+- Given:
+- When:
+- Then:
 
 ## Breaking changes / migration notes
 

@@ -114,7 +114,11 @@ Trigger: only when user explicitly invokes this skill.
   - For mutating/destructive commands, require explicit user confirmation first.
   - Mark `- [x]` only when passing.
   - Leave `- [ ]` on failure/manual-only checks and add a short note.
-- Include manual test notes when automation is not possible.
+- Include a BDD workflow the reviewer can execute to verify changes manually (when needed):
+  - `Given` preconditions/environment
+  - `When` exact user actions
+  - `Then` expected observable outcomes
+- BDD manual steps must be concrete and reproducible, not generic.
 
 10. Generate description
 
@@ -145,5 +149,7 @@ Trigger: only when user explicitly invokes this skill.
 - Ensure reviewer can answer quickly (if applicable):
   - What changed?
   - How was it verified?
+  - How to verify it?
   - What can still go wrong?
 - For UI changes, include clear before/after screenshots.
+- Manual-test sections include at least one concrete `Given/When/Then` scenario when manual checks are required.
