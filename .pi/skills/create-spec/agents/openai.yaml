@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Spec"
+  short_description: "Research constraints and author a verification-ready spec before coding"
+  default_prompt: "Use $create-spec to research this repository and produce a spec-driven development document with intent, scope boundaries, acceptance criteria, execution steps, and verification gates before implementation."

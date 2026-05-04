@@ -1,4 +1,0 @@
-interface:
-  display_name: "Interactive Planner"
-  short_description: "Deep codebase research, risk assessment, and phased implementation planning before coding"
-  default_prompt: "Use $interactive-planner to research this repository, assess risks, and produce a phased implementation plan before any code changes."
