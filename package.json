@@ -4,8 +4,8 @@
     "description": "Project-local PI coding agent parity stack",
     "main": "src/main.ts",
     "scripts": {
-        "dev": "tsx watch src/main.ts",
-        "agent": "tsx src/main.ts",
+        "dev": "tsx watch src/main.ts --container --no-container-net --no-container-mount-skills --container-image thegreataxios/pi-sandbox@sha256:be6d992940f63e435ba5cdd840a9b26003f0694fb36b749a4ddf121555d79d9e",
+        "agent": "tsx src/main.ts --container --no-container-net --no-container-mount-skills --container-image thegreataxios/pi-sandbox@sha256:be6d992940f63e435ba5cdd840a9b26003f0694fb36b749a4ddf121555d79d9e",
         "smoke": "tsx scripts/smoke.ts",
         "typecheck": "tsc --noEmit",
         "test": "vitest run",

@@ -45,6 +45,8 @@ For each area, note:
 - What is missing (no tests, no docs, no CI) that the plan should address.
 
 Use `generic-readonly` subagents for targeted research when the environment allows delegation.
+Delegated runs must stay inside the configured container sandbox and inherit sandbox flags from the parent runtime.
+If research needs web access, enable network only within sandbox scope for that delegated run.
 
 ## Step 2 — Clarify with the User
 

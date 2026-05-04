@@ -301,12 +301,75 @@ function listExtensionFilesRecursively(dirPath: string): string[] {
     return files;
 }
 
+function listDirectProjectPackageNames(projectPiDir: string): string[] {
+    const packageJsonPath = path.join(projectPiDir, "npm", "package.json");
+    if (!fs.existsSync(packageJsonPath)) return [];
+    try {
+        const parsed = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8")) as {
+            dependencies?: Record<string, string>;
+        };
+        return Object.keys(parsed.dependencies ?? {});
+    } catch {
+        return [];
+    }
+}
+
+function getProjectPackageExtensionFiles(projectPiDir: string): string[] {
+    const packageNames = listDirectProjectPackageNames(projectPiDir);
+    if (packageNames.length === 0) return [];
+
+    const extensionFiles = new Set<string>();
+    for (const packageName of packageNames) {
+        const packageRoot = path.join(projectPiDir, "npm", "node_modules", packageName);
+        if (!fs.existsSync(packageRoot)) continue;
+
+        const packageJsonPath = path.join(packageRoot, "package.json");
+        let declaredEntries: string[] = [];
+        if (fs.existsSync(packageJsonPath)) {
+            try {
+                const parsed = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8")) as {
+                    pi?: { extensions?: unknown };
+                };
+                if (Array.isArray(parsed.pi?.extensions)) {
+                    declaredEntries = parsed.pi.extensions.filter((entry): entry is string => typeof entry === "string");
+                }
+            } catch {
+                // Ignore invalid package manifests and continue.
+            }
+        }
+
+        if (declaredEntries.length > 0) {
+            for (const entry of declaredEntries) {
+                const resolved = path.resolve(packageRoot, entry);
+                if (!fs.existsSync(resolved)) continue;
+                const stat = fs.statSync(resolved);
+                if (stat.isDirectory()) {
+                    for (const file of listExtensionFilesRecursively(resolved)) extensionFiles.add(file);
+                    continue;
+                }
+                if (stat.isFile() && /\.(mjs|cjs|js|ts)$/i.test(path.basename(resolved))) {
+                    extensionFiles.add(resolved);
+                }
+            }
+            continue;
+        }
+
+        const conventionalDir = path.join(packageRoot, "extensions");
+        for (const file of listExtensionFilesRecursively(conventionalDir)) extensionFiles.add(file);
+    }
+
+    return Array.from(extensionFiles).sort();
+}
+
 function getScopedExtensionArgs(searchCwd: string): string[] {
     const projectPiDir = findNearestProjectPiDir(searchCwd);
     if (!projectPiDir) return [];
 
     const extensionsDir = path.join(projectPiDir, "extensions");
-    const extensionFiles = listExtensionFilesRecursively(extensionsDir).sort();
+    const extensionFiles = [
+        ...listExtensionFilesRecursively(extensionsDir),
+        ...getProjectPackageExtensionFiles(projectPiDir),
+    ].sort();
     if (extensionFiles.length === 0) return [];
 
     const scopedArgs = ["--no-extensions"];
@@ -314,6 +377,107 @@ function getScopedExtensionArgs(searchCwd: string): string[] {
         scopedArgs.push("-e", extensionFile);
     }
     return scopedArgs;
+}
+
+function getInheritedSandboxArgs(argv: string[]): string[] {
+    const valueFlags = new Set([
+        "--container-size",
+        "--sandbox-name",
+        "--sandbox-cache",
+        "--container-image",
+        "--container-mount-paths",
+        "--container-allow-paths",
+        "--container-memory",
+        "--container-cpus",
+        "--container-pids-limit",
+        "--container-swap",
+    ]);
+
+    const booleanFlags = new Set([
+        "--container",
+        "--no-container",
+        "--noc",
+        "--container-net",
+        "--no-container-net",
+        "--container-mount-skills",
+        "--no-container-mount-skills",
+        "--sandbox-persist",
+        "--container-keep",
+        "--prawl",
+        "--browser",
+    ]);
+
+    const booleanState = new Map<string, string>();
+    const valueState = new Map<string, string>();
+
+    const canonicalBooleanKey = (flag: string): string => {
+        if (flag === "--noc") return "container";
+        if (flag === "--container" || flag === "--no-container") return "container";
+        if (flag === "--container-net" || flag === "--no-container-net") return "container-net";
+        if (flag === "--container-mount-skills" || flag === "--no-container-mount-skills") return "container-mount-skills";
+        return flag.slice(2);
+    };
+
+    for (let i = 0; i < argv.length; i++) {
+        const token = argv[i];
+        if (!token.startsWith("--")) continue;
+
+        if (token.includes("=")) {
+            const [flag, ...rest] = token.split("=");
+            const value = rest.join("=");
+            if (valueFlags.has(flag) && value.trim().length > 0) {
+                valueState.set(flag, value.trim());
+            }
+            continue;
+        }
+
+        if (booleanFlags.has(token)) {
+            const canonical = canonicalBooleanKey(token);
+            const normalized = token === "--noc" ? "--no-container" : token;
+            booleanState.set(canonical, normalized);
+            continue;
+        }
+
+        if (valueFlags.has(token)) {
+            const next = argv[i + 1];
+            if (typeof next === "string" && !next.startsWith("--")) {
+                valueState.set(token, next);
+                i += 1;
+            }
+        }
+    }
+
+    const inherited: string[] = [];
+    const pushBoolean = (canonical: string) => {
+        const value = booleanState.get(canonical);
+        if (value) inherited.push(value);
+    };
+    const pushValue = (flag: string) => {
+        const value = valueState.get(flag);
+        if (!value) return;
+        inherited.push(flag, value);
+    };
+
+    pushBoolean("container");
+    pushBoolean("container-net");
+    pushBoolean("container-mount-skills");
+    pushBoolean("sandbox-persist");
+    pushBoolean("container-keep");
+    pushBoolean("prawl");
+    pushBoolean("browser");
+
+    pushValue("--container-size");
+    pushValue("--sandbox-name");
+    pushValue("--sandbox-cache");
+    pushValue("--container-image");
+    pushValue("--container-mount-paths");
+    pushValue("--container-allow-paths");
+    pushValue("--container-memory");
+    pushValue("--container-cpus");
+    pushValue("--container-pids-limit");
+    pushValue("--container-swap");
+
+    return inherited;
 }
 
 type OnUpdateCallback = (partial: AgentToolResult<SubagentDetails>) => void;
@@ -426,6 +590,7 @@ async function runSingleAgent(
     onUpdate: OnUpdateCallback | undefined,
     makeDetails: (results: SingleResult[]) => SubagentDetails,
     strictLocalRuntime: boolean,
+    inheritedSandboxArgs: string[],
 ): Promise<SingleResult> {
     const resolved = resolveAgent(agents, agentName);
     const agent = resolved.agent;
@@ -443,7 +608,14 @@ async function runSingleAgent(
         };
     }
 
-    const args: string[] = ["--mode", "json", "-p", "--no-session", ...getScopedExtensionArgs(cwd ?? defaultCwd)];
+    const args: string[] = [
+        "--mode",
+        "json",
+        "-p",
+        "--no-session",
+        ...getScopedExtensionArgs(cwd ?? defaultCwd),
+        ...inheritedSandboxArgs,
+    ];
     if (agent.model) args.push("--model", agent.model);
     if (agent.tools && agent.tools.length > 0) args.push("--tools", agent.tools.join(","));
 
@@ -657,6 +829,7 @@ export default function (pi: ExtensionAPI) {
                         projectAgentsDir: discovery.projectAgentsDir,
                         results,
                     });
+            const inheritedSandboxArgs = getInheritedSandboxArgs(process.argv.slice(2));
 
             if (modeCount !== 1 || hasPartialSingle) {
                 const available = agents.map((a) => `${a.name} (${a.source})`).join(", ") || "none";
@@ -740,6 +913,7 @@ export default function (pi: ExtensionAPI) {
                         chainUpdate,
                         makeDetails("chain"),
                         runtimeConfig.strictLocalRuntime,
+                        inheritedSandboxArgs,
                     );
                     results.push(result);
 
@@ -822,6 +996,7 @@ export default function (pi: ExtensionAPI) {
                         },
                         makeDetails("parallel"),
                         runtimeConfig.strictLocalRuntime,
+                        inheritedSandboxArgs,
                     );
                     allResults[index] = result;
                     emitParallelUpdate();
@@ -858,6 +1033,7 @@ export default function (pi: ExtensionAPI) {
                     onUpdate,
                     makeDetails("single"),
                     runtimeConfig.strictLocalRuntime,
+                    inheritedSandboxArgs,
                 );
                 const isError = result.exitCode !== 0 || result.stopReason === "error" || result.stopReason === "aborted";
                 if (isError) {

@@ -706,6 +706,160 @@ describe("subagent chain execution", () => {
     expect(result.content[0].text).toContain("ok");
   });
 
+  it("includes project package extension files from package manifest in scoped extension args", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-package-manifest-scope-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agents"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, ".pi", "extensions"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, ".pi", "npm", "node_modules", "example-ext"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "node_modules", ".bin"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, "node_modules", ".bin", "pi"), "#!/bin/sh\nexit 0\n", "utf-8");
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agents", "planner.md"),
+      ["---", "name: planner", "description: Planner", "---", "You are planner."].join("\n"),
+      "utf-8",
+    );
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "npm", "package.json"),
+      JSON.stringify({ dependencies: { "example-ext": "1.0.0" } }, null, 2),
+      "utf-8",
+    );
+    fs.writeFileSync(path.join(tmp, ".pi", "extensions", "alpha.ts"), "export default () => undefined;", "utf-8");
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "npm", "node_modules", "example-ext", "package.json"),
+      JSON.stringify({ name: "example-ext", pi: { extensions: ["./index.ts"] } }, null, 2),
+      "utf-8",
+    );
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "npm", "node_modules", "example-ext", "index.ts"),
+      "export default () => undefined;",
+      "utf-8",
+    );
+
+    spawnMock.mockImplementation((_command: string, args: string[]) => {
+      expect(args).toContain("--no-extensions");
+      expect(args.some((arg) => arg.endsWith(path.join(".pi", "extensions", "alpha.ts")))).toBe(true);
+      expect(args.some((arg) => arg.endsWith(path.join(".pi", "npm", "node_modules", "example-ext", "index.ts")))).toBe(true);
+
+      const eventLine = JSON.stringify({
+        type: "message_end",
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "ok" }],
+          usage: {
+            input: 1,
+            output: 1,
+            cacheRead: 0,
+            cacheWrite: 0,
+            cost: { total: 0.001 },
+            totalTokens: 2,
+          },
+          stopReason: "stop",
+        },
+      });
+      return createMockProcess([eventLine], 0);
+    });
+
+    const pi = createFakePi();
+    subagentExtension(pi as any);
+    const tool = pi.tools.get("subagent");
+
+    const result = await tool!.execute(
+      "call-subagent-sandbox-package-scope",
+      {
+        agent: "planner",
+        task: "plan",
+        agentScope: "project",
+        confirmProjectAgents: false,
+      },
+      undefined,
+      undefined,
+      { cwd: tmp, hasUI: false },
+    );
+
+    expect(result.isError).not.toBe(true);
+    expect(result.content[0].text).toContain("ok");
+  });
+
+  it("forwards parent sandbox CLI flags to spawned subagents", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-sandbox-flags-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agents"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "node_modules", ".bin"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, "node_modules", ".bin", "pi"), "#!/bin/sh\nexit 0\n", "utf-8");
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agents", "planner.md"),
+      ["---", "name: planner", "description: Planner", "---", "You are planner."].join("\n"),
+      "utf-8",
+    );
+
+    const originalArgv = [...process.argv];
+    process.argv = [
+      originalArgv[0] ?? "node",
+      originalArgv[1] ?? "script",
+      "--container",
+      "--no-container-net",
+      "--no-container-mount-skills",
+      "--container-image",
+      "thegreataxios/pi-sandbox@sha256:testdigest",
+      "--container-size=md",
+      "--container-cpus",
+      "2",
+    ];
+
+    try {
+      spawnMock.mockImplementation((_command: string, args: string[]) => {
+        expect(args).toContain("--container");
+        expect(args).toContain("--no-container-net");
+        expect(args).toContain("--no-container-mount-skills");
+        expect(args).toContain("--container-image");
+        expect(args).toContain("thegreataxios/pi-sandbox@sha256:testdigest");
+        expect(args).toContain("--container-size");
+        expect(args).toContain("md");
+        expect(args).toContain("--container-cpus");
+        expect(args).toContain("2");
+
+        const eventLine = JSON.stringify({
+          type: "message_end",
+          message: {
+            role: "assistant",
+            content: [{ type: "text", text: "ok" }],
+            usage: {
+              input: 1,
+              output: 1,
+              cacheRead: 0,
+              cacheWrite: 0,
+              cost: { total: 0.001 },
+              totalTokens: 2,
+            },
+            stopReason: "stop",
+          },
+        });
+        return createMockProcess([eventLine], 0);
+      });
+
+      const pi = createFakePi();
+      subagentExtension(pi as any);
+      const tool = pi.tools.get("subagent");
+
+      const result = await tool!.execute(
+        "call-subagent-sandbox-flags",
+        {
+          agent: "planner",
+          task: "plan",
+          agentScope: "project",
+          confirmProjectAgents: false,
+        },
+        undefined,
+        undefined,
+        { cwd: tmp, hasUI: false },
+      );
+
+      expect(result.isError).not.toBe(true);
+      expect(result.content[0].text).toContain("ok");
+    } finally {
+      process.argv = originalArgv;
+    }
+  });
+
   it("fails closed when strict local runtime is enabled and local pi binary is missing", async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-strict-test-"));
     fs.mkdirSync(path.join(tmp, ".pi", "agents"), { recursive: true });

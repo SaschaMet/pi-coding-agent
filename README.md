@@ -57,6 +57,36 @@ npm run agent
 - `npm run pi:pull-global` - mirror global PI config/resources into this repo's `.pi/`
 - `npm run pi:sync-global` - sync this repo's `.pi/` resources into global `~/.pi/agent` (or `PI_CODING_AGENT_DIR`)
 
+## Sandbox Defaults
+
+`npm run agent` and `npm run dev` now enforce these sandbox hardening defaults:
+
+- `--container`
+- `--no-container-net`
+- `--no-container-mount-skills`
+- `--container-image thegreataxios/pi-sandbox@sha256:be6d992940f63e435ba5cdd840a9b26003f0694fb36b749a4ddf121555d79d9e`
+
+If you explicitly need outbound network or skill mounts for a task, run `tsx src/main.ts` directly and pass only the minimum extra flags required.
+
+### Shell Launcher (Recommended)
+
+If you start PI via shell alias/function, point it to this runtime script, not plain `pi`.
+Plain `pi` will not use this repository's hardened defaults automatically.
+
+For `zsh`:
+
+```zsh
+export PI_CODER_REPO="${PI_CODER_REPO:-$HOME/Projects/pi-coding-agent}"
+
+picoder() {
+  node "$PI_CODER_REPO/node_modules/tsx/dist/cli.mjs" \
+    "$PI_CODER_REPO/src/main.ts" \
+    --container --no-container-net --no-container-mount-skills \
+    --container-image thegreataxios/pi-sandbox@sha256:be6d992940f63e435ba5cdd840a9b26003f0694fb36b749a4ddf121555d79d9e \
+    "$@"
+}
+```
+
 Notes:
 
 - Sync mirrors managed files under `.pi/` (including `.pi/SYSTEM.md`) and removes stale managed files in the target.

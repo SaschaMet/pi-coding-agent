@@ -1,21 +1,24 @@
 {
-    "enableSkillCommands": true,
-    "defaultProvider": "lmstudio",
-    "defaultModel": "qwen/qwen3.6-35b-a3b",
-    "defaultThinkingLevel": "medium",
-    "compaction": {
-        "enabled": true,
-        "reserveTokens": 12288,
-        "keepRecentTokens": 16384
-    },
-    "theme": "dark",
-    "envService": {
-        "envFile": "/Users/saschametzger/Projects/pi-coding-agent/.env",
-        "useProjectEnv": true
-    },
-    "skills": [
-        "~/.pi/agent/skills",
-        ".pi/skills"
-    ],
-    "lastChangelogVersion": "0.64.0"
+  "enableSkillCommands": true,
+  "defaultProvider": "lmstudio",
+  "defaultModel": "qwen/qwen3.6-35b-a3b",
+  "defaultThinkingLevel": "medium",
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 12288,
+    "keepRecentTokens": 16384
+  },
+  "theme": "dark",
+  "envService": {
+    "envFile": "/Users/saschametzger/Projects/pi-coding-agent/.env",
+    "useProjectEnv": true
+  },
+  "skills": [
+    "~/.pi/agent/skills",
+    ".pi/skills"
+  ],
+  "lastChangelogVersion": "0.64.0",
+  "packages": [
+    "npm:pi-container-sandbox@0.2.1"
+  ]
 }

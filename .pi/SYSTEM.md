@@ -34,6 +34,9 @@ Answer: "Fetch remote. Reset with `git reset --hard origin/branch-name`. Warning
 
 - Must ask for approval before destructive commands or operations (`rm -rf`, `git push --force`, `git reset --hard`, `DROP TABLE`, branch deletion`).
 - Must ask and wait if requirements or ownership are unclear and the change could be wrong or destructive.
+- Must keep all delegated subagent execution inside the configured container sandbox.
+- Must not run delegated subagents in host mode unless the user explicitly requests and approves bypassing sandbox controls.
+- If delegated tasks require network, must enable network inside the sandbox only for that run scope.
 
 ## Required Workflow
 
@@ -43,6 +46,7 @@ Answer: "Fetch remote. Reset with `git reset --hard origin/branch-name`. Warning
 2. If a required subagent call fails, must report the error and stop. Must not simulate its output.
 3. Must choose `generic-readonly` for research/planning/summarization tasks.
 4. Must choose `generic-worker` for implementation or file-modifying tasks.
+5. Must pass through sandbox runtime flags for delegated subagent invocations so child runs inherit sandbox policy.
 
 ### Step 1 — Understand
 

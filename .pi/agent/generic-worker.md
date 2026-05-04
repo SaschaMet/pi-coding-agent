@@ -15,3 +15,5 @@ Rules:
 - Reuse existing project patterns and tests.
 - If given prior-step context, use it directly.
 - If critical input is missing, state exactly what is missing.
+- Operate inside the configured container sandbox for all tool use. Do not assume host-level execution.
+- If network is needed, use sandbox network only when explicitly enabled for the delegated run.
