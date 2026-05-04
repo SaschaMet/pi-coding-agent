@@ -1,6 +1,6 @@
 # PI Coding Agent Parity Stack
 
-Project-local PI runtime that adds:
+Git-tracked PI config/runtime parity stack for a global PI runtime (`~/.pi/agent`) that adds:
 
 - Codex-style plan mode
 - Subagents with two generic delegation profiles (`generic-readonly`, `generic-worker`)
@@ -42,10 +42,10 @@ Secrets are resolved via scoped access where needed (for example in `web_search`
 npm run smoke
 ```
 
-1. Start the agent:
+1. Start PI from the global runtime:
 
 ```bash
-npm run agent
+pi
 ```
 
 ## Commands
@@ -54,12 +54,12 @@ npm run agent
 - `npm run agent` - run interactive agent
 - `npm run smoke` - extension/resource discovery smoke check
 - `npm test` - run unit/integration tests
-- `npm run pi:pull-global` - mirror global PI config/resources into this repo's `.pi/`
-- `npm run pi:sync-global` - sync this repo's `.pi/` resources into global `~/.pi/agent` (or `PI_CODING_AGENT_DIR`)
+- `npm run pi:pull-global` - mirror global PI config/resources into this repo's `.pi/` (preferred)
+- `npm run pi:sync-global` - legacy push from repo `.pi/` into global `~/.pi/agent` (`PI_CODING_AGENT_DIR`), use only when intentionally overwriting global state
 
 ## Sandbox Defaults
 
-`npm run agent` and `npm run dev` now enforce these sandbox hardening defaults:
+When using the optional repo runtime (`npm run agent`, `npm run dev`, or `picoder`), these sandbox hardening defaults are enforced:
 
 - `--container`
 - `--no-container-net`
@@ -68,7 +68,26 @@ npm run agent
 
 If you explicitly need outbound network or skill mounts for a task, run `tsx src/main.ts` directly and pass only the minimum extra flags required.
 
-### Shell Launcher (Recommended)
+## Global Sandbox Setup (Recommended)
+
+Set up the global PI runtime package and pre-pull the sandbox image once:
+
+```bash
+mkdir -p ~/.pi/agent/npm
+npm install --prefix ~/.pi/agent/npm pi-container-sandbox@0.2.1
+docker pull thegreataxios/pi-sandbox@sha256:be6d992940f63e435ba5cdd840a9b26003f0694fb36b749a4ddf121555d79d9e
+```
+
+Notes:
+
+- First startup can still take longer when Docker is cold/unavailable.
+- This is intentionally docs-only setup (no local runtime patching and no package fork).
+
+### Runtime Launching
+
+Default: run PI from the global runtime (plain `pi`) after setup above.
+
+### Repo Runtime Launcher (Optional)
 
 If you start PI via shell alias/function, point it to this runtime script, not plain `pi`.
 Plain `pi` will not use this repository's hardened defaults automatically.
@@ -92,12 +111,13 @@ Notes:
 - Sync mirrors managed files under `.pi/` (including `.pi/SYSTEM.md`) and removes stale managed files in the target.
 - It intentionally excludes personal runtime data like `auth.json`, `sessions/`, and `.DS_Store`.
 - Secrets can be centralized via `envService` in `settings.json` (e.g. `"envFile": "${PI_CODER_REPO}/.env"`).
+- This launcher is optional and mainly useful for local parity-stack development.
 
-## Sharing Setup with Colleagues
+## Sync and Sharing Workflow
 
 From the cloned repo root:
 
-1. Import any existing global config into the repo copy (one-time, optional):
+1. Import existing global config into the repo copy (preferred direction):
 
 ```bash
 npm run pi:pull-global
@@ -109,7 +129,7 @@ npm run pi:pull-global
 export PI_CODER_REPO="$(pwd)"
 ```
 
-1. Push this repo's `.pi/` stack to the colleague's global PI directory:
+1. Optional legacy step: push this repo's `.pi/` stack to global PI only if you explicitly want to overwrite global state:
 
 ```bash
 npm run pi:sync-global
