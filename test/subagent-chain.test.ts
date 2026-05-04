@@ -209,13 +209,13 @@ describe("subagent chain execution", () => {
     fs.mkdirSync(path.join(tmp, "node_modules", ".bin"), { recursive: true });
     fs.writeFileSync(path.join(tmp, "node_modules", ".bin", "pi"), "#!/bin/sh\nexit 0\n", "utf-8");
     fs.writeFileSync(
-      path.join(tmp, ".pi", "agent", "researcher.md"),
-      ["---", "name: researcher", "description: Researcher", "---", "You are researcher."].join("\n"),
+      path.join(tmp, ".pi", "agent", "generic-readonly.md"),
+      ["---", "name: generic-readonly", "description: Readonly", "---", "You are generic readonly."].join("\n"),
       "utf-8",
     );
     fs.writeFileSync(
-      path.join(tmp, ".pi", "agent", "summarizer.md"),
-      ["---", "name: summarizer", "description: Summarizer", "---", "You are summarizer."].join("\n"),
+      path.join(tmp, ".pi", "agent", "generic-worker.md"),
+      ["---", "name: generic-worker", "description: Worker", "---", "You are generic worker."].join("\n"),
       "utf-8",
     );
 
@@ -251,8 +251,8 @@ describe("subagent chain execution", () => {
       "call-subagent-fetch-summarize",
       {
         chain: [
-          { agent: "researcher", task: "fetch https://example.com" },
-          { agent: "summarizer", task: "summarize: {previous}" },
+          { agent: "generic-readonly", task: "fetch https://example.com" },
+          { agent: "generic-readonly", task: "summarize: {previous}" },
         ],
         agentScope: "project",
         confirmProjectAgents: false,
@@ -274,13 +274,13 @@ describe("subagent chain execution", () => {
     fs.mkdirSync(path.join(tmp, "node_modules", ".bin"), { recursive: true });
     fs.writeFileSync(path.join(tmp, "node_modules", ".bin", "pi"), "#!/bin/sh\nexit 0\n", "utf-8");
     fs.writeFileSync(
-      path.join(tmp, ".pi", "agent", "researcher.md"),
-      ["---", "name: researcher", "description: Researcher", "---", "You are researcher."].join("\n"),
+      path.join(tmp, ".pi", "agent", "generic-readonly.md"),
+      ["---", "name: generic-readonly", "description: Readonly", "---", "You are generic readonly."].join("\n"),
       "utf-8",
     );
     fs.writeFileSync(
-      path.join(tmp, ".pi", "agent", "summarizer.md"),
-      ["---", "name: summarizer", "description: Summarizer", "---", "You are summarizer."].join("\n"),
+      path.join(tmp, ".pi", "agent", "generic-worker.md"),
+      ["---", "name: generic-worker", "description: Worker", "---", "You are generic worker."].join("\n"),
       "utf-8",
     );
 
@@ -342,8 +342,8 @@ describe("subagent chain execution", () => {
       "call-subagent-tool-result-handoff",
       {
         chain: [
-          { agent: "researcher", task: "fetch" },
-          { agent: "summarizer", task: "summarize {previous}" },
+          { agent: "generic-readonly", task: "fetch" },
+          { agent: "generic-readonly", task: "summarize {previous}" },
         ],
         agentScope: "project",
         confirmProjectAgents: false,
@@ -527,6 +527,59 @@ describe("subagent chain execution", () => {
     expect(result.isError).not.toBe(true);
     expect(result.content[0].text).toContain("gan-fallback-ok");
     expect(result.details.results[0].agent).toBe("gan-generator");
+  });
+
+  it("falls back to generic-worker when requested agent is unavailable", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-generic-fallback-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agent"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "node_modules", ".bin"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, "node_modules", ".bin", "pi"), "#!/bin/sh\nexit 0\n", "utf-8");
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agent", "generic-worker.md"),
+      ["---", "name: generic-worker", "description: Worker", "---", "You are generic worker."].join("\n"),
+      "utf-8",
+    );
+
+    spawnMock.mockImplementation(() => {
+      const eventLine = JSON.stringify({
+        type: "message_end",
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "generic-fallback-ok" }],
+          usage: {
+            input: 4,
+            output: 3,
+            cacheRead: 0,
+            cacheWrite: 0,
+            cost: { total: 0.001 },
+            totalTokens: 7,
+          },
+          stopReason: "stop",
+        },
+      });
+      return createMockProcess([eventLine], 0);
+    });
+
+    const pi = createFakePi();
+    subagentExtension(pi as any);
+    const tool = pi.tools.get("subagent");
+
+    const result = await tool!.execute(
+      "call-subagent-generic-fallback",
+      {
+        agent: "planner",
+        task: "produce a short plan",
+        agentScope: "project",
+        confirmProjectAgents: false,
+      },
+      undefined,
+      undefined,
+      { cwd: tmp, hasUI: false },
+    );
+
+    expect(result.isError).not.toBe(true);
+    expect(result.content[0].text).toContain("generic-fallback-ok");
+    expect(result.details.results[0].agent).toBe("generic-worker");
   });
 
   it("returns actionable guidance when no alias or fallback can be resolved", async () => {

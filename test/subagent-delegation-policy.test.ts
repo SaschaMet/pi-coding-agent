@@ -31,7 +31,7 @@ describe("subagent delegation policy extension", () => {
     expect(result?.action).toBe("transform");
     expect(result?.text).toContain("subagent");
     expect(result?.text).toContain("chain");
-    expect(result?.text).toContain("agent: generic");
+    expect(result?.text).toContain("agent: generic-readonly");
     expect(result?.text).toContain("{previous}");
   });
 
@@ -68,7 +68,7 @@ describe("subagent delegation policy extension", () => {
 
     expect(result?.action).toBe("transform");
     expect(result?.text).toContain("chain");
-    expect(result?.text).toContain("agent: generic");
+    expect(result?.text).toContain("agent: generic-readonly");
     expect(result?.text).toContain("{previous}");
   });
 });

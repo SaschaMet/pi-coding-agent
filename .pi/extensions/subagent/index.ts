@@ -319,12 +319,22 @@ function getScopedExtensionArgs(searchCwd: string): string[] {
 type OnUpdateCallback = (partial: AgentToolResult<SubagentDetails>) => void;
 
 const FALLBACK_AGENT_CANDIDATES: Record<string, string[]> = {
-    "interactive-planner": ["planner"],
-    "grill-me": ["reviewer"],
-    "gan-coder": ["gan-generator", "worker"],
-    "tdd-coder": ["tdd-red", "tdd-green", "tdd-refactor", "worker"],
-    orchestrator: ["planner", "reviewer", "tdd-red", "tdd-green", "tdd-refactor", "worker"],
+    "interactive-planner": ["planner", "generic-readonly", "generic-worker"],
+    "grill-me": ["reviewer", "generic-readonly", "generic-worker"],
+    "gan-coder": ["gan-generator", "worker", "generic-worker", "generic-readonly"],
+    "tdd-coder": ["tdd-red", "tdd-green", "tdd-refactor", "worker", "generic-worker", "generic-readonly"],
+    orchestrator: [
+        "planner",
+        "reviewer",
+        "tdd-red",
+        "tdd-green",
+        "tdd-refactor",
+        "worker",
+        "generic-worker",
+        "generic-readonly",
+    ],
 };
+const DEFAULT_GENERIC_FALLBACKS = ["generic-worker", "generic-readonly", "generic"] as const;
 
 function findAgentByName(agents: AgentConfig[], name: string): AgentConfig | undefined {
     return agents.find((a) => a.name === name);
@@ -370,6 +380,19 @@ function resolveAgent(
         }
     }
 
+    if (!DEFAULT_GENERIC_FALLBACKS.includes(requestedName as (typeof DEFAULT_GENERIC_FALLBACKS)[number])) {
+        for (const genericName of DEFAULT_GENERIC_FALLBACKS) {
+            const generic = findAgentByName(agents, genericName);
+            if (!generic) continue;
+            const attempted = candidates.includes(genericName) ? candidates : [...candidates, genericName];
+            return {
+                agent: generic,
+                resolutionNote: `Fell back from "${requestedName}" to "${generic.name}".`,
+                attemptedFallbacks: attempted,
+            };
+        }
+    }
+
     return { attemptedFallbacks: candidates };
 }
 
@@ -385,7 +408,7 @@ function buildUnknownAgentGuidance(agentName: string, agents: AgentConfig[], age
         `Unknown agent: "${agentName}".`,
         `Discovered agents (scope: ${agentScope}): ${discovered}.`,
         'Name aliases are normalized for "-" and "_" (for example: gan_generator <-> gan-generator).',
-        "Likely fallbacks: interactive-planner -> planner; grill-me -> reviewer; gan-coder -> gan-generator; tdd-coder -> tdd-red, tdd-green, tdd-refactor.",
+        "Likely fallbacks: interactive-planner -> planner -> generic-readonly; grill-me -> reviewer -> generic-readonly; gan-coder -> gan-generator -> generic-worker; tdd-coder -> tdd-red/tdd-green/tdd-refactor -> generic-worker.",
         fallbackText,
         `Note: discovery depends on agentScope="${agentScope}" and configured skill roots (.pi/settings.json -> skills, plus project .pi/skills when present).`,
     ].join(" ");
@@ -638,9 +661,9 @@ export default function (pi: ExtensionAPI) {
             if (modeCount !== 1 || hasPartialSingle) {
                 const available = agents.map((a) => `${a.name} (${a.source})`).join(", ") || "none";
                 const examples = [
-                    'single: {"agent":"planner","task":"Plan this feature"}',
-                    'parallel: {"tasks":[{"agent":"explorer","task":"Map code"},{"agent":"planner","task":"Create plan"}]}',
-                    'chain: {"chain":[{"agent":"explorer","task":"Gather context"},{"agent":"planner","task":"Plan with {previous}"}]}',
+                    'single: {"agent":"generic-readonly","task":"Plan this feature"}',
+                    'parallel: {"tasks":[{"agent":"generic-readonly","task":"Map code paths"},{"agent":"generic-readonly","task":"Draft plan options"}]}',
+                    'chain: {"chain":[{"agent":"generic-readonly","task":"Gather context"},{"agent":"generic-worker","task":"Implement with {previous}"}]}',
                 ].join("\n");
                 const reason = hasPartialSingle
                     ? "`agent` and `task` must be provided together for single mode."

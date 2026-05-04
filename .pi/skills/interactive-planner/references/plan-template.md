@@ -137,8 +137,8 @@ One sentence describing what this phase achieves.
 
 ## Handoff
 
-- **Implementation**: Use `$pair-programming` for each implementation handoff.
-- **Review** *(large or risky plans)*: Use `$grill-me` to stress-test this plan before implementing.
+- **Implementation**: Use `generic-worker` via `subagent` for each implementation handoff.
+- **Review** *(large or risky plans)*: Use `generic-readonly` via `subagent` to stress-test this plan before implementing.
 - **Integration tests**: During implementation, include input/output pairs in handoff notes for the coding agent.
 
 
@@ -152,8 +152,8 @@ One sentence describing what this phase achieves.
 
 ## Handoff
 
-- **Implementation**: Use `$pair-programming` for each implementation handoff.
-- **Review** (optional): Use `$grill-me` to stress-test this plan before starting.
+- **Implementation**: Use `generic-worker` via `subagent` for each implementation handoff.
+- **Review** (optional): Use `generic-readonly` via `subagent` to stress-test this plan before starting.
 - **Integration tests**: During implementation, include input/output pairs in handoff notes for the coding agent.
 ```
 

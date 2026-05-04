@@ -120,24 +120,24 @@ describe("subagent discovery", () => {
     expect(discovery.projectAgentsDir).toContain(`${path.sep}.pi${path.sep}agent`);
   });
 
-  it("discovers researcher and summarizer project agents by name", () => {
-    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-discovery-project-research-"));
+  it("discovers generic-readonly and generic-worker project agents by name", () => {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-discovery-project-generic-two-"));
     fs.mkdirSync(path.join(projectRoot, ".pi", "agent"), { recursive: true });
 
     fs.writeFileSync(
-      path.join(projectRoot, ".pi", "agent", "researcher.md"),
-      ["---", "name: researcher", "description: Research agent", "---", "Research prompts."].join("\n"),
+      path.join(projectRoot, ".pi", "agent", "generic-readonly.md"),
+      ["---", "name: generic-readonly", "description: Readonly agent", "---", "Readonly prompts."].join("\n"),
       "utf-8",
     );
     fs.writeFileSync(
-      path.join(projectRoot, ".pi", "agent", "summarizer.md"),
-      ["---", "name: summarizer", "description: Summarizer agent", "---", "Summary prompts."].join("\n"),
+      path.join(projectRoot, ".pi", "agent", "generic-worker.md"),
+      ["---", "name: generic-worker", "description: Worker agent", "---", "Worker prompts."].join("\n"),
       "utf-8",
     );
 
     const discovery = discoverAgents(projectRoot, "project");
     const names = new Set(discovery.agents.map((agent) => agent.name));
-    expect(names.has("researcher")).toBe(true);
-    expect(names.has("summarizer")).toBe(true);
+    expect(names.has("generic-readonly")).toBe(true);
+    expect(names.has("generic-worker")).toBe(true);
   });
 });

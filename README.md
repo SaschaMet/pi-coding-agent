@@ -3,7 +3,7 @@
 Project-local PI runtime that adds:
 
 - Codex-style plan mode
-- Subagents with curated specialist roles
+- Subagents with two generic delegation profiles (`generic-readonly`, `generic-worker`)
 - Shared skills (including `~/.codex/skills`)
 - Native `web_search` tool (default provider: Brave, configurable)
 - Native `fetch_web_page` tool for extracting readable text from a specific URL
@@ -89,7 +89,7 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 
 ## Runtime Layout
 
-- [`src/main.ts`](/Users/saschametzger/Projects/pi-coding-agent/src/main.ts): embedded PI runtime entrypoint (`createAgentSession` + `InteractiveMode`)
+- [`src/main.ts`](src/main.ts): embedded PI runtime entrypoint (`createAgentSession` + `InteractiveMode`)
 - `.pi/settings.json`: project-level PI settings (skills path integration; direct skill commands disabled so skills run via subagents)
 - `.pi/agent.config.json`: search/subagent config contract
 - `.pi/extensions/`: custom extensions
@@ -101,12 +101,8 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 
 ## Role Catalog
 
-- `explorer`: quick codebase recon
-- `planner`: decision-complete planning, can use `ask_questions` and `web_search`
-- `worker`: focused implementation
-- `reviewer`: review-only quality gate
-- `tdd-red`, `tdd-green`, `tdd-refactor`: explicit TDD stages
-- `gan-generator`, `gan-critic`: generator/critic workflow
+- `generic-readonly`: read-only delegated subagent for research/planning/summarization
+- `generic-worker`: mutating delegated subagent for implementation/file updates
 
 ## Skill Routing
 
@@ -219,8 +215,6 @@ The underlying [`@mariozechner/pi-coding-agent`](https://www.npmjs.com/package/@
 
 ## Token Efficiency Guidance
 
-- Use `explorer` first for large unknown codebases.
-- Use `planner` only after context exists; keep planning prompts narrow.
-- Prefer direct `worker` for small, obvious edits.
-- Use `tdd-cycle` only when behavior changes need explicit regression safety.
-- Use `gan-loop` for high-risk slices where a critic gate is beneficial.
+- Prefer one focused delegated subtask using either `generic-readonly` or `generic-worker`.
+- Use `chain` mode when step output feeds the next step.
+- Use `parallel` mode only for truly independent subtasks.

@@ -44,7 +44,7 @@ For each area, note:
 - What constraints or conventions the plan must respect.
 - What is missing (no tests, no docs, no CI) that the plan should address.
 
-Use subagents for targeted research when the environment allows delegation.
+Use `generic-readonly` subagents for targeted research when the environment allows delegation.
 
 ## Step 2 — Clarify with the User
 
@@ -169,8 +169,8 @@ manual verification steps from every phase into a single flat checklist**.
 This is the section a human tester or reviewer uses to sign off on the implementation without
 needing to read the full plan.
 
-- **For implementation**: "Use `pair-programming` via `subagent` to handle each implementation handoff."
-- **For review**: "Use `grill-me` via `subagent` to stress-test this plan before implementing." (if the plan is large or risky)
+- **For implementation**: "Use `generic-worker` via `subagent` to handle each implementation handoff."
+- **For review**: "Use `generic-readonly` via `subagent` to stress-test this plan before implementing." (if the plan is large or risky)
 - **For integration tests**: "During implementation, capture input/output pairs in handoff notes for the coding agent."
 
 ## Step 6 — Write the Output

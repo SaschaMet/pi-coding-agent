@@ -10,9 +10,9 @@ function normalizeExplicitDelegation(text: string): string | null {
         const url = fetchSummarize[1];
         return [
             "Use the `subagent` tool in `chain` mode for this explicit delegation request.",
-            "Run exactly two delegated steps with the generic agent:",
-            `1. agent: generic, task: Fetch and extract readable text from ${url} using fetch_web_page. Return the extracted text.`,
-            "2. agent: generic, task: Summarize this fetched page text: {previous}",
+            "Run exactly two delegated steps with the readonly profile:",
+            `1. agent: generic-readonly, task: Fetch and extract readable text from ${url} using fetch_web_page. Return the extracted text.`,
+            "2. agent: generic-readonly, task: Summarize this fetched page text: {previous}",
         ].join("\n");
     }
 
@@ -28,8 +28,8 @@ function normalizeExplicitDelegation(text: string): string | null {
     return [
         "Use the `subagent` tool in `chain` mode for this explicit delegation request.",
         "Run exactly two delegated steps:",
-        `1. agent: generic, task: ${firstTask}`,
-        `2. agent: generic, task: ${secondTask}. Use this prior output as needed: {previous}`,
+        `1. agent: generic-readonly, task: ${firstTask}`,
+        `2. agent: generic-readonly, task: ${secondTask}. Use this prior output as needed: {previous}`,
     ].join("\n");
 }
 
@@ -78,9 +78,10 @@ export default function subagentDelegationPolicy(pi: ExtensionAPI): void {
                     "[DELEGATION POLICY]",
                     "- Explicit user delegation request: must call `subagent`.",
                     "- Skill execution request: must run through a matching skill-backed subagent. Do not run /skill inline.",
-                    "- Default delegated executor for small/medium tasks: `generic` agent.",
-                    "- External-doc or web research task: prefer delegated recon first, then summary/planning in separate delegated step when needed.",
-                    "- High-context reconnaissance tasks: prefer `explorer`/`planner` split via delegation over one large local turn.",
+                    "- Use `generic-readonly` for research/planning/summarization tasks.",
+                    "- Use `generic-worker` for implementation or file-modifying tasks.",
+                    "- External-doc or web research task: prefer delegated readonly recon first, then readonly summary/planning step.",
+                    "- High-context reconnaissance tasks: prefer multi-step delegation chains over one large local turn.",
                     "- Keep trivial, localized tasks in-session unless user explicitly asks for delegation.",
                 ].join("\n"),
             },
