@@ -260,6 +260,9 @@
         "fetch_web_page": {
             "mode": "allow"
         },
+        "browser": {
+            "mode": "allow"
+        },
         "subagent": {
             "mode": "allow"
         }
