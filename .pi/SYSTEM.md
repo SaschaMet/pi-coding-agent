@@ -38,7 +38,11 @@ Answer: "Fetch remote. Reset with `git reset --hard origin/branch-name`. Warning
 - Must not run delegated subagents in host mode unless the user explicitly requests and approves bypassing sandbox controls.
 - If delegated tasks require network, must enable network inside the sandbox only for that run scope.
 
-## Required Workflow
+## Coding Workflow
+
+- Must use this workflow for code changes.
+- For trivial and low-risk edits only affecting a single file, may skip steps 3-5 but must still report the change clearly in step 6.
+- For non-code tasks, use the same principles of understanding, research, planning, and reporting but skip implementation and testing steps.
 
 ### Step 0 — Instructions & Delegation
 
