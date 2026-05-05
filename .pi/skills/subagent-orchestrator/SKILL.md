@@ -11,9 +11,10 @@ Use this skill to keep delegation decisions consistent and maintainable.
 ## Delegation Contract
 
 - Treat this skill as the single policy source for subagent orchestration.
-- For non-trivial tasks, delegate execution with the `subagent` tool.
-- Run delegated subagents inside the configured container sandbox. Do not bypass to host execution unless explicitly approved by the user.
-- Ensure delegated subprocesses inherit parent sandbox flags (container on/off, network mode, mount policy, image pin).
+- Use the `subagent` tool only when delegation adds clear value: explicit user delegation, independent parallelizable work, isolated research, specialized skill workflows, or risky experiments that benefit from isolation.
+- Do not delegate by default. Keep tightly coupled, trivial, or low-overhead work in-session.
+- Prefer the configured sandbox or capability controls for risky, destructive, networked, or untrusted delegated work.
+- Pass through parent sandbox/runtime flags only when the delegated run should inherit that isolation or restriction.
 - Keep trivial, localized tasks in-session unless the user explicitly asks for delegation.
 - Use separate subagents for separate concerns.
 - Run subtasks in parallel only when they are independent.
@@ -66,4 +67,4 @@ Use `{previous}` explicitly in downstream task prompts.
 - If delegated execution fails, report the failure exactly and stop.
 - Do not simulate missing subagent output.
 - Re-run with refined scope only when failure cause is clear.
-- If sandbox initialization fails for delegated runs, treat it as a hard failure and stop unless the user explicitly approves non-sandbox fallback.
+- If sandbox initialization fails for a delegated run that depends on sandbox isolation, treat it as a hard failure and stop unless the user explicitly approves a fallback.

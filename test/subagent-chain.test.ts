@@ -860,6 +860,155 @@ describe("subagent chain execution", () => {
     }
   });
 
+  it("strips container flags for delegated localhost browser tasks", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-local-browser-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agents"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "node_modules", ".bin"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, "node_modules", ".bin", "pi"), "#!/bin/sh\nexit 0\n", "utf-8");
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agents", "planner.md"),
+      ["---", "name: planner", "description: Planner", "---", "You are planner."].join("\n"),
+      "utf-8",
+    );
+
+    const originalArgv = [...process.argv];
+    process.argv = [
+      originalArgv[0] ?? "node",
+      originalArgv[1] ?? "script",
+      "--container",
+      "--no-container-net",
+      "--no-container-mount-skills",
+      "--browser",
+      "--container-image",
+      "thegreataxios/pi-sandbox@sha256:testdigest",
+    ];
+
+    try {
+      spawnMock.mockImplementation((_command: string, args: string[]) => {
+        expect(args).toContain("--no-container");
+        expect(args).not.toContain("--container");
+        expect(args).not.toContain("--no-container-net");
+        expect(args).not.toContain("--no-container-mount-skills");
+        expect(args).not.toContain("--container-image");
+        expect(args).toContain("--browser");
+
+        const eventLine = JSON.stringify({
+          type: "message_end",
+          message: {
+            role: "assistant",
+            content: [{ type: "text", text: "ok" }],
+            usage: {
+              input: 1,
+              output: 1,
+              cacheRead: 0,
+              cacheWrite: 0,
+              cost: { total: 0.001 },
+              totalTokens: 2,
+            },
+            stopReason: "stop",
+          },
+        });
+        return createMockProcess([eventLine], 0);
+      });
+
+      const pi = createFakePi();
+      subagentExtension(pi as any);
+      const tool = pi.tools.get("subagent");
+
+      const result = await tool!.execute(
+        "call-subagent-local-browser-flags",
+        {
+          agent: "planner",
+          task: "Open http://localhost:3000 in the browser and verify the local app.",
+          agentScope: "project",
+          confirmProjectAgents: false,
+        },
+        undefined,
+        undefined,
+        { cwd: tmp, hasUI: false },
+      );
+
+      expect(result.isError).not.toBe(true);
+      expect(result.content[0].text).toContain("ok");
+    } finally {
+      process.argv = originalArgv;
+    }
+  });
+
+  it("keeps container flags for delegated localhost non-browser tasks", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-local-fetch-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agents"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "node_modules", ".bin"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, "node_modules", ".bin", "pi"), "#!/bin/sh\nexit 0\n", "utf-8");
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agents", "planner.md"),
+      ["---", "name: planner", "description: Planner", "---", "You are planner."].join("\n"),
+      "utf-8",
+    );
+
+    const originalArgv = [...process.argv];
+    process.argv = [
+      originalArgv[0] ?? "node",
+      originalArgv[1] ?? "script",
+      "--container",
+      "--no-container-net",
+      "--no-container-mount-skills",
+      "--browser",
+      "--container-image",
+      "thegreataxios/pi-sandbox@sha256:testdigest",
+    ];
+
+    try {
+      spawnMock.mockImplementation((_command: string, args: string[]) => {
+        expect(args).toContain("--container");
+        expect(args).toContain("--no-container-net");
+        expect(args).toContain("--no-container-mount-skills");
+        expect(args).toContain("--container-image");
+        expect(args).not.toContain("--no-container");
+
+        const eventLine = JSON.stringify({
+          type: "message_end",
+          message: {
+            role: "assistant",
+            content: [{ type: "text", text: "ok" }],
+            usage: {
+              input: 1,
+              output: 1,
+              cacheRead: 0,
+              cacheWrite: 0,
+              cost: { total: 0.001 },
+              totalTokens: 2,
+            },
+            stopReason: "stop",
+          },
+        });
+        return createMockProcess([eventLine], 0);
+      });
+
+      const pi = createFakePi();
+      subagentExtension(pi as any);
+      const tool = pi.tools.get("subagent");
+
+      const result = await tool!.execute(
+        "call-subagent-local-fetch-flags",
+        {
+          agent: "planner",
+          task: "Fetch http://localhost:3000/health with fetch_web_page and summarize the response.",
+          agentScope: "project",
+          confirmProjectAgents: false,
+        },
+        undefined,
+        undefined,
+        { cwd: tmp, hasUI: false },
+      );
+
+      expect(result.isError).not.toBe(true);
+      expect(result.content[0].text).toContain("ok");
+    } finally {
+      process.argv = originalArgv;
+    }
+  });
+
   it("fails closed when strict local runtime is enabled and local pi binary is missing", async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-strict-test-"));
     fs.mkdirSync(path.join(tmp, ".pi", "agents"), { recursive: true });

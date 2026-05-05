@@ -480,6 +480,56 @@ function getInheritedSandboxArgs(argv: string[]): string[] {
     return inherited;
 }
 
+function taskTargetsLocalBrowserOrLoopback(task: string, agentName: string): boolean {
+    const normalizedAgent = agentName.toLowerCase();
+    const mentionsLoopback =
+        /\bhttps?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\b/i.test(task) ||
+        /\b(localhost|127\.0\.0\.1|::1|local app)\b/i.test(task);
+    const mentionsBrowser =
+        /\b(browser|browser tool|browser-desktop|open\b|navigate\b|screenshot\b)\b/i.test(task) ||
+        normalizedAgent.includes("browser");
+    return mentionsLoopback && mentionsBrowser;
+}
+
+function stripContainerArgsForLocalBrowserTask(inheritedArgs: string[]): string[] {
+    const filtered: string[] = [];
+    const skipValueFlags = new Set([
+        "--container-size",
+        "--sandbox-name",
+        "--sandbox-cache",
+        "--container-image",
+        "--container-mount-paths",
+        "--container-allow-paths",
+        "--container-memory",
+        "--container-cpus",
+        "--container-pids-limit",
+        "--container-swap",
+    ]);
+    const skipBooleanFlags = new Set([
+        "--container",
+        "--no-container",
+        "--noc",
+        "--container-net",
+        "--no-container-net",
+        "--container-mount-skills",
+        "--no-container-mount-skills",
+        "--sandbox-persist",
+        "--container-keep",
+    ]);
+
+    for (let i = 0; i < inheritedArgs.length; i++) {
+        const token = inheritedArgs[i];
+        if (skipBooleanFlags.has(token)) continue;
+        if (skipValueFlags.has(token)) {
+            i += 1;
+            continue;
+        }
+        filtered.push(token);
+    }
+
+    return ["--no-container", ...filtered];
+}
+
 type OnUpdateCallback = (partial: AgentToolResult<SubagentDetails>) => void;
 
 const FALLBACK_AGENT_CANDIDATES: Record<string, string[]> = {
@@ -608,13 +658,17 @@ async function runSingleAgent(
         };
     }
 
+    const effectiveInheritedArgs = taskTargetsLocalBrowserOrLoopback(task, agent.name)
+        ? stripContainerArgsForLocalBrowserTask(inheritedSandboxArgs)
+        : inheritedSandboxArgs;
+
     const args: string[] = [
         "--mode",
         "json",
         "-p",
         "--no-session",
         ...getScopedExtensionArgs(cwd ?? defaultCwd),
-        ...inheritedSandboxArgs,
+        ...effectiveInheritedArgs,
     ];
     if (agent.model) args.push("--model", agent.model);
     if (agent.tools && agent.tools.length > 0) args.push("--tools", agent.tools.join(","));

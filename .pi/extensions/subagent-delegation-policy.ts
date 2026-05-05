@@ -2,6 +2,13 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 const DELEGATION_POLICY_REGISTERED = Symbol.for("pi.extensions.subagent-delegation-policy.registered");
 
+function isLocalBrowserOrLoopbackTask(text: string): boolean {
+    return (
+        /\b(browser|browser tool|browser-desktop)\b/i.test(text) &&
+        /\b(localhost|127\.0\.0\.1|::1|local app)\b/i.test(text)
+    ) || /\bhttps?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\b/i.test(text);
+}
+
 function normalizeExplicitDelegation(text: string): string | null {
     const fetchSummarize = text.match(
         /\bfetch\s+and\s+summariz(?:e|ing)\b[\s\S]*?(https?:\/\/[^\s)]+)\s*$/i,
@@ -38,12 +45,18 @@ function normalizeSkillDelegation(text: string): string | null {
     if (skillCommand) {
         const skill = skillCommand[1];
         const task = skillCommand[2]?.trim() || "execute requested skill workflow";
+        if (skill === "browser-desktop" && isLocalBrowserOrLoopbackTask(task)) {
+            return "Use the browser tool in the current session. Keep this localhost/local-app browser task local.";
+        }
         return `Use the \`subagent\` tool. Delegate to agent \`${skill}\` with task: ${task}`;
     }
 
     const skillRequest = text.match(/\buse\s+([a-z0-9_-]+)\s+skill\b/i);
     if (!skillRequest) return null;
     const skill = skillRequest[1];
+    if (skill === "browser-desktop" && isLocalBrowserOrLoopbackTask(text)) {
+        return "Use the browser tool in the current session. Keep this localhost/local-app browser task local.";
+    }
     return `Use the \`subagent\` tool. Delegate to agent \`${skill}\` and execute the requested skill workflow.`;
 }
 
@@ -78,11 +91,15 @@ export default function subagentDelegationPolicy(pi: ExtensionAPI): void {
                     "[DELEGATION POLICY]",
                     "- Explicit user delegation request: must call `subagent`.",
                     "- Skill execution request: must run through a matching skill-backed subagent. Do not run /skill inline.",
+                    "- Do not delegate by default. First decide whether in-session execution is simpler and lower-overhead.",
                     "- Use `generic-readonly` for research/planning/summarization tasks.",
                     "- Use `generic-worker` for implementation or file-modifying tasks.",
-                    "- External-doc or web research task: prefer delegated readonly recon first, then readonly summary/planning step.",
+                    "- External-doc or web research task: prefer delegated readonly recon only when the task benefits from isolation or parallelism.",
                     "- High-context reconnaissance tasks: prefer multi-step delegation chains over one large local turn.",
                     "- Keep trivial, localized tasks in-session unless user explicitly asks for delegation.",
+                    "- Browser or localhost/local-app tasks should stay in-session unless the user explicitly requires delegation.",
+                    "- Do not route localhost/local-app browser tasks through subagents.",
+                    "- Prefer sandbox or other runtime restrictions for risky, destructive, networked, or untrusted delegated work.",
                 ].join("\n"),
             },
         };

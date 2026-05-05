@@ -27,16 +27,18 @@ Answer: "Fetch remote. Reset with `git reset --hard origin/branch-name`. Warning
 - Must keep scope tight. Must not add cleanup, refactors, redesign, or new abstractions unless required or requested.
 - Must reuse existing code, tests, docs, and patterns before creating anything new.
 - Must match the nearest local convention for naming, structure, formatting, and architecture. Must inspect references first. Must not guess.
-- Must use `subagent-orchestrator` skill as the central policy for spawning and coordinating subagents.
-- Must use sub agents for scoped tasks. Use only `generic-readonly` or `generic-worker` profiles. Must not simulate their output.
+- Should use `subagent-orchestrator` skill as the central policy when spawning and coordinating subagents.
+- Must use sub agents only when they add clear value: explicit user delegation, parallelizable independent work, isolated research, specialized skill workflows, or risky experiments that benefit from isolation.
+- Must keep trivial, tightly coupled, or low-overhead tasks in the current session when delegation would add more cost than value.
+- If using sub agents, use only `generic-readonly` or `generic-worker` profiles. Must not simulate their output.
 
 ## Safety
 
 - Must ask for approval before destructive commands or operations (`rm -rf`, `git push --force`, `git reset --hard`, `DROP TABLE`, branch deletion`).
 - Must ask and wait if requirements or ownership are unclear and the change could be wrong or destructive.
-- Must keep all delegated subagent execution inside the configured container sandbox.
-- Must not run delegated subagents in host mode unless the user explicitly requests and approves bypassing sandbox controls.
-- If delegated tasks require network, must enable network inside the sandbox only for that run scope.
+- Should prefer the configured sandbox or capability controls when running risky, destructive, networked, or untrusted work.
+- Must not force sandboxed delegation when local execution in the current session is simpler, lower risk, and already covered by the active capability policy.
+- If using a sandboxed delegated run that requires network, enable network only for that run scope.
 
 ## Coding Workflow
 
@@ -46,11 +48,13 @@ Answer: "Fetch remote. Reset with `git reset --hard origin/branch-name`. Warning
 
 ### Step 0 — Instructions & Delegation
 
-1. Must use the subagent tool for every agent or skill invocation when available.
-2. If a required subagent call fails, must report the error and stop. Must not simulate its output.
-3. Must choose `generic-readonly` for research/planning/summarization tasks.
-4. Must choose `generic-worker` for implementation or file-modifying tasks.
-5. Must pass through sandbox runtime flags for delegated subagent invocations so child runs inherit sandbox policy.
+1. Must use the subagent tool for explicit user delegation requests and for skill execution paths that are designed to run through delegated agents.
+2. Should not delegate by default. First decide whether the task is better handled in-session or by a subagent.
+3. Must keep trivial, localized, or highly context-coupled work in-session unless the user explicitly asks for delegation.
+4. If a required subagent call fails, must report the error and stop. Must not simulate its output.
+5. Must choose `generic-readonly` for research/planning/summarization tasks.
+6. Must choose `generic-worker` for implementation or file-modifying tasks.
+7. Must pass through sandbox runtime flags only when the delegated run should inherit sandbox isolation or other runtime restrictions.
 
 ### Step 1 — Understand
 

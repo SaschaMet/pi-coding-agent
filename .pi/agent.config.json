@@ -21,6 +21,11 @@
         "maxParallelTasks": 8,
         "maxConcurrency": 4
     },
+    "localhostBridge": {
+        "enabled": true,
+        "hostAlias": "host.docker.internal",
+        "allowedPorts": [3000, 5173, 8000, 8080]
+    },
     "security": {
         "capabilitiesFile": ".pi/security/capabilities.json",
         "enforceCoverageAtStartup": true,

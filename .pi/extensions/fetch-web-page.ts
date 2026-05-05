@@ -1,5 +1,6 @@
 import type { AgentToolUpdateCallback, ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
+import { rewriteLoopbackUrlForSandbox } from "./shared/localhost-bridge.ts";
 
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_TEXT_CHARS = 100_000;
@@ -120,17 +121,8 @@ function buildSummary(details: FetchWebPageDetails): string {
     return lines.join("\n");
 }
 
-async function fetchReadablePage(url: string): Promise<FetchWebPageDetails> {
-    let parsed: URL;
-    try {
-        parsed = new URL(url);
-    } catch {
-        throw new Error(`Invalid URL: ${url}`);
-    }
-
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-        throw new Error(`Unsupported URL protocol: ${parsed.protocol}`);
-    }
+async function fetchReadablePage(url: string, cwd: string): Promise<FetchWebPageDetails> {
+    const parsed = rewriteLoopbackUrlForSandbox(url, cwd);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -206,7 +198,7 @@ export default function fetchWebPageExtension(pi: ExtensionAPI): void {
             _ctx: { cwd: string },
         ) => {
             try {
-                const details = await fetchReadablePage(params.url);
+                const details = await fetchReadablePage(params.url, _ctx.cwd);
                 return {
                     content: [{ type: "text" as const, text: buildSummary(details) }],
                     details,

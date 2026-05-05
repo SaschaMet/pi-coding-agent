@@ -53,6 +53,24 @@ describe("subagent delegation policy extension", () => {
     expect(result?.text).toContain("tdd-coder");
   });
 
+  it("keeps localhost browser skill requests in-session", async () => {
+    const pi = createFakePi();
+    delegationPolicyExtension(pi as any);
+
+    const handlers = pi.handlers.get("input") ?? [];
+    const result = await handlers[0](
+      {
+        text: "/skill:browser-desktop open http://localhost:3000",
+        source: "interactive",
+      },
+      { hasUI: false },
+    );
+
+    expect(result?.action).toBe("transform");
+    expect(result?.text).toContain("current session");
+    expect(result?.text).not.toContain("subagent");
+  });
+
   it("normalizes fetch-and-summarize webpage requests to generic chain flow", async () => {
     const pi = createFakePi();
     delegationPolicyExtension(pi as any);

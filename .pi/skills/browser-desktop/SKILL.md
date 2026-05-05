@@ -50,3 +50,5 @@ Use tool `browser` with this schema:
 - Do not run install commands automatically.
 - Do not claim navigation/screenshot success without tool confirmation.
 - Do not access local files via URL schemes; only use `http`/`https`.
+- Desktop browser automation is host-only. Do not assume it can run inside a container sandbox.
+- Sandboxed localhost access is a separate HTTP fetch concern. If a task only needs HTTP access to a local app, prefer the HTTP tool path over GUI browser automation.
