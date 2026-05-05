@@ -1134,4 +1134,119 @@ describe("subagent chain execution", () => {
       else process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT = originalRuntimeAnchorOverride;
     }
   });
+
+  it("uses runtime-anchor tsx entrypoint when strict runtime is disabled and parent script is a wrapper", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-wrapper-fallback-"));
+    const runtimeAnchor = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-runtime-anchor-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agent"), { recursive: true });
+    fs.mkdirSync(path.join(runtimeAnchor, "node_modules", ".bin"), { recursive: true });
+    fs.mkdirSync(path.join(runtimeAnchor, "src"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agent", "generic-worker.md"),
+      ["---", "name: generic-worker", "description: Worker", "---", "You are generic worker."].join("\n"),
+      "utf-8",
+    );
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agent.config.json"),
+      JSON.stringify({ security: { strictSubagentLocalRuntime: false } }, null, 2),
+      "utf-8",
+    );
+    fs.writeFileSync(path.join(runtimeAnchor, "node_modules", ".bin", "tsx"), "#!/bin/sh\nexit 0\n", "utf-8");
+    fs.writeFileSync(path.join(runtimeAnchor, "src", "main.ts"), "export {};\n", "utf-8");
+
+    const originalArgv = [...process.argv];
+    const originalRuntimeAnchorOverride = process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT;
+    process.argv = [originalArgv[0] ?? "node", "/tmp/tsx/dist/cli.mjs"];
+    process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT = runtimeAnchor;
+
+    try {
+      spawnMock.mockImplementation((command: string, args: string[]) => {
+        expect(command).toBe(path.join(runtimeAnchor, "node_modules", ".bin", "tsx"));
+        expect(args[0]).toBe(path.join(runtimeAnchor, "src", "main.ts"));
+        expect(args).toContain("--mode");
+        expect(args).toContain("json");
+        expect(args.some((arg) => arg.includes("Task: Return the text: ok"))).toBe(true);
+
+        const eventLine = JSON.stringify({
+          type: "message_end",
+          message: {
+            role: "assistant",
+            content: [{ type: "text", text: "ok" }],
+            usage: {
+              input: 1,
+              output: 1,
+              cacheRead: 0,
+              cacheWrite: 0,
+              cost: { total: 0.001 },
+              totalTokens: 2,
+            },
+            stopReason: "stop",
+          },
+        });
+        return createMockProcess([eventLine], 0);
+      });
+
+      const pi = createFakePi();
+      subagentExtension(pi as any);
+      const tool = pi.tools.get("subagent");
+
+      const result = await tool!.execute(
+        "call-subagent-wrapper-fallback",
+        {
+          agent: "generic-worker",
+          task: "Return the text: ok",
+          agentScope: "project",
+          confirmProjectAgents: false,
+        },
+        undefined,
+        undefined,
+        { cwd: tmp, hasUI: false },
+      );
+
+      expect(result.isError).not.toBe(true);
+      expect(result.content[0].text).toContain("ok");
+    } finally {
+      process.argv = originalArgv;
+      if (originalRuntimeAnchorOverride === undefined) delete process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT;
+      else process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT = originalRuntimeAnchorOverride;
+    }
+  });
+
+  it("surfaces actionable diagnostics when a subagent exits without structured output", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-no-output-diagnostics-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agent"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "node_modules", ".bin"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, "node_modules", ".bin", "pi"), "#!/bin/sh\nexit 0\n", "utf-8");
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agent", "generic-worker.md"),
+      ["---", "name: generic-worker", "description: Worker", "---", "You are generic worker."].join("\n"),
+      "utf-8",
+    );
+
+    spawnMock.mockImplementation(() => createMockProcess(["tsx bootstrap failed"], 1));
+
+    const pi = createFakePi();
+    subagentExtension(pi as any);
+    const tool = pi.tools.get("subagent");
+
+    const result = await tool!.execute(
+      "call-subagent-no-output-diagnostics",
+      {
+        agent: "generic-worker",
+        task: "Return the text: ok",
+        agentScope: "project",
+        confirmProjectAgents: false,
+      },
+      undefined,
+      undefined,
+      { cwd: tmp, hasUI: false },
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("No structured agent output received.");
+    expect(result.content[0].text).toContain("Invocation:");
+    expect(result.content[0].text).toContain("Exit code: 1");
+    expect(result.content[0].text).toContain("Stdout tail:");
+    expect(result.content[0].text).toContain("tsx bootstrap failed");
+  });
 });

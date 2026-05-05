@@ -153,8 +153,12 @@ interface SingleResult {
     agentSource: "user" | "project" | "unknown";
     task: string;
     exitCode: number;
+    exitSignal?: NodeJS.Signals | null;
     messages: Message[];
     stderr: string;
+    rawStdout: string;
+    invocation?: { command: string; args: string[] };
+    spawnError?: string;
     usage: UsageStats;
     model?: string;
     stopReason?: string;
@@ -250,6 +254,31 @@ async function writePromptToTempFile(agentName: string, prompt: string): Promise
     return { dir: tmpDir, filePath };
 }
 
+function resolveFallbackPiEntrypoint(): { command: string; argsPrefix: string[] } | null {
+    const runtimeAnchorRoot = getRuntimeAnchorRoot();
+    const runtimeAnchorTsx = path.join(runtimeAnchorRoot, "node_modules", ".bin", "tsx");
+    const runtimeAnchorMain = path.join(runtimeAnchorRoot, "src", "main.ts");
+    if (fs.existsSync(runtimeAnchorTsx) && fs.existsSync(runtimeAnchorMain)) {
+        return { command: runtimeAnchorTsx, argsPrefix: [runtimeAnchorMain] };
+    }
+
+    const currentScript = process.argv[1];
+    if (currentScript && fs.existsSync(currentScript)) {
+        const normalized = path.basename(currentScript).toLowerCase();
+        if (!/^tsx(?:\.mjs)?$/.test(normalized) && normalized !== "cli.mjs") {
+            return { command: process.execPath, argsPrefix: [currentScript] };
+        }
+    }
+
+    const execName = path.basename(process.execPath).toLowerCase();
+    const isGenericRuntime = /^(node|bun)(\.exe)?$/.test(execName);
+    if (!isGenericRuntime) {
+        return { command: process.execPath, argsPrefix: [] };
+    }
+
+    return null;
+}
+
 function getPiInvocation(
     args: string[],
     strictLocalRuntime: boolean,
@@ -271,15 +300,9 @@ function getPiInvocation(
         return null;
     }
 
-    const currentScript = process.argv[1];
-    if (currentScript && fs.existsSync(currentScript)) {
-        return { command: process.execPath, args: [currentScript, ...args] };
-    }
-
-    const execName = path.basename(process.execPath).toLowerCase();
-    const isGenericRuntime = /^(node|bun)(\.exe)?$/.test(execName);
-    if (!isGenericRuntime) {
-        return { command: process.execPath, args };
+    const fallbackEntrypoint = resolveFallbackPiEntrypoint();
+    if (fallbackEntrypoint) {
+        return { command: fallbackEntrypoint.command, args: [...fallbackEntrypoint.argsPrefix, ...args] };
     }
 
     return { command: "pi", args };
@@ -628,6 +651,42 @@ function buildUnknownAgentGuidance(agentName: string, agents: AgentConfig[], age
     ].join(" ");
 }
 
+function summarizeInvocation(invocation?: { command: string; args: string[] }): string {
+    if (!invocation) return "unknown invocation";
+    const renderedArgs = invocation.args.map((arg) => JSON.stringify(arg)).join(" ");
+    return renderedArgs.length > 0 ? `${invocation.command} ${renderedArgs}` : invocation.command;
+}
+
+function takeLastNonEmptyLines(text: string, maxLines: number): string {
+    const lines = text
+        .split(/\r?\n/)
+        .map((line) => line.trimEnd())
+        .filter((line) => line.length > 0);
+    if (lines.length === 0) return "";
+    return lines.slice(-maxLines).join("\n");
+}
+
+function buildAgentFailureMessage(result: SingleResult): string {
+    if (result.errorMessage?.trim()) return result.errorMessage.trim();
+    if (result.stderr.trim()) return result.stderr.trim();
+
+    const output = getFinalOutput(result.messages).trim();
+    if (output.length > 0) return output;
+
+    const details = [
+        `No structured agent output received.`,
+        `Invocation: ${summarizeInvocation(result.invocation)}.`,
+        `Exit code: ${result.exitCode}${result.exitSignal ? ` (signal: ${result.exitSignal})` : ""}.`,
+    ];
+
+    if (result.spawnError?.trim()) details.push(`Spawn error: ${result.spawnError.trim()}.`);
+
+    const stdoutTail = takeLastNonEmptyLines(result.rawStdout, 10);
+    if (stdoutTail) details.push(`Stdout tail:\n${stdoutTail}`);
+
+    return details.join(" ");
+}
+
 async function runSingleAgent(
     defaultCwd: string,
     agents: AgentConfig[],
@@ -681,8 +740,10 @@ async function runSingleAgent(
         agentSource: agent.source,
         task,
         exitCode: 0,
+        exitSignal: null,
         messages: [],
         stderr: resolved.resolutionNote ?? "",
+        rawStdout: "",
         usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, contextTokens: 0, turns: 0 },
         model: agent.model,
         step,
@@ -716,6 +777,7 @@ async function runSingleAgent(
                 resolve(1);
                 return;
             }
+            currentResult.invocation = invocation;
             const proc = spawn(invocation.command, invocation.args, {
                 cwd: cwd ?? defaultCwd,
                 shell: false,
@@ -761,7 +823,9 @@ async function runSingleAgent(
             };
 
             proc.stdout.on("data", (data) => {
-                buffer += data.toString();
+                const chunk = data.toString();
+                currentResult.rawStdout += chunk;
+                buffer += chunk;
                 const lines = buffer.split("\n");
                 buffer = lines.pop() || "";
                 for (const line of lines) processLine(line);
@@ -771,12 +835,14 @@ async function runSingleAgent(
                 currentResult.stderr += data.toString();
             });
 
-            proc.on("close", (code) => {
+            proc.on("close", (code, signalName) => {
                 if (buffer.trim()) processLine(buffer);
+                currentResult.exitSignal = signalName;
                 resolve(code ?? 0);
             });
 
-            proc.on("error", () => {
+            proc.on("error", (error) => {
+                currentResult.spawnError = error instanceof Error ? error.message : String(error);
                 resolve(1);
             });
 
@@ -974,8 +1040,7 @@ export default function (pi: ExtensionAPI) {
                     const isError =
                         result.exitCode !== 0 || result.stopReason === "error" || result.stopReason === "aborted";
                     if (isError) {
-                        const errorMsg =
-                            result.errorMessage || result.stderr || getFinalOutput(result.messages) || "(no output)";
+                        const errorMsg = buildAgentFailureMessage(result);
                         return {
                             content: [{ type: "text", text: `Chain stopped at step ${i + 1} (${step.agent}): ${errorMsg}` }],
                             details: makeDetails("chain")(results),
@@ -1012,8 +1077,10 @@ export default function (pi: ExtensionAPI) {
                         agentSource: "unknown",
                         task: normalizedTasks[i].task,
                         exitCode: -1, // -1 = still running
+                        exitSignal: null,
                         messages: [],
                         stderr: "",
+                        rawStdout: "",
                         usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, contextTokens: 0, turns: 0 },
                     };
                 }
@@ -1060,7 +1127,8 @@ export default function (pi: ExtensionAPI) {
                 const successCount = results.filter((r) => r.exitCode === 0).length;
                 const summaries = results.map((r) => {
                     const output = getFinalOutput(r.messages);
-                    const preview = output.slice(0, 100) + (output.length > 100 ? "..." : "");
+                    const previewSource = output || (r.exitCode === 0 ? "" : buildAgentFailureMessage(r));
+                    const preview = previewSource.slice(0, 100) + (previewSource.length > 100 ? "..." : "");
                     return `[${r.agent}] ${r.exitCode === 0 ? "completed" : "failed"}: ${preview || "(no output)"}`;
                 });
                 return {
@@ -1091,8 +1159,7 @@ export default function (pi: ExtensionAPI) {
                 );
                 const isError = result.exitCode !== 0 || result.stopReason === "error" || result.stopReason === "aborted";
                 if (isError) {
-                    const errorMsg =
-                        result.errorMessage || result.stderr || getFinalOutput(result.messages) || "(no output)";
+                    const errorMsg = buildAgentFailureMessage(result);
                     return {
                         content: [{ type: "text", text: `Agent ${result.stopReason || "failed"}: ${errorMsg}` }],
                         details: makeDetails("single")([result]),
