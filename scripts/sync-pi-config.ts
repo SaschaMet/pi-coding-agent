@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 export type Mode = "pull" | "push";
 type JsonObject = Record<string, unknown>;
 
-const EXCLUDED_TOP_LEVEL_PATHS = new Set(["auth.json", "sessions", "npm"]);
+const EXCLUDED_TOP_LEVEL_PATHS = new Set(["auth.json", "sessions", "npm", "models.json"]);
 const SETTINGS_RELATIVE_PATH = "settings.json";
 
 function resolveGlobalAgentDir(): string {

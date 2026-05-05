@@ -119,4 +119,35 @@ describe("sync-pi-config", () => {
         const targetRaw = fs.readFileSync(path.join(globalAgentDir, "settings.json"), "utf-8");
         expect(targetRaw).toBe(sourceRaw);
     });
+
+    it("skips syncing models.json for both pull and push", () => {
+        const { localPiDir, globalAgentDir } = setupRoots("pi-sync-models-skip-");
+
+        writeJson(path.join(localPiDir, "models.json"), {
+            localOnly: "keep-local",
+        });
+        writeJson(path.join(globalAgentDir, "models.json"), {
+            globalOnly: "keep-global",
+        });
+
+        const pullResult = syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
+        expect(pullResult.updated).toBe(0);
+        expect(pullResult.deleted).toBe(0);
+        expect(JSON.parse(fs.readFileSync(path.join(localPiDir, "models.json"), "utf-8"))).toEqual({
+            localOnly: "keep-local",
+        });
+        expect(JSON.parse(fs.readFileSync(path.join(globalAgentDir, "models.json"), "utf-8"))).toEqual({
+            globalOnly: "keep-global",
+        });
+
+        const pushResult = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+        expect(pushResult.updated).toBe(0);
+        expect(pushResult.deleted).toBe(0);
+        expect(JSON.parse(fs.readFileSync(path.join(localPiDir, "models.json"), "utf-8"))).toEqual({
+            localOnly: "keep-local",
+        });
+        expect(JSON.parse(fs.readFileSync(path.join(globalAgentDir, "models.json"), "utf-8"))).toEqual({
+            globalOnly: "keep-global",
+        });
+    });
 });
