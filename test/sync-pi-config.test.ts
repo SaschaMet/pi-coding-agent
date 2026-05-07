@@ -169,6 +169,28 @@ describe("sync-pi-config", () => {
         });
     });
 
+    it("does not delete target-only mcp.json during push sync", () => {
+        const { localPiDir, globalAgentDir } = setupRoots("pi-sync-mcp-target-only-");
+
+        writeJson(path.join(localPiDir, "settings.json"), {
+            packages: [],
+        });
+        writeJson(path.join(globalAgentDir, "mcp.json"), {
+            mcpServers: {
+                globalOnly: { command: "global-server" },
+            },
+        });
+
+        const result = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+
+        expect(result.deleted).toBe(0);
+        expect(JSON.parse(fs.readFileSync(path.join(globalAgentDir, "mcp.json"), "utf-8"))).toEqual({
+            mcpServers: {
+                globalOnly: { command: "global-server" },
+            },
+        });
+    });
+
     it("skips syncing models.json for both pull and push", () => {
         const { localPiDir, globalAgentDir } = setupRoots("pi-sync-models-skip-");
 

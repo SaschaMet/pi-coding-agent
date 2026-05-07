@@ -178,6 +178,10 @@ function removeFileIfExists(filePath: string): boolean {
     return true;
 }
 
+function isPreservedTargetOnlyRelativePath(relativePath: string): boolean {
+    return relativePath === MCP_RELATIVE_PATH;
+}
+
 function pruneEmptyManagedDirectories(root: string, relativeDir = ""): void {
     const absoluteDir = relativeDir ? path.join(root, relativeDir) : root;
     if (!fs.existsSync(absoluteDir)) return;
@@ -218,6 +222,7 @@ export function syncManagedPiDirectory(mode: Mode, localPiDir: string, globalAge
     let deleted = 0;
     for (const targetRelativePath of listRelativeFilesRecursive(targetRoot)) {
         if (sourceSet.has(targetRelativePath)) continue;
+        if (isPreservedTargetOnlyRelativePath(targetRelativePath)) continue;
         const targetPath = path.join(targetRoot, targetRelativePath);
         if (removeFileIfExists(targetPath)) deleted += 1;
     }
