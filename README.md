@@ -5,8 +5,6 @@ Git-tracked PI config/runtime parity stack for a global PI runtime (`~/.pi/agent
 - Codex-style plan mode
 - Subagents with two generic delegation profiles (`generic-readonly`, `generic-worker`)
 - Shared skills (including `~/.codex/skills`)
-- Native `web_search` tool (default provider: Brave, configurable)
-- Native `fetch_web_page` tool for extracting readable text from a specific URL
 - Structured planner Q&A tool: `ask_questions` (alias: `ask`)
 
 ## Quick Start
@@ -22,18 +20,6 @@ npm install
 ```bash
 export ANTHROPIC_API_KEY=...
 ```
-
-1. Configure web search key(s) in your shell or a local `.env` file:
-
-```bash
-export BRAVE_API_KEY=...
-# optional:
-# export TAVILY_API_KEY=...
-# export SERPER_API_KEY=...
-```
-
-The runtime no longer hydrates `.env` globally into `process.env`.
-Secrets are resolved via scoped access where needed (for example in `web_search`).
 
 1. Run smoke checks:
 
@@ -121,11 +107,11 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 
 - [`src/main.ts`](src/main.ts): embedded PI runtime entrypoint (`createAgentSession` + `InteractiveMode`)
 - `.pi/settings.json`: project-level PI settings and skills path integration
-- `.pi/agent.config.json`: search/subagent config contract
+- `.pi/agent.config.json`: subagent and local bridge config contract
 - `.pi/extensions/`: custom extensions
 - `.pi/agent/`: project-local subagent role definitions
 - `.pi/prompts/`: workflow prompt templates
-- `.pi/skills/`: project-local skills (includes `brave-search` wrapper)
+- `.pi/skills/`: project-local skills
 
 ## Role Catalog
 
@@ -135,9 +121,7 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 ## Delegation Orchestration
 
 - Normal repository inspection and file edits stay in-session.
-- Use `subagent` only when the user explicitly asks for delegation or when handling `fetch_web_page` retrieval/summarization.
-- Keep local browser and localhost/local-app tasks in-session unless explicit delegation is required.
-- `fetch_web_page` work should use `generic-readonly`.
+- Use `subagent` only when the user explicitly asks for delegation.
 
 ## Skill Routing
 
@@ -179,27 +163,10 @@ See [`.pi/extensions/plan-mode/README.md`](.pi/extensions/plan-mode/README.md) f
 - Output: `details.answers` keyed by `id`
 - Non-interactive fallback: deterministic first-option selection
 
-### `web_search`
-
-- Input: `query`, `provider?`, `topK?`, `domains?`, `recency?`, `includeContent?`
-- Output: normalized `results[]` with `title`, `url`, `snippet`, optional `content`
-- Provider default is configured via `.pi/agent.config.json`
-
-### `fetch_web_page`
-
-- Input: `url`
-- Output: readable page text extracted from the fetched page, plus `details` with `finalUrl`, `status`, `contentType`, `title`, and `text`
-- Intended for fetching a specific page when you already know the URL
-- Fetch/summarize requests use `generic-readonly`
-- Returns an error for invalid or unsupported URLs
-
 ## Troubleshooting
 
 - Missing model/API key:
   - Ensure a PI model provider key exists (e.g., `ANTHROPIC_API_KEY`).
-- `web_search` failing:
-  - Verify provider env var (`BRAVE_API_KEY`, `TAVILY_API_KEY`, or `SERPER_API_KEY`).
-  - Check provider selection in `.pi/agent.config.json`.
 - No Codex skills detected:
   - Ensure `~/.codex/skills` exists and is readable.
   - Confirm `.pi/settings.json` includes the path.
@@ -224,7 +191,6 @@ See [`.pi/extensions/plan-mode/README.md`](.pi/extensions/plan-mode/README.md) f
 
 - `ask_questions` in non-interactive mode returns deterministic fallback answers.
 - Outside-cwd `read`/`write`/`edit`/`grep`/`find`/`ls` requests require explicit approval and are denied without UI.
-- `web_search` returns structured error text and `isError: true` when provider calls fail.
 
 ## Upstream Docs
 
@@ -248,6 +214,4 @@ The underlying [`@mariozechner/pi-coding-agent`](https://www.npmjs.com/package/@
 ## Token Efficiency Guidance
 
 - Prefer in-session work for normal repository inspection and edits.
-- Use one focused `generic-readonly` task for `fetch_web_page` retrieval.
-- Use `chain` mode only when delegated fetch output feeds a delegated summary.
 - Use `parallel` mode only when the user explicitly requests independent subagents.

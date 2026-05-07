@@ -71,7 +71,7 @@ describe("plan mode behavior", () => {
 
         expect((pi as any).activeTools).not.toContain("subagent");
         expect(content).not.toContain("For research use subagents");
-        expect(content).toContain("delegated fetch/summarize routing is handled outside plan mode");
+        expect(content).toContain("Ask clarifying questions using ask_questions.");
     });
 
     it("registers a configurable shortcut for toggling the plan widget", async () => {
@@ -126,7 +126,7 @@ describe("plan mode behavior", () => {
                         content: [
                             {
                                 type: "text",
-                                text: "Plan:\n1. A new extension file for the tool, likely .pi/extensions/fetch-web-page.ts with tests and docs\n2. Define a minimal parameter schema for a single required url string",
+                                text: "Plan:\n1. A new extension file for the tool, likely .pi/extensions/custom-tool.ts with tests and docs\n2. Define a minimal parameter schema for a single required url string",
                             },
                         ],
                     },
@@ -147,7 +147,7 @@ describe("plan mode behavior", () => {
         expect(revealedWidgetCalls.length).toBeGreaterThan(0);
         const latestWidgetUpdate = revealedWidgetCalls.at(-1);
         expect(latestWidgetUpdate?.[1]).toEqual([
-            "☐ A new extension file for the tool, likely .pi/extensions/fetch-web-page.ts with tests and docs",
+            "☐ A new extension file for the tool, likely .pi/extensions/custom-tool.ts with tests and docs",
             "☐ Define a minimal parameter schema for a single required url string",
         ]);
     });

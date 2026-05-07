@@ -1,7 +1,7 @@
 ---
 name: generic-worker
 description: Mutating delegated sub agent for implementation and file-update tasks.
-tools: write, edit, bash, read, grep, find, ls, web_search, fetch_web_page, ask_questions, ask
+tools: write, edit, bash, read, grep, find, ls, ask_questions, ask
 ---
 
 You are the generic-worker delegated sub agent.

@@ -6,8 +6,6 @@ import type { ThinkingLevel } from "@mariozechner/pi-agent-core";
 
 const REQUIRED_EXTENSIONS = [
     ".pi/extensions/ask-questions.ts",
-    ".pi/extensions/web-search.ts",
-    ".pi/extensions/fetch-web-page.ts",
     ".pi/extensions/read-boundary-guard.ts",
     ".pi/extensions/tools.ts",
     ".pi/extensions/plan-mode/index.ts",

@@ -14,7 +14,6 @@ describe("subagent delegation policy extension", () => {
         expect(result?.message?.customType).toBe("subagent-delegation-policy");
         expect(result?.message?.content).toContain("Explicit user delegation request");
         expect(result?.message?.content).toContain("Skill execution requests stay in the current session");
-        expect(result?.message?.content).toContain("`fetch_web_page`");
         expect(result?.message?.content).toContain("When delegation is explicitly requested, use `generic-readonly`");
         expect(result?.message?.content).toContain("High-context repository reconnaissance stays in-session");
         expect(result?.message?.content).not.toContain("High-context reconnaissance tasks: prefer");
@@ -40,25 +39,6 @@ describe("subagent delegation policy extension", () => {
         expect(result?.text).toContain("{previous}");
     });
 
-    it("routes direct webpage fetch requests through a readonly subagent", async () => {
-        const pi = createFakePi();
-        delegationPolicyExtension(pi as any);
-
-        const handlers = pi.handlers.get("input") ?? [];
-        const result = await handlers[0](
-            {
-                text: "fetch https://example.com/article",
-                source: "interactive",
-            },
-            { hasUI: false },
-        );
-
-        expect(result?.action).toBe("transform");
-        expect(result?.text).toContain("single");
-        expect(result?.text).toContain("agent: generic-readonly");
-        expect(result?.text).toContain("fetch_web_page");
-    });
-
     it("keeps /skill input in-session by default", async () => {
         const pi = createFakePi();
         delegationPolicyExtension(pi as any);
@@ -73,40 +53,5 @@ describe("subagent delegation policy extension", () => {
         );
 
         expect(result?.action).toBe("continue");
-    });
-
-    it("keeps localhost browser skill requests in-session", async () => {
-        const pi = createFakePi();
-        delegationPolicyExtension(pi as any);
-
-        const handlers = pi.handlers.get("input") ?? [];
-        const result = await handlers[0](
-            {
-                text: "/skill:browser-desktop open http://localhost:3000",
-                source: "interactive",
-            },
-            { hasUI: false },
-        );
-
-        expect(result?.action).toBe("continue");
-    });
-
-    it("normalizes fetch-and-summarize webpage requests to generic chain flow", async () => {
-        const pi = createFakePi();
-        delegationPolicyExtension(pi as any);
-
-        const handlers = pi.handlers.get("input") ?? [];
-        const result = await handlers[0](
-            {
-                text: "use sub agents to fetch and summarize this webpage: https://www.aihero.dev/skills-changelog-ubiquitous-language-grill-with-docs",
-                source: "interactive",
-            },
-            { hasUI: false },
-        );
-
-        expect(result?.action).toBe("transform");
-        expect(result?.text).toContain("chain");
-        expect(result?.text).toContain("agent: generic-readonly");
-        expect(result?.text).toContain("{previous}");
     });
 });

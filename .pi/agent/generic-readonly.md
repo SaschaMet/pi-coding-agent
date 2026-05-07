@@ -1,7 +1,7 @@
 ---
 name: generic-readonly
 description: Read-only delegated sub agent for research, planning, and summarization tasks.
-tools: read, grep, find, ls, web_search, fetch_web_page, ask_questions, ask
+tools: read, grep, find, ls, ask_questions, ask
 ---
 
 You are the generic-readonly delegated sub agent.

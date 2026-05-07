@@ -20,7 +20,7 @@ import { loadProjectAgentConfig } from "../shared/agent-config.ts";
 import { extractTodoItems, formatTodoItemsForDisplay, isSafeCommand, markCompletedSteps, type TodoItem } from "./utils.ts";
 
 // Tools
-const DEFAULT_PLAN_MODE_TOOLS = ["read", "bash", "grep", "find", "ls", "ask_questions", "ask", "web_search", "fetch_web_page"];
+const DEFAULT_PLAN_MODE_TOOLS = ["read", "bash", "grep", "find", "ls", "ask_questions", "ask"];
 
 const DEFAULT_PLAN_WIDGET_SHORTCUT = "ctrl+alt+w";
 
@@ -233,8 +233,6 @@ ${mutationLine}
 - Bash is restricted to an allowlist of read-only commands
 
 Ask clarifying questions using ask_questions.
-Use web_search (or brave-search skill) for web research.
-Use fetch_web_page when you already have a specific URL and need its readable page content; delegated fetch/summarize routing is handled outside plan mode.
 
 Create a detailed numbered plan under a "Plan:" header:
 

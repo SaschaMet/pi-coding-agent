@@ -799,7 +799,6 @@ describe("subagent chain execution", () => {
             "--sandbox-persist",
             "--no-container-net",
             "--no-container-mount-skills",
-            "--browser",
             "--container-image",
             "example/image@sha256:testdigest",
         ];

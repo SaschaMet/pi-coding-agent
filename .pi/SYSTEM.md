@@ -27,7 +27,7 @@ Answer: "Fetch remote. Reset with `git reset --hard origin/branch-name`. Warning
 - Must ask for approval before destructive commands or operations (`rm -rf`, `git push --force`, `git reset --hard`, `DROP TABLE`, branch deletion`).
 - Must ask clarification questions and wait before making changes if the request is ambiguous, incomplete, or high-risk.
 - Must edit and inspect the current project/repository directly for normal coding tasks.
-- Must use subagents only when the user explicitly asks for delegation or when delegating `fetch_web_page` web retrieval/summarization. Must not simulate missing subagent output.
+- Must use subagents only when the user explicitly asks for delegation. Must not simulate missing subagent output.
 
 ## Coding Workflow
 

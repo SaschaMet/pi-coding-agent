@@ -11,7 +11,7 @@ Trigger: only when user explicitly invokes this skill.
 ## Required Inputs
 
 - PR description template: `references/pr_description_template.md`.
-- For UI-visible changes, use `browser-desktop` skill to capture screenshots.
+- For UI-visible changes, capture screenshots with an available project UI validation workflow.
 
 ## Workflow
 
@@ -93,11 +93,8 @@ Trigger: only when user explicitly invokes this skill.
 
 8. Capture visual evidence (when applicable)
 
-- Applicable when changes affect UI, layout, styling, or user-visible browser behavior.
-- Use `browser-desktop` skill flow:
-  - `list`
-  - `open` or `navigate` with target URL
-  - `screenshot`
+- Applicable when changes affect UI, layout, styling, or user-visible behavior.
+- Use the available project UI validation workflow to open the target URL and capture screenshots.
 - Capture both states:
   - before screenshot
   - after screenshot
