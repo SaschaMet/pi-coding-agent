@@ -35,8 +35,5 @@
         "capabilitiesFile": ".pi/security/capabilities.json",
         "enforceCoverageAtStartup": true,
         "strictSubagentLocalRuntime": false
-    },
-    "planMode": {
-        "toggleWidgetShortcut": "ctrl+p"
     }
 }
