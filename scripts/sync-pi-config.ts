@@ -9,6 +9,7 @@ type JsonObject = Record<string, unknown>;
 
 const EXCLUDED_TOP_LEVEL_PATHS = new Set(["auth.json", "sessions", "npm", "models.json"]);
 const SETTINGS_RELATIVE_PATH = "settings.json";
+const MCP_RELATIVE_PATH = "mcp.json";
 
 function resolveGlobalAgentDir(): string {
     const fromEnv = process.env.PI_CODING_AGENT_DIR?.trim();
@@ -130,6 +131,25 @@ function mergeSettingsPackages(sourceBuf: Buffer, targetBuf: Buffer): Buffer | u
     return Buffer.from(`${JSON.stringify(sourceJson, null, 2)}\n`, "utf-8");
 }
 
+function getJsonObjectProperty(json: JsonObject, property: string): JsonObject | undefined {
+    const value = json[property];
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+    return value as JsonObject;
+}
+
+function mergeMcpServers(sourceBuf: Buffer, targetBuf: Buffer): Buffer | undefined {
+    const sourceJson = parseObjectJson(sourceBuf.toString("utf-8"));
+    const targetJson = parseObjectJson(targetBuf.toString("utf-8"));
+    if (!sourceJson || !targetJson) return undefined;
+
+    const sourceServers = getJsonObjectProperty(sourceJson, "mcpServers");
+    const targetServers = getJsonObjectProperty(targetJson, "mcpServers");
+    if (!sourceServers || !targetServers) return undefined;
+
+    sourceJson.mcpServers = { ...sourceServers, ...targetServers };
+    return Buffer.from(`${JSON.stringify(sourceJson, null, 2)}\n`, "utf-8");
+}
+
 function copyFileIfChanged(source: string, target: string, relativePath: string): boolean {
     const sourceBuf = fs.readFileSync(source);
     let outputBuf: Buffer<ArrayBufferLike> = sourceBuf;
@@ -139,6 +159,10 @@ function copyFileIfChanged(source: string, target: string, relativePath: string)
         if (relativePath === SETTINGS_RELATIVE_PATH) {
             const mergedSettings = mergeSettingsPackages(sourceBuf, targetBuf);
             if (mergedSettings) outputBuf = mergedSettings;
+        }
+        if (relativePath === MCP_RELATIVE_PATH) {
+            const mergedMcp = mergeMcpServers(sourceBuf, targetBuf);
+            if (mergedMcp) outputBuf = mergedMcp;
         }
         if (outputBuf.equals(targetBuf)) return false;
     }

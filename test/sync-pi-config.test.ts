@@ -120,6 +120,55 @@ describe("sync-pi-config", () => {
         expect(targetRaw).toBe(sourceRaw);
     });
 
+    it("merges mcp.json servers without overwriting target-only entries", () => {
+        const { localPiDir, globalAgentDir } = setupRoots("pi-sync-mcp-merge-");
+
+        writeJson(path.join(localPiDir, "mcp.json"), {
+            mcpServers: {
+                localOnly: { command: "local-server" },
+            },
+        });
+        writeJson(path.join(globalAgentDir, "mcp.json"), {
+            mcpServers: {
+                globalOnly: { command: "global-server" },
+            },
+        });
+
+        syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
+
+        const localMcp = JSON.parse(fs.readFileSync(path.join(localPiDir, "mcp.json"), "utf-8")) as {
+            mcpServers: Record<string, unknown>;
+        };
+        expect(localMcp.mcpServers).toEqual({
+            globalOnly: { command: "global-server" },
+            localOnly: { command: "local-server" },
+        });
+    });
+
+    it("keeps target mcp.json server definition when names conflict", () => {
+        const { localPiDir, globalAgentDir } = setupRoots("pi-sync-mcp-conflict-");
+
+        writeJson(path.join(localPiDir, "mcp.json"), {
+            mcpServers: {
+                shared: { command: "local-server" },
+            },
+        });
+        writeJson(path.join(globalAgentDir, "mcp.json"), {
+            mcpServers: {
+                shared: { command: "global-server" },
+            },
+        });
+
+        syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
+
+        const localMcp = JSON.parse(fs.readFileSync(path.join(localPiDir, "mcp.json"), "utf-8")) as {
+            mcpServers: Record<string, unknown>;
+        };
+        expect(localMcp.mcpServers).toEqual({
+            shared: { command: "local-server" },
+        });
+    });
+
     it("skips syncing models.json for both pull and push", () => {
         const { localPiDir, globalAgentDir } = setupRoots("pi-sync-models-skip-");
 
