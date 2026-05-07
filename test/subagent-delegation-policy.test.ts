@@ -15,6 +15,9 @@ describe("subagent delegation policy extension", () => {
     expect(result?.message?.content).toContain("Explicit user delegation request");
     expect(result?.message?.content).toContain("Skill execution requests stay in the current session");
     expect(result?.message?.content).toContain("delegated `fetch_web_page`");
+    expect(result?.message?.content).toContain("When delegation is explicitly requested, use `generic-readonly`");
+    expect(result?.message?.content).toContain("High-context repository reconnaissance stays in-session");
+    expect(result?.message?.content).not.toContain("High-context reconnaissance tasks: prefer");
   });
 
   it("normalizes explicit spawn phrasing", async () => {

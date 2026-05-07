@@ -1,6 +1,6 @@
 ---
 name: subagent-orchestrator
-description: Central orchestration policy for delegated execution and spawning subagents. Use when tasks are non-trivial, long-horizon, high-context, or better split into scoped subagent workstreams while preserving coherence and minimizing overlap.
+description: Central orchestration policy for explicit delegated execution and delegated fetch_web_page workflows. Use only when the user explicitly asks for subagents/delegation or when routing fetch_web_page retrieval/summarization through readonly subagents.
 ---
 
 # Subagent Orchestrator
@@ -11,43 +11,49 @@ Use this skill to keep delegation decisions consistent and maintainable.
 ## Delegation Contract
 
 - Treat this skill as the single policy source for subagent orchestration.
-- Use the `subagent` tool only when delegation adds clear value: explicit user delegation, independent parallelizable work, isolated research, specialized skill workflows, or risky experiments that benefit from isolation.
-- Do not delegate by default. Keep tightly coupled, trivial, or low-overhead work in-session.
-- Prefer the configured sandbox or capability controls for risky, destructive, networked, or untrusted delegated work.
+- Use the `subagent` tool only when the user explicitly asks for delegation/subagents or when delegating `fetch_web_page` retrieval/summarization.
+- Do not delegate normal repository inspection, planning, implementation, or skill execution by default. Run that work in the current session.
+- Direct `/skill:*` and skill-use requests stay in-session unless the user explicitly asks for delegation.
+- Prefer configured sandbox or capability controls for delegated `fetch_web_page` work and other explicitly untrusted network fetches.
 - Pass through parent sandbox/runtime flags only when the delegated run should inherit that isolation or restriction.
-- Keep trivial, localized tasks in-session unless the user explicitly asks for delegation.
+- Do not route normal repository edits through sandboxed subagents by default.
 - Use separate subagents for separate concerns.
-- Run subtasks in parallel only when they are independent.
+- Run subtasks in parallel only when the user explicitly requests independent subagents and the subtasks are independent.
 - Do not split strongly overlapping tasks across different subagents.
 
 ## Agent Selection Rules
 
 - Use `generic-readonly` for:
-  - repository reconnaissance
-  - codebase understanding
-  - pattern discovery
-  - planning and summarization
-  - log and CLI investigation that does not require file mutation
+  - delegated `fetch_web_page` retrieval
+  - delegated fetch-and-summary chains
+  - explicitly delegated repository reconnaissance
+  - explicitly delegated codebase understanding
+  - explicitly delegated pattern discovery
+  - explicitly delegated planning and summarization
+  - explicitly delegated log and CLI investigation that does not require file mutation
 - Use `generic-worker` for:
-  - code implementation
-  - file edits
-  - behavior changes
-  - tests and validation updates tied to changed code
+  - explicitly delegated implementation requests
+  - explicitly delegated code implementation
+  - explicitly delegated file edits
+  - explicitly delegated behavior changes
+  - explicitly delegated tests and validation updates tied to changed code
 
 ## Execution Patterns
 
 ### Single
 
 Use `{ agent, task }` when one scoped delegation is enough.
+Default for delegated `fetch_web_page` retrieval.
 
 ### Parallel
 
-Use `{ tasks: [...] }` when subtasks are independent and low-overlap.
+Use `{ tasks: [...] }` only when the user explicitly requests independent subagents and the subtasks are independent and low-overlap.
 
 ### Chain
 
 Use `{ chain: [...] }` when later steps depend on prior outputs.
 Use `{previous}` explicitly in downstream task prompts.
+Default for delegated fetch-then-summarize flows.
 
 ## Prompting Requirements for Delegated Steps
 

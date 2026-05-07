@@ -233,9 +233,8 @@ ${mutationLine}
 - Bash is restricted to an allowlist of read-only commands
 
 Ask clarifying questions using ask_questions.
-For research use subagents and a safe sandbox.
 Use web_search (or brave-search skill) for web research.
-Use fetch_web_page when you already have a specific URL and need its readable page content.
+Use fetch_web_page when you already have a specific URL and need its readable page content; delegated fetch/summarize routing is handled outside plan mode.
 
 Create a detailed numbered plan under a "Plan:" header:
 

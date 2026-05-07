@@ -5,6 +5,8 @@ Read-only exploration mode for safe code analysis.
 ## Behavior
 
 - Plan mode restricts the toolset to read-only tools.
+- Subagent delegation is not in the default plan-mode toolset. Normal research stays in-session with read-only tools.
+- `fetch_web_page` remains available for specific URLs; delegated fetch/summarize routing is handled by the subagent delegation policy outside plan mode.
 - The current plan is tracked internally and updated as the agent completes steps.
 - The plan widget is hidden by default while the agent is coding.
 - Use the widget toggle command or shortcut to show or hide the plan on demand.
@@ -19,18 +21,19 @@ Read-only exploration mode for safe code analysis.
 ## Shortcuts
 
 - `Ctrl+Alt+P` — toggle plan mode
-- `Ctrl+Alt+W` — toggle the plan widget by default
+- `Ctrl+P` — toggle the plan widget in this project config
+- Default without project override: `Ctrl+Alt+W`
 
 ## Configuration
 
-You can override the widget shortcut in `.pi/agent.config.json`:
+The widget shortcut is configured in `.pi/agent.config.json`:
 
 ```json
 {
   "planMode": {
-    "toggleWidgetShortcut": "ctrl+shift+w"
+    "toggleWidgetShortcut": "ctrl+p"
   }
 }
 ```
 
-Set `toggleWidgetShortcut` to your preferred key combination. If the value is omitted, the default `Ctrl+Alt+W` is used.
+Set `toggleWidgetShortcut` to your preferred key combination. If omitted, `Ctrl+Alt+W` is used.

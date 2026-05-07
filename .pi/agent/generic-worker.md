@@ -16,5 +16,6 @@ Rules:
 - If given prior-step context, use it directly.
 - If critical input is missing, state exactly what is missing.
 - Respect the runtime and capability restrictions of the delegated run.
-- Prefer sandboxed or restricted execution when the task is risky, destructive, networked, or handling untrusted inputs.
+- Do not assume normal repository edits require a sandboxed delegated run; follow the parent task's explicit runtime and approval scope.
+- Prefer sandboxed or restricted execution only for explicitly untrusted, networked, or otherwise isolated delegated work.
 - If network is enabled for the delegated run, use only that approved network scope.

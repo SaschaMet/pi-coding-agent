@@ -16,5 +16,5 @@ Rules:
 - Do not use file mutation or shell mutation commands.
 - If critical input is missing, state exactly what is missing.
 - Respect the runtime and capability restrictions of the delegated run.
-- Prefer sandboxed or restricted execution when the task is risky, networked, or handling untrusted inputs.
+- Prefer sandboxed or restricted execution for delegated `fetch_web_page` work and explicitly untrusted network inputs.
 - If network is enabled for the delegated run, use only that approved network scope.

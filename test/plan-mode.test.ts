@@ -49,6 +49,31 @@ describe("plan mode behavior", () => {
         expect((pi as any).activeTools).toEqual(["read", "grep", "ask_questions"]);
     });
 
+    it("keeps subagent out of default plan mode guidance", async () => {
+        const pi = createFakePi();
+        planModeExtension(pi as any);
+        pi.getFlag = () => false;
+
+        const ui = createUi();
+        const ctx = {
+            hasUI: true,
+            ui,
+            sessionManager: {
+                getEntries: () => [],
+            },
+        };
+
+        await pi.handlers.get("session_start")?.[0]({}, ctx);
+        await (pi as any).commands.get("plan")?.handler({}, ctx);
+
+        const result = await pi.handlers.get("before_agent_start")?.[0]({}, ctx);
+        const content = result?.message?.content ?? "";
+
+        expect((pi as any).activeTools).not.toContain("subagent");
+        expect(content).not.toContain("For research use subagents");
+        expect(content).toContain("delegated fetch/summarize routing is handled outside plan mode");
+    });
+
     it("registers a configurable shortcut for toggling the plan widget", async () => {
         const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-plan-mode-shortcut-"));
         fs.mkdirSync(path.join(tmp, ".pi"), { recursive: true });
