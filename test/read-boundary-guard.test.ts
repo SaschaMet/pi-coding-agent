@@ -63,6 +63,89 @@ describe("read boundary guard", () => {
         expect(editResult?.block).toBe(true);
     });
 
+    it("fails closed when read/write/edit path arguments are missing", async () => {
+        const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-read-boundary-missing-path-"));
+        const pi = createFakePi();
+        readBoundaryGuardExtension(pi as any);
+        const handlers = pi.handlers.get("tool_call") ?? [];
+
+        const readResult = await handlers[0](
+            { toolName: "read", input: {} },
+            { hasUI: false, cwd: tmp },
+        );
+        expect(readResult?.block).toBe(true);
+        expect(readResult?.reason).toContain("missing or invalid path");
+
+        const writeResult = await handlers[0](
+            { toolName: "write", input: { content: "x" } },
+            { hasUI: false, cwd: tmp },
+        );
+        expect(writeResult?.block).toBe(true);
+
+        const editResult = await handlers[0](
+            { toolName: "edit", input: { path: "   " } },
+            { hasUI: false, cwd: tmp },
+        );
+        expect(editResult?.block).toBe(true);
+    });
+
+    it("blocks tilde paths outside current directory in non-interactive mode", async () => {
+        const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-read-boundary-tilde-"));
+        const pi = createFakePi();
+        readBoundaryGuardExtension(pi as any);
+        const handlers = pi.handlers.get("tool_call") ?? [];
+
+        const writeResult = await handlers[0](
+            { toolName: "write", input: { path: "~/.claude/settings.json", content: "x" } },
+            { hasUI: false, cwd: tmp },
+        );
+        expect(writeResult?.block).toBe(true);
+
+        const readResult = await handlers[0](
+            { toolName: "read", input: { path: "~/.zshrc" } },
+            { hasUI: false, cwd: tmp },
+        );
+        expect(readResult?.block).toBe(true);
+    });
+
+    it("blocks $HOME paths outside current directory in non-interactive mode", async () => {
+        const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-read-boundary-home-env-"));
+        const pi = createFakePi();
+        readBoundaryGuardExtension(pi as any);
+        const handlers = pi.handlers.get("tool_call") ?? [];
+
+        const writeResult = await handlers[0](
+            { toolName: "write", input: { path: "$HOME/.claude/settings.json", content: "x" } },
+            { hasUI: false, cwd: tmp },
+        );
+        expect(writeResult?.block).toBe(true);
+
+        const readResult = await handlers[0](
+            { toolName: "read", input: { path: "${HOME}/.zshrc" } },
+            { hasUI: false, cwd: tmp },
+        );
+        expect(readResult?.block).toBe(true);
+    });
+
+    it("supports filePath aliases when guarding outside current directory", async () => {
+        const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-read-boundary-filepath-"));
+        const pi = createFakePi();
+        readBoundaryGuardExtension(pi as any);
+        const handlers = pi.handlers.get("tool_call") ?? [];
+
+        const readResult = await handlers[0](
+            { toolName: "read", input: { filePath: "../outside.txt" } },
+            { hasUI: false, cwd: tmp },
+        );
+        expect(readResult?.block).toBe(true);
+
+        const writeResult = await handlers[0](
+            { toolName: "write", input: { filePath: "../outside.txt", content: "x" } },
+            { hasUI: false, cwd: tmp },
+        );
+        expect(writeResult?.block).toBe(true);
+    });
+
     it("blocks non-existent write targets that traverse symlinked outside directories", async () => {
         const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-read-boundary-symlink-"));
         const outside = fs.mkdtempSync(path.join(os.tmpdir(), "pi-read-boundary-outside-link-"));

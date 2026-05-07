@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
@@ -10,18 +11,40 @@ type ToolCallEvent = {
     input: Record<string, unknown>;
 };
 
+function firstNonEmptyString(...values: unknown[]): string | undefined {
+    for (const value of values) {
+        if (typeof value === "string" && value.trim().length > 0) return value;
+    }
+    return undefined;
+}
+
 function getToolPathInput(toolName: string, input: Record<string, unknown>): string | undefined {
     if (toolName === "read" || toolName === "write" || toolName === "edit") {
-        const explicit = (input.path as string | undefined) ?? (input.file_path as string | undefined);
-        return typeof explicit === "string" && explicit.trim().length > 0 ? explicit : undefined;
+        return firstNonEmptyString(input.path, input.file_path, input.filePath);
     }
 
     if (toolName === "grep" || toolName === "find" || toolName === "ls") {
-        const explicit = input.path as string | undefined;
-        return typeof explicit === "string" && explicit.trim().length > 0 ? explicit : ".";
+        const explicit = firstNonEmptyString(input.path, input.file_path, input.filePath);
+        return explicit ?? ".";
     }
 
     return undefined;
+}
+
+function expandHomePath(rawPath: string): string {
+    const trimmed = rawPath.trim();
+    if (trimmed === "~") return os.homedir();
+    if (trimmed.startsWith("~/") || trimmed.startsWith(`~${path.sep}`)) {
+        return path.join(os.homedir(), trimmed.slice(2));
+    }
+
+    const home = process.env.HOME;
+    if (home && (trimmed.startsWith("$HOME/") || trimmed.startsWith("${HOME}/"))) {
+        const prefixLen = trimmed.startsWith("$HOME/") ? "$HOME/".length : "${HOME}/".length;
+        return path.join(home, trimmed.slice(prefixLen));
+    }
+
+    return trimmed;
 }
 
 function resolvePathWithRealAncestor(candidate: string): string {
@@ -46,8 +69,11 @@ function resolvePathWithRealAncestor(candidate: string): string {
 }
 
 function isOutsideWorkingDirectory(inputPath: string, cwd: string): boolean {
+    const normalizedInputPath = expandHomePath(inputPath);
     const resolvedCwd = resolvePathWithRealAncestor(cwd);
-    const resolvedTarget = resolvePathWithRealAncestor(path.isAbsolute(inputPath) ? inputPath : path.join(cwd, inputPath));
+    const resolvedTarget = resolvePathWithRealAncestor(
+        path.isAbsolute(normalizedInputPath) ? normalizedInputPath : path.join(cwd, normalizedInputPath),
+    );
     const relative = path.relative(resolvedCwd, resolvedTarget);
     return relative.length > 0 && (relative.startsWith("..") || path.isAbsolute(relative));
 }
@@ -62,7 +88,12 @@ export default function readBoundaryGuardExtension(pi: ExtensionAPI): void {
 
         const input = (event as ToolCallEvent).input ?? {};
         const inputPath = getToolPathInput(event.toolName, input);
-        if (!inputPath) return undefined;
+        if (!inputPath) {
+            return {
+                block: true,
+                reason: `Blocked ${event.toolName}: missing or invalid path argument for boundary enforcement.`,
+            };
+        }
 
         const currentCwd = ctx.cwd;
         if (!isOutsideWorkingDirectory(inputPath, currentCwd)) return undefined;
