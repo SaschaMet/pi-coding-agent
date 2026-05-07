@@ -1212,6 +1212,159 @@ describe("subagent chain execution", () => {
     }
   });
 
+  it("falls back to node from PATH when parent execPath is missing", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-missing-execpath-"));
+    const runtimeAnchor = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-empty-runtime-anchor-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agent"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agent", "generic-worker.md"),
+      ["---", "name: generic-worker", "description: Worker", "---", "You are generic worker."].join("\n"),
+      "utf-8",
+    );
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agent.config.json"),
+      JSON.stringify({ security: { strictSubagentLocalRuntime: false } }, null, 2),
+      "utf-8",
+    );
+    fs.writeFileSync(path.join(tmp, "wrapper.js"), "import './src/main.ts';\n", "utf-8");
+
+    const originalArgv = [...process.argv];
+    const originalExecPath = process.execPath;
+    const originalRuntimeAnchorOverride = process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT;
+    process.argv = ["/missing/node", path.join(tmp, "wrapper.js")];
+    Object.defineProperty(process, "execPath", {
+      value: "/missing/node",
+      configurable: true,
+    });
+    process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT = runtimeAnchor;
+
+    try {
+      spawnMock.mockImplementation((command: string, args: string[]) => {
+        expect(command).toBe("node");
+        expect(args[0]).toBe(path.join(tmp, "wrapper.js"));
+
+        const eventLine = JSON.stringify({
+          type: "message_end",
+          message: {
+            role: "assistant",
+            content: [{ type: "text", text: "ok" }],
+            usage: {
+              input: 1,
+              output: 1,
+              cacheRead: 0,
+              cacheWrite: 0,
+              cost: { total: 0.001 },
+              totalTokens: 2,
+            },
+            stopReason: "stop",
+          },
+        });
+        return createMockProcess([eventLine], 0);
+      });
+
+      const pi = createFakePi();
+      subagentExtension(pi as any);
+      const tool = pi.tools.get("subagent");
+
+      const result = await tool!.execute(
+        "call-subagent-missing-execpath",
+        {
+          agent: "generic-worker",
+          task: "Return the text: ok",
+          agentScope: "project",
+          confirmProjectAgents: false,
+        },
+        undefined,
+        undefined,
+        { cwd: tmp, hasUI: false },
+      );
+
+      expect(result.isError).not.toBe(true);
+      expect(result.content[0].text).toContain("ok");
+    } finally {
+      process.argv = originalArgv;
+      Object.defineProperty(process, "execPath", {
+        value: originalExecPath,
+        configurable: true,
+      });
+      if (originalRuntimeAnchorOverride === undefined) delete process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT;
+      else process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT = originalRuntimeAnchorOverride;
+    }
+  });
+
+  it("uses node from PATH for fallback subagents that inherit container flags", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-container-node-path-"));
+    const runtimeAnchor = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-empty-runtime-anchor-"));
+    fs.mkdirSync(path.join(tmp, ".pi", "agent"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agent", "generic-worker.md"),
+      ["---", "name: generic-worker", "description: Worker", "---", "You are generic worker."].join("\n"),
+      "utf-8",
+    );
+    fs.writeFileSync(
+      path.join(tmp, ".pi", "agent.config.json"),
+      JSON.stringify({ security: { strictSubagentLocalRuntime: false } }, null, 2),
+      "utf-8",
+    );
+    fs.writeFileSync(path.join(tmp, "wrapper.js"), "import './src/main.ts';\n", "utf-8");
+
+    const originalArgv = [...process.argv];
+    const originalRuntimeAnchorOverride = process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT;
+    process.argv = [process.execPath, path.join(tmp, "wrapper.js"), "--container", "--container-net"];
+    process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT = runtimeAnchor;
+
+    try {
+      spawnMock.mockImplementation((command: string, args: string[]) => {
+        expect(command).toBe("node");
+        expect(args[0]).toBe(path.join(tmp, "wrapper.js"));
+        expect(args).toContain("--container");
+        expect(args).toContain("--container-net");
+
+        const eventLine = JSON.stringify({
+          type: "message_end",
+          message: {
+            role: "assistant",
+            content: [{ type: "text", text: "ok" }],
+            usage: {
+              input: 1,
+              output: 1,
+              cacheRead: 0,
+              cacheWrite: 0,
+              cost: { total: 0.001 },
+              totalTokens: 2,
+            },
+            stopReason: "stop",
+          },
+        });
+        return createMockProcess([eventLine], 0);
+      });
+
+      const pi = createFakePi();
+      subagentExtension(pi as any);
+      const tool = pi.tools.get("subagent");
+
+      const result = await tool!.execute(
+        "call-subagent-container-node-path",
+        {
+          agent: "generic-worker",
+          task: "Return the text: ok",
+          agentScope: "project",
+          confirmProjectAgents: false,
+        },
+        undefined,
+        undefined,
+        { cwd: tmp, hasUI: false },
+      );
+
+      expect(result.isError).not.toBe(true);
+      expect(result.content[0].text).toContain("ok");
+    } finally {
+      process.argv = originalArgv;
+      if (originalRuntimeAnchorOverride === undefined) delete process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT;
+      else process.env.PI_SUBAGENT_RUNTIME_ANCHOR_ROOT = originalRuntimeAnchorOverride;
+    }
+  });
+
   it("surfaces actionable diagnostics when a subagent exits without structured output", async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-no-output-diagnostics-"));
     fs.mkdirSync(path.join(tmp, ".pi", "agent"), { recursive: true });

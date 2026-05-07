@@ -2,11 +2,35 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 const DELEGATION_POLICY_REGISTERED = Symbol.for("pi.extensions.subagent-delegation-policy.registered");
 
-function isLocalBrowserOrLoopbackTask(text: string): boolean {
+function extractUrl(text: string): string | null {
+    return text.match(/\bhttps?:\/\/[^\s)]+/i)?.[0] ?? null;
+}
+
+function isFetchWebPageRequest(text: string): boolean {
     return (
-        /\b(browser|browser tool|browser-desktop)\b/i.test(text) &&
-        /\b(localhost|127\.0\.0\.1|::1|local app)\b/i.test(text)
-    ) || /\bhttps?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\b/i.test(text);
+        /\bfetch_web_page\b/i.test(text) ||
+        /\bfetch\s+(?:this\s+)?(?:web\s*)?(?:page|url|site|website|link)?\b/i.test(text) ||
+        /\bread\s+(?:this\s+)?(?:web\s*)?(?:page|url|site|website|link)\b/i.test(text)
+    );
+}
+
+function normalizeFetchWebPageDelegation(text: string): string | null {
+    const url = extractUrl(text);
+    if (!url || !isFetchWebPageRequest(text)) return null;
+
+    if (/\bsummariz(?:e|ing|ation)|summary\b/i.test(text)) {
+        return [
+            "Use the `subagent` tool in `chain` mode for this web fetch request.",
+            "Run exactly two delegated steps with the readonly profile:",
+            `1. agent: generic-readonly, task: Fetch and extract readable text from ${url} using fetch_web_page. Return the extracted text.`,
+            "2. agent: generic-readonly, task: Summarize this fetched page text: {previous}",
+        ].join("\n");
+    }
+
+    return [
+        "Use the `subagent` tool in `single` mode for this web fetch request.",
+        `agent: generic-readonly, task: Fetch and extract readable text from ${url} using fetch_web_page. Return the extracted text.`,
+    ].join("\n");
 }
 
 function normalizeExplicitDelegation(text: string): string | null {
@@ -40,26 +64,6 @@ function normalizeExplicitDelegation(text: string): string | null {
     ].join("\n");
 }
 
-function normalizeSkillDelegation(text: string): string | null {
-    const skillCommand = text.match(/^\/skill:([a-z0-9_-]+)\s*(.*)$/i);
-    if (skillCommand) {
-        const skill = skillCommand[1];
-        const task = skillCommand[2]?.trim() || "execute requested skill workflow";
-        if (skill === "browser-desktop" && isLocalBrowserOrLoopbackTask(task)) {
-            return "Use the browser tool in the current session. Keep this localhost/local-app browser task local.";
-        }
-        return `Use the \`subagent\` tool. Delegate to agent \`${skill}\` with task: ${task}`;
-    }
-
-    const skillRequest = text.match(/\buse\s+([a-z0-9_-]+)\s+skill\b/i);
-    if (!skillRequest) return null;
-    const skill = skillRequest[1];
-    if (skill === "browser-desktop" && isLocalBrowserOrLoopbackTask(text)) {
-        return "Use the browser tool in the current session. Keep this localhost/local-app browser task local.";
-    }
-    return `Use the \`subagent\` tool. Delegate to agent \`${skill}\` and execute the requested skill workflow.`;
-}
-
 export default function subagentDelegationPolicy(pi: ExtensionAPI): void {
     const guardPi = pi as ExtensionAPI & Record<PropertyKey, unknown>;
     if (guardPi[DELEGATION_POLICY_REGISTERED]) return;
@@ -69,9 +73,9 @@ export default function subagentDelegationPolicy(pi: ExtensionAPI): void {
         const raw = event.text.trim();
         if (raw.length === 0) return { action: "continue" };
 
-        const skillInstruction = normalizeSkillDelegation(raw);
-        if (skillInstruction) {
-            return { action: "transform", text: skillInstruction };
+        const fetchDelegation = normalizeFetchWebPageDelegation(raw);
+        if (fetchDelegation) {
+            return { action: "transform", text: fetchDelegation };
         }
 
         const explicitDelegation = normalizeExplicitDelegation(raw);
@@ -90,16 +94,17 @@ export default function subagentDelegationPolicy(pi: ExtensionAPI): void {
                 content: [
                     "[DELEGATION POLICY]",
                     "- Explicit user delegation request: must call `subagent`.",
-                    "- Skill execution request: must run through a matching skill-backed subagent. Do not run /skill inline.",
-                    "- Do not delegate by default. First decide whether in-session execution is simpler and lower-overhead.",
+                    "- Skill execution requests stay in the current session unless the user explicitly asks for delegation.",
+                    "- Do not delegate by default. Inspect and edit the current project/repository directly for normal coding tasks.",
+                    "- Web fetch requests that use `fetch_web_page` must run through delegated readonly subagents.",
                     "- Use `generic-readonly` for research/planning/summarization tasks.",
                     "- Use `generic-worker` for implementation or file-modifying tasks.",
-                    "- External-doc or web research task: prefer delegated readonly recon only when the task benefits from isolation or parallelism.",
+                    "- External-doc or web research task: keep it in-session unless it uses `fetch_web_page` or the user explicitly asks for subagents.",
                     "- High-context reconnaissance tasks: prefer multi-step delegation chains over one large local turn.",
                     "- Keep trivial, localized tasks in-session unless user explicitly asks for delegation.",
                     "- Browser or localhost/local-app tasks should stay in-session unless the user explicitly requires delegation.",
                     "- Do not route localhost/local-app browser tasks through subagents.",
-                    "- Prefer sandbox or other runtime restrictions for risky, destructive, networked, or untrusted delegated work.",
+                    "- Prefer sandbox or other runtime restrictions for delegated `fetch_web_page` work and other explicitly untrusted network fetches.",
                 ].join("\n"),
             },
         };

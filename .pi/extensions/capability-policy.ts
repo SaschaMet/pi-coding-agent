@@ -502,16 +502,17 @@ export function evaluateBashCommand(
     if (capability.mode === "block") {
         return { action: "block", reason: "bash is blocked by capability policy" };
     }
+    const bashPolicy = capability.bashPolicy;
 
-    for (const sensitivePattern of capability.bashPolicy.sensitivePatterns) {
+    for (const sensitivePattern of bashPolicy.sensitivePatterns) {
         if (new RegExp(sensitivePattern, "i").test(command)) {
             return { action: "block", reason: "Sensitive data access command blocked by policy" };
         }
     }
 
-    const networkCommand = includesNetworkCommand(command, capability.bashPolicy.networkDenyCommands);
+    const networkCommand = includesNetworkCommand(command, bashPolicy.networkDenyCommands);
     if (networkCommand) {
-        const allowedByPattern = capability.bashPolicy.networkAllowPatterns.some((pattern) =>
+        const allowedByPattern = bashPolicy.networkAllowPatterns.some((pattern) =>
             new RegExp(pattern, "i").test(command),
         );
         if (!allowedByPattern) {
@@ -521,7 +522,7 @@ export function evaluateBashCommand(
 
     let confirmDecision: CapabilityDecision | undefined;
     for (const segment of splitBooleanChainedCommands(command)) {
-        const decision = evaluateBashCommandRules(segment, hasUI, capability);
+        const decision = evaluateBashCommandRules(segment, hasUI, { ...capability, bashPolicy });
         if (decision.action === "block") return decision;
         if (decision.action === "confirm" && !confirmDecision) {
             confirmDecision = decision;

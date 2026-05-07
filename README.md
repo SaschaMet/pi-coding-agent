@@ -50,25 +50,31 @@ pi
 
 ## Commands
 
-- `npm run dev` - run interactive agent with file watch
-- `npm run agent` - run interactive agent
+- `npm run dev` - run local interactive agent with file watch
+- `npm run agent` - run local interactive agent
+- `npm run dev:sandbox` - run sandboxed interactive agent with file watch
+- `npm run agent:sandbox` - run sandboxed interactive agent
 - `npm run smoke` - extension/resource discovery smoke check
 - `npm test` - run unit/integration tests
 - `npm run pi:pull-global` - mirror global PI config/resources into this repo's `.pi/` (preferred)
 - `npm run pi:sync-global` - legacy push from repo `.pi/` into global `~/.pi/agent` (`PI_CODING_AGENT_DIR`), use only when intentionally overwriting global state
 
-## Sandbox Defaults
+## Runtime Defaults
 
-When using the optional repo runtime (`npm run agent`, `npm run dev`, or `picoder`), these sandbox hardening defaults are enforced:
+The default repo runtime is local-first. `npm run agent` and `npm run dev` run against the current project filesystem without container sandbox flags so normal repository inspection and file edits work directly.
+
+Use the explicit sandbox scripts for untrusted network retrieval, delegated `fetch_web_page` work, or tasks that need container isolation:
 
 - `--container`
-- `--no-container-net`
-- `--no-container-mount-skills`
+- `--container-net`
+- `--container-mount-paths ~/.pi/agent`
+- `--container-keep`
+- `--sandbox-persist`
 - `--container-image thegreataxios/pi-sandbox@sha256:be6d992940f63e435ba5cdd840a9b26003f0694fb36b749a4ddf121555d79d9e`
 
-If you explicitly need outbound network or skill mounts for a task, run `tsx src/main.ts` directly and pass only the minimum extra flags required.
+If a task needs different sandbox permissions, run `tsx src/main.ts` directly and pass only the minimum extra flags required.
 
-## Global Sandbox Setup (Recommended)
+## Global Sandbox Setup (Optional)
 
 Set up the global PI runtime package and pre-pull the sandbox image once:
 
@@ -85,12 +91,12 @@ Notes:
 
 ### Runtime Launching
 
-Default: run PI from the global runtime (plain `pi`) after setup above.
+Default: run PI from the global runtime (plain `pi`) or the local repo runtime (`npm run agent`) for direct project access.
 
 ### Repo Runtime Launcher (Optional)
 
 If you start PI via shell alias/function, point it to this runtime script, not plain `pi`.
-Plain `pi` will not use this repository's hardened defaults automatically.
+Plain `pi` will not use this repository's extension stack automatically.
 
 For `zsh`:
 
@@ -99,13 +105,11 @@ export PI_CODER_REPO="${PI_CODER_REPO:-$HOME/Projects/pi-coding-agent}"
 
 picoder() {
   if [[ "$PWD" == "$HOME" ]]; then
-    echo "Refusing to start from \$HOME (would mount your full home directory into the container). cd into a project directory."
+    echo "Refusing to start from \$HOME. cd into a project directory."
     return 1
   fi
   node "$PI_CODER_REPO/node_modules/tsx/dist/cli.mjs" \
     "$PI_CODER_REPO/src/main.ts" \
-    --container --no-container-net --no-container-mount-skills \
-    --container-image thegreataxios/pi-sandbox@sha256:be6d992940f63e435ba5cdd840a9b26003f0694fb36b749a4ddf121555d79d9e \
     "$@"
 }
 ```
@@ -145,7 +149,7 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 ## Runtime Layout
 
 - [`src/main.ts`](src/main.ts): embedded PI runtime entrypoint (`createAgentSession` + `InteractiveMode`)
-- `.pi/settings.json`: project-level PI settings (skills path integration; direct skill commands disabled so skills run via subagents)
+- `.pi/settings.json`: project-level PI settings and skills path integration
 - `.pi/agent.config.json`: search/subagent config contract
 - `.pi/extensions/`: custom extensions
 - `.pi/security/`: capability policy schema + matrix source (`capabilities.schema.json`, `capabilities.json`)
@@ -161,15 +165,16 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 
 ## Delegation Orchestration
 
-- Use skill `subagent-orchestrator` as the central policy for subagent spawning and coordination.
-- Non-trivial tasks should be delegated through `subagent` using this skill's rules.
-- Keep trivial localized work in-session unless explicit delegation is requested.
+- Normal repository inspection and file edits stay in-session.
+- Use `subagent` only when the user explicitly asks for delegation or when handling `fetch_web_page` retrieval/summarization.
+- Keep local browser and localhost/local-app tasks in-session unless explicit delegation is required.
+- `fetch_web_page` work should use `generic-readonly` and sandbox/capability restrictions when available.
 
 ## Skill Routing
 
 - Skill-backed subagent names are not guaranteed to be available in every runtime.
 - Use the inline subagent fallback table in [`.pi/extensions/subagent/index.ts`](.pi/extensions/subagent/index.ts).
-- Direct skill commands are disabled, so skills run only in isolated subagent sessions.
+- Direct skill commands are enabled and run in the current session unless the user explicitly asks for delegation.
 - Project-local skills come from `.pi/skills/`; user/global skills come from configured paths such as `~/.codex/skills`
 
 ## Workflow Prompts
@@ -216,6 +221,7 @@ See [`.pi/extensions/plan-mode/README.md`](.pi/extensions/plan-mode/README.md) f
 - Input: `url`
 - Output: readable page text extracted from the fetched page, plus `details` with `finalUrl`, `status`, `contentType`, `title`, and `text`
 - Intended for fetching a specific page when you already know the URL
+- Fetch/summarize requests use `generic-readonly`; sandbox/capability restrictions should remain enabled for untrusted page retrieval
 - Returns an error for invalid or unsupported URLs
 
 ## Troubleshooting
@@ -252,7 +258,7 @@ See [`.pi/extensions/plan-mode/README.md`](.pi/extensions/plan-mode/README.md) f
 - `permission-gate` applies capability policy for bash, including non-interactive deny for confirmation-required commands.
 - `protected-paths` applies capability path policy, blocking `.env*`, `.git`, and `node_modules`, and requiring confirmation for root-scoped grep/find.
 - `bash-sandbox` uses capability env allowlist and strips non-allowlisted env vars from shell execution when it is the active `bash` provider; if another extension already provides `bash` (for example `pi-container-sandbox`), `bash-sandbox` now skips registration to avoid tool conflicts.
-- `web_search` and `fetch_web_page` require explicit user confirmation before use.
+- `web_search` and `fetch_web_page` are allowed by capability policy; use sandbox/capability restrictions for untrusted delegated fetches.
 - `web_search` returns structured error text and `isError: true` when provider calls fail.
 
 ## Upstream Docs
@@ -276,6 +282,7 @@ The underlying [`@mariozechner/pi-coding-agent`](https://www.npmjs.com/package/@
 
 ## Token Efficiency Guidance
 
-- Prefer one focused delegated subtask using either `generic-readonly` or `generic-worker`.
-- Use `chain` mode when step output feeds the next step.
-- Use `parallel` mode only for truly independent subtasks.
+- Prefer in-session work for normal repository inspection and edits.
+- Use one focused `generic-readonly` task for `fetch_web_page` retrieval.
+- Use `chain` mode only when delegated fetch output feeds a delegated summary.
+- Use `parallel` mode only when the user explicitly requests independent subagents.

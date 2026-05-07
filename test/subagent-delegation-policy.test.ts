@@ -13,6 +13,8 @@ describe("subagent delegation policy extension", () => {
     const result = await handlers[0]({}, { hasUI: false });
     expect(result?.message?.customType).toBe("subagent-delegation-policy");
     expect(result?.message?.content).toContain("Explicit user delegation request");
+    expect(result?.message?.content).toContain("Skill execution requests stay in the current session");
+    expect(result?.message?.content).toContain("delegated `fetch_web_page`");
   });
 
   it("normalizes explicit spawn phrasing", async () => {
@@ -35,7 +37,26 @@ describe("subagent delegation policy extension", () => {
     expect(result?.text).toContain("{previous}");
   });
 
-  it("reroutes /skill input to subagent delegation", async () => {
+  it("routes direct webpage fetch requests through a readonly subagent", async () => {
+    const pi = createFakePi();
+    delegationPolicyExtension(pi as any);
+
+    const handlers = pi.handlers.get("input") ?? [];
+    const result = await handlers[0](
+      {
+        text: "fetch https://example.com/article",
+        source: "interactive",
+      },
+      { hasUI: false },
+    );
+
+    expect(result?.action).toBe("transform");
+    expect(result?.text).toContain("single");
+    expect(result?.text).toContain("agent: generic-readonly");
+    expect(result?.text).toContain("fetch_web_page");
+  });
+
+  it("keeps /skill input in-session by default", async () => {
     const pi = createFakePi();
     delegationPolicyExtension(pi as any);
 
@@ -48,9 +69,7 @@ describe("subagent delegation policy extension", () => {
       { hasUI: false },
     );
 
-    expect(result?.action).toBe("transform");
-    expect(result?.text).toContain("subagent");
-    expect(result?.text).toContain("tdd-coder");
+    expect(result?.action).toBe("continue");
   });
 
   it("keeps localhost browser skill requests in-session", async () => {
@@ -66,9 +85,7 @@ describe("subagent delegation policy extension", () => {
       { hasUI: false },
     );
 
-    expect(result?.action).toBe("transform");
-    expect(result?.text).toContain("current session");
-    expect(result?.text).not.toContain("subagent");
+    expect(result?.action).toBe("continue");
   });
 
   it("normalizes fetch-and-summarize webpage requests to generic chain flow", async () => {

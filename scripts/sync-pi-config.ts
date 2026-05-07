@@ -132,7 +132,7 @@ function mergeSettingsPackages(sourceBuf: Buffer, targetBuf: Buffer): Buffer | u
 
 function copyFileIfChanged(source: string, target: string, relativePath: string): boolean {
     const sourceBuf = fs.readFileSync(source);
-    let outputBuf = sourceBuf;
+    let outputBuf: Buffer<ArrayBufferLike> = sourceBuf;
 
     if (fs.existsSync(target)) {
         const targetBuf = fs.readFileSync(target);

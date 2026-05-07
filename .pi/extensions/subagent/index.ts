@@ -254,7 +254,17 @@ async function writePromptToTempFile(agentName: string, prompt: string): Promise
     return { dir: tmpDir, filePath };
 }
 
-function resolveFallbackPiEntrypoint(): { command: string; argsPrefix: string[] } | null {
+function hasContainerRuntimeFlag(args: string[]): boolean {
+    let containerEnabled = false;
+    for (const token of args) {
+        if (token === "--container") containerEnabled = true;
+        if (token === "--no-container" || token === "--noc") containerEnabled = false;
+    }
+    return containerEnabled;
+}
+
+function resolveFallbackPiEntrypoint(args: string[]): { command: string; argsPrefix: string[] } | null {
+    const nodeCommand = hasContainerRuntimeFlag(args) || !fs.existsSync(process.execPath) ? "node" : process.execPath;
     const runtimeAnchorRoot = getRuntimeAnchorRoot();
     const runtimeAnchorTsx = path.join(runtimeAnchorRoot, "node_modules", ".bin", "tsx");
     const runtimeAnchorMain = path.join(runtimeAnchorRoot, "src", "main.ts");
@@ -262,11 +272,16 @@ function resolveFallbackPiEntrypoint(): { command: string; argsPrefix: string[] 
         return { command: runtimeAnchorTsx, argsPrefix: [runtimeAnchorMain] };
     }
 
+    const mountedGlobalPiCli = "/skills/agent/npm/node_modules/@mariozechner/pi-coding-agent/dist/cli.js";
+    if (hasContainerRuntimeFlag(args) && fs.existsSync(mountedGlobalPiCli)) {
+        return { command: nodeCommand, argsPrefix: [mountedGlobalPiCli] };
+    }
+
     const currentScript = process.argv[1];
     if (currentScript && fs.existsSync(currentScript)) {
         const normalized = path.basename(currentScript).toLowerCase();
         if (!/^tsx(?:\.mjs)?$/.test(normalized) && normalized !== "cli.mjs") {
-            return { command: process.execPath, argsPrefix: [currentScript] };
+            return { command: nodeCommand, argsPrefix: [currentScript] };
         }
     }
 
@@ -300,7 +315,7 @@ function getPiInvocation(
         return null;
     }
 
-    const fallbackEntrypoint = resolveFallbackPiEntrypoint();
+    const fallbackEntrypoint = resolveFallbackPiEntrypoint(args);
     if (fallbackEntrypoint) {
         return { command: fallbackEntrypoint.command, args: [...fallbackEntrypoint.argsPrefix, ...args] };
     }
@@ -712,6 +727,7 @@ async function runSingleAgent(
             exitCode: 1,
             messages: [],
             stderr: buildUnknownAgentGuidance(agentName, agents, agentScope),
+            rawStdout: "",
             usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, contextTokens: 0, turns: 0 },
             step,
         };
