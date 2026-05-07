@@ -8,7 +8,6 @@ Git-tracked PI config/runtime parity stack for a global PI runtime (`~/.pi/agent
 - Native `web_search` tool (default provider: Brave, configurable)
 - Native `fetch_web_page` tool for extracting readable text from a specific URL
 - Structured planner Q&A tool: `ask_questions` (alias: `ask`)
-- Capability-mode safety guardrails (deny-by-default policy matrix + coverage enforcement)
 
 ## Quick Start
 
@@ -52,8 +51,6 @@ pi
 
 - `npm run dev` - run local interactive agent with file watch
 - `npm run agent` - run local interactive agent
-- `npm run dev:sandbox` - run sandboxed interactive agent with file watch
-- `npm run agent:sandbox` - run sandboxed interactive agent
 - `npm run smoke` - extension/resource discovery smoke check
 - `npm test` - run unit/integration tests
 - `npm run pi:pull-global` - mirror global PI config/resources into this repo's `.pi/` (preferred)
@@ -61,33 +58,7 @@ pi
 
 ## Runtime Defaults
 
-The default repo runtime is local-first. `npm run agent` and `npm run dev` run against the current project filesystem without container sandbox flags so normal repository inspection and file edits work directly.
-
-Use the explicit sandbox scripts for untrusted network retrieval, delegated `fetch_web_page` work, or tasks that need container isolation:
-
-- `--container`
-- `--container-net`
-- `--container-mount-paths ~/.pi/agent`
-- `--container-keep`
-- `--sandbox-persist`
-- `--container-image thegreataxios/pi-sandbox@sha256:be6d992940f63e435ba5cdd840a9b26003f0694fb36b749a4ddf121555d79d9e`
-
-If a task needs different sandbox permissions, run `tsx src/main.ts` directly and pass only the minimum extra flags required.
-
-## Global Sandbox Setup (Optional)
-
-Set up the global PI runtime package and pre-pull the sandbox image once:
-
-```bash
-mkdir -p ~/.pi/agent/npm
-npm install --prefix ~/.pi/agent/npm pi-container-sandbox@0.2.1
-docker pull thegreataxios/pi-sandbox@sha256:be6d992940f63e435ba5cdd840a9b26003f0694fb36b749a4ddf121555d79d9e
-```
-
-Notes:
-
-- First startup can still take longer when Docker is cold/unavailable.
-- This is intentionally docs-only setup (no local runtime patching and no package fork).
+The default repo runtime is local-first. `npm run agent` and `npm run dev` run against the current project filesystem so repository inspection and file edits work directly.
 
 ### Runtime Launching
 
@@ -152,11 +123,9 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 - `.pi/settings.json`: project-level PI settings and skills path integration
 - `.pi/agent.config.json`: search/subagent config contract
 - `.pi/extensions/`: custom extensions
-- `.pi/security/`: capability policy schema + matrix source (`capabilities.schema.json`, `capabilities.json`)
 - `.pi/agent/`: project-local subagent role definitions
 - `.pi/prompts/`: workflow prompt templates
 - `.pi/skills/`: project-local skills (includes `brave-search` wrapper)
-- `docs/security/`: operator runbook and human-readable capability matrix
 
 ## Role Catalog
 
@@ -168,7 +137,7 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 - Normal repository inspection and file edits stay in-session.
 - Use `subagent` only when the user explicitly asks for delegation or when handling `fetch_web_page` retrieval/summarization.
 - Keep local browser and localhost/local-app tasks in-session unless explicit delegation is required.
-- `fetch_web_page` work should use `generic-readonly` and sandbox/capability restrictions when available.
+- `fetch_web_page` work should use `generic-readonly`.
 
 ## Skill Routing
 
@@ -221,7 +190,7 @@ See [`.pi/extensions/plan-mode/README.md`](.pi/extensions/plan-mode/README.md) f
 - Input: `url`
 - Output: readable page text extracted from the fetched page, plus `details` with `finalUrl`, `status`, `contentType`, `title`, and `text`
 - Intended for fetching a specific page when you already know the URL
-- Fetch/summarize requests use `generic-readonly`; sandbox/capability restrictions should remain enabled for untrusted page retrieval
+- Fetch/summarize requests use `generic-readonly`
 - Returns an error for invalid or unsupported URLs
 
 ## Troubleshooting
@@ -247,18 +216,14 @@ See [`.pi/extensions/plan-mode/README.md`](.pi/extensions/plan-mode/README.md) f
   - Do not mix `agent/task` with `tasks` or `chain` in the same call.
 - Subagent tool conflict errors:
   - Subagent subprocesses now use scoped project extension loading (`--no-extensions` + project `.pi/extensions/*`) to avoid duplicate tool registration from overlapping user/project extension sets.
-- `grep`/`find` on `.`:
-  - Repository-root search is supported; explicit protected paths such as `.git` and `.env*` remain blocked by capability policy.
+- Read/search/list outside current directory:
+  - `read`, `write`, `edit`, `grep`, `find`, and `ls` require approval when the requested path resolves outside the current working directory.
+  - In non-interactive mode, those outside-cwd requests are blocked.
 
 ## Failure Handling Notes
 
 - `ask_questions` in non-interactive mode returns deterministic fallback answers.
-- Capability policy (`.pi/security/capabilities.json`) is deny-by-default and controls per-tool allow/block/confirm behavior.
-- Startup coverage checks fail closed when active/exposed tools are missing capability entries.
-- `permission-gate` applies capability policy for bash, including non-interactive deny for confirmation-required commands.
-- `protected-paths` applies capability path policy, blocking `.env*`, `.git`, and `node_modules`, and requiring confirmation for root-scoped grep/find.
-- `bash-sandbox` uses capability env allowlist and strips non-allowlisted env vars from shell execution when it is the active `bash` provider; if another extension already provides `bash` (for example `pi-container-sandbox`), `bash-sandbox` now skips registration to avoid tool conflicts.
-- `web_search` and `fetch_web_page` are allowed by capability policy; use sandbox/capability restrictions for untrusted delegated fetches.
+- Outside-cwd `read`/`write`/`edit`/`grep`/`find`/`ls` requests require explicit approval and are denied without UI.
 - `web_search` returns structured error text and `isError: true` when provider calls fail.
 
 ## Upstream Docs

@@ -254,27 +254,13 @@ async function writePromptToTempFile(agentName: string, prompt: string): Promise
     return { dir: tmpDir, filePath };
 }
 
-function hasContainerRuntimeFlag(args: string[]): boolean {
-    let containerEnabled = false;
-    for (const token of args) {
-        if (token === "--container") containerEnabled = true;
-        if (token === "--no-container" || token === "--noc") containerEnabled = false;
-    }
-    return containerEnabled;
-}
-
-function resolveFallbackPiEntrypoint(args: string[]): { command: string; argsPrefix: string[] } | null {
-    const nodeCommand = hasContainerRuntimeFlag(args) || !fs.existsSync(process.execPath) ? "node" : process.execPath;
+function resolveFallbackPiEntrypoint(): { command: string; argsPrefix: string[] } | null {
+    const nodeCommand = !fs.existsSync(process.execPath) ? "node" : process.execPath;
     const runtimeAnchorRoot = getRuntimeAnchorRoot();
     const runtimeAnchorTsx = path.join(runtimeAnchorRoot, "node_modules", ".bin", "tsx");
     const runtimeAnchorMain = path.join(runtimeAnchorRoot, "src", "main.ts");
     if (fs.existsSync(runtimeAnchorTsx) && fs.existsSync(runtimeAnchorMain)) {
         return { command: runtimeAnchorTsx, argsPrefix: [runtimeAnchorMain] };
-    }
-
-    const mountedGlobalPiCli = "/skills/agent/npm/node_modules/@mariozechner/pi-coding-agent/dist/cli.js";
-    if (hasContainerRuntimeFlag(args) && fs.existsSync(mountedGlobalPiCli)) {
-        return { command: nodeCommand, argsPrefix: [mountedGlobalPiCli] };
     }
 
     const currentScript = process.argv[1];
@@ -315,7 +301,7 @@ function getPiInvocation(
         return null;
     }
 
-    const fallbackEntrypoint = resolveFallbackPiEntrypoint(args);
+    const fallbackEntrypoint = resolveFallbackPiEntrypoint();
     if (fallbackEntrypoint) {
         return { command: fallbackEntrypoint.command, args: [...fallbackEntrypoint.argsPrefix, ...args] };
     }
@@ -417,156 +403,6 @@ function getScopedExtensionArgs(searchCwd: string): string[] {
     return scopedArgs;
 }
 
-function getInheritedSandboxArgs(argv: string[]): string[] {
-    const valueFlags = new Set([
-        "--container-size",
-        "--sandbox-name",
-        "--sandbox-cache",
-        "--container-image",
-        "--container-mount-paths",
-        "--container-allow-paths",
-        "--container-memory",
-        "--container-cpus",
-        "--container-pids-limit",
-        "--container-swap",
-    ]);
-
-    const booleanFlags = new Set([
-        "--container",
-        "--no-container",
-        "--noc",
-        "--container-net",
-        "--no-container-net",
-        "--container-mount-skills",
-        "--no-container-mount-skills",
-        "--sandbox-persist",
-        "--container-keep",
-        "--prawl",
-        "--browser",
-    ]);
-
-    const booleanState = new Map<string, string>();
-    const valueState = new Map<string, string>();
-
-    const canonicalBooleanKey = (flag: string): string => {
-        if (flag === "--noc") return "container";
-        if (flag === "--container" || flag === "--no-container") return "container";
-        if (flag === "--container-net" || flag === "--no-container-net") return "container-net";
-        if (flag === "--container-mount-skills" || flag === "--no-container-mount-skills") return "container-mount-skills";
-        return flag.slice(2);
-    };
-
-    for (let i = 0; i < argv.length; i++) {
-        const token = argv[i];
-        if (!token.startsWith("--")) continue;
-
-        if (token.includes("=")) {
-            const [flag, ...rest] = token.split("=");
-            const value = rest.join("=");
-            if (valueFlags.has(flag) && value.trim().length > 0) {
-                valueState.set(flag, value.trim());
-            }
-            continue;
-        }
-
-        if (booleanFlags.has(token)) {
-            const canonical = canonicalBooleanKey(token);
-            const normalized = token === "--noc" ? "--no-container" : token;
-            booleanState.set(canonical, normalized);
-            continue;
-        }
-
-        if (valueFlags.has(token)) {
-            const next = argv[i + 1];
-            if (typeof next === "string" && !next.startsWith("--")) {
-                valueState.set(token, next);
-                i += 1;
-            }
-        }
-    }
-
-    const inherited: string[] = [];
-    const pushBoolean = (canonical: string) => {
-        const value = booleanState.get(canonical);
-        if (value) inherited.push(value);
-    };
-    const pushValue = (flag: string) => {
-        const value = valueState.get(flag);
-        if (!value) return;
-        inherited.push(flag, value);
-    };
-
-    pushBoolean("container");
-    pushBoolean("container-net");
-    pushBoolean("container-mount-skills");
-    pushBoolean("sandbox-persist");
-    pushBoolean("container-keep");
-    pushBoolean("prawl");
-    pushBoolean("browser");
-
-    pushValue("--container-size");
-    pushValue("--sandbox-name");
-    pushValue("--sandbox-cache");
-    pushValue("--container-image");
-    pushValue("--container-mount-paths");
-    pushValue("--container-allow-paths");
-    pushValue("--container-memory");
-    pushValue("--container-cpus");
-    pushValue("--container-pids-limit");
-    pushValue("--container-swap");
-
-    return inherited;
-}
-
-function taskTargetsLocalBrowserOrLoopback(task: string, agentName: string): boolean {
-    const normalizedAgent = agentName.toLowerCase();
-    const mentionsLoopback =
-        /\bhttps?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\b/i.test(task) ||
-        /\b(localhost|127\.0\.0\.1|::1|local app)\b/i.test(task);
-    const mentionsBrowser =
-        /\b(browser|browser tool|browser-desktop|open\b|navigate\b|screenshot\b)\b/i.test(task) ||
-        normalizedAgent.includes("browser");
-    return mentionsLoopback && mentionsBrowser;
-}
-
-function stripContainerArgsForLocalBrowserTask(inheritedArgs: string[]): string[] {
-    const filtered: string[] = [];
-    const skipValueFlags = new Set([
-        "--container-size",
-        "--sandbox-name",
-        "--sandbox-cache",
-        "--container-image",
-        "--container-mount-paths",
-        "--container-allow-paths",
-        "--container-memory",
-        "--container-cpus",
-        "--container-pids-limit",
-        "--container-swap",
-    ]);
-    const skipBooleanFlags = new Set([
-        "--container",
-        "--no-container",
-        "--noc",
-        "--container-net",
-        "--no-container-net",
-        "--container-mount-skills",
-        "--no-container-mount-skills",
-        "--sandbox-persist",
-        "--container-keep",
-    ]);
-
-    for (let i = 0; i < inheritedArgs.length; i++) {
-        const token = inheritedArgs[i];
-        if (skipBooleanFlags.has(token)) continue;
-        if (skipValueFlags.has(token)) {
-            i += 1;
-            continue;
-        }
-        filtered.push(token);
-    }
-
-    return ["--no-container", ...filtered];
-}
 
 type OnUpdateCallback = (partial: AgentToolResult<SubagentDetails>) => void;
 
@@ -714,7 +550,6 @@ async function runSingleAgent(
     onUpdate: OnUpdateCallback | undefined,
     makeDetails: (results: SingleResult[]) => SubagentDetails,
     strictLocalRuntime: boolean,
-    inheritedSandboxArgs: string[],
 ): Promise<SingleResult> {
     const resolved = resolveAgent(agents, agentName);
     const agent = resolved.agent;
@@ -733,17 +568,12 @@ async function runSingleAgent(
         };
     }
 
-    const effectiveInheritedArgs = taskTargetsLocalBrowserOrLoopback(task, agent.name)
-        ? stripContainerArgsForLocalBrowserTask(inheritedSandboxArgs)
-        : inheritedSandboxArgs;
-
     const args: string[] = [
         "--mode",
         "json",
         "-p",
         "--no-session",
         ...getScopedExtensionArgs(cwd ?? defaultCwd),
-        ...effectiveInheritedArgs,
     ];
     if (agent.model) args.push("--model", agent.model);
     if (agent.tools && agent.tools.length > 0) args.push("--tools", agent.tools.join(","));
@@ -965,8 +795,6 @@ export default function (pi: ExtensionAPI) {
                         projectAgentsDir: discovery.projectAgentsDir,
                         results,
                     });
-            const inheritedSandboxArgs = getInheritedSandboxArgs(process.argv.slice(2));
-
             if (modeCount !== 1 || hasPartialSingle) {
                 const available = agents.map((a) => `${a.name} (${a.source})`).join(", ") || "none";
                 const examples = [
@@ -1049,7 +877,6 @@ export default function (pi: ExtensionAPI) {
                         chainUpdate,
                         makeDetails("chain"),
                         runtimeConfig.strictLocalRuntime,
-                        inheritedSandboxArgs,
                     );
                     results.push(result);
 
@@ -1133,7 +960,6 @@ export default function (pi: ExtensionAPI) {
                         },
                         makeDetails("parallel"),
                         runtimeConfig.strictLocalRuntime,
-                        inheritedSandboxArgs,
                     );
                     allResults[index] = result;
                     emitParallelUpdate();
@@ -1171,7 +997,6 @@ export default function (pi: ExtensionAPI) {
                     onUpdate,
                     makeDetails("single"),
                     runtimeConfig.strictLocalRuntime,
-                    inheritedSandboxArgs,
                 );
                 const isError = result.exitCode !== 0 || result.stopReason === "error" || result.stopReason === "aborted";
                 if (isError) {

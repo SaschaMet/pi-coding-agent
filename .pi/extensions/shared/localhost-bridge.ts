@@ -57,7 +57,7 @@ export function loadLocalhostBridgeConfig(cwd: string): LocalhostBridgeConfig {
     };
 }
 
-export function rewriteLoopbackUrlForSandbox(rawUrl: string, cwd: string): URL {
+export function rewriteLoopbackUrl(rawUrl: string, cwd: string): URL {
     let parsed: URL;
     try {
         parsed = new URL(rawUrl);
@@ -80,14 +80,14 @@ export function rewriteLoopbackUrlForSandbox(rawUrl: string, cwd: string): URL {
     const config = loadLocalhostBridgeConfig(cwd);
     if (!config.enabled) {
         throw new Error(
-            `Loopback URL blocked in sandboxed HTTP fetches: ${parsed.hostname}. Enable localhostBridge in .pi/agent.config.json.`,
+            `Loopback URL blocked in containerized HTTP fetches: ${parsed.hostname}. Enable localhostBridge in .pi/agent.config.json.`,
         );
     }
 
     const effectivePort = parsed.port.length > 0 ? Number.parseInt(parsed.port, 10) : parsed.protocol === "https:" ? 443 : 80;
     if (!config.allowedPorts.includes(effectivePort)) {
         throw new Error(
-            `Loopback port ${effectivePort} is not allowlisted for sandbox access. Allowed ports: ${config.allowedPorts.join(", ") || "(none)"}.`,
+            `Loopback port ${effectivePort} is not allowlisted for container access. Allowed ports: ${config.allowedPorts.join(", ") || "(none)"}.`,
         );
     }
 

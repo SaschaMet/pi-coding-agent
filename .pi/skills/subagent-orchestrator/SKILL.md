@@ -14,9 +14,6 @@ Use this skill to keep delegation decisions consistent and maintainable.
 - Use the `subagent` tool only when the user explicitly asks for delegation/subagents or when delegating `fetch_web_page` retrieval/summarization.
 - Do not delegate normal repository inspection, planning, implementation, or skill execution by default. Run that work in the current session.
 - Direct `/skill:*` and skill-use requests stay in-session unless the user explicitly asks for delegation.
-- Prefer configured sandbox or capability controls for delegated `fetch_web_page` work and other explicitly untrusted network fetches.
-- Pass through parent sandbox/runtime flags only when the delegated run should inherit that isolation or restriction.
-- Do not route normal repository edits through sandboxed subagents by default.
 - Use separate subagents for separate concerns.
 - Run subtasks in parallel only when the user explicitly requests independent subagents and the subtasks are independent.
 - Do not split strongly overlapping tasks across different subagents.
@@ -73,4 +70,3 @@ Default for delegated fetch-then-summarize flows.
 - If delegated execution fails, report the failure exactly and stop.
 - Do not simulate missing subagent output.
 - Re-run with refined scope only when failure cause is clear.
-- If sandbox initialization fails for a delegated run that depends on sandbox isolation, treat it as a hard failure and stop unless the user explicitly approves a fallback.

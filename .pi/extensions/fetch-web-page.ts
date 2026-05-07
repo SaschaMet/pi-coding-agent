@@ -1,6 +1,6 @@
 import type { AgentToolUpdateCallback, ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import { rewriteLoopbackUrlForSandbox } from "./shared/localhost-bridge.ts";
+import { rewriteLoopbackUrl } from "./shared/localhost-bridge.ts";
 
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_TEXT_CHARS = 100_000;
@@ -122,7 +122,7 @@ function buildSummary(details: FetchWebPageDetails): string {
 }
 
 async function fetchReadablePage(url: string, cwd: string): Promise<FetchWebPageDetails> {
-    const parsed = rewriteLoopbackUrlForSandbox(url, cwd);
+    const parsed = rewriteLoopbackUrl(url, cwd);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);

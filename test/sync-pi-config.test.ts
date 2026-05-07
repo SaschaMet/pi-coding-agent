@@ -34,11 +34,11 @@ describe("sync-pi-config", () => {
 
         writeJson(path.join(localPiDir, "settings.json"), {
             defaultProvider: "local-provider",
-            packages: ["npm:pi-container-sandbox@0.2.1"],
+            packages: ["npm:pi-mcp-adapter@1.0.0"],
         });
         writeJson(path.join(globalAgentDir, "settings.json"), {
             defaultProvider: "global-provider",
-            packages: ["npm:pi-container-sandbox@0.2.1", "npm:pi-mcp-adapter@1.0.0"],
+            packages: ["npm:pi-mcp-adapter@2.0.0", "npm:pi-task-runner@1.0.0"],
         });
 
         syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
@@ -49,7 +49,7 @@ describe("sync-pi-config", () => {
 
         writeJson(path.join(globalAgentDir, "settings.json"), {
             defaultProvider: "global-provider-2",
-            packages: ["npm:pi-container-sandbox@0.2.1"],
+            packages: ["npm:pi-task-runner@1.0.0"],
         });
 
         syncManagedPiDirectory("push", localPiDir, globalAgentDir);
@@ -83,12 +83,12 @@ describe("sync-pi-config", () => {
         writeJson(path.join(localPiDir, "settings.json"), {
             defaultProvider: "local-provider",
             theme: "light",
-            packages: ["npm:pi-container-sandbox@0.2.1"],
+            packages: ["npm:pi-mcp-adapter@1.0.0"],
         });
         writeJson(path.join(globalAgentDir, "settings.json"), {
             defaultProvider: "global-provider",
             theme: "dark",
-            packages: ["npm:pi-mcp-adapter@1.0.0"],
+            packages: ["npm:pi-task-runner@1.0.0"],
         });
 
         syncManagedPiDirectory("push", localPiDir, globalAgentDir);
@@ -102,15 +102,15 @@ describe("sync-pi-config", () => {
         expect(globalSettings.defaultProvider).toBe("local-provider");
         expect(globalSettings.theme).toBe("light");
         expect(globalSettings.packages).toEqual([
-            "npm:pi-container-sandbox@0.2.1",
             "npm:pi-mcp-adapter@1.0.0",
+            "npm:pi-task-runner@1.0.0",
         ]);
     });
 
     it("falls back to byte-copy semantics when settings JSON is invalid", () => {
         const { localPiDir, globalAgentDir } = setupRoots("pi-sync-invalid-json-");
 
-        const sourceRaw = '{\n  "defaultProvider": "source",\n  "packages": ["npm:pi-container-sandbox@0.2.1"]\n}\n';
+        const sourceRaw = '{\n  "defaultProvider": "source",\n  "packages": ["npm:pi-mcp-adapter@1.0.0"]\n}\n';
         fs.writeFileSync(path.join(localPiDir, "settings.json"), sourceRaw, "utf-8");
         fs.writeFileSync(path.join(globalAgentDir, "settings.json"), "{ invalid json", "utf-8");
 

@@ -3,27 +3,15 @@ import path from "node:path";
 import process from "node:process";
 import { DefaultResourceLoader, SettingsManager, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import type { ThinkingLevel } from "@mariozechner/pi-agent-core";
-import {
-    getMissingCapabilityTools,
-    loadCapabilityConfig,
-    validateCapabilityConfig,
-} from "../.pi/extensions/capability-policy.ts";
-import { discoverAgents } from "../.pi/extensions/subagent/agents.ts";
 
 const REQUIRED_EXTENSIONS = [
     ".pi/extensions/ask-questions.ts",
     ".pi/extensions/web-search.ts",
     ".pi/extensions/fetch-web-page.ts",
-    ".pi/extensions/capability-policy.ts",
-    ".pi/extensions/capability-enforcer.ts",
-    ".pi/extensions/permission-gate.ts",
-    ".pi/extensions/protected-paths.ts",
-    ".pi/extensions/bash-sandbox.ts",
+    ".pi/extensions/read-boundary-guard.ts",
     ".pi/extensions/tools.ts",
     ".pi/extensions/plan-mode/index.ts",
     ".pi/extensions/subagent/index.ts",
-    ".pi/security/capabilities.json",
-    ".pi/security/capabilities.schema.json",
 ];
 
 function listExtensionFiles(root: string): string[] {
@@ -102,23 +90,8 @@ async function main(): Promise<void> {
         }
     }
 
-    const builtInTools = ["read", "bash", "edit", "write", "grep", "find", "ls", "mcp"];
     const registeredTools = fakePi.getAllTools().map((tool) => tool.name);
-    const { agents } = discoverAgents(cwd, "both");
-    const subagentTools = agents.flatMap((agent) => agent.tools ?? []);
-    const capabilityConfig = loadCapabilityConfig(cwd);
-    const capabilityErrors = validateCapabilityConfig(capabilityConfig);
-    if (capabilityErrors.length > 0) {
-        throw new Error(`Capability config invalid: ${capabilityErrors.join("; ")}`);
-    }
-    const missingCapabilities = getMissingCapabilityTools(
-        [...builtInTools, ...registeredTools, ...subagentTools],
-        capabilityConfig,
-        cwd,
-    );
-    if (missingCapabilities.length > 0) {
-        throw new Error(`Capability coverage missing entries for: ${missingCapabilities.join(", ")}`);
-    }
+    void registeredTools;
 
     const settingsManager = SettingsManager.create(cwd);
     const loader = new DefaultResourceLoader({ cwd, settingsManager });

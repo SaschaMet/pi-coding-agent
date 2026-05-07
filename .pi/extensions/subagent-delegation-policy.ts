@@ -104,7 +104,6 @@ export default function subagentDelegationPolicy(pi: ExtensionAPI): void {
                     "- Keep trivial, localized tasks in-session unless user explicitly asks for delegation.",
                     "- Browser or localhost/local-app tasks should stay in-session unless the user explicitly requires delegation.",
                     "- Do not route localhost/local-app browser tasks through subagents.",
-                    "- Prefer sandbox or other runtime restrictions for delegated `fetch_web_page` work and other explicitly untrusted network fetches.",
                 ].join("\n"),
             },
         };
