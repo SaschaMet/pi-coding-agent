@@ -1,5 +1,5 @@
 ---
-name: generative-adversarial
+name: gan-generative-adversarial
 description: Use this skill when the user explicitly asks for a GAN-style, generator/evaluator, adversarial, critic loop, or competing-agent workflow for a plan, spec, implementation, or design. Orchestrate one generator subagent and one evaluator subagent in bounded iterations. Do not use for ordinary coding, simple reviews, or when delegation was not requested.
 ---
 
@@ -75,13 +75,13 @@ This skill coordinates the workflow. It does not replace domain skills such as `
 
 Use this default rubric unless the user provides one:
 
-| Criterion | Weight | Evaluator checks |
-| --- | ---: | --- |
-| Correctness | 35% | Meets acceptance criteria and preserves required behavior |
-| Integration | 20% | Fits repo architecture, APIs, data flow, and ownership boundaries |
-| Risk | 20% | Handles edge cases, errors, security, rollback, and migration concerns |
-| Verification | 15% | Tests/checks are appropriate and reproducible |
-| Maintainability | 10% | Small scoped change, readable structure, no avoidable complexity |
+| Criterion       | Weight | Evaluator checks                                                       |
+| --------------- | -----: | ---------------------------------------------------------------------- |
+| Correctness     |    35% | Meets acceptance criteria and preserves required behavior              |
+| Integration     |    20% | Fits repo architecture, APIs, data flow, and ownership boundaries      |
+| Risk            |    20% | Handles edge cases, errors, security, rollback, and migration concerns |
+| Verification    |    15% | Tests/checks are appropriate and reproducible                          |
+| Maintainability |    10% | Small scoped change, readable structure, no avoidable complexity       |
 
 `PASS` requires no critical issues and weighted score >= 8/10. Anything below that is `FAIL`.
 
