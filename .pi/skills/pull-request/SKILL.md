@@ -1,14 +1,22 @@
 ---
 name: pull-request
-description: Build a high-context pull request update from local changes. Validates gh CLI and branch safety first, updates commits safely, and generates reviewer-friendly PR descriptions.
+description: Use this skill only when the user explicitly asks to prepare or update an existing GitHub pull request from local changes, including PR body, commits, screenshots, or reviewer context. Validate `gh`, branch safety, staged scope, push state, and description before editing the PR. Do not use to create a new PR or for generic git help.
 ---
 
 # Pull Request
 
-Goal: create a high-signal PR with enough context for human reviewers to validate and control AI-generated code.
-Trigger: only when user explicitly invokes this skill.
+Goal: update an existing PR with a safe commit and reviewer-ready description. Do not create PRs in this skill.
 
-## Required Inputs
+Trigger only when the user explicitly asks for PR preparation, PR update, PR description, or this skill by name.
+
+## Gotchas
+
+- This skill updates existing PRs only. If no PR exists for the branch, stop.
+- Never stage with `git add .`; stage explicit in-scope files from `git status`.
+- Do not commit or push from `main`, `master`, the default branch, or detached HEAD.
+- PR text must match pushed code. Push before editing the PR body when local commits are ahead.
+
+## Required inputs
 
 - PR description template: `references/pr_description_template.md`.
 - For UI-visible changes, capture screenshots with an available project UI validation workflow.
@@ -17,7 +25,8 @@ Trigger: only when user explicitly invokes this skill.
 
 1. Invocation gate
 
-- User invokes this skill.
+- Continue only when the user explicitly invokes this skill or asks for PR preparation/update.
+- Do not trigger for generic git status, commit-only, or code-review requests.
 
 2. Environment and branch gate
 
@@ -135,6 +144,14 @@ Trigger: only when user explicitly invokes this skill.
   - `gh pr edit {pr_number} --body-file <description_path>`
 - Do not create PRs in this skill.
 - Confirm success and call out any unchecked verification steps.
+
+## Outcome checks
+
+- Current branch is not default, `main`, `master`, or detached HEAD.
+- Only in-scope files were staged; no sensitive files were staged by default.
+- Local commits, pushed branch state, and PR body describe the same code.
+- PR description answers: what changed, why, user impact, verification, residual risk.
+- Manual verification uses concrete `Given / When / Then` when automation is insufficient.
 
 ## Quality Bar
 

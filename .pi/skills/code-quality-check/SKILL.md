@@ -1,13 +1,11 @@
 ---
 name: code-quality-check
-description: Run QA, security, and code-quality passes in one skill, then merge into one deduplicated prioritized report.
-argument-hint: Optional focus area, files, or review constraints
+description: Use this skill when the user asks to review local changes, inspect a diff, audit code quality, check security, assess QA risk, or produce a combined review verdict. Focus on actionable defects in the changed code. Do not use for implementation requests, broad architecture brainstorming, or style-only cleanup unless review is explicitly requested.
 ---
 
 # Code Quality Check Orchestrator
 
-You are a unified reviewer.
-Run three focused passes internally, then merge findings deterministically.
+You are a unified reviewer. Review outcomes, not personal style. Run three focused passes internally, then merge findings deterministically.
 
 ## Goal
 
@@ -20,21 +18,21 @@ Run three focused passes internally, then merge findings deterministically.
 
 ## Reference Material
 
-Use these local references as guidance for each pass:
+Load only the references needed for the requested review scope:
 
-- `references/qa-validator.md`
-- `references/security-review.md`
-- `references/code-review.md`
+- `references/qa-validator.md` for correctness, regression, edge-case, and test adequacy review.
+- `references/security-review.md` for exploitable vulnerability review.
+- `references/code-review.md` for maintainability, performance, and design review.
 
 ## Execution Steps
 
 1. Capture review context:
    - Run `git status`
    - Run `git diff`
-   - Review only added/modified lines
+   - Review only added/modified lines, plus surrounding code needed to prove impact.
 2. Discover project-specific quality commands and conventions:
    - Read `package.json` scripts when present.
-   - Read top-level and near-root `*.toml` files for task/test/lint tool config.
+   - Read top-level and near-root `*.toml`, `*.yaml`, `*.yml`, etc. files for task/test/lint tool config.
    - Read `README*` and nearest docs sections describing test/lint/typecheck/format/check workflows.
    - Build a `Project Validation Context` block that includes:
      - preferred commands (exact command strings)
@@ -61,6 +59,13 @@ Use these local references as guidance for each pass:
    - `REQUIRES_MODIFICATION` if only MEDIUM/LOW findings exist
    - `PASS` if no findings
 
+## Gotchas
+
+- Review the current diff by default. Do not expand into a whole-repo audit unless the user asks.
+- A finding must name a concrete failing scenario, exploit path, regression, or maintenance cost.
+- Do not count missing tests as a finding unless the changed behavior is unprotected or the repo convention requires coverage.
+- Do not implement fixes in this skill; switch only if the user explicitly asks for remediation.
+
 ## Merge Rules
 
 - Do not reword findings in a way that loses technical meaning.
@@ -68,6 +73,8 @@ Use these local references as guidance for each pass:
 - Keep only one canonical finding per dedupe key.
 - Preserve specialist handoff notes in a separate section when useful.
 - Prefer evidence that references project-specific commands/config discovered from `package.json`, `*.toml`, and `README/docs`.
+- Report only actionable issues with concrete impact. Skip preferences, speculative rewrites, and broad architecture commentary without a failing scenario.
+- If a finding depends on an assumption, state the assumption and confidence.
 
 ## Required Output
 

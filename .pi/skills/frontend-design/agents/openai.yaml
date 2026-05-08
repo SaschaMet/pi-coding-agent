@@ -1,0 +1,4 @@
+interface:
+  display_name: "Frontend Design"
+  short_description: "Build or redesign polished, responsive frontend experiences"
+  default_prompt: "Use $frontend-design to build a working frontend experience with a clear aesthetic direction, responsive layout, accessible interactions, and local visual verification."

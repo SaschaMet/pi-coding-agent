@@ -1,33 +1,41 @@
 ---
 name: frontend-design
-description: Create distinctive, production-grade frontend interfaces with high design quality. Use this skill when the user asks to build web components, pages, or applications. Generates creative, polished code that avoids generic AI aesthetics.
+description: Use this skill when the user asks to build or substantially redesign a frontend component, page, app, website, game UI, dashboard, or interactive web experience, even if they do not say "frontend." Produce working UI with a clear aesthetic direction, responsive states, accessible interactions, and visual verification. Do not use for backend-only work or tiny copy/style tweaks.
 ---
 
-This skill guides creation of distinctive, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. Implement real working code with exceptional attention to aesthetic details and creative choices.
+Create distinctive, production-grade frontend interfaces. Implement real working code with clear product context, responsive behavior, accessible controls, and visual verification.
 
 The user provides frontend requirements: a component, page, application, or interface to build. They may include context about the purpose, audience, or technical constraints.
 
-## When NOT to Use This Skill
+## Gotchas
+
+- Start from the existing app conventions when a codebase already has UI patterns.
+- For SaaS, admin, CRM, internal tools, and dashboards, prioritize dense, scannable, work-focused interfaces over marketing layouts.
+- Do not create a landing page when the user asked for an app, game, tool, dashboard, or component.
+- Visual polish is not enough; controls must be wired to usable behavior where the user would expect it.
+
+## When NOT to use
 
 - Do not use this skill for backend-only, CLI-only, or infrastructure tasks.
 - Do not use this skill when the user explicitly requests strict adherence to an existing design system and no visual experimentation.
+- Do not use this skill for tiny copy edits, one-line CSS fixes, or simple bug fixes unless visual quality is the main task.
 - Prefer `tdd-coder` when the request is primarily behavior-driven logic changes with minimal or no UI work.
 
 ## Design Thinking
 
-Before coding, understand the context and commit to a BOLD aesthetic direction:
+Before coding, inspect the existing app and commit to one clear aesthetic direction:
 
 - **Purpose**: What problem does this interface solve? Who uses it?
-- **Tone**: Pick an extreme: brutally minimal, maximalist chaos, retro-futuristic, organic/natural, luxury/refined, playful/toy-like, editorial/magazine, brutalist/raw, art deco/geometric, soft/pastel, industrial/utilitarian, etc. There are so many flavors to choose from. Use these for inspiration but design one that is true to the aesthetic direction.
+- **Tone**: Pick a specific direction such as brutally minimal, maximalist, retro-futuristic, organic, luxury/refined, playful, editorial, brutalist, art deco, soft/pastel, or industrial/utilitarian.
 - **Constraints**: Technical requirements (framework, performance, accessibility).
-- **Differentiation**: What makes this UNFORGETTABLE? What's the one thing someone will remember?
+- **Differentiation**: Define one memorable design move that fits the domain.
 
-**CRITICAL**: Choose a clear conceptual direction and execute it with precision. Bold maximalism and refined minimalism both work - the key is intentionality, not intensity.
+Choose a clear conceptual direction and execute it consistently. Bold maximalism and refined minimalism both work; inconsistency does not.
 
-Then implement working code (HTML/CSS/JS, React, Vue, etc.) that is:
+Then implement working code using the project's existing framework and styling approach. For standalone artifacts, default to the simplest HTML/CSS/JS that satisfies the request.
 
 - Production-grade and functional
-- Visually striking and memorable
+- Visually distinct and memorable
 - Cohesive with a clear aesthetic point-of-view
 - Meticulously refined in every detail
 
@@ -41,10 +49,16 @@ Focus on:
 - **Spatial Composition**: Unexpected layouts. Asymmetry. Overlap. Diagonal flow. Grid-breaking elements. Generous negative space OR controlled density.
 - **Backgrounds & Visual Details**: Create atmosphere and depth rather than defaulting to solid colors. Add contextual effects and textures that match the overall aesthetic. Apply creative forms like gradient meshes, noise textures, geometric patterns, layered transparencies, dramatic shadows, decorative borders, custom cursors, and grain overlays.
 
-NEVER use generic AI-generated aesthetics like overused font families (Inter, Roboto, Arial, system fonts), cliched color schemes (particularly purple gradients on white backgrounds), predictable layouts and component patterns, and cookie-cutter design that lacks context-specific character.
+Do not use generic AI-style defaults: overused font families (Inter, Roboto, Arial, system fonts), purple gradients on white backgrounds, predictable card grids, or context-free component patterns.
 
-Interpret creatively and make unexpected choices that feel genuinely designed for the context. No design should be the same. Vary between light and dark themes, different fonts, different aesthetics. NEVER converge on common choices (Space Grotesk, for example) across generations.
+Interpret creatively and make choices that fit the product context. Vary theme, fonts, density, and composition across tasks; do not converge on a favorite default.
 
 **IMPORTANT**: Match implementation complexity to the aesthetic vision. Maximalist designs need elaborate code with extensive animations and effects. Minimalist or refined designs need restraint, precision, and careful attention to spacing, typography, and subtle details. Elegance comes from executing the vision well.
 
-Remember: Claude is capable of extraordinary creative work. Don't hold back, show what can truly be created when thinking outside the box and committing fully to a distinctive vision.
+## Outcome checks
+
+- The first screen is the usable product experience, not a marketing placeholder, unless the user requested a landing page.
+- Layout works at mobile and desktop widths without text overlap or broken controls.
+- Interactive elements have hover/focus/active/disabled states where relevant.
+- Visual assets, icons, typography, and colors match the chosen direction.
+- Local browser or screenshot verification confirms the UI renders, is nonblank, and key interactions work.

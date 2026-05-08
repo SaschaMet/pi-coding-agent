@@ -1,12 +1,11 @@
 ---
 name: create-spec
-description: Build a spec-driven development document before coding. Use when the user wants a structured spec (or implementation plan) with intent, scope boundaries, acceptance criteria, execution steps, invariants, and verification gates.
+description: Use this skill when the user asks for a spec, implementation plan, design contract, acceptance criteria, or pre-coding requirements, even if they say "plan this" instead of "write a spec." Produce a repo-researched contract with scope, BDD scenarios, risks, rollback, and verification. Do not use when the user wants code now.
 ---
 
 # Create Spec
 
-Produce a spec document, not implementation code. Research first, then author a
-verification-ready contract that an AI coding agent can implement against.
+Produce a spec document, not implementation code. Research first, then author a verification-ready contract that an AI coding agent can implement against.
 
 **Important**: This is a spec-authoring skill. Do not write implementation code.
 
@@ -25,7 +24,7 @@ Extract:
 
 ## Step 2 - Clarify unresolved decisions
 
-Ask only what code/docs cannot answer. Offer defaults.
+Ask only what code/docs cannot answer. Use safe defaults for decisions that do not require the user.
 
 Required decisions:
 
@@ -37,9 +36,16 @@ Required decisions:
 
 See `../skills/grill-me/SKILL.md` for how to pressure-test for missing risks and assumptions.
 
+## Gotchas
+
+- Update an existing relevant spec/plan in place when one exists; do not create a duplicate.
+- A spec is not a codebase tour. Link to existing docs instead of copying broad background.
+- If a requirement cannot be verified, rewrite it before finalizing.
+- Keep open questions separate from approved requirements so implementers do not treat guesses as scope.
+
 ## Step 3 - Build the spec contract
 
-Use [references/spec-template.md](references/spec-template.md).
+Use [references/spec-template.md](references/spec-template.md) as the output template.
 
 ### Mandatory sections
 
@@ -61,6 +67,7 @@ Use [references/spec-template.md](references/spec-template.md).
 
 - Prefer concrete, testable language over ambiguous wording.
 - Include exact paths, API names, and expected outputs.
+- Grade outcomes, not implementation paths: acceptance criteria should describe observable behavior.
 - Mark any irreversible change as a one-way door.
 - Add escalation triggers for sensitive changes.
 - If uncertainty remains, capture it in `Open Questions / Deferred Decisions`.
@@ -93,6 +100,8 @@ If a check fails, fix the spec instead of adding narrative explanation.
 - Never leave criteria unverifiable.
 - Never omit rollback for high-risk or one-way changes.
 - Always include a consolidated manual verification checklist.
+- Keep the spec concise; point to existing docs instead of copying them.
+- Do not include broad codebase overviews that an implementation agent can rediscover.
 
 ## References
 

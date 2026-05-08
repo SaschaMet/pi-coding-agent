@@ -1,6 +1,6 @@
 ---
 name: tdd-coder
-description: Implement features, bug fixes, and refactors with strict test-driven development. Runs phased red-green-refactor cycles with unit tests first, optional integration tests with user-defined input/output pairs, and coverage validation. Use when code must be written or modified following TDD discipline.
+description: Use this skill only when the user explicitly asks for TDD, test-first implementation, red-green-refactor, or strict test-driven changes. Implement features, fixes, and refactors by writing failing tests first, adding minimal production code, refactoring after green, and validating coverage. Do not use for ordinary coding requests.
 ---
 
 # TDD Coding
@@ -17,7 +17,14 @@ Write failing tests first, implement the smallest change to pass, refactor, and 
 - Investigate root causes when tests fail. Never silence a failure without verifying behavior.
 - Keep changes narrowly scoped. No drive-by refactors.
 - Notebooks are out of scope unless explicitly requested.
-- Use `apply_patch` for all file edits. Use `shell_command` for all test and coverage runs.
+- Use the available file-edit tool for edits. Use the available shell/command tool for test and coverage runs.
+
+## Gotchas
+
+- A test that passes immediately is not a valid Red phase; rewrite it or pick the next behavior.
+- Do not ask about integration tests when the user already specified test scope or the change is clearly unit-level.
+- Do not add dependencies or new test infrastructure when existing tooling can cover the behavior.
+- Coverage targets apply to changed paths; avoid broad test padding.
 
 ## Workflow
 
@@ -33,12 +40,12 @@ Check:
 - Existing test conventions: file naming, directory layout, assertion style
 - Project-level test instructions: `.github/instructions/testing.instructions.md`, `CONTRIBUTING.md`
 
-Detect exact test and coverage commands. Reuse them unchanged.
+Detect exact test and coverage commands. Reuse documented commands unchanged.
 If no test setup exists, propose the smallest viable addition and confirm with the user before proceeding.
 
 ### Step 1 — Scope & Test Strategy
 
-Clarify with the user before writing any code:
+Clarify only decisions the repository and request do not answer before writing code:
 
 1. **Unit tests** — always created. Confirm scope.
 2. **Integration tests** — ask whether the user wants them.
@@ -55,7 +62,7 @@ Follow [references/red-phase.md](references/red-phase.md).
 
 1. Read all relevant existing test files in a parallel batch before writing.
 2. Write one failing unit test that asserts the expected behavior for the current cycle.
-3. Run the narrowest test scope using `shell_command` and confirm failure for the expected reason.
+3. Run the narrowest test scope using the available shell/command tool and confirm failure for the expected reason.
 4. If integration tests were requested, write failing integration tests using collected input/output pairs and confirm they fail.
 5. Do NOT write any production code in this phase.
 
@@ -66,8 +73,8 @@ Mark the Red step completed in `update_plan`.
 Follow [references/green-phase.md](references/green-phase.md).
 
 1. Read all files you need to edit in a parallel batch before making any change.
-2. Write the smallest production code change that makes the failing tests pass. Use `apply_patch` for all edits.
-3. Re-run the exact same test command using `shell_command` until tests pass.
+2. Write the smallest production code change that makes the failing tests pass. Use the available file-edit tool for edits.
+3. Re-run the exact same test command using the available shell/command tool until tests pass.
 4. Run the nearest broader affected test scope.
 5. Do NOT add features, optimize, or refactor in this phase.
 
@@ -77,8 +84,8 @@ Mark the Green step completed in `update_plan`.
 
 Follow [references/refactor-phase.md](references/refactor-phase.md).
 
-1. Apply one improvement at a time using `apply_patch`.
-2. Re-run all affected tests using `shell_command` after each change.
+1. Apply one improvement at a time using the available file-edit tool.
+2. Re-run all affected tests using the available shell/command tool after each change.
 3. If any test fails, revert the change and investigate. Do NOT add new functionality.
 
 Mark the Refactor step completed in `update_plan`.
@@ -90,7 +97,7 @@ Mark the Refactor step completed in `update_plan`.
 
 ### Step 6 — Validate & Report
 
-1. Run the full affected test suite using `shell_command`.
+1. Run the full affected test suite using the available shell/command tool.
 2. Run coverage when tooling is available.
 3. Verify coverage meets the repository threshold or at least 70% for changed code paths.
 4. If coverage is short, add focused behavior tests — not brittle padding.
@@ -123,14 +130,13 @@ Mark the Refactor step completed in `update_plan`.
 
 ## Completion Criteria
 
-- [ ] Unit tests added first in TDD sequence.
-- [ ] All targeted unit tests pass.
-- [ ] Integration tests added if requested, with correct input/output pairs.
-- [ ] All integration tests pass (if applicable).
-- [ ] Nearby affected tests pass.
-- [ ] Coverage measured when possible.
-- [ ] Coverage meets threshold (project default or 70% minimum).
-- [ ] No notebook tests added unless explicitly requested.
+- Unit tests were added or updated before production code.
+- Targeted unit tests pass.
+- Integration tests were added only if requested, with exact input/output pairs.
+- Integration tests pass when present.
+- Nearby affected tests pass.
+- Coverage was measured when possible and meets repository threshold or changed-path target.
+- No notebook tests were added unless explicitly requested.
 
 ## Response Contract
 

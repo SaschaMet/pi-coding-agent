@@ -1,28 +1,35 @@
 ---
 name: "jupyter-notebook"
-description: "Use when the user asks to create, scaffold, or edit Jupyter notebooks (`.ipynb`) for experiments, explorations, or tutorials; prefer the bundled templates and run the helper script `new_notebook.py` to generate a clean starting notebook."
+description: "Use this skill only when the user asks to create, scaffold, convert, or edit a Jupyter `.ipynb` notebook for experiments, data analysis, research exploration, tutorials, or teaching walkthroughs. Scaffold new notebooks with `new_notebook.py` and validate runnable top-to-bottom flow. Do not use for plain Python scripts or production app code."
 ---
 
 # Jupyter Notebook Skill
 
-Create clean, reproducible Jupyter notebooks for two primary modes:
+Create clean, reproducible Jupyter notebooks in two modes:
 
 - Experiments and exploratory analysis
 - Tutorials and teaching-oriented walkthroughs
 
-Prefer the bundled templates and the helper script for consistent structure and fewer JSON mistakes.
+Always prefer the bundled templates and helper script for new notebooks. Hand-edit raw notebook JSON only for targeted edits.
+
+## Gotchas
+
+- Do not hand-author a full notebook JSON file when the template helper is available.
+- Do not leave hidden state: cells must run in order from a clean kernel.
+- Do not store secrets, machine-specific absolute paths, or large raw outputs in committed notebooks.
+- Keep notebooks for exploration or teaching. Move reusable production logic into normal modules when needed.
 
 ## When to use
 
-- Create a new `.ipynb` notebook from scratch.
-- Convert rough notes or scripts into a structured notebook.
-- Refactor an existing notebook to be more reproducible and skimmable.
-- Build experiments or tutorials that will be read or re-run by other people.
+- The requested artifact is a `.ipynb` notebook.
+- The user asks to convert notes, scripts, or analysis into a structured notebook.
+- The user asks to refactor an existing notebook for reproducibility, readability, or teaching flow.
+- The output will be read, taught from, or re-run by other people.
 
 ## When NOT to use
 
-- Do not use this skill for non-notebook tasks (plain scripts, services, CLIs, or frontend components).
-- Do not use this skill when the user asks for production application logic rather than exploratory or tutorial notebook workflows.
+- Do not use for plain scripts, services, CLIs, frontend components, or production application logic.
+- Do not use when the user only asks to explain notebooks without creating or editing one.
 
 ## Decision tree
 
@@ -30,33 +37,34 @@ Prefer the bundled templates and the helper script for consistent structure and 
 - If the request is instructional, step-by-step, or audience-specific, choose `tutorial`.
 - If editing an existing notebook, treat it as a refactor: preserve intent and improve structure.
 
-## Skill path (set once)
+## Resolve skill path
 
-```bash
-export PI_AGENT_HOME="${PI_AGENT_HOME:-$HOME/.pi/agent}"
-export JUPYTER_NOTEBOOK_CLI="$PI_AGENT_HOME/skills/jupyter-notebook/scripts/new_notebook.py"
-```
+Before running the helper script, resolve the installed skill directory:
 
-User-scoped skills install under `$PI_AGENT_HOME/skills` (default: `~/.pi/agent/skills`).
+1. Prefer the project-local path when present: `.pi/skills/jupyter-notebook`.
+2. Otherwise use `$PI_AGENT_HOME/skills/jupyter-notebook`.
+3. If neither exists, locate the current `jupyter-notebook/SKILL.md` path and use its directory.
+
+The helper is `scripts/new_notebook.py` inside that directory.
 
 ## Workflow
 
-1. Lock the intent.
+1. Lock the outcome.
    Identify the notebook kind: `experiment` or `tutorial`.
-   Capture the objective, audience, and what "done" looks like.
+   Capture the objective, audience, required inputs, and the observable result that means the notebook works.
 
 2. Scaffold from the template.
    Use the helper script to avoid hand-authoring raw notebook JSON.
 
 ```bash
-uv run --python 3.12 python "$JUPYTER_NOTEBOOK_CLI" \
+uv run --python 3.12 python "$SKILL_DIR/scripts/new_notebook.py" \
   --kind experiment \
   --title "Compare prompt variants" \
   --out output/jupyter-notebook/compare-prompt-variants.ipynb
 ```
 
 ```bash
-uv run --python 3.12 python "$JUPYTER_NOTEBOOK_CLI" \
+uv run --python 3.12 python "$SKILL_DIR/scripts/new_notebook.py" \
   --kind tutorial \
   --title "Intro to embeddings" \
   --out output/jupyter-notebook/intro-to-embeddings.ipynb
@@ -67,9 +75,9 @@ uv run --python 3.12 python "$JUPYTER_NOTEBOOK_CLI" \
    Add short markdown cells that explain the purpose and expected result.
    Avoid large, noisy outputs when a short summary works.
 
-4. Apply the right pattern.
-   For experiments, follow `references/experiment-patterns.md`.
-   For tutorials, follow `references/tutorial-patterns.md`.
+4. Load only the needed pattern reference.
+   For experiments, read `references/experiment-patterns.md`.
+   For tutorials, read `references/tutorial-patterns.md`.
 
 5. Edit safely when working with existing notebooks.
    Preserve the notebook structure; avoid reordering cells unless it improves the top-to-bottom story.
@@ -81,14 +89,18 @@ uv run --python 3.12 python "$JUPYTER_NOTEBOOK_CLI" \
    If execution is not possible, say so explicitly and call out how to validate locally.
    Use the final pass checklist in `references/quality-checklist.md`.
 
-## Templates and helper script
+## Outcome checks
+
+- A new notebook opens as valid JSON and uses the requested title.
+- Early cells define all state needed by later cells.
+- Code cells are small, deterministic, and runnable in order.
+- Markdown explains purpose and result, not obvious code mechanics.
+- Outputs are concise and do not contain secrets, absolute local paths, or noisy dumps.
+
+## Templates and helper
 
 - Templates live in `assets/experiment-template.ipynb` and `assets/tutorial-template.ipynb`.
 - The helper script loads a template, updates the title cell, and writes a notebook.
-
-Script path:
-
-- `$JUPYTER_NOTEBOOK_CLI` (installed default: `$PI_AGENT_HOME/skills/jupyter-notebook/scripts/new_notebook.py`)
 
 ## Temp and output conventions
 
@@ -96,7 +108,7 @@ Script path:
 - Write final artifacts under `output/jupyter-notebook/` when working in this repo.
 - Use stable, descriptive filenames (for example, `ablation-temperature.ipynb`).
 
-## Dependencies (install only when needed)
+## Dependencies
 
 Prefer `uv` for dependency management.
 
@@ -106,7 +118,7 @@ Optional Python packages for local notebook execution:
 uv pip install jupyterlab ipykernel
 ```
 
-The bundled scaffold script uses only the Python standard library and does not require extra dependencies.
+The scaffold script uses only the Python standard library. Install notebook packages only when execution requires them.
 
 ## Environment
 

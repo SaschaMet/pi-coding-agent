@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pull Request"
+  short_description: "Prepare an existing PR with safe commits and reviewer-ready context"
+  default_prompt: "Use $pull-request to validate branch safety, stage scoped files, commit local changes, push when needed, and update the existing PR body with concise reviewer-ready context."

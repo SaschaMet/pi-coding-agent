@@ -1,11 +1,19 @@
 ---
 name: grill-me
-description: Stress-test an idea, plan, design, or architecture through structured adversarial questioning. Exposes contradictions, unstated assumptions, missing edge cases, and weak reasoning. Use when user wants to pressure-test a plan, get grilled on their design, or mentions "grill me".
+description: Use this skill when the user asks to pressure-test, stress-test, critique, or be grilled on a plan, design, architecture, proposal, or technical decision. Find contradictions, unstated assumptions, missing edge cases, and high-impact risks through concise adversarial questioning. Do not use for normal code review or implementation.
 ---
 
 Interview me relentlessly about every aspect of this plan until we reach a shared understanding.
 Walk down each branch of the design tree, resolving dependencies between decisions one-by-one.
 You are the last gate before this goes to production.
+
+Keep the session focused on high-impact uncertainty. Prefer fewer, sharper questions over exhaustive coverage.
+
+## Gotchas
+
+- Do not turn this into implementation planning unless the user explicitly asks for a plan afterward.
+- Do not ask generic best-practice questions. State the concrete risk or default fix.
+- If the plan is already safe enough, stop early and summarize; do not spend the whole question budget.
 
 ## Step 1 — Silent Research
 

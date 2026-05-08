@@ -1,4 +1,4 @@
 interface:
   display_name: "Create Spec"
-  short_description: "Research constraints and author a verification-ready spec before coding"
-  default_prompt: "Use $create-spec to research this repository and produce a spec-driven development document with intent, scope boundaries, acceptance criteria, execution steps, and verification gates before implementation."
+  short_description: "Research the repo and write a verification-ready spec before coding"
+  default_prompt: "Use $create-spec to research this repository and produce a concise spec with intent, explicit scope boundaries, acceptance criteria, BDD scenarios, risks, rollback, and verification gates. Do not implement code."

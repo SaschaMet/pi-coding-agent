@@ -1,6 +1,6 @@
 ---
 name: subagent-orchestrator
-description: Central orchestration policy for explicit delegated execution. Use only when the user explicitly asks for subagents/delegation.
+description: Use this skill only when the user explicitly asks for subagents, delegation, parallel agents, worker agents, or delegated execution. Select and scope subagents, define handoffs, and coordinate outputs. Do not use for ordinary planning, repository inspection, or implementation in the current session.
 ---
 
 # Subagent Orchestrator
@@ -8,10 +8,17 @@ description: Central orchestration policy for explicit delegated execution. Use 
 Central policy for spawning and coordinating subagents.
 Use this skill to keep delegation decisions consistent and maintainable.
 
+## Gotchas
+
+- User requests for "deep research," "be thorough," or "analyze carefully" are not delegation requests.
+- Do not delegate the immediate blocker if the main session needs that result before it can continue.
+- Worker subagents need disjoint file ownership; overlapping edits cause merge conflicts.
+- Missing or failed subagent output must be reported, never invented.
+
 ## Delegation Contract
 
 - Treat this skill as the single policy source for subagent orchestration.
-- Use the `subagent` tool only when the user explicitly asks for delegation/subagents.
+- Use the available subagent/delegation tool only when the user explicitly asks for delegation/subagents.
 - Do not delegate normal repository inspection, planning, implementation, or skill execution by default. Run that work in the current session.
 - Direct `/skill:*` and skill-use requests stay in-session unless the user explicitly asks for delegation.
 - Use separate subagents for separate concerns.
