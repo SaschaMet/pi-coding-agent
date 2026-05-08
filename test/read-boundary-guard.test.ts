@@ -127,6 +127,41 @@ describe("read boundary guard", () => {
         expect(readResult?.block).toBe(true);
     });
 
+    it("allows reads from global ~/.pi directory in non-interactive mode", async () => {
+        const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-read-boundary-global-pi-read-"));
+        const pi = createFakePi();
+        readBoundaryGuardExtension(pi as any);
+        const handlers = pi.handlers.get("tool_call") ?? [];
+
+        const result = await handlers[0](
+            { toolName: "read", input: { path: path.join(os.homedir(), ".pi", "agent", "skills", "SKILL.md") } },
+            { hasUI: false, cwd: tmp },
+        );
+
+        expect(result).toBeUndefined();
+    });
+
+    it("blocks writes and edits under global ~/.pi directory as read-only", async () => {
+        const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-read-boundary-global-pi-write-"));
+        const pi = createFakePi();
+        readBoundaryGuardExtension(pi as any);
+        const handlers = pi.handlers.get("tool_call") ?? [];
+
+        const writeResult = await handlers[0](
+            { toolName: "write", input: { path: path.join(os.homedir(), ".pi", "agent", "settings.json"), content: "x" } },
+            { hasUI: false, cwd: tmp },
+        );
+        expect(writeResult?.block).toBe(true);
+        expect(writeResult?.reason).toContain("read-only global PI directory");
+
+        const editResult = await handlers[0](
+            { toolName: "edit", input: { path: path.join(os.homedir(), ".pi", "agent", "settings.json") } },
+            { hasUI: false, cwd: tmp },
+        );
+        expect(editResult?.block).toBe(true);
+        expect(editResult?.reason).toContain("read-only global PI directory");
+    });
+
     it("supports filePath aliases when guarding outside current directory", async () => {
         const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-read-boundary-filepath-"));
         const pi = createFakePi();

@@ -5,6 +5,8 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 const READ_BOUNDARY_GUARD_REGISTERED = Symbol.for("pi.extensions.read-boundary-guard.registered");
 const GUARDED_TOOLS = new Set(["read", "write", "edit", "grep", "find", "ls"]);
+const READ_ONLY_TOOLS = new Set(["read", "grep", "find", "ls"]);
+const MUTATING_TOOLS = new Set(["write", "edit"]);
 
 type ToolCallEvent = {
     toolName: string;
@@ -69,19 +71,37 @@ function resolvePathWithRealAncestor(candidate: string): string {
 }
 
 function isOutsideWorkingDirectory(inputPath: string, cwd: string): boolean {
-    const normalizedInputPath = expandHomePath(inputPath);
     const resolvedCwd = resolvePathWithRealAncestor(cwd);
-    const resolvedTarget = resolvePathWithRealAncestor(
-        path.isAbsolute(normalizedInputPath) ? normalizedInputPath : path.join(cwd, normalizedInputPath),
-    );
+    const resolvedTarget = resolveInputPath(inputPath, cwd);
     const relative = path.relative(resolvedCwd, resolvedTarget);
     return relative.length > 0 && (relative.startsWith("..") || path.isAbsolute(relative));
+}
+
+function resolveInputPath(inputPath: string, cwd: string): string {
+    const normalizedInputPath = expandHomePath(inputPath);
+    return resolvePathWithRealAncestor(
+        path.isAbsolute(normalizedInputPath) ? normalizedInputPath : path.join(cwd, normalizedInputPath),
+    );
+}
+
+function isWithinRoot(targetPath: string, rootPath: string): boolean {
+    const relative = path.relative(rootPath, targetPath);
+    return relative.length === 0 || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+function resolveGlobalPiReadOnlyRoot(): string {
+    const configuredGlobalAgentDir = process.env.PI_CODING_AGENT_DIR?.trim();
+    if (configuredGlobalAgentDir) {
+        return resolvePathWithRealAncestor(configuredGlobalAgentDir);
+    }
+    return resolvePathWithRealAncestor(path.join(os.homedir(), ".pi"));
 }
 
 export default function readBoundaryGuardExtension(pi: ExtensionAPI): void {
     const guardPi = pi as ExtensionAPI & Record<PropertyKey, unknown>;
     if (guardPi[READ_BOUNDARY_GUARD_REGISTERED]) return;
     guardPi[READ_BOUNDARY_GUARD_REGISTERED] = true;
+    const globalPiReadOnlyRoot = resolveGlobalPiReadOnlyRoot();
 
     pi.on("tool_call", async (event, ctx) => {
         if (!GUARDED_TOOLS.has(event.toolName)) return undefined;
@@ -96,6 +116,18 @@ export default function readBoundaryGuardExtension(pi: ExtensionAPI): void {
         }
 
         const currentCwd = ctx.cwd;
+        const resolvedTarget = resolveInputPath(inputPath, currentCwd);
+
+        if (isWithinRoot(resolvedTarget, globalPiReadOnlyRoot)) {
+            if (READ_ONLY_TOOLS.has(event.toolName)) return undefined;
+            if (MUTATING_TOOLS.has(event.toolName)) {
+                return {
+                    block: true,
+                    reason: `Path '${inputPath}' is under read-only global PI directory '${globalPiReadOnlyRoot}'.`,
+                };
+            }
+        }
+
         if (!isOutsideWorkingDirectory(inputPath, currentCwd)) return undefined;
 
         const reason = `Path '${inputPath}' is outside the current working directory and requires approval.`;

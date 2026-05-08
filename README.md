@@ -185,12 +185,14 @@ See [`.pi/extensions/plan-mode/README.md`](.pi/extensions/plan-mode/README.md) f
   - Subagent subprocesses now use scoped project extension loading (`--no-extensions` + project `.pi/extensions/*`) to avoid duplicate tool registration from overlapping user/project extension sets.
 - Read/search/list outside current directory:
   - `read`, `write`, `edit`, `grep`, `find`, and `ls` require approval when the requested path resolves outside the current working directory.
+  - Exception: paths under global PI (`~/.pi`, or `PI_CODING_AGENT_DIR` when set) are read-only; `read`/`grep`/`find`/`ls` are allowed there, `write`/`edit` are always blocked.
   - In non-interactive mode, those outside-cwd requests are blocked.
 
 ## Failure Handling Notes
 
 - `ask_questions` in non-interactive mode returns deterministic fallback answers.
 - Outside-cwd `read`/`write`/`edit`/`grep`/`find`/`ls` requests require explicit approval and are denied without UI.
+- Global PI directory is read-only: outside-cwd reads/list/search are allowed under `~/.pi` (or `PI_CODING_AGENT_DIR`), while writes/edits are denied.
 
 ## Upstream Docs
 
