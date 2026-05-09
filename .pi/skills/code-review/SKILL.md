@@ -31,6 +31,7 @@ Load only the references needed for the requested review scope:
    - Run `git status`
    - Run `git diff`
    - Review only added/modified lines, plus surrounding code needed to prove impact.
+   - Identify the change intent, touched public contracts, and affected runtime paths before judging findings.
 2. Discover project-specific quality commands and conventions:
    - Read `package.json` scripts when present.
    - Read top-level and near-root `*.toml`, `*.yaml`, `*.yml`, etc. files for task/test/lint tool config.
@@ -40,24 +41,36 @@ Load only the references needed for the requested review scope:
      - required command ordering constraints (if documented)
      - tool names and config hints (for example, `vitest`, `pytest`, `cargo test`, `ruff`, `eslint`, `biome`)
      - explicit "do not run" or environment constraints from docs
-3. Execute three read-only specialist passes with subagents:
+3. Build a `Review Context` block:
+   - changed files and symbols
+   - intended user-visible behavior when inferable from request, branch, commits, PR text, or tests
+   - relevant public APIs, schemas, config keys, CLI flags, event names, and database migrations touched by the diff
+   - surrounding interfaces/callers needed to verify compatibility
+   - explicit focus areas requested by the user
+4. Execute three read-only specialist passes with subagents:
    - Spawn `generic-readonly` for QA: correctness/regressions/edge cases/test adequacy only.
    - Spawn `generic-readonly` for Security: concrete exploitable vulnerabilities only.
-   - Spawn `generic-readonly` for Code Quality: maintainability/performance/design only.
+   - Spawn `generic-readonly` for Code Quality: maintainability/performance/reliability/integration/design only.
    - Prefer background agents for independent passes, then retrieve each result with `get_subagent_result({ wait: true })`.
-   - Give each agent the diff summary, relevant file paths, validation context, exact reference path to read, strict category ownership, and required finding schema.
+   - Give each agent the diff summary, relevant file paths, review context, validation context, exact reference path to read, strict category ownership, and required finding schema.
    - Apply strict non-overlap ownership. Out-of-scope items become scope notes, not findings.
-4. Collect pass outputs.
-5. Normalize each finding into:
+5. Collect pass outputs.
+6. Normalize each finding into:
    - `category`, `severity`, `file`, `line`, `title`, `evidence`, `recommendation`, `confidence`
-6. Dedupe with key:
+7. Dedupe with key:
    - `(file, line, normalized_root_cause)`
-7. Apply precedence when duplicate root cause exists:
+8. Apply precedence when duplicate root cause exists:
    - `security` > `qa` > `code_quality`
-8. Sort final findings:
+9. Sort final findings:
    - severity `HIGH` first, then `MEDIUM`, then `LOW`
    - tie-break by category precedence above, then file+line
-9. Produce a single final verdict:
+10. Quality-gate every finding before final output:
+   - exact changed line or nearest changed line
+   - concrete failure/exploit/maintenance scenario
+   - production or user impact
+   - smallest practical recommendation
+   - no generic advice, style preference, or broad rewrite
+11. Produce a single final verdict:
    - `FAIL` if any HIGH finding exists
    - `REQUIRES_MODIFICATION` if only MEDIUM/LOW findings exist
    - `PASS` if no findings
@@ -66,8 +79,10 @@ Load only the references needed for the requested review scope:
 
 - Review the current diff by default. Do not expand into a whole-repo audit unless the user asks.
 - A finding must name a concrete failing scenario, exploit path, regression, or maintenance cost.
+- Breaking changes are findings when the diff changes public API signatures, removes/renames public methods, changes return types, modifies database schemas, or changes required configuration without a compatible migration path.
 - Do not count missing tests as a finding unless the changed behavior is unprotected or the repo convention requires coverage.
 - Do not implement fixes in this skill; switch only if the user explicitly asks for remediation.
+- Include suggested tests only when they directly prove the finding or close a changed-behavior gap.
 
 ## Merge Rules
 
@@ -81,28 +96,28 @@ Load only the references needed for the requested review scope:
 
 ## Script
 
-Use this pattern after capturing `git status`, `git diff`, touched files, and `Project Validation Context`.
+Use this pattern after capturing `git status`, `git diff`, touched files, `Review Context`, and `Project Validation Context`.
 
 ```text
 Agent({
   subagent_type: "generic-readonly",
   description: "QA review",
   run_in_background: true,
-  prompt: "Run the QA pass for this code review. Read .pi/skills/code-review/references/qa-validator.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Project Validation Context>. Report only correctness, regression, edge-case, and test adequacy findings. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report security or maintainability-only issues."
+  prompt: "Run the QA pass for this code review. Read .pi/skills/code-review/references/qa-validator.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Review Context>, <Project Validation Context>. Report only correctness, regression, edge-case, breaking-change, and changed-behavior test adequacy findings. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report security or maintainability-only issues."
 })
 
 Agent({
   subagent_type: "generic-readonly",
   description: "Security review",
   run_in_background: true,
-  prompt: "Run the Security pass for this code review. Read .pi/skills/code-review/references/security-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Project Validation Context>. Report only concrete exploitable vulnerabilities with proof of exploit path. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or maintainability-only issues."
+  prompt: "Run the Security pass for this code review. Read .pi/skills/code-review/references/security-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Review Context>, <Project Validation Context>. Report only concrete exploitable vulnerabilities with proof of exploit path. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or maintainability-only issues."
 })
 
 Agent({
   subagent_type: "generic-readonly",
   description: "Quality review",
   run_in_background: true,
-  prompt: "Run the Code Quality pass for this code review. Read .pi/skills/code-review/references/code-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Project Validation Context>. Report only maintainability, performance, and design-quality findings with concrete impact. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or security issues."
+  prompt: "Run the Code Quality pass for this code review. Read .pi/skills/code-review/references/code-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Review Context>, <Project Validation Context>. Report only maintainability, performance, scalability, reliability, integration, portability, and design-quality findings with concrete impact. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or security issues."
 })
 
 get_subagent_result({ agent_id: "<qa-agent-id>", wait: true, verbose: false })

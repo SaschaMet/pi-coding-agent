@@ -33,6 +33,9 @@ If you see out-of-scope issues, do not emit them as findings. Add a short handof
 - Unsafe deserialization and code execution vectors
 - Crypto misuse with concrete exploit impact
 - Sensitive data exposure with exploitable path
+- Insecure handling of secrets, tokens, credentials, PII, or security-relevant logs
+- Missing validation/sanitization only when attacker-controlled input reaches a dangerous sink
+- Authentication/session/config changes that weaken a security boundary
 
 ## Hard Exclusions
 
@@ -42,6 +45,14 @@ Do not report:
 - Documentation-only issues
 - Pure client-side missing permission checks
 - Non-exploitable speculative risks
+
+## Finding Bar
+
+Each finding must include:
+- attacker-controlled input or capability
+- vulnerable sink or trust-boundary mistake
+- exploit result
+- smallest effective mitigation
 
 ## Required Output
 

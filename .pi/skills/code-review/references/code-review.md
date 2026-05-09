@@ -16,6 +16,11 @@ In scope:
 - Modularity, coupling, and complexity concerns
 - Performance/resource/concurrency risks
 - API ergonomics and long-term extensibility concerns
+- Duplication, dead/redundant code, and excessive complexity when they create real maintenance cost
+- Scalability risks such as unbounded queries, missing pagination, inefficient algorithms, avoidable repeated I/O, or cache misuse
+- Reliability risks such as resource leaks, swallowed errors, brittle dependency use, and unclear error propagation
+- Integration and portability risks such as incompatible interfaces, deprecated/unstable APIs, platform-specific assumptions, or cyclic/high coupling
+- Documentation drift only when changed behavior affects public usage, operations, onboarding, or API contracts
 
 Out of scope:
 - Exploitable security vulnerabilities (owned by `security-review`)
@@ -30,6 +35,19 @@ If you see out-of-scope concerns, do not emit them as findings. Add a short hand
 - Review only added/modified lines; ignore deleted code.
 - Prefer high-signal, actionable findings.
 - Avoid speculative style nits.
+- Tie each finding to a concrete cost: harder future change, measurable inefficiency, operational failure, or integration breakage.
+- Prefer the smallest local refactor or guard over broad rewrites.
+- Do not report naming, formatting, or comment issues unless they hide behavior, violate local convention, or materially slow maintenance.
+
+## Review Checklist
+
+- Code structure and ownership match existing local patterns.
+- Error handling preserves useful context and does not hide failures.
+- Changed APIs remain ergonomic and compatible for callers.
+- Algorithms, database access, loops, I/O, and memory use scale for expected data sizes.
+- Dependencies and module boundaries avoid unnecessary coupling and cycles.
+- New abstractions reduce actual complexity; they are not speculative.
+- Removed or duplicated code does not leave stale paths, dead branches, or inconsistent behavior.
 
 ## Required Output
 

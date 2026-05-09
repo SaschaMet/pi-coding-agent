@@ -13,6 +13,7 @@ In scope:
 - Request/acceptance-criteria compliance
 - Behavioral correctness and regressions
 - Edge cases and failure-path behavior
+- Breaking changes to public APIs, schemas, return types, config, CLI behavior, or documented contracts
 - Test adequacy for changed behavior (primary owner for missing/weak tests)
 
 Out of scope:
@@ -28,14 +29,17 @@ If you see out-of-scope risk, do not emit it as a finding. Add a short handoff n
 - Treat passing tests as evidence, not proof.
 - Prefer concrete, reproducible failures over speculation.
 - Missing or weak tests are reportable only when they reduce confidence in changed behavior.
+- Flag compatibility regressions when callers, tests, docs, migrations, or public contracts show the old behavior is still required.
+- For each finding, include the user-visible or caller-visible scenario that fails.
 
 ## Workflow
 
 1. Restate expected behavior from request + DoD.
-2. Identify likely regression and edge-case risks.
+2. Identify likely regression, edge-case, and breaking-change risks.
 3. Read changed files and dependent call paths.
-4. Validate with the narrowest relevant tests/checks available.
-5. Emit structured findings and a verdict.
+4. Check boundary values, invalid inputs, null/empty states, error paths, concurrency-sensitive paths, and integration/API contract compatibility when touched.
+5. Validate with the narrowest relevant tests/checks available.
+6. Emit structured findings and a verdict.
 
 ## Required Output
 
