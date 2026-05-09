@@ -1,9 +1,4 @@
 {
-    "subagent": {
-        "defaultAgentScope": "both",
-        "maxParallelTasks": 8,
-        "maxConcurrency": 4
-    },
     "localhostBridge": {
         "enabled": true,
         "hostAlias": "host.docker.internal",

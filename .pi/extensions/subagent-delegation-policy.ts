@@ -13,10 +13,11 @@ function normalizeExplicitDelegation(text: string): string | null {
     if (!firstTask || !secondTask) return null;
 
     return [
-        "Use the `subagent` tool in `chain` mode for this explicit delegation request.",
-        "Run exactly two delegated steps:",
-        `1. agent: generic-readonly, task: ${firstTask}`,
-        `2. agent: generic-readonly, task: ${secondTask}. Use this prior output as needed: {previous}`,
+        "Use the `Agent` tool from `@tintinweb/pi-subagents` for this explicit delegation request.",
+        "Run the first delegated step in foreground:",
+        `Agent({ subagent_type: "generic-readonly", description: "First delegated step", prompt: ${JSON.stringify(firstTask)} })`,
+        "Then run the second delegated step after the first result is available:",
+        `Agent({ subagent_type: "generic-readonly", description: "Second delegated step", prompt: ${JSON.stringify(`${secondTask}. Use the prior agent result as context.`)} })`,
     ].join("\n");
 }
 
@@ -44,11 +45,12 @@ export default function subagentDelegationPolicy(pi: ExtensionAPI): void {
                 display: false,
                 content: [
                     "[DELEGATION POLICY]",
-                    "- Explicit user delegation request: must call `subagent`.",
+                    "- Explicit user delegation request: must call `Agent` from `@tintinweb/pi-subagents`.",
+                    "- Retrieve background results with `get_subagent_result`; steer running agents with `steer_subagent`.",
                     "- Skill execution requests stay in the current session unless the user explicitly asks for delegation.",
                     "- Do not delegate by default. Inspect and edit the current project/repository directly for normal coding tasks.",
-                    "- When delegation is explicitly requested, use `generic-readonly` for research/planning/summarization tasks.",
-                    "- When delegation is explicitly requested, use `generic-worker` for implementation or file-modifying tasks.",
+                    "- When delegation is explicitly requested, use `generic-readonly` or built-in `Explore`/`Plan` for research/planning/summarization tasks.",
+                    "- When delegation is explicitly requested, use `generic-worker` or built-in `general-purpose` for implementation or file-modifying tasks.",
                     "- External-doc or web research task: keep it in-session unless the user explicitly asks for subagents.",
                     "- High-context repository reconnaissance stays in-session unless the user explicitly asks for delegation.",
                     "- Keep trivial, localized tasks in-session unless user explicitly asks for delegation.",

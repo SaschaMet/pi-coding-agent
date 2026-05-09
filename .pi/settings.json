@@ -13,6 +13,9 @@
         "envFile": "/Users/saschametzger/Projects/pi-coding-agent/.env",
         "useProjectEnv": true
     },
+    "packages": [
+        "npm:@tintinweb/pi-subagents"
+    ],
     "skills": [
         "~/.pi/agent/skills",
         ".pi/skills"

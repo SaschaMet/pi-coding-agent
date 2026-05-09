@@ -1,11 +1,12 @@
 ---
-name: code-quality-check
+name: code-review
 description: Use this skill when the user asks to review local changes, inspect a diff, audit code quality, check security, assess QA risk, or produce a combined review verdict. Focus on actionable defects in the changed code. Do not use for implementation requests, broad architecture brainstorming, or style-only cleanup unless review is explicitly requested.
 ---
 
 # Code Quality Check Orchestrator
 
-You are a unified reviewer. Review outcomes, not personal style. Run three focused passes internally, then merge findings deterministically.
+You are a unified reviewer. Review outcomes, not personal style. Run three focused passes with subagents, then merge findings deterministically.
+Use `Agent` from `@tintinweb/pi-subagents` for the specialist passes. The parent session owns context capture, result collection, dedupe, final verdict, and final response.
 
 ## Goal
 
@@ -39,10 +40,12 @@ Load only the references needed for the requested review scope:
      - required command ordering constraints (if documented)
      - tool names and config hints (for example, `vitest`, `pytest`, `cargo test`, `ruff`, `eslint`, `biome`)
      - explicit "do not run" or environment constraints from docs
-3. Execute three passes in parallel conceptually (or sequentially if tools limit parallelism):
-   - QA pass: correctness/regressions/edge cases/test adequacy only.
-   - Security pass: concrete exploitable vulnerabilities only.
-   - Code-quality pass: maintainability/performance/design only.
+3. Execute three read-only specialist passes with subagents:
+   - Spawn `generic-readonly` for QA: correctness/regressions/edge cases/test adequacy only.
+   - Spawn `generic-readonly` for Security: concrete exploitable vulnerabilities only.
+   - Spawn `generic-readonly` for Code Quality: maintainability/performance/design only.
+   - Prefer background agents for independent passes, then retrieve each result with `get_subagent_result({ wait: true })`.
+   - Give each agent the diff summary, relevant file paths, validation context, exact reference path to read, strict category ownership, and required finding schema.
    - Apply strict non-overlap ownership. Out-of-scope items become scope notes, not findings.
 4. Collect pass outputs.
 5. Normalize each finding into:
@@ -75,6 +78,44 @@ Load only the references needed for the requested review scope:
 - Prefer evidence that references project-specific commands/config discovered from `package.json`, `*.toml`, and `README/docs`.
 - Report only actionable issues with concrete impact. Skip preferences, speculative rewrites, and broad architecture commentary without a failing scenario.
 - If a finding depends on an assumption, state the assumption and confidence.
+
+## Script
+
+Use this pattern after capturing `git status`, `git diff`, touched files, and `Project Validation Context`.
+
+```text
+Agent({
+  subagent_type: "generic-readonly",
+  description: "QA review",
+  run_in_background: true,
+  prompt: "Run the QA pass for this code review. Read .pi/skills/code-review/references/qa-validator.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Project Validation Context>. Report only correctness, regression, edge-case, and test adequacy findings. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report security or maintainability-only issues."
+})
+
+Agent({
+  subagent_type: "generic-readonly",
+  description: "Security review",
+  run_in_background: true,
+  prompt: "Run the Security pass for this code review. Read .pi/skills/code-review/references/security-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Project Validation Context>. Report only concrete exploitable vulnerabilities with proof of exploit path. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or maintainability-only issues."
+})
+
+Agent({
+  subagent_type: "generic-readonly",
+  description: "Quality review",
+  run_in_background: true,
+  prompt: "Run the Code Quality pass for this code review. Read .pi/skills/code-review/references/code-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Project Validation Context>. Report only maintainability, performance, and design-quality findings with concrete impact. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or security issues."
+})
+
+get_subagent_result({ agent_id: "<qa-agent-id>", wait: true, verbose: false })
+get_subagent_result({ agent_id: "<security-agent-id>", wait: true, verbose: false })
+get_subagent_result({ agent_id: "<quality-agent-id>", wait: true, verbose: false })
+```
+
+This skill-specific orchestration:
+
+- Parent session gathers context once and passes it to all agents.
+- Agents are read-only and independent, so background execution is appropriate.
+- Parent session dedupes, applies category precedence, sorts findings, and writes the final verdict.
+- If any agent fails, stop and report the exact failure. Do not invent that pass.
 
 ## Required Output
 

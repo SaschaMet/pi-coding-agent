@@ -1,75 +1,96 @@
 ---
 name: subagent-orchestrator
-description: Use this skill only when the user explicitly asks for subagents, delegation, parallel agents, worker agents, or delegated execution. Select and scope subagents, define handoffs, and coordinate outputs. Do not use for ordinary planning, repository inspection, or implementation in the current session.
+description: Use this skill only when the user explicitly asks for subagents, delegation, parallel agents, worker agents, background agents, or delegated execution. Select and scope subagents, define handoffs, and coordinate outputs with the @tintinweb/pi-subagents extension. Do not use for ordinary planning, repository inspection, or implementation in the current session.
 ---
 
 # Subagent Orchestrator
 
-Central policy for spawning and coordinating subagents.
-Use this skill to keep delegation decisions consistent and maintainable.
+Use this skill as the policy layer for delegated work. Full extension details, schemas, examples, settings, and runtime behavior are documented in [`references/pi-subagents.md`](references/pi-subagents.md).
 
-## Gotchas
+## Tools
 
-- User requests for "deep research," "be thorough," or "analyze carefully" are not delegation requests.
-- Do not delegate the immediate blocker if the main session needs that result before it can continue.
-- Worker subagents need disjoint file ownership; overlapping edits cause merge conflicts.
-- Missing or failed subagent output must be reported, never invented.
+Use only `@tintinweb/pi-subagents` tools:
 
-## Delegation Contract
+- `Agent`
+- `get_subagent_result`
+- `steer_subagent`
 
-- Treat this skill as the single policy source for subagent orchestration.
-- Use the available subagent/delegation tool only when the user explicitly asks for delegation/subagents.
-- Do not delegate normal repository inspection, planning, implementation, or skill execution by default. Run that work in the current session.
+Do not use unsupported payloads: `{ agent, task }`, `{ tasks: [...] }`, or `{ chain: [...] }`.
+
+## Delegation Rules
+
+- Use subagents only when the user explicitly asks for delegation/subagents.
+- Do not delegate normal repository inspection, planning, implementation, or skill execution by default.
 - Direct `/skill:*` and skill-use requests stay in-session unless the user explicitly asks for delegation.
-- Use separate subagents for separate concerns.
+- Do not delegate the immediate blocker if the main session needs that result before it can continue.
+- Use separate agents for separate concerns.
 - Run subtasks in parallel only when the user explicitly requests independent subagents and the subtasks are independent.
-- Do not split strongly overlapping tasks across different subagents.
+- Do not split strongly overlapping tasks across different agents.
+- Prefer foreground `Agent` calls when the parent needs the result immediately.
+- Prefer background `Agent` calls only when the parent can keep working without the result.
 
-## Agent Selection Rules
+## Agent Selection
 
-- Use `generic-readonly` for:
-  - explicitly delegated repository reconnaissance
-  - explicitly delegated codebase understanding
-  - explicitly delegated pattern discovery
-  - explicitly delegated planning and summarization
-  - explicitly delegated log and CLI investigation that does not require file mutation
-- Use `generic-worker` for:
-  - explicitly delegated implementation requests
-  - explicitly delegated code implementation
-  - explicitly delegated file edits
-  - explicitly delegated behavior changes
-  - explicitly delegated tests and validation updates tied to changed code
+- `Explore`: fast read-only codebase exploration.
+- `Plan`: read-only implementation planning.
+- `general-purpose`: complex multi-step work that should inherit parent rules.
+- `generic-readonly`: project-specific read-only research, planning, and summarization.
+- `generic-worker`: project-specific implementation or file-modifying work.
+- `gan-generator` / `gan-evaluator`: explicit GAN/generator-evaluator workflows only.
 
-## Execution Patterns
-
-### Single
-
-Use `{ agent, task }` when one scoped delegation is enough.
-
-### Parallel
-
-Use `{ tasks: [...] }` only when the user explicitly requests independent subagents and the subtasks are independent and low-overlap.
-
-### Chain
-
-Use `{ chain: [...] }` when later steps depend on prior outputs.
-Use `{previous}` explicitly in downstream task prompts.
-
-## Prompting Requirements for Delegated Steps
+## Prompting Requirements
 
 - State exact objective, scope boundaries, and expected output format.
 - Name files/directories to inspect or modify.
-- For worker tasks, specify acceptance criteria and required checks.
+- For worker tasks, specify file ownership, acceptance criteria, and required checks.
+- For background agents, state whether partial results are acceptable.
 - Keep each delegated prompt narrow and testable.
 
-## User-Intent Guardrails
+## Script
 
-- If the user already gave a concrete task, execute it with this orchestration policy.
-- If no concrete task was given, ask for the task before starting.
-- Do not auto-pick tickets or speculative work.
+Examples:
+
+### Foreground
+
+```text
+Agent({
+  subagent_type: "Explore",
+  description: "Map auth flow",
+  prompt: "Find the auth entry points and summarize the call path."
+})
+```
+
+### Background
+
+```text
+Agent({
+  subagent_type: "generic-readonly",
+  description: "Map API routes",
+  prompt: "Find API route handlers and summarize ownership.",
+  run_in_background: true
+})
+
+get_subagent_result({ agent_id: "<agent-id>", wait: true, verbose: false })
+```
+
+### Steering
+
+```text
+steer_subagent({
+  agent_id: "<agent-id>",
+  message: "Stop broad exploration. Only inspect auth middleware and summarize findings."
+})
+```
+
+This skill-specific orchestration:
+
+- Use foreground agents when the next parent step depends on the result.
+- Use background agents only for independent work.
+- Run dependent chains as sequential foreground `Agent` calls and pass prior output in the next prompt.
 
 ## Failure Handling
 
 - If delegated execution fails, report the failure exactly and stop.
 - Do not simulate missing subagent output.
 - Re-run with refined scope only when failure cause is clear.
+- If a background agent is still running and the parent needs the result, call `get_subagent_result({ wait: true })`.

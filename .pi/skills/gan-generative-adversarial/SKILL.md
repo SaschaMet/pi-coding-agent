@@ -14,6 +14,8 @@ This skill coordinates the workflow. It does not replace domain skills such as `
 - `gan-generator`: produces the candidate output or implementation. It must address evaluator feedback item by item and avoid self-scoring.
 - `gan-evaluator`: stress-tests the candidate against the original request, acceptance criteria, repo conventions, tests, and risk. It scores and returns actionable feedback.
 
+Use `Agent` from `@tintinweb/pi-subagents` to spawn both roles.
+
 ## When to use
 
 - The user explicitly asks for "GAN", "generator/evaluator", "adversarial agents", "critic loop", "red team then revise", or "two agents against each other."
@@ -47,7 +49,7 @@ This skill coordinates the workflow. It does not replace domain skills such as `
 
    Default to `proposal` unless the user asked for implementation.
 
-3. Spawn generator first.
+3. Spawn generator first with `Agent`.
    Give `gan-generator`:
    - the original user request
    - mode
@@ -57,7 +59,7 @@ This skill coordinates the workflow. It does not replace domain skills such as `
    - verification commands or manual checks
    - for implementation mode, file ownership and "do not revert others' edits"
 
-4. Spawn evaluator after generator output is available.
+4. Spawn evaluator with `Agent` after generator output is available.
    Give `gan-evaluator`:
    - original user request and acceptance criteria
    - generator output or diff summary
@@ -84,6 +86,50 @@ Use this default rubric unless the user provides one:
 | Maintainability |    10% | Small scoped change, readable structure, no avoidable complexity       |
 
 `PASS` requires no critical issues and weighted score >= 8/10. Anything below that is `FAIL`.
+
+## Script
+
+Use foreground agents because evaluator input depends on generator output.
+
+Examples:
+
+### Generator
+
+```text
+Agent({
+  subagent_type: "gan-generator",
+  description: "Generate candidate",
+  prompt: "Objective: <objective>\nMode: <proposal|implementation|review>\nScope: <allowed files/areas>\nForbidden: <out-of-scope areas>\nAcceptance criteria: <criteria>\nEvaluator rubric: <rubric>\nIteration: <N> of <max>\n\nProduce the smallest candidate that satisfies the objective. If this is not the first iteration, address every evaluator issue explicitly. Return summary, files changed/proposed, acceptance mapping, verification, and known limitations."
+})
+```
+
+### Evaluator
+
+```text
+Agent({
+  subagent_type: "gan-evaluator",
+  description: "Evaluate candidate",
+  prompt: "Original objective: <objective>\nAcceptance criteria: <criteria>\nMode: <proposal|implementation|review>\nGenerator output: <generator-agent-output>\nRubric: <rubric>\n\nEvaluate strictly. Return PASS or FAIL, scores, strengths, issues by severity, required fixes, and residual risks."
+})
+```
+
+### Revision
+
+```text
+Agent({
+  subagent_type: "gan-generator",
+  description: "Revise candidate",
+  prompt: "Objective: <objective>\nPrevious generator output: <generator-agent-output>\nEvaluator feedback: <evaluator-agent-output>\nIteration: <N> of <max>\n\nRevise the candidate. Address every critical and major evaluator issue explicitly. Return updated summary, files changed/proposed, acceptance mapping, verification, and unresolved items."
+})
+```
+
+This skill-specific orchestration:
+
+- Parent session defines objective, scope, rubric, and max iterations.
+- Generator and evaluator run sequentially.
+- Evaluator must see generator output or diff summary.
+- On `FAIL`, parent sends full evaluator feedback to generator.
+- If any agent fails, stop and report the exact failure. Do not invent that role output.
 
 ## Subagent prompt templates
 

@@ -33,11 +33,11 @@ describe("loadProjectAgentConfig", () => {
 
         fs.writeFileSync(
             path.join(projectRoot, ".pi", "agent.config.json"),
-            JSON.stringify({ subagent: { strictLocalRuntime: false } }),
+            JSON.stringify({ localhostBridge: { enabled: true } }),
         );
 
         const result = loadProjectAgentConfig(projectRoot);
-        expect(result).toEqual({ subagent: { strictLocalRuntime: false } });
+        expect(result).toEqual({ localhostBridge: { enabled: true } });
     });
 
     it("returns undefined when no local or global config exists", () => {
@@ -73,7 +73,7 @@ describe("loadProjectAgentConfig", () => {
 
         fs.writeFileSync(
             path.join(globalDir, "agent.config.json"),
-            JSON.stringify({ subagent: { strictLocalRuntime: false } }),
+            JSON.stringify({ localhostBridge: { enabled: false } }),
         );
 
         const projectRoot = path.join(tmpRoot, "project-d");
@@ -87,7 +87,7 @@ describe("loadProjectAgentConfig", () => {
         process.env.PI_CODING_AGENT_DIR = globalDir;
 
         const result = loadProjectAgentConfig(projectRoot);
-        expect(result).toEqual({ subagent: { strictLocalRuntime: false } });
+        expect(result).toEqual({ localhostBridge: { enabled: false } });
     });
 
     it("prefers local config over PI_CODING_AGENT_DIR when both exist", () => {
@@ -96,7 +96,7 @@ describe("loadProjectAgentConfig", () => {
 
         fs.writeFileSync(
             path.join(globalDir, "agent.config.json"),
-            JSON.stringify({ subagent: { strictLocalRuntime: true } }),
+            JSON.stringify({ localhostBridge: { enabled: true } }),
         );
 
         const projectRoot = path.join(tmpRoot, "project-e");
@@ -104,7 +104,7 @@ describe("loadProjectAgentConfig", () => {
 
         fs.writeFileSync(
             path.join(projectRoot, ".pi", "agent.config.json"),
-            JSON.stringify({ subagent: { strictLocalRuntime: false } }),
+            JSON.stringify({ localhostBridge: { enabled: false } }),
         );
 
         const fakeHome = path.join(tmpRoot, "fake-home-e");
@@ -114,7 +114,7 @@ describe("loadProjectAgentConfig", () => {
         process.env.PI_CODING_AGENT_DIR = globalDir;
 
         const result = loadProjectAgentConfig(projectRoot);
-        expect(result).toEqual({ subagent: { strictLocalRuntime: false } });
+        expect(result).toEqual({ localhostBridge: { enabled: false } });
     });
 
     it("falls back to ~/.pi/agent when PI_CODING_AGENT_DIR is not set and no local config exists", () => {
@@ -124,7 +124,7 @@ describe("loadProjectAgentConfig", () => {
 
         fs.writeFileSync(
             path.join(globalConfigDir, "agent.config.json"),
-            JSON.stringify({ subagent: { strictLocalRuntime: false } }),
+            JSON.stringify({ localhostBridge: { enabled: false } }),
         );
 
         // Temporarily replace homedir to point to our fake global dir
@@ -136,7 +136,7 @@ describe("loadProjectAgentConfig", () => {
         // No agent.config.json in project
 
         const result = loadProjectAgentConfig(projectRoot);
-        expect(result).toEqual({ subagent: { strictLocalRuntime: false } });
+        expect(result).toEqual({ localhostBridge: { enabled: false } });
     });
 
     it("falls back to ~/.pi/agent when PI_CODING_AGENT_DIR config is missing", () => {
@@ -149,7 +149,7 @@ describe("loadProjectAgentConfig", () => {
         fs.mkdirSync(homeConfigDir, { recursive: true });
         fs.writeFileSync(
             path.join(homeConfigDir, "agent.config.json"),
-            JSON.stringify({ subagent: { strictLocalRuntime: true } }),
+            JSON.stringify({ localhostBridge: { enabled: true } }),
         );
 
         (os as unknown as { homedir: () => string }).homedir = () => homeGlobalDir;
@@ -159,6 +159,6 @@ describe("loadProjectAgentConfig", () => {
         fs.mkdirSync(path.join(projectRoot, ".pi"), { recursive: true });
 
         const result = loadProjectAgentConfig(projectRoot);
-        expect(result).toEqual({ subagent: { strictLocalRuntime: true } });
+        expect(result).toEqual({ localhostBridge: { enabled: true } });
     });
 });

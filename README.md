@@ -3,7 +3,7 @@
 Git-tracked PI config/runtime parity stack for a global PI runtime (`~/.pi/agent`) that adds:
 
 - Codex-style plan mode
-- Subagents with two generic delegation profiles (`generic-readonly`, `generic-worker`)
+- Claude Code-style subagents via `@tintinweb/pi-subagents`
 - Shared skills (including `~/.codex/skills`)
 - Structured planner Q&A tool: `ask_questions` (alias: `ask`)
 
@@ -107,9 +107,9 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 
 - [`src/main.ts`](src/main.ts): embedded PI runtime entrypoint (`createAgentSession` + `InteractiveMode`)
 - `.pi/settings.json`: project-level PI settings and skills path integration
-- `.pi/agent.config.json`: subagent and local bridge config contract
+- `.pi/agent.config.json`: local bridge config contract
 - `.pi/extensions/`: custom extensions
-- `.pi/agent/`: project-local subagent role definitions
+- `.pi/agents/`: project-local `@tintinweb/pi-subagents` role definitions
 - `.pi/prompts/`: workflow prompt templates
 - `.pi/skills/`: project-local skills
 
@@ -117,16 +117,19 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 
 - `generic-readonly`: read-only delegated subagent for research/planning/summarization
 - `generic-worker`: mutating delegated subagent for implementation/file updates
+- `gan-generator`: generator role for explicit generator/evaluator workflows
+- `gan-evaluator`: evaluator role for explicit generator/evaluator workflows
 
 ## Delegation Orchestration
 
 - Normal repository inspection and file edits stay in-session.
-- Use `subagent` only when the user explicitly asks for delegation.
+- Use `Agent` from `@tintinweb/pi-subagents` only when the user explicitly asks for delegation.
+- Retrieve background results with `get_subagent_result`.
+- Redirect running agents with `steer_subagent`.
+- Full reference: [`.pi/skills/subagent-orchestrator/references/pi-subagents.md`](.pi/skills/subagent-orchestrator/references/pi-subagents.md).
 
 ## Skill Routing
 
-- Skill-backed subagent names are not guaranteed to be available in every runtime.
-- Use the inline subagent fallback table in [`.pi/extensions/subagent/index.ts`](.pi/extensions/subagent/index.ts).
 - Direct skill commands are enabled and run in the current session unless the user explicitly asks for delegation.
 - Project-local skills come from `.pi/skills/`; user/global skills come from configured paths such as `~/.codex/skills`
 
@@ -171,18 +174,10 @@ See [`.pi/extensions/plan-mode/README.md`](.pi/extensions/plan-mode/README.md) f
   - Ensure `~/.codex/skills` exists and is readable.
   - Confirm `.pi/settings.json` includes the path.
 - Subagent not running:
-  - With strict local runtime enabled, ensure `node_modules/.bin/pi` exists in either:
-    - the delegated task `cwd`,
-    - the nearest project root for that `cwd` (directory containing `.pi`),
-    - or the PI runtime anchor repo (this repository).
-  - If strict local runtime is disabled, non-local fallback (`process.execPath`/`pi` from `PATH`) is used.
-  - For subagent payloads, provide exactly one mode:
-    - single: `{ agent, task }`
-    - parallel: `{ tasks: [{ agent, task }, ...] }`
-    - chain: `{ chain: [{ agent, task }, ...] }`
-  - Do not mix `agent/task` with `tasks` or `chain` in the same call.
-- Subagent tool conflict errors:
-  - Subagent subprocesses now use scoped project extension loading (`--no-extensions` + project `.pi/extensions/*`) to avoid duplicate tool registration from overlapping user/project extension sets.
+  - Confirm `.pi/settings.json` includes `npm:@tintinweb/pi-subagents`.
+  - Run `pi install npm:@tintinweb/pi-subagents` if the package is not installed in the target runtime.
+  - Use `Agent({ subagent_type, prompt, description })`.
+  - Custom agents must be under `.pi/agents/` or `$PI_CODING_AGENT_DIR/agents/`.
 - Read/search/list outside current directory:
   - `read`, `write`, `edit`, `grep`, `find`, and `ls` require approval when the requested path resolves outside the current working directory.
   - Exception: paths under global PI (`~/.pi`, or `PI_CODING_AGENT_DIR` when set) are read-only; `read`/`grep`/`find`/`ls` are allowed there, `write`/`edit` are always blocked.
@@ -213,7 +208,12 @@ The underlying [`@mariozechner/pi-coding-agent`](https://www.npmjs.com/package/@
 - [Windows](node_modules/@mariozechner/pi-coding-agent/docs/windows.md)
 - [Development](node_modules/@mariozechner/pi-coding-agent/docs/development.md)
 
+Subagent extension docs:
+
+- [`@tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents)
+- Local reference: [`.pi/skills/subagent-orchestrator/references/pi-subagents.md`](.pi/skills/subagent-orchestrator/references/pi-subagents.md)
+
 ## Token Efficiency Guidance
 
 - Prefer in-session work for normal repository inspection and edits.
-- Use `parallel` mode only when the user explicitly requests independent subagents.
+- Use background `Agent` calls only when the user explicitly requests independent subagents and tasks are low-overlap.

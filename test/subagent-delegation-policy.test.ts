@@ -14,7 +14,8 @@ describe("subagent delegation policy extension", () => {
         expect(result?.message?.customType).toBe("subagent-delegation-policy");
         expect(result?.message?.content).toContain("Explicit user delegation request");
         expect(result?.message?.content).toContain("Skill execution requests stay in the current session");
-        expect(result?.message?.content).toContain("When delegation is explicitly requested, use `generic-readonly`");
+        expect(result?.message?.content).toContain("must call `Agent`");
+        expect(result?.message?.content).toContain("Retrieve background results with `get_subagent_result`");
         expect(result?.message?.content).toContain("High-context repository reconnaissance stays in-session");
         expect(result?.message?.content).not.toContain("High-context reconnaissance tasks: prefer");
     });
@@ -33,10 +34,10 @@ describe("subagent delegation policy extension", () => {
         );
 
         expect(result?.action).toBe("transform");
-        expect(result?.text).toContain("subagent");
-        expect(result?.text).toContain("chain");
-        expect(result?.text).toContain("agent: generic-readonly");
-        expect(result?.text).toContain("{previous}");
+        expect(result?.text).toContain("Agent");
+        expect(result?.text).toContain('subagent_type: "generic-readonly"');
+        expect(result?.text).toContain("first delegated step");
+        expect(result?.text).toContain("second delegated step");
     });
 
     it("keeps /skill input in-session by default", async () => {

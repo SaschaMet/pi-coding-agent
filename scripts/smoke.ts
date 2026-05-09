@@ -9,7 +9,6 @@ const REQUIRED_EXTENSIONS = [
     ".pi/extensions/read-boundary-guard.ts",
     ".pi/extensions/tools.ts",
     ".pi/extensions/plan-mode/index.ts",
-    ".pi/extensions/subagent/index.ts",
 ];
 
 function listExtensionFiles(root: string): string[] {
@@ -94,6 +93,12 @@ async function main(): Promise<void> {
     const settingsManager = SettingsManager.create(cwd);
     const loader = new DefaultResourceLoader({ cwd, settingsManager });
     await loader.reload();
+
+    const settingsPath = path.join(cwd, ".pi", "settings.json");
+    const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8")) as { packages?: string[] };
+    if (!settings.packages?.includes("npm:@tintinweb/pi-subagents")) {
+        throw new Error("Missing required package: npm:@tintinweb/pi-subagents");
+    }
 
     const skills = loader.getSkills().skills;
     const codexSkills = skills.filter((skill) => skill.filePath.includes(`${path.sep}.codex${path.sep}skills${path.sep}`));

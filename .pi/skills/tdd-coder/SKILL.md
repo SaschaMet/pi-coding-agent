@@ -7,6 +7,7 @@ description: Use this skill only when the user explicitly asks for TDD, test-fir
 
 Strict test-driven development with phased red-green-refactor cycles.
 Write failing tests first, implement the smallest change to pass, refactor, and validate coverage.
+Use `Agent` from `@tintinweb/pi-subagents` for the Red, Green, and Refactor phases. The parent session coordinates scope, sequencing, validation, and final reporting.
 
 ## Core Rules
 
@@ -60,11 +61,11 @@ Record each planned TDD cycle in `update_plan` before starting.
 
 Follow [references/red-phase.md](references/red-phase.md).
 
-1. Read all relevant existing test files in a parallel batch before writing.
-2. Write one failing unit test that asserts the expected behavior for the current cycle.
-3. Run the narrowest test scope using the available shell/command tool and confirm failure for the expected reason.
-4. If integration tests were requested, write failing integration tests using collected input/output pairs and confirm they fail.
-5. Do NOT write any production code in this phase.
+1. Spawn a foreground `generic-worker` Red agent.
+2. The Red agent reads relevant existing test files, writes one failing unit test for the current cycle, and runs the narrowest test scope.
+3. The Red agent must confirm failure for the expected reason.
+4. If integration tests were requested, the Red agent writes failing integration tests using collected input/output pairs and confirms they fail.
+5. The Red agent must NOT write production code.
 
 Mark the Red step completed in `update_plan`.
 
@@ -72,11 +73,12 @@ Mark the Red step completed in `update_plan`.
 
 Follow [references/green-phase.md](references/green-phase.md).
 
-1. Read all files you need to edit in a parallel batch before making any change.
-2. Write the smallest production code change that makes the failing tests pass. Use the available file-edit tool for edits.
-3. Re-run the exact same test command using the available shell/command tool until tests pass.
-4. Run the nearest broader affected test scope.
-5. Do NOT add features, optimize, or refactor in this phase.
+1. Spawn a foreground `generic-worker` Green agent after Red output is available.
+2. The Green agent reads the failing test output and production files it needs to edit.
+3. The Green agent writes the smallest production code change that makes the failing tests pass.
+4. The Green agent re-runs the exact same test command until tests pass.
+5. The Green agent runs the nearest broader affected test scope.
+6. The Green agent must NOT add features, optimize, or refactor in this phase.
 
 Mark the Green step completed in `update_plan`.
 
@@ -84,9 +86,11 @@ Mark the Green step completed in `update_plan`.
 
 Follow [references/refactor-phase.md](references/refactor-phase.md).
 
-1. Apply one improvement at a time using the available file-edit tool.
-2. Re-run all affected tests using the available shell/command tool after each change.
-3. If any test fails, revert the change and investigate. Do NOT add new functionality.
+1. Spawn a foreground `generic-worker` Refactor agent only after Green passes.
+2. The Refactor agent applies one improvement at a time.
+3. The Refactor agent re-runs all affected tests after each change.
+4. If any test fails, the Refactor agent must revert only its own refactor change and investigate.
+5. The Refactor agent must NOT add new functionality.
 
 Mark the Refactor step completed in `update_plan`.
 
@@ -137,6 +141,49 @@ Mark the Refactor step completed in `update_plan`.
 - Nearby affected tests pass.
 - Coverage was measured when possible and meets repository threshold or changed-path target.
 - No notebook tests were added unless explicitly requested.
+
+## Script
+
+Use foreground agents because each TDD phase depends on the prior phase output.
+
+Examples:
+
+### Red
+
+```text
+Agent({
+  subagent_type: "generic-worker",
+  description: "TDD red phase",
+  prompt: "Run the Red phase for this TDD cycle. Objective: <behavior>. Scope: <test files/areas>. Read .pi/skills/tdd-coder/references/red-phase.md and relevant existing tests. Write or update tests only. Do not edit production code. Run the narrowest test command: <command>. Return: tests changed, command run, expected failure evidence, and next Green scope."
+})
+```
+
+### Green
+
+```text
+Agent({
+  subagent_type: "generic-worker",
+  description: "TDD green phase",
+  prompt: "Run the Green phase for this TDD cycle. Use this Red output: <red-agent-output>. Scope: <production files/areas>. Read .pi/skills/tdd-coder/references/green-phase.md and the relevant production files. Make the smallest production change to pass the failing tests. Do not refactor or add extra behavior. Run the exact Red test command until it passes, then run nearest broader affected tests. Return: production files changed, commands run, pass evidence, and Refactor candidates."
+})
+```
+
+### Refactor
+
+```text
+Agent({
+  subagent_type: "generic-worker",
+  description: "TDD refactor phase",
+  prompt: "Run the Refactor phase for this TDD cycle. Use this Green output: <green-agent-output>. Read .pi/skills/tdd-coder/references/refactor-phase.md. Apply only behavior-preserving improvements. Re-run affected tests after each change. If a refactor breaks tests, revert only that refactor change. Return: refactors made, commands run, pass evidence, or 'no refactor needed'."
+})
+```
+
+This skill-specific orchestration:
+
+- Parent session owns `update_plan`, phase sequencing, and final report.
+- Red, Green, and Refactor agents run sequentially, not in parallel.
+- Each agent gets exact file ownership and commands.
+- If a phase agent fails, stop and report the exact failure. Do not continue to the next phase.
 
 ## Response Contract
 
