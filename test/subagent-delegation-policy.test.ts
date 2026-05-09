@@ -16,6 +16,7 @@ describe("subagent delegation policy extension", () => {
         expect(result?.message?.content).toContain("Skill execution requests stay in the current session");
         expect(result?.message?.content).toContain("must call `Agent`");
         expect(result?.message?.content).toContain("Retrieve background results with `get_subagent_result`");
+        expect(result?.message?.content).toContain("Subagents must inherit the parent model");
         expect(result?.message?.content).toContain("High-context repository reconnaissance stays in-session");
         expect(result?.message?.content).not.toContain("High-context reconnaissance tasks: prefer");
     });

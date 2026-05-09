@@ -26,7 +26,7 @@ Launch a subagent.
 
 ```text
 Agent({
-  subagent_type: "Explore",
+  subagent_type: "generic-readonly",
   prompt: "Find all files that handle authentication",
   description: "Find auth files",
   run_in_background: true
@@ -57,6 +57,8 @@ Notes:
 - Background agents return an `agent_id` immediately and notify on completion.
 - `schedule` forces background execution.
 - Frontmatter is authoritative for strategy fields. If an agent file sets `model`, `thinking`, `max_turns`, `inherit_context`, `run_in_background`, `isolated`, or `isolation`, `Agent` parameters only fill unspecified values.
+- Do not pass `model` unless the user explicitly requested a different model or the active skill specifies one.
+- Project agents in this repo should omit `model` frontmatter unless a skill deliberately needs a specific model.
 
 ### `get_subagent_result`
 
@@ -92,7 +94,7 @@ Steering interrupts after the current tool execution.
 ## Built-In Agent Types
 
 - `general-purpose`: all tools, inherits parent prompt with append mode.
-- `Explore`: read-only exploration, standalone prompt, haiku if available.
+- `Explore`: read-only exploration, standalone prompt. Use only when the user explicitly requests it or a skill explicitly allows its configured model.
 - `Plan`: read-only planning, standalone prompt.
 
 Agent type names are case-insensitive. Unknown types fall back to `general-purpose` with a note.
@@ -149,10 +151,9 @@ Field defaults:
 
 Read-only role guidance:
 
-- Use `Explore` for fast codebase search.
-- Use `Plan` for implementation planning.
-- Use `generic-readonly` for project-specific research/planning/summarization.
-- Use `generic-worker` for implementation or file-modifying work.
+- Use `generic-readonly` for default research/planning/summarization so the subagent inherits the parent model.
+- Use `generic-worker` for implementation or file-modifying work so the subagent inherits the parent model.
+- Use `Explore` or `Plan` only when the user explicitly requests those built-ins or a skill explicitly allows their configured model behavior.
 
 ## Scheduling
 
@@ -202,7 +203,7 @@ Use when the parent needs the result immediately:
 
 ```text
 Agent({
-  subagent_type: "Explore",
+  subagent_type: "generic-readonly",
   description: "Map auth flow",
   prompt: "Find the auth entry points and summarize the call path."
 })
@@ -214,14 +215,14 @@ Use only when the user explicitly asks for independent subagents and tasks are l
 
 ```text
 Agent({
-  subagent_type: "Explore",
+  subagent_type: "generic-readonly",
   description: "Map API routes",
   prompt: "Find API route handlers and summarize ownership.",
   run_in_background: true
 })
 
 Agent({
-  subagent_type: "Explore",
+  subagent_type: "generic-readonly",
   description: "Map test layout",
   prompt: "Find test entry points and summarize coverage patterns.",
   run_in_background: true
@@ -241,13 +242,13 @@ There is no `{ chain: [...] }` payload. Run foreground agents sequentially and p
 
 ```text
 Agent({
-  subagent_type: "Explore",
+  subagent_type: "generic-readonly",
   description: "Gather context",
   prompt: "Gather context for the cache invalidation bug."
 })
 
 Agent({
-  subagent_type: "Plan",
+  subagent_type: "generic-readonly",
   description: "Plan fix",
   prompt: "Using this prior result: <paste prior output>. Plan the smallest fix."
 })

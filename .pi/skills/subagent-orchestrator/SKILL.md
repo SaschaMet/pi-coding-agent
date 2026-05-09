@@ -16,6 +16,7 @@ Use only `@tintinweb/pi-subagents` tools:
 - `steer_subagent`
 
 Do not use unsupported payloads: `{ agent, task }`, `{ tasks: [...] }`, or `{ chain: [...] }`.
+Do not pass `model` to `Agent` unless the user explicitly requested a model or the active skill specifies one. Project agents should inherit the orchestrator model by default.
 
 ## Delegation Rules
 
@@ -31,11 +32,11 @@ Do not use unsupported payloads: `{ agent, task }`, `{ tasks: [...] }`, or `{ ch
 
 ## Agent Selection
 
-- `Explore`: fast read-only codebase exploration.
-- `Plan`: read-only implementation planning.
+- `generic-readonly`: default read-only research, planning, and summarization. Inherits the parent model.
+- `generic-worker`: default implementation or file-modifying work. Inherits the parent model.
+- `Explore`: use only when the user explicitly requests this built-in agent or a skill explicitly allows its configured model.
+- `Plan`: use only when the user explicitly requests this built-in agent or a skill explicitly allows its configured model.
 - `general-purpose`: complex multi-step work that should inherit parent rules.
-- `generic-readonly`: project-specific read-only research, planning, and summarization.
-- `generic-worker`: project-specific implementation or file-modifying work.
 - `gan-generator` / `gan-evaluator`: explicit GAN/generator-evaluator workflows only.
 
 ## Prompting Requirements
@@ -54,7 +55,7 @@ Examples:
 
 ```text
 Agent({
-  subagent_type: "Explore",
+  subagent_type: "generic-readonly",
   description: "Map auth flow",
   prompt: "Find the auth entry points and summarize the call path."
 })

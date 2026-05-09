@@ -177,6 +177,7 @@ See [`.pi/extensions/plan-mode/README.md`](.pi/extensions/plan-mode/README.md) f
   - Confirm `.pi/settings.json` includes `npm:@tintinweb/pi-subagents`.
   - Run `pi install npm:@tintinweb/pi-subagents` if the package is not installed in the target runtime.
   - Use `Agent({ subagent_type, prompt, description })`.
+  - Do not pass `model` and do not use agent frontmatter `model` unless the user or skill explicitly requires it; subagents should inherit the orchestrator model by default.
   - Custom agents must be under `.pi/agents/` or `$PI_CODING_AGENT_DIR/agents/`.
 - Read/search/list outside current directory:
   - `read`, `write`, `edit`, `grep`, `find`, and `ls` require approval when the requested path resolves outside the current working directory.
