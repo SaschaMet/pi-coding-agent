@@ -1,6 +1,6 @@
 ---
 name: grill-me
-description: Use this skill when the user asks to pressure-test, stress-test, critique, or be grilled on a plan, design, architecture, proposal, or technical decision. Find contradictions, unstated assumptions, missing edge cases, and high-impact risks through concise adversarial questioning. Do not use for normal code review or implementation.
+description: Use this skill when the user asks to pressure-test, stress-test, critique, documented, or be grilled on a plan, design, architecture, proposal, or technical decision. Find contradictions, unstated assumptions, missing edge cases, and high-impact risks through concise adversarial questioning. Do not use for normal code review or implementation.
 ---
 
 Interview me relentlessly about every aspect of this plan until we reach a shared understanding.
@@ -21,13 +21,22 @@ Before asking or flagging a single thing, build context:
 
 1. Read the idea / plan / design the user provided in full.
 2. Read all relevant project files in a single parallel batch: AGENTS.md, CONTRIBUTING.md,
-   architecture docs, ADRs, README, key config files.
+   architecture docs, ADRs, README, key config files, and `CONTEXT.md` (or `CONTEXT-MAP.md`).
 3. Use `rg --files` to map the project layout; use `rg` for fast text searches.
 4. Explore entry points, data flow, existing tests, deployment config, and prior plans in `docs/plans/`.
 5. Check for prior art: similar features, past decisions, existing patterns.
 6. Identify the **blast radius** — what breaks if this design is wrong?
+7. Note every claim the user makes about how something works. You will verify these against the codebase during questioning.
 
 Do NOT ask questions the codebase already answers. Your credibility depends on doing homework first.
+
+## Language Discipline
+
+These behaviors run in parallel throughout the entire session — not as a discrete step.
+
+**Challenge against the glossary**: When the user uses a term that conflicts with an existing definition in `CONTEXT.md`, call it out immediately before continuing. Do not let the ambiguity accumulate. "Your glossary defines 'cancellation' as X, but you seem to mean Y — which is it?"
+
+**Sharpen fuzzy language**: When the user uses vague or overloaded terms, propose a precise canonical term. "You're saying 'account' — do you mean the Customer or the User? Those are different things." Do not accept "it depends" as a resolution.
 
 ## Step 2 — Risk Assessment
 
@@ -105,6 +114,8 @@ starting with Critical tier. Keep the session short.
 - **Security surface**: "Who can call this? What stops an attacker from doing Y?"
 - **Dependency risk**: "You depend on X. What's your fallback if it's down/deprecated/slow?"
 - **Reversibility**: "If this is wrong, how expensive is it to undo?"
+- **Concrete scenarios**: When domain relationships are being discussed, invent specific scenarios that probe edge cases and force precision about boundaries between concepts. "What happens if a Customer places an Order and then the User account is deleted mid-fulfillment?"
+- **Code contradiction**: When the user states how something works, verify it against the codebase. If the code contradicts the claim, surface it directly. "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
 
 ### Escalation Protocol
 
@@ -113,6 +124,16 @@ starting with Critical tier. Keep the session short.
 - **Vague or hand-wavy answer**: Push harder. "That's not specific enough. Give me the exact mechanism for handling X."
 - **User explicitly accepts the risk**: Record it and move on. Don't re-ask.
 - **Three rounds on the same point with no resolution**: Mark as open issue and move on.
+
+## CONTEXT.md Maintenance
+
+`CONTEXT.md` is the project's shared glossary of terms. Treat it as a living document throughout the session.
+
+**Update inline, not in batch**: When a term is resolved, update `CONTEXT.md` immediately using the format in [references/CONTEXT-FORMAT.md](references/CONTEXT-FORMAT.md). Do not accumulate updates for the end of the session.
+
+**Glossary only**: `CONTEXT.md` must be totally devoid of implementation details. It is not a spec, a scratch pad, or a repository for implementation decisions. Every entry is a definition — nothing more. If an entry starts to describe _how_ something works rather than _what_ it is, it does not belong.
+
+**Create on first resolution**: If `CONTEXT.md` does not yet exist, create it using the format from [references/CONTEXT-FORMAT.md](references/CONTEXT-FORMAT.md) when the first term is resolved.
 
 ## Step 5 — Summary
 
@@ -137,3 +158,5 @@ summary using [references/summary-template.md](references/summary-template.md):
 - Do not produce implementation code or plans.
 - Do not waste time on low-risk style preferences or cosmetic issues.
 - Do not repeat a question the user already answered clearly.
+- Do not put implementation details, specs, or design decisions in `CONTEXT.md`. It is a glossary only.
+- Do not batch `CONTEXT.md` updates — update each term as it is resolved.
