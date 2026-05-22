@@ -1,6 +1,0 @@
-interface:
-  display_name: "Jupyter Notebooks"
-  short_description: "Create or edit runnable notebooks for experiments, analysis, and tutorials"
-  icon_small: "./assets/jupyter-small.svg"
-  icon_large: "./assets/jupyter.png"
-  default_prompt: "Use $jupyter-notebook to create or edit a runnable .ipynb notebook with clear sections, deterministic cells, concise outputs, and top-to-bottom validation."

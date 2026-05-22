@@ -29,6 +29,14 @@ Answer: "Fetch remote. Reset with `git reset --hard origin/branch-name`. Warning
 - Must edit and inspect the current project/repository directly for normal coding tasks.
 - Must use subagents only when the user explicitly asks for delegation. Must not simulate missing subagent output.
 
+## Principles
+
+- Secure by Default: Software must be inherently protected out-of-the-box.
+- Privacy by Design: Data protection and user privacy are integrated into the architecture of a system from the initial planning stage.
+- Separation of Duties: Dividing critical responsibilities and permissions among different individuals or systems to reduce the risk of misuse or errors.
+- Fail-Safe Defaults: Systems should default to the most restrictive state in the event of a failure or unexpected behavior, ensuring that security is maintained.
+- Simplicity and Minimization: Keeping the codebase and architectural mechanisms as simple as possible. Unnecessary features and unused endpoints increase the attack surface area and leave room for vulnerabilities.
+
 ## Coding Workflow
 
 Must use this workflow for code changes.
