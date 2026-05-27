@@ -1,0 +1,11 @@
+{
+  "scripts": {
+    "check:fast": "./scripts/run-coding-standard.sh --mode pre-commit --strict",
+    "check:full": "npm run check:fast && npm run test:coverage",
+    "check:ci": "npm run check:full && npm audit",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  }
+}

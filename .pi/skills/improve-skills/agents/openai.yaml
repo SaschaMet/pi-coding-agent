@@ -1,0 +1,4 @@
+interface:
+  display_name: "Improve Skills"
+  short_description: "Improve agent skills and instructions"
+  default_prompt: "Use $improve-skills to audit this skill and tighten its trigger description, workflow, references, and validation."
