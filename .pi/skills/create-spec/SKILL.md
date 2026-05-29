@@ -43,6 +43,7 @@ See `../grill-me/SKILL.md` for how to pressure-test for missing risks and assump
 - A spec is not a codebase tour. Link to existing docs instead of copying broad background.
 - If a requirement cannot be verified, rewrite it before finalizing.
 - Keep open questions separate from approved requirements so implementers do not treat guesses as scope.
+- If any open question or deferred decision remains, the spec must explicitly block implementation until the user answers it. Do not let an implementation agent start work from assumptions.
 
 ## Step 3 - Build the spec contract
 
@@ -75,6 +76,7 @@ Use [references/spec-template.md](references/spec-template.md) as the output tem
 - Mark any irreversible change as a one-way door.
 - Add escalation triggers for sensitive changes.
 - If uncertainty remains, capture it in `Open Questions / Deferred Decisions`.
+- When `Open Questions / Deferred Decisions` is non-empty, write a visible implementation guard that says implementation must stop and prompt the user for answers before any code, config, migration, or test changes begin.
 
 ## Step 4 - Run the quality gate
 
@@ -89,6 +91,7 @@ If a check fails, fix the spec instead of adding narrative explanation.
 1. In file-output mode, write/update the spec file. In chat-output mode, return the complete spec in the response.
 2. Keep implementation out of scope. Do not write implementation code from this skill.
 3. Include a concise handoff for coding and verification agents.
+4. If open questions remain, the handoff must state: "Implementation is blocked until the Open Questions / Deferred Decisions section is answered by the user."
 
 ## Size guidance
 
@@ -102,6 +105,7 @@ If a check fails, fix the spec instead of adding narrative explanation.
 - Never skip repository research.
 - Never ship a spec without explicit scope boundaries.
 - Never leave criteria unverifiable.
+- Never allow implementation to start while any open question or deferred decision remains unanswered.
 - Never omit rollback for high-risk or one-way changes.
 - Always include a consolidated manual verification checklist.
 - Keep the spec concise; point to existing docs instead of copying them.

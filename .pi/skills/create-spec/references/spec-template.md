@@ -10,6 +10,8 @@ small tasks, but keep scope, criteria, and verification explicit.
 > Status: Draft | In Review | Approved
 > Size: Small | Medium | Large | Epic
 
+> Implementation Guard: If `Open Questions / Deferred Decisions` contains any unanswered item, implementation is blocked. Any AI coding agent must stop, ask the user to answer those items, and wait before changing code, config, migrations, tests, or docs.
+
 ## 1. Intent
 One paragraph for what changes and why now.
 
@@ -105,11 +107,14 @@ Then ...
 
 ## 11. Open Questions / Deferred Decisions
 
+If this section has any unanswered item, implementation must not start.
+
 - [ ] ...
 
 ## 12. Handoff
 
 - Implementation agent should read: `...`
+- Implementation blocked: Yes/No. If yes, stop and prompt the user to answer `Open Questions / Deferred Decisions` before making changes.
 - Verifier should validate: `...`
 - Escalation triggers: `...`
 ```

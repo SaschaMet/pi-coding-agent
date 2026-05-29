@@ -48,3 +48,4 @@ Use this gate before finalizing a spec.
 - [ ] Implementation steps identify exact file targets.
 - [ ] Verifier can validate without hidden assumptions.
 - [ ] Open questions are isolated from approved requirements.
+- [ ] If open questions or deferred decisions remain, the spec explicitly blocks implementation and tells AI coding agents to stop and prompt the user for answers before making changes.
