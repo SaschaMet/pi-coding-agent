@@ -22,7 +22,7 @@
 
 ### Automated Checks
 
-- [ ] `npm test`
+- [ ] `<project-specific command>`
 
 ### Manual Testing
 

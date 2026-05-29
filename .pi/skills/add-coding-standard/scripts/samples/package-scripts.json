@@ -1,11 +1,13 @@
 {
   "scripts": {
-    "check:fast": "./scripts/run-coding-standard.sh --mode pre-commit --strict",
-    "check:full": "npm run check:fast && npm run test:coverage",
+    "check:fast": "npm run lint && npm run typecheck && npm run test",
+    "check:full": "npm run check:fast && npm run test:coverage && npm run ai-risk:warn",
     "check:ci": "npm run check:full && npm audit",
+    "precommit": "npm run lint",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "ai-risk:warn": "echo \"Replace with warning-mode AI-risk and cleanup guard scripts.\""
   }
 }

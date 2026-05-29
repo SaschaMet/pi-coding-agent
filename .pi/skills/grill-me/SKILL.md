@@ -1,6 +1,6 @@
 ---
 name: grill-me
-description: Use this skill when the user asks to pressure-test, stress-test, critique, documented, or be grilled on a plan, design, architecture, proposal, or technical decision. Find contradictions, unstated assumptions, missing edge cases, and high-impact risks through concise adversarial questioning. Do not use for normal code review or implementation.
+description: Use this skill when the user asks to pressure-test, stress-test, critique, challenge, or be grilled on a documented plan, design, architecture, proposal, or technical decision. Find contradictions, unstated assumptions, missing edge cases, and high-impact risks through concise adversarial questioning. Do not use for normal code review or implementation.
 ---
 
 Interview me relentlessly about every aspect of this plan until we reach a shared understanding.
@@ -20,10 +20,10 @@ Keep the session focused on high-impact uncertainty. Prefer fewer, sharper quest
 Before asking or flagging a single thing, build context:
 
 1. Read the idea / plan / design the user provided in full.
-2. Read all relevant project files in a single parallel batch: AGENTS.md, CONTRIBUTING.md,
+2. If the plan is repo-bound and workspace context is needed, read relevant project files in a single parallel batch: AGENTS.md, CONTRIBUTING.md,
    architecture docs, ADRs, README, key config files, and `CONTEXT.md` (or `CONTEXT-MAP.md`).
-3. Use `rg --files` to map the project layout; use `rg` for fast text searches.
-4. Explore entry points, data flow, existing tests, deployment config, and prior plans in `docs/plans/`.
+3. For repo-bound plans, use `rg --files` to map the named or nearest project areas; use `rg` for fast text searches.
+4. For repo-bound plans, explore entry points, data flow, existing tests, deployment config, and prior plans in `docs/plans/`.
 5. Check for prior art: similar features, past decisions, existing patterns.
 6. Identify the **blast radius** — what breaks if this design is wrong?
 7. Note every claim the user makes about how something works. You will verify these against the codebase during questioning.
@@ -50,7 +50,7 @@ Rank into three tiers:
 | **Medium**   | Design smell, maintainability concern, unclear edge case                     | Do not ask by default; note only if still useful  |
 
 Skip low-risk nitpicks entirely. Focus time on what hurts most.
-The default question budget is `0-10` total questions for the whole grilling session.
+The default question budget is `0-7` total questions for the whole grilling session. Extend beyond 7 only when a Critical risk remains unresolved.
 If you already have enough information to recommend safe defaults, do not spend the budget.
 
 ## Step 3 — Apply Common Sense Before Asking
@@ -98,9 +98,9 @@ starting with Critical tier. Keep the session short.
 - Start each with the risk tier label: `[Critical]`, `[High]`, or `[Medium]`.
 - Keep questions concrete and specific. No abstract "what about scalability?" — instead:
   "This stores session state in memory. What happens to in-flight requests during a rolling deploy?"
-- Use a structured question tool (like 'askquestions') when available.
+- Use the available user-input tool when present; otherwise ask one concise chat question.
 - Ask only `Critical` and `High` questions by default.
-- Do not ask more than `3` questions total unless a critical blocker remains unresolved.
+- Do not ask more than `7` questions total unless a critical blocker remains unresolved.
 - If the first answer resolves the remaining high risks through an obvious default, stop asking and move to the summary.
 - If there are no decision-forcing questions, skip questioning entirely and go straight to the summary.
 
@@ -129,11 +129,11 @@ starting with Critical tier. Keep the session short.
 
 `CONTEXT.md` is the project's shared glossary of terms. Treat it as a living document throughout the session.
 
-**Update inline, not in batch**: When a term is resolved, update `CONTEXT.md` immediately using the format in [references/CONTEXT-FORMAT.md](references/CONTEXT-FORMAT.md). Do not accumulate updates for the end of the session.
+**Approval-gated updates**: When a term is resolved, propose the `CONTEXT.md` entry in the summary by default. Update `CONTEXT.md` inline only when the user explicitly approves glossary edits.
 
 **Glossary only**: `CONTEXT.md` must be totally devoid of implementation details. It is not a spec, a scratch pad, or a repository for implementation decisions. Every entry is a definition — nothing more. If an entry starts to describe _how_ something works rather than _what_ it is, it does not belong.
 
-**Create on first resolution**: If `CONTEXT.md` does not yet exist, create it using the format from [references/CONTEXT-FORMAT.md](references/CONTEXT-FORMAT.md) when the first term is resolved.
+**Create on first resolution**: If `CONTEXT.md` does not yet exist, create it using the format from [references/CONTEXT-FORMAT.md](references/CONTEXT-FORMAT.md) only after the user explicitly approves glossary edits.
 
 ## Step 5 — Summary
 

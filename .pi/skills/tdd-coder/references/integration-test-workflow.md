@@ -8,17 +8,19 @@ Integration tests verify that given a specific input, the code produces a specif
 output. These are black-box tests that exercise the code through its public interface without
 testing internal implementation details.
 
+Use this workflow when the user requests integration tests or the change targets public API, CLI, file I/O, pipeline, or other black-box behavior. Do not load it for clearly unit-level work.
+
 ## Step-by-Step
 
 ### 1. Ask if Integration Tests Are Needed
 
-After understanding the feature/change scope, ask the user:
+After understanding API/CLI/I-O or black-box feature scope, ask the user:
 
 > "Do you want integration tests for this change? Integration tests verify that given a
 > specific input, the code produces a specific expected output. They're useful for validating
 > end-to-end behavior of functions, APIs, CLI commands, or data pipelines."
 
-Use a structured question tool (e.g., `askQuestions`) when available.
+Use the available user-input tool when present; otherwise ask a concise chat question.
 
 ### 2. Clarify Input/Output Format
 

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pr-review-canvas",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8432", "--bind", "127.0.0.1", "--directory", "/tmp"],
+      "port": 8432
+    }
+  ]
+}

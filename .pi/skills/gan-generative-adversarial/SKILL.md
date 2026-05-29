@@ -7,7 +7,7 @@ description: Use this skill when the user explicitly asks for a GAN-style, gener
 
 Run a bounded generator/evaluator loop inspired by GAN workflows: one agent proposes or implements, the other evaluates strictly, then the generator revises from concrete feedback until the acceptance threshold is met or the iteration budget is exhausted.
 
-This skill coordinates the workflow. It does not replace domain skills such as `tdd-coder`, `frontend-design`, `code-quality-check`, or `create-spec`; reference those inside generator/evaluator prompts when they fit the task.
+This skill coordinates the workflow. It does not replace available domain skills such as TDD, frontend, review, or spec-authoring skills; reference those inside generator/evaluator prompts when they fit the task.
 
 ## Roles
 
@@ -26,6 +26,7 @@ Use `Agent` from `@tintinweb/pi-subagents` to spawn both roles.
 
 - Do not use just because the task is complex; explicit delegation/adversarial-loop intent is required.
 - Do not use for small edits, quick explanations, or routine code review.
+- Do not use when the user asks for a normal review without delegated adversarial iteration.
 - Do not spawn overlapping workers that edit the same files concurrently.
 - Do not continue iterations after the evaluator reports `PASS` unless the user asks.
 
@@ -70,7 +71,10 @@ Use `Agent` from `@tintinweb/pi-subagents` to spawn both roles.
 5. Iterate only on failures.
    If evaluator returns `FAIL`, send the full evaluator feedback back to `gan-generator`. Require it to address every critical and major item explicitly. Then re-run `gan-evaluator`.
 
-6. Stop.
+6. Validate implementation mode.
+   If files were edited, the parent session inspects the final diff, runs or records the requested verification commands, and confirms changed files stay within scope before final reporting.
+
+7. Stop.
    Stop when evaluator returns `PASS`, max iterations is reached, or a blocker appears. Report the final status, remaining risks, files changed, and verification results.
 
 ## Scoring rubric
@@ -87,43 +91,7 @@ Use this default rubric unless the user provides one:
 
 `PASS` requires no critical issues and weighted score >= 8/10. Anything below that is `FAIL`.
 
-## Script
-
-Use foreground agents because evaluator input depends on generator output.
-
-Examples:
-
-### Generator
-
-```text
-Agent({
-  subagent_type: "gan-generator",
-  description: "Generate candidate",
-  prompt: "Objective: <objective>\nMode: <proposal|implementation|review>\nScope: <allowed files/areas>\nForbidden: <out-of-scope areas>\nAcceptance criteria: <criteria>\nEvaluator rubric: <rubric>\nIteration: <N> of <max>\n\nProduce the smallest candidate that satisfies the objective. If this is not the first iteration, address every evaluator issue explicitly. Return summary, files changed/proposed, acceptance mapping, verification, and known limitations."
-})
-```
-
-### Evaluator
-
-```text
-Agent({
-  subagent_type: "gan-evaluator",
-  description: "Evaluate candidate",
-  prompt: "Original objective: <objective>\nAcceptance criteria: <criteria>\nMode: <proposal|implementation|review>\nGenerator output: <generator-agent-output>\nRubric: <rubric>\n\nEvaluate strictly. Return PASS or FAIL, scores, strengths, issues by severity, required fixes, and residual risks."
-})
-```
-
-### Revision
-
-```text
-Agent({
-  subagent_type: "gan-generator",
-  description: "Revise candidate",
-  prompt: "Objective: <objective>\nPrevious generator output: <generator-agent-output>\nEvaluator feedback: <evaluator-agent-output>\nIteration: <N> of <max>\n\nRevise the candidate. Address every critical and major evaluator issue explicitly. Return updated summary, files changed/proposed, acceptance mapping, verification, and unresolved items."
-})
-```
-
-This skill-specific orchestration:
+## Orchestration Rules
 
 - Parent session defines objective, scope, rubric, and max iterations.
 - Generator and evaluator run sequentially.

@@ -2,6 +2,29 @@
 
 Use this structure when producing the final summary after all questioning is complete.
 
+For short sessions with 0-3 questions, use this compact variant:
+
+```markdown
+# Grilling Summary: {Design/Plan Title}
+
+## Questions Asked
+- [Tier] Question -> Answer / decision.
+
+## Default Changes
+- [Tier] Change to make by default, with reason.
+
+## Risks Accepted
+- Risk and user rationale, or `None`.
+
+## Open Issues
+- Issue and next step, or `None`.
+
+## Recommended Next Steps
+1. ...
+```
+
+Use the full table format only when the session has enough questions or decisions that tables improve traceability.
+
 ```markdown
 # Grilling Summary: {Design/Plan Title}
 

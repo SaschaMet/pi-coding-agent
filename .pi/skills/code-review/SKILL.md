@@ -5,8 +5,8 @@ description: Use this skill when the user asks to review local changes, inspect 
 
 # Code Quality Check Orchestrator
 
-You are a unified reviewer. Review outcomes, not personal style. Run three focused passes with subagents, then merge findings deterministically.
-Use `Agent` from `@tintinweb/pi-subagents` for the specialist passes. The parent session owns context capture, result collection, dedupe, final verdict, and final response.
+You are a unified reviewer. Review outcomes, not personal style. Run the focused passes required by the requested scope, then merge findings deterministically.
+Use subagents for specialist passes only when delegated review tooling is available and allowed. Otherwise run the same passes in the parent session. The parent session owns context capture, result collection, dedupe, final verdict, and final response.
 
 ## Goal
 
@@ -24,6 +24,15 @@ Load only the references needed for the requested review scope:
 - `references/qa-validator.md` for correctness, regression, edge-case, and test adequacy review.
 - `references/security-review.md` for exploitable vulnerability review.
 - `references/code-review.md` for maintainability, performance, and design review.
+
+## Review Scope
+
+| User request | Passes to run |
+| --- | --- |
+| Generic review, diff review, audit, or combined verdict | QA, Security, and Code Quality |
+| QA, regression, behavior, or test adequacy only | QA only |
+| Security review only | Security only |
+| Maintainability, performance, design, or code quality only | Code Quality only |
 
 ## Execution Steps
 
@@ -48,14 +57,15 @@ Load only the references needed for the requested review scope:
    - relevant public APIs, schemas, config keys, CLI flags, event names, and database migrations touched by the diff
    - surrounding interfaces/callers needed to verify compatibility
    - explicit focus areas requested by the user
-4. Execute three read-only specialist passes with subagents:
-   - Spawn `generic-readonly` for QA: correctness/regressions/edge cases/test adequacy only.
-   - Spawn `generic-readonly` for Security: concrete exploitable vulnerabilities only.
-   - Spawn `generic-readonly` for Code Quality: maintainability/performance/reliability/integration/design only.
-   - Prefer background agents for independent passes, then retrieve each result with `get_subagent_result({ wait: true })`.
-   - Give each agent the diff summary, relevant file paths, review context, validation context, exact reference path to read, strict category ownership, and required finding schema.
+4. Execute the selected read-only specialist passes:
+   - QA: correctness/regressions/edge cases/test adequacy only.
+   - Security: concrete exploitable vulnerabilities only.
+   - Code Quality: maintainability/performance/reliability/integration/design only.
+   - When subagents are available and allowed, spawn `generic-readonly` agents for selected passes. Prefer background agents for independent passes, then retrieve each result with `get_subagent_result({ wait: true })`.
+   - When subagents are unavailable or not allowed, run the same selected passes in the parent session and keep category ownership separate.
+   - Give each pass the diff summary, relevant file paths, review context, validation context, exact reference path to read, strict category ownership, and required finding schema.
    - Apply strict non-overlap ownership. Out-of-scope items become scope notes, not findings.
-5. Wait until all three subagents have finished and returned results before merging, deduping, or producing a verdict. Do not proceed with partial results.
+5. Wait until every selected pass has finished before merging, deduping, or producing a verdict. Do not proceed with partial results.
 6. Collect pass outputs.
 7. Normalize each finding into:
    - `category`, `severity`, `file`, `line`, `title`, `evidence`, `recommendation`, `confidence`
@@ -96,7 +106,7 @@ Load only the references needed for the requested review scope:
 - Report only actionable issues with concrete impact. Structural findings are valid when they show a concrete maintenance cost and a clearer organization that deletes meaningful complexity.
 - If a finding depends on an assumption, state the assumption and confidence.
 
-## Script
+## Subagent Examples
 
 Use this pattern after capturing `git status`, `git diff`, touched files, `Review Context`, and `Project Validation Context`.
 
@@ -105,21 +115,21 @@ Agent({
   subagent_type: "generic-readonly",
   description: "QA review",
   run_in_background: true,
-  prompt: "Run the QA pass for this code review. Read .pi/skills/code-review/references/qa-validator.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Review Context>, <Project Validation Context>. Report only correctness, regression, edge-case, breaking-change, and changed-behavior test adequacy findings. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report security or maintainability-only issues."
+  prompt: "Run the QA pass for this code review. Read references/qa-validator.md from the code-review skill directory. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Review Context>, <Project Validation Context>. Report only correctness, regression, edge-case, breaking-change, and changed-behavior test adequacy findings. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report security or maintainability-only issues."
 })
 
 Agent({
   subagent_type: "generic-readonly",
   description: "Security review",
   run_in_background: true,
-  prompt: "Run the Security pass for this code review. Read .pi/skills/code-review/references/security-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Review Context>, <Project Validation Context>. Report only concrete exploitable vulnerabilities with proof of exploit path. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or maintainability-only issues."
+  prompt: "Run the Security pass for this code review. Read references/security-review.md from the code-review skill directory. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Review Context>, <Project Validation Context>. Report only concrete exploitable vulnerabilities with proof of exploit path. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or maintainability-only issues."
 })
 
 Agent({
   subagent_type: "generic-readonly",
   description: "Quality review",
   run_in_background: true,
-  prompt: "Run the Code Quality pass for this code review. Read .pi/skills/code-review/references/code-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <file size context including files over 250 lines>, <Review Context>, <Project Validation Context>. Be ambitious about structural simplification. Assume there is often a code-judo move available: a reorganization that uses the existing architecture more effectively and makes the change dramatically simpler and more elegant. Report only maintainability, performance, scalability, reliability, integration, portability, and design-quality findings with concrete impact. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or security issues."
+  prompt: "Run the Code Quality pass for this code review. Read references/code-review.md from the code-review skill directory. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <file size context including files over 250 lines>, <Review Context>, <Project Validation Context>. Report maintainability, performance, scalability, reliability, integration, portability, or design-quality findings only when they show concrete impact and a smaller organization that removes meaningful complexity. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or security issues."
 })
 
 get_subagent_result({ agent_id: "<qa-agent-id>", wait: true, verbose: false })
@@ -131,7 +141,7 @@ This skill-specific orchestration:
 
 - Parent session gathers context once and passes it to all agents.
 - Agents are read-only and independent, so background execution is appropriate.
-- Parent session waits for all three `get_subagent_result` calls to complete before collecting, deduping, sorting, or deciding the verdict.
+- Parent session waits for all selected subagent results to complete before collecting, deduping, sorting, or deciding the verdict.
 - Parent session dedupes, applies category precedence, sorts findings, and writes the final verdict.
 - If any agent fails, stop and report the exact failure. Do not invent that pass.
 
@@ -153,6 +163,7 @@ Return markdown with this exact structure:
    title: short title
    evidence: concrete proof
    recommendation: smallest corrective action
+   confidence: high|medium|low
 
 ## Final Verdict
 

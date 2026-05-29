@@ -1,4 +1,4 @@
 interface:
   display_name: "Subagent Orchestrator"
   short_description: "Coordinate explicit delegated subagent work"
-  default_prompt: "Use $subagent-orchestrator when delegation was explicitly requested. Select scoped subagents, define narrow tasks, coordinate outputs, and never simulate missing subagent results."
+  default_prompt: "Use $subagent-orchestrator only when delegation was explicitly requested. Select scoped subagents, omit model overrides unless requested, keep direct skill-use in-session, coordinate outputs, and never simulate missing subagent results."

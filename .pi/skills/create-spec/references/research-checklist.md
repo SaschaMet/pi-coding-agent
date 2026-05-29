@@ -2,6 +2,14 @@
 
 Work through this before writing the spec. Skip sections that do not apply.
 
+Default discovery commands:
+
+- `rg --files` to map project files before opening broad docs.
+- `rg -n "AGENTS|CONTRIBUTING|architecture|ADR|spec|plan|test|lint|typecheck|coverage"` for guidance and prior plans.
+- `rg --files -g 'package.json' -g 'pyproject.toml' -g 'Cargo.toml' -g 'Makefile' -g '.github/workflows/*'` for tooling and CI.
+- `rg --files docs specs .github 2>/dev/null` when those directories exist.
+- `rg -n "<feature-term>|<api-name>|<module-name>"` for similar implementations and call sites.
+
 ## 1. Repository Shape
 
 - [ ] Primary language(s), framework(s), package manager(s)

@@ -5,7 +5,18 @@ description: Use this skill only when the user explicitly asks for subagents, de
 
 # Subagent Orchestrator
 
-Use this skill as the policy layer for delegated work. Full extension details, schemas, examples, settings, and runtime behavior are documented in [`references/pi-subagents.md`](references/pi-subagents.md).
+Use this skill as the policy layer for delegated work.
+
+## Load References
+
+Read [`references/pi-subagents.md`](references/pi-subagents.md) only when needed:
+
+| Need | Load condition |
+| --- | --- |
+| Tool schema | Tool payload or parameter uncertainty |
+| Worktree isolation | Delegated implementation needs isolated file edits |
+| Scheduling/settings/events/RPC | Maintaining the extension or debugging runtime behavior |
+| Built-in/custom agent details | Agent type selection is unclear after the table below |
 
 ## Tools
 
@@ -20,6 +31,7 @@ Do not pass `model` to `Agent` unless the user explicitly requested a model or t
 
 ## Delegation Rules
 
+- Before calling `Agent`, confirm explicit delegation, choose foreground/background execution, choose agent type, and define expected output/handoff.
 - Use subagents only when the user explicitly asks for delegation/subagents.
 - Do not delegate normal repository inspection, planning, implementation, or skill execution by default.
 - Direct `/skill:*` and skill-use requests stay in-session unless the user explicitly asks for delegation.
@@ -32,12 +44,16 @@ Do not pass `model` to `Agent` unless the user explicitly requested a model or t
 
 ## Agent Selection
 
-- `generic-readonly`: default read-only research, planning, and summarization. Inherits the parent model.
-- `generic-worker`: default implementation or file-modifying work. Inherits the parent model.
-- `Explore`: use only when the user explicitly requests this built-in agent or a skill explicitly allows its configured model.
-- `Plan`: use only when the user explicitly requests this built-in agent or a skill explicitly allows its configured model.
-- `general-purpose`: complex multi-step work that should inherit parent rules.
-- `gan-generator` / `gan-evaluator`: explicit GAN/generator-evaluator workflows only.
+| Task type | Default agent |
+| --- | --- |
+| Read-only research, planning, summarization | `generic-readonly` |
+| Implementation or file-modifying work | `generic-worker` |
+| User explicitly requests built-in Explore | `Explore` |
+| User explicitly requests built-in Plan | `Plan` |
+| Explicit GAN/generator-evaluator workflow | `gan-generator` / `gan-evaluator` |
+| Complex task with no narrower fit | `general-purpose` |
+
+Project agents inherit the parent model. Do not pass `model` unless the user explicitly requested a model or the active skill specifies one.
 
 ## Prompting Requirements
 
@@ -47,7 +63,7 @@ Do not pass `model` to `Agent` unless the user explicitly requested a model or t
 - For background agents, state whether partial results are acceptable.
 - Keep each delegated prompt narrow and testable.
 
-## Script
+## Execution Examples
 
 Examples:
 

@@ -21,26 +21,31 @@ Improve agent-facing instructions with the smallest useful change. Treat skills,
    - Skill: inspect `SKILL.md`, `agents/openai.yaml`, scripts, references, and assets.
    - `AGENTS.md`: inspect nearest file, parent files, referenced docs, and nearby code conventions.
    - Unknown format: inspect existing project examples before drafting.
-2. Define the agent task the artifact must improve:
+2. Classify the requested mode:
+   - `audit`: inspect only and return findings; do not edit files for review, audit, plan, or no-edit requests.
+   - `plan`: produce an implementation plan; do not edit files.
+   - `edit`: make the smallest useful change directly and report changed files plus validation.
+3. Define the agent task the artifact must improve:
    - user intents that should trigger or apply it
    - adjacent intents that should not
    - target metric: correctness, completeness, reuse, convention adherence, speed, or reduced over-exploration
    - recurring mistakes, missing context, or over-exploration it must prevent
-3. Gather real source material before writing:
+4. Gather real source material before writing:
    - successful task traces, failed runs, review comments, issue fixes, runbooks, code examples, schemas, tests, or existing docs
    - prefer project-specific facts over general best practices
-4. Rewrite for agent execution:
+   - for audits, inspect target runtime files, metadata, and directly linked references first; load traces or broad docs only when needed to prove a finding
+5. Rewrite for agent execution:
    - concise procedural workflow first
    - concrete defaults instead of equal-choice menus
    - decision tables when multiple local patterns compete
    - short production examples when reuse matters
    - gotchas only when they prevent likely mistakes
    - every "do not" paired with the preferred "do"
-5. Apply progressive disclosure:
+6. Apply progressive disclosure:
    - keep always-needed rules in the main file
    - move detailed, variant-specific, or rarely used material to directly referenced files
    - state exactly when to load each reference
-6. Validate:
+7. Validate:
    - use `references/testing.md` for trigger tests, validation loops, and skill output evaluation
    - revise based on failures, not assumptions
 
@@ -73,30 +78,15 @@ See `references/best-practices.md` for detailed skill authoring rules, examples,
 
 ## Script Rules
 
-Add a script only when it improves reliability or token economy:
+Add a script only when it improves reliability or token economy. Use [references/best-practices.md](references/best-practices.md) before adding or substantially changing scripts.
 
-- Good fits: file conversion, validation, structured extraction, deterministic transforms, complex API calls, reusable eval runners.
-- Poor fits: one-off shell commands, simple file reads, logic that changes every run, tasks needing interactive input.
-- Keep scripts in `scripts/`, executable when appropriate, and callable without reading the script body.
-- Accept input through flags, stdin, or environment variables. Never require prompts, menus, passwords, or TTY input.
-- `--help` must include purpose, flags, defaults, examples, and meaningful exit codes.
-- Print structured data to stdout. Print progress, warnings, and diagnostics to stderr.
-- Error messages must state what failed, what was expected, what was received, and the next valid command.
-- Prefer idempotent behavior. Add `--dry-run`, `--confirm`, or `--force` for stateful or destructive operations.
-- Keep default output bounded. Add `--limit`, `--offset`, or `--output` for large results.
+Gate every script on: non-interactive inputs, deterministic behavior, useful `--help`, structured bounded stdout, diagnostics on stderr, actionable errors, and `--dry-run`/`--confirm`/`--force` for risky operations.
 
 ## AGENTS.md-Specific Rules
 
-- Keep the main file focused on the surrounding module. Prefer roughly 100-150 lines when possible.
-- Put critical discovery paths in `AGENTS.md`; orphan docs are unlikely to be read.
-- Limit referenced docs. Keep references focused and directly described.
-- Avoid broad architecture essays. State ownership boundaries and current patterns.
-- Use procedural workflows for recurring tasks with required wiring.
-- Use decision tables for ambiguous implementation choices.
-- Use 3-10 line real code examples when pattern reuse is the goal.
-- Reuse high-quality existing docs only after trimming human-oriented background.
-- Keep legacy docs searchable with concrete terms and code examples when they remain outside `AGENTS.md`.
-- For net-new architecture that conflicts with existing patterns, create a spec instead of forcing old instructions to fit.
+Keep `AGENTS.md` focused on the surrounding module, critical discovery paths, ownership boundaries, current patterns, and workflows that agents need on most runs. Use [references/best-practices.md](references/best-practices.md) for detailed AGENTS guidance.
+
+For net-new architecture that conflicts with existing patterns, create a spec instead of forcing old instructions to fit.
 
 ## Quality Gate
 

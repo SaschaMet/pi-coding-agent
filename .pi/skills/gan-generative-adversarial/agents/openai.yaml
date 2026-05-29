@@ -1,4 +1,4 @@
 interface:
   display_name: "Generative Adversarial"
   short_description: "Run a bounded generator/evaluator adversarial loop"
-  default_prompt: "Use $generative-adversarial to run a GAN-style workflow with one generator subagent and one evaluator subagent. Define acceptance criteria, generate a candidate, evaluate strictly, iterate on failures, and report the final verdict."
+  default_prompt: "Use $gan-generative-adversarial to run a GAN-style workflow with one generator subagent and one evaluator subagent. Define acceptance criteria, generate a candidate, evaluate strictly, iterate on failures, validate any final implementation diff, and report the final verdict."

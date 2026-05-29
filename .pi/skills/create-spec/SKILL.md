@@ -29,12 +29,13 @@ Ask only what code/docs cannot answer. Use safe defaults for decisions that do n
 Required decisions:
 
 1. Target output file (default `docs/specs/spec-{feature-name}.md`).
-2. Scope strictness (default explicit `modify` + `call` + `forbid`).
-3. Acceptance rigor (default measurable criteria with BDD cases).
-4. Verification depth (default automated checks + manual checklist).
-5. Risk posture (default include rollback and escalation triggers).
+2. Output mode: write/update a spec file when the user asks for a document/artifact; otherwise return the spec in chat and ask before creating files.
+3. Scope strictness (default explicit `modify` + `call` + `forbid`).
+4. Acceptance rigor (default measurable criteria with BDD cases).
+5. Verification depth (default automated checks + manual checklist).
+6. Risk posture (default include rollback and escalation triggers).
 
-See `../skills/grill-me/SKILL.md` for how to pressure-test for missing risks and assumptions.
+See `../grill-me/SKILL.md` for how to pressure-test for missing risks and assumptions.
 
 ## Gotchas
 
@@ -61,7 +62,10 @@ Use [references/spec-template.md](references/spec-template.md) as the output tem
 6. **Verification Plan**: criterion-to-check mapping with commands/evidence.
 7. **Invariants and Contracts**: org/domain rules that always apply.
 8. **Risks, One-Way Doors, Rollback**: failure modes and recovery.
-9. **Definition of Done**: traceability from intent -> criteria -> verification.
+9. **Traceability and Audit**: source, approval, and criteria-to-evidence mapping.
+10. **Definition of Done**: traceability from intent -> criteria -> verification.
+11. **Open Questions / Deferred Decisions**: unresolved decisions separated from requirements.
+12. **Handoff**: implementation, verification, and escalation notes.
 
 ### Spec quality requirements
 
@@ -82,8 +86,8 @@ If a check fails, fix the spec instead of adding narrative explanation.
 
 ## Step 5 - Deliver and handoff
 
-1. Write/update the spec file.
-2. Keep implementation out of scope.
+1. In file-output mode, write/update the spec file. In chat-output mode, return the complete spec in the response.
+2. Keep implementation out of scope. Do not write implementation code from this skill.
 3. Include a concise handoff for coding and verification agents.
 
 ## Size guidance

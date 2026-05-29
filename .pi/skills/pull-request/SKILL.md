@@ -38,7 +38,7 @@ Trigger only when the user explicitly asks for PR preparation, PR update, PR des
 - If current branch equals default branch, abort immediately. Do not stage files, do not commit, do not create or edit a PR.
 - Also abort if current branch is `main` or `master`.
 - When aborting, provide: `git checkout -b <feature-branch-name>`
-- If there are no changed files (`git status --short` is empty), abort with a clear message.
+- If there are no changed files (`git status --short` is empty), continue only in description-only mode after resolving an existing PR. Do not commit.
 - Do not create the branch automatically. Create it only if the user explicitly asks.
 - Do not use `git commit --amend` unless the user explicitly asks.
 
@@ -49,7 +49,14 @@ Trigger only when the user explicitly asks for PR preparation, PR update, PR des
 - If no PR exists for the current branch, abort and tell the user to create the PR first.
 - Do not create PRs in this skill.
 
-4. Stage and commit
+4. Choose mode
+
+- Local changes present: use commit/update mode and continue through staging, commit, push, and PR body update.
+- Clean branch with existing PR: use description-only mode. Skip staging and commit. Gather PR context from the remote branch and update the PR body only.
+
+5. Stage and commit
+
+Skip this step in description-only mode.
 
 - Inspect changes first (`git status --short` & `git diff`)
 - Plan commit boundaries:
@@ -68,23 +75,24 @@ Trigger only when the user explicitly asks for PR preparation, PR update, PR des
   - Do not include AI attribution or `Co-Authored-By` trailers.
 - Commit: `git commit -m "<subject>" -m "<body>"`.
 
-5. Push policy before PR update
+6. Push policy before PR update
 
 - Check branch sync state:
   - `git fetch origin`
   - `git status -sb`
 - If branch has unpushed commits, push before updating PR body:
   - `git push`
+- If the current branch has no upstream, use `git push -u origin HEAD` for the current feature branch.
 - If push is not desired, abort and report that PR description may not match remote code.
 
-6. Read or initialize description
+7. Read or initialize description
 
 - Determine description output path:
   - `./.pi/pr_descriptions/{pr_number}_description.md`
 - If an existing description file is present, read and update it instead of rewriting blindly.
 - If missing, initialize from `references/pr_description_template.md`.
 
-7. Gather PR context
+8. Gather PR context
 
 - Collect:
   - PR diff: `gh pr diff {pr_number}`
@@ -100,20 +108,21 @@ Trigger only when the user explicitly asks for PR preparation, PR update, PR des
   - Breaking changes or migration requirements
   - Risks, rollback strategy, and reviewer focus areas
 
-8. Capture visual evidence (when applicable)
+9. Capture visual evidence (when applicable)
 
 - Applicable when changes affect UI, layout, styling, or user-visible behavior.
 - Use the available project UI validation workflow to open the target URL and capture screenshots.
-- Capture both states:
-  - before screenshot
-  - after screenshot
+- Prefer both states without disturbing the working tree:
+  - before screenshot from the base branch in a separate worktree when practical
+  - after screenshot from the PR branch
+- If a safe before-state capture is not practical, include after-only evidence and state why before evidence is unavailable.
 - Save screenshots in repository so PR markdown renders them, for example:
   - `docs/pr_screenshots/pr-{pr_number}/before.png`
   - `docs/pr_screenshots/pr-{pr_number}/after.png`
 - Add screenshot files to the commit when created.
 - If not applicable or capture fails, state this explicitly in PR description.
 
-9. Fill verification section
+10. Fill verification section
 
 - For each checklist item under "How to verify it":
   - Auto-run only safe, read-only commands.
@@ -126,7 +135,7 @@ Trigger only when the user explicitly asks for PR preparation, PR update, PR des
   - `Then` expected observable outcomes
 - BDD manual steps must be concrete and reproducible, not generic.
 
-10. Generate description
+11. Generate description
 
 - Fill every section from the template.
 - Keep it specific, concise, and scannable.
@@ -137,7 +146,7 @@ Trigger only when the user explicitly asks for PR preparation, PR update, PR des
   - follow-up work (if any)
 - For UI changes, include markdown image links to before/after screenshots.
 
-11. Save and update PR body
+12. Save and update PR body
 
 - Write description file to the selected output path.
 - Update existing PR body:
@@ -151,6 +160,7 @@ Trigger only when the user explicitly asks for PR preparation, PR update, PR des
 - Only in-scope files were staged; no sensitive files were staged by default.
 - Local commits, pushed branch state, and PR body describe the same code.
 - PR description answers: what changed, why, user impact, verification, residual risk.
+- PR body does not claim tests, screenshots, or checks that were not produced.
 - Manual verification uses concrete `Given / When / Then` when automation is insufficient.
 
 ## Quality Bar

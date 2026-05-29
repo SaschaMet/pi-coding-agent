@@ -1,4 +1,4 @@
 interface:
   display_name: "Explain Changes"
   short_description: "Explain specs, plans, proposals, and AI-generated changes in plain language"
-  default_prompt: "Use $explain-changes to explain this plan, spec, proposal, or AI-generated change set in plain language. Comment on each proposed change, its code and architecture implications, risks, verification, and review focus. Output chat text only by default."
+  default_prompt: "Use $explain-changes to explain this plan, spec, proposal, diff, or AI-generated change set in plain language. Explain implications and risks; do not perform defect review, PR writing, or implementation unless explicitly asked. Output chat text only by default."

@@ -1,4 +1,4 @@
 interface:
   display_name: "Code Review"
   short_description: "Review current changes for QA, security, and maintainability risks"
-  default_prompt: "Use $code-quality-check to inspect current changes, run focused QA/security/code-quality passes, dedupe actionable findings, and return a prioritized verdict without implementing fixes."
+  default_prompt: "Use $code-review to inspect current changes, run focused QA/security/code-quality passes when in scope, dedupe actionable findings, and return a prioritized verdict without implementing fixes."

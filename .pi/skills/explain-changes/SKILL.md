@@ -15,11 +15,12 @@ Default output is pure chat text with Markdown code snippets when useful. Do not
 - The user has output from `create-spec`, a PR plan, an architecture proposal, or an implementation idea.
 - The user wants implications, tradeoffs, risks, architecture impact, code impact, or review focus.
 - The user wants a commentary on each proposed change, not a new plan or implementation.
+- "Explain this diff" uses this skill. "Review this diff for bugs" uses `code-review`.
 
 ## When NOT to use
 
 - Do not use for writing the spec itself; use `create-spec`.
-- Do not use for finding bugs in a diff; use `code-quality-check`.
+- Do not use for finding bugs in a diff; use `code-review`.
 - Do not use for implementation, refactoring, or test writing.
 - Do not use for PR body creation; use `pull-request`.
 
@@ -28,6 +29,7 @@ Default output is pure chat text with Markdown code snippets when useful. Do not
 - Do not merely summarize. Comment on each meaningful proposed change.
 - Distinguish facts from inference. Label inferred implications clearly.
 - Do not assume the proposal is correct. Point out ambiguous, risky, or missing pieces.
+- If the request is actually approval, defect review, or "is this safe to merge?", switch to review stance instead of this skill.
 - Do not over-explain basic programming terms; the user is a developer.
 - Do define project-specific jargon, hidden coupling, ownership boundaries, and non-obvious consequences.
 - If the source material is missing, ask for it or inspect the referenced local file before explaining.
@@ -44,7 +46,7 @@ Default output is pure chat text with Markdown code snippets when useful. Do not
    Group them by behavior, module, file area, data/API contract, architecture, tests, rollout, and risk. Merge duplicates. Preserve order when the proposal has an intended sequence.
 
 4. Explain each change.
-   For every meaningful proposed update, cover:
+   For every meaningful proposed update, cover only the fields with material impact:
    - What changes in plain language.
    - Why it is being proposed.
    - What code, files, APIs, data, or architecture it likely touches.

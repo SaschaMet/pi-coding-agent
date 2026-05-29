@@ -5,7 +5,7 @@ Replace bracketed values before writing this into a target repository.
 This repository follows the engineering coding standard in `[docs/engineering-standard.md]`.
 
 Assistant workflow:
-1. Inspect the repository and current Python toolchain.
+1. Inspect the repository and current toolchain.
 2. Summarize gaps against the engineering standard.
 3. Ask only targeted clarification questions.
 4. Add or update files, hooks, scripts, docs, and CI.

@@ -2,6 +2,8 @@
 
 This runtime uses [`@tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents) for delegated agents.
 
+Maintenance-only sections: Install, Agent Frontmatter, Scheduling, Background Execution settings, events, and RPC details are for extension maintenance or runtime debugging. Normal orchestration should use the tool schemas and execution patterns only.
+
 ## Install
 
 The package is declared in `.pi/settings.json`:

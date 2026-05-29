@@ -1,12 +1,14 @@
 check-fast:
-	./scripts/run-coding-standard.sh --mode pre-commit --strict
+	npm run lint
+	npm run typecheck
+	npm run test
 
 check-full: check-fast
 	$(MAKE) test-coverage
+	$(MAKE) ai-risk-check
 
 ci-verify: check-full
 	$(MAKE) audit
-	$(MAKE) ai-risk-check
 
 test-coverage:
 	@echo "Replace with the repo coverage command."
