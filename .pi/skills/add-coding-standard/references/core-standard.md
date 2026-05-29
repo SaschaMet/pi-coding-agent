@@ -10,6 +10,7 @@ Required:
 - formatting
 - linting
 - strict typing
+- narrowest practical static types
 - unit tests for core logic
 - secret scanning
 - dependency audit
@@ -38,6 +39,9 @@ Additional requirements:
 Always require:
 - no secrets in code, tests, fixtures, docs, or logs
 - boundary validation for untrusted input
+- strongest practical types at implementation boundaries and inside core logic
+- no `any`, `unknown`, dynamic maps, blanket casts, or language-equivalent escape hatches where a precise type can be expressed
+- no broad lint or typecheck disables. Any waiver must be line-local, justified in code, and used only after a code-level fix was attempted.
 - parameterized database access
 - lockfiles committed
 - one canonical workflow per language
@@ -64,3 +68,11 @@ When production modules are renamed, removed, or heavily refactored, review and 
 - mocks
 - helper files
 - contract examples
+
+## Agent shortcut prevention
+
+Agents must be ambitious about quality gates:
+- fix typed code instead of bypassing the checker
+- model data with domain types, schemas, generics, discriminated unions, typed fixtures, and type guards before considering escape hatches
+- preserve or tighten lint rules unless the repository owner explicitly approves weakening them
+- treat `eslint-disable`, `biome-ignore`, `// @ts-ignore`, `// @ts-expect-error`, `type: ignore`, `# noqa`, and similar comments as exceptions that need a reason and the smallest possible scope

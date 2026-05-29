@@ -21,6 +21,8 @@ Run standard checks with:
 
 Special rules:
 - Keep `[package manager]` as the canonical workflow unless explicitly changed.
+- Use the strictest practical types. Avoid `any`, `unknown`, broad casts, dynamic containers, and ignored type errors unless no precise type can be expressed.
+- Do not weaken lint or typecheck config to pass checks. Do not add broad disables. If a waiver is unavoidable, keep it line-local and document the concrete reason.
 - Use warning mode first for heuristic AI-risk scripts on legacy repos.
 - Keep pre-commit fast; heavy checks belong in CI/nightly.
 - Do not add competing tools when the existing formatter, linter, type checker, test runner, or CI command can be extended.

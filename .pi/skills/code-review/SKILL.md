@@ -32,6 +32,7 @@ Load only the references needed for the requested review scope:
    - Run `git diff`
    - Review only added/modified lines, plus surrounding code needed to prove impact.
    - Identify the change intent, touched public contracts, and affected runtime paths before judging findings.
+   - For changed source files, capture current file line counts and whether the diff pushes any file over 250 lines.
 2. Discover project-specific quality commands and conventions:
    - Read `package.json` scripts when present.
    - Read top-level and near-root `*.toml`, `*.yaml`, `*.yml`, etc. files for task/test/lint tool config.
@@ -54,23 +55,24 @@ Load only the references needed for the requested review scope:
    - Prefer background agents for independent passes, then retrieve each result with `get_subagent_result({ wait: true })`.
    - Give each agent the diff summary, relevant file paths, review context, validation context, exact reference path to read, strict category ownership, and required finding schema.
    - Apply strict non-overlap ownership. Out-of-scope items become scope notes, not findings.
-5. Collect pass outputs.
-6. Normalize each finding into:
+5. Wait until all three subagents have finished and returned results before merging, deduping, or producing a verdict. Do not proceed with partial results.
+6. Collect pass outputs.
+7. Normalize each finding into:
    - `category`, `severity`, `file`, `line`, `title`, `evidence`, `recommendation`, `confidence`
-7. Dedupe with key:
+8. Dedupe with key:
    - `(file, line, normalized_root_cause)`
-8. Apply precedence when duplicate root cause exists:
+9. Apply precedence when duplicate root cause exists:
    - `security` > `qa` > `code_quality`
-9. Sort final findings:
+10. Sort final findings:
    - severity `HIGH` first, then `MEDIUM`, then `LOW`
    - tie-break by category precedence above, then file+line
-10. Quality-gate every finding before final output:
+11. Quality-gate every finding before final output:
    - exact changed line or nearest changed line
    - concrete failure/exploit/maintenance scenario
    - production or user impact
    - smallest practical recommendation
-   - no generic advice, style preference, or broad rewrite
-11. Produce a single final verdict:
+   - no generic advice, style preference, or broad rewrite unless it identifies a concrete simplification that removes meaningful complexity
+12. Produce a single final verdict:
    - `FAIL` if any HIGH finding exists
    - `REQUIRES_MODIFICATION` if only MEDIUM/LOW findings exist
    - `PASS` if no findings
@@ -91,7 +93,7 @@ Load only the references needed for the requested review scope:
 - Keep only one canonical finding per dedupe key.
 - Preserve specialist handoff notes in a separate section when useful.
 - Prefer evidence that references project-specific commands/config discovered from `package.json`, `*.toml`, and `README/docs`.
-- Report only actionable issues with concrete impact. Skip preferences, speculative rewrites, and broad architecture commentary without a failing scenario.
+- Report only actionable issues with concrete impact. Structural findings are valid when they show a concrete maintenance cost and a clearer organization that deletes meaningful complexity.
 - If a finding depends on an assumption, state the assumption and confidence.
 
 ## Script
@@ -117,7 +119,7 @@ Agent({
   subagent_type: "generic-readonly",
   description: "Quality review",
   run_in_background: true,
-  prompt: "Run the Code Quality pass for this code review. Read .pi/skills/code-review/references/code-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Review Context>, <Project Validation Context>. Report only maintainability, performance, scalability, reliability, integration, portability, and design-quality findings with concrete impact. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or security issues."
+  prompt: "Run the Code Quality pass for this code review. Read .pi/skills/code-review/references/code-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <file size context including files over 250 lines>, <Review Context>, <Project Validation Context>. Be ambitious about structural simplification. Assume there is often a code-judo move available: a reorganization that uses the existing architecture more effectively and makes the change dramatically simpler and more elegant. Report only maintainability, performance, scalability, reliability, integration, portability, and design-quality findings with concrete impact. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or security issues."
 })
 
 get_subagent_result({ agent_id: "<qa-agent-id>", wait: true, verbose: false })
@@ -129,6 +131,7 @@ This skill-specific orchestration:
 
 - Parent session gathers context once and passes it to all agents.
 - Agents are read-only and independent, so background execution is appropriate.
+- Parent session waits for all three `get_subagent_result` calls to complete before collecting, deduping, sorting, or deciding the verdict.
 - Parent session dedupes, applies category precedence, sorts findings, and writes the final verdict.
 - If any agent fails, stop and report the exact failure. Do not invent that pass.
 

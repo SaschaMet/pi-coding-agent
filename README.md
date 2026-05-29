@@ -79,6 +79,93 @@ Notes:
 - Secrets can be centralized via `envService` in `settings.json` (e.g. `"envFile": "${PI_CODER_REPO}/.env"`).
 - This launcher is optional and mainly useful for local parity-stack development.
 
+## Syncing Skills to Other Agents
+
+PI skills live in `~/.pi/agent/skills/`. You can symlink them into the skill directories of other agents (Claude Code, Codex, GitHub Copilot, etc.) so every tool picks up the same skill set without duplicating files. Symlinks mean edits in the PI skills directory are immediately reflected everywhere.
+
+### One-time manual link
+
+```bash
+# Link a single skill into another agent's skill directory
+ln -sfn ~/.pi/agent/skills/create-spec ~/.claude/skills/create-spec
+ln -sfn ~/.pi/agent/skills/create-spec ~/.codex/skills/create-spec
+ln -sfn ~/.pi/agent/skills/create-spec ~/.copilot/skills/create-spec
+```
+
+### Automated sync via `pisync`
+
+Add the following helper to your `~/.zshrc` (or `~/.bashrc`). Running `pisync` will:
+
+1. Push the local `.pi/` config to `~/.pi/agent` (the global PI runtime).
+2. For each skill in `~/.pi/agent/skills/`, create or update a symlink in every configured agent skill directory.
+3. Remove dangling symlinks in those directories when a PI skill has been deleted.
+
+Skills that exist only in a target directory (e.g. a Claude-only `frontend-design` skill) are never touched.
+
+```zsh
+# Link all skills from $1 (source) into $2 (target dir), pruning stale links
+_pisync_link_skills() {
+  local pi_skills="$1"
+  local dest_skills="$2"
+
+  mkdir -p "$dest_skills"
+
+  # Add/update symlinks for all pi skills
+  for skill_dir in "$pi_skills"/*/; do
+    local skill_name="${skill_dir%/}"
+    skill_name="${skill_name##*/}"
+    local target="$dest_skills/$skill_name"
+
+    if [[ -L "$target" && "$(readlink "$target")" == "$pi_skills/$skill_name" ]]; then
+      continue
+    fi
+
+    if [[ -d "$target" && ! -L "$target" ]]; then
+      rm -rf "$target"
+    fi
+
+    ln -sfn "$pi_skills/$skill_name" "$target"
+    echo "pisync: linked skill '$skill_name' -> $dest_skills"
+  done
+
+  # Remove symlinks that point into pi_skills but whose source no longer exists
+  while IFS= read -r target; do
+    if [[ "$(readlink "$target")" == "$pi_skills/"* && ! -e "$target" ]]; then
+      rm "$target"
+      echo "pisync: removed stale skill '${target##*/}' from $dest_skills"
+    fi
+  done < <(find "$dest_skills" -maxdepth 1 -type l)
+}
+
+# Sync local pi-coding-agent config into global ~/.pi/agent
+pisync() {
+  (cd ~/Projects/pi-coding-agent && npm run pi:sync-global)
+
+  local pi_skills="$HOME/.pi/agent/skills"
+
+  if [[ ! -d "$pi_skills" ]]; then
+    echo "pisync: no skills directory found at $pi_skills, skipping skill links"
+    return
+  fi
+
+  # Add targets for any agent that supports a skills directory
+  _pisync_link_skills "$pi_skills" "$HOME/.claude/skills"   # Claude Code
+  _pisync_link_skills "$pi_skills" "$HOME/.codex/skills"    # OpenAI Codex
+  _pisync_link_skills "$pi_skills" "$HOME/.copilot/skills"  # GitHub Copilot
+}
+```
+
+To add another agent, append one more `_pisync_link_skills` line pointing at that agent's skills directory.
+
+### Behaviour summary
+
+| Scenario | Result |
+|---|---|
+| Skill added to `~/.pi/agent/skills/` | Symlink created in all target directories |
+| Skill updated in `~/.pi/agent/skills/` | Symlink already correct, no-op |
+| Skill deleted from `~/.pi/agent/skills/` | Dangling symlink removed from all target directories |
+| Skill exists only in a target directory | Untouched — `pisync` never removes non-PI skills |
+
 ## Sync and Sharing Workflow
 
 From the cloned repo root:

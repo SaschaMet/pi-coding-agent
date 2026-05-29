@@ -19,6 +19,8 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 - A Baseline, Standard, or Hardened profile is selected and documented with data classification when relevant.
 - Existing working tools and command names are preserved unless they conflict with the selected standard.
 - Missing formatter, linter, typecheck, tests, coverage, mutation, security, cleanup, and AI-risk checks are added only where they fit the repo.
+- Strict typing is enforced as an agent behavior: use the narrowest practical types and avoid `any`, `unknown`, dynamic/object escape hatches, or broad casts unless no safer boundary type exists.
+- Linting and typecheck rules are treated as quality gates. Disabling a rule requires a documented, local, narrow justification after first attempting a typed/code-level fix.
 - Future agents can find the standard through `AGENTS.md` or an equivalent local instruction file.
 - The narrowest meaningful local and CI-oriented verification commands were run or documented if unavailable.
 
@@ -52,6 +54,8 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
    - normalize scripts to one fast local check, one full check, and one CI verification command where practical
    - keep pre-commit fast; put mutation, cleanup, and heavier AI-risk checks in CI or nightly unless the repo is small
    - start heuristic AI-risk checks in warning mode on legacy repos; make them blocking only after cleanup or explicit approval
+   - prefer precise domain, inferred, generic, discriminated-union, branded, schema-derived, and readonly/container types over broad fallback types
+   - do not use lint-disable comments, weakened lint config, `// @ts-ignore`, `type: ignore`, or equivalent bypasses to make staged checks pass unless the underlying tool is wrong and the exception is the narrowest possible line-level waiver
    - when the repo lacks a standard executor, adapt [scripts/run-coding-standard.sh](scripts/run-coding-standard.sh) and the samples in [scripts/samples/](scripts/samples/)
    - update `.env.example`, CI workflows, hooks, engineering docs, and local agent instructions only when applicable
 6. Verify and repair:
@@ -75,6 +79,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 - Do not ask for information the repository can answer. Inspect first.
 - Do not add a second formatter, linter, package manager, test runner, or CI command when one can be extended.
 - Do not delete or rewrite tests just to satisfy cleanup. Prove they are stale or obsolete first.
+- Do not weaken typing or disable linting to pass local or staged checks. Fix the code first; use a waiver only with a concrete reason and the smallest possible scope.
 - Do not mutate trivial glue code to improve mutation scores. Target domain rules, validation, permissions, calculations, and parsing.
 - Do not silently bless snapshot churn. Require a behavioral reason for changed snapshots.
 

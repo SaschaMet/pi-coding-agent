@@ -22,6 +22,8 @@ Inspect at minimum:
 - existing hook files
 - existing AGENTS, CLAUDE, or instruction files
 - coverage and mutation setup
+- type strictness settings and broad type escape hatches
+- lint-disable comments and weakened lint configuration
 - data-sensitivity clues
 
 ## Gap analysis checklist
@@ -33,6 +35,8 @@ Report these before editing:
 - Missing: checks, docs, hooks, CI jobs, templates, and guard scripts to add.
 - Conflicts: duplicate or competing tools to consolidate.
 - Cleanup: stale tests, fixtures, snapshots, mocks, generated files, and helper scripts to inspect.
+- Type safety: strictness gaps, broad types, casts, ignored type errors, and trust-boundary validation gaps.
+- Lint integrity: disabled rules, ignore comments, staged-check bypasses, and whether each has a narrow documented reason.
 - Questions: only material unknowns that the repository cannot answer.
 
 ## Good clarification questions
@@ -52,6 +56,8 @@ Part of implementation must be a local `AGENTS.md` or equivalent instruction fil
 - that the assistant must inspect the repo first
 - that it must perform a gap analysis
 - that it must ask targeted questions only when necessary
+- that it must use the strictest practical types and avoid `any`/`unknown` unless no safer type is available
+- that it must not weaken or disable linting/typechecking just to pass local, staged, or CI checks
 - that it must then implement and verify the standard
 
 ## Standard executor

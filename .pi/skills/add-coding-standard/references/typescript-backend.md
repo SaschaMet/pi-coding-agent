@@ -16,7 +16,22 @@ Use backend-oriented compiler settings:
 - `module: NodeNext`
 - `moduleResolution: NodeNext`
 - strict mode
+- `noImplicitAny`
+- `noUncheckedIndexedAccess`
+- `exactOptionalPropertyTypes`
 - Node types enabled
+
+Typing policy:
+- prefer inferred concrete types, explicit interfaces, discriminated unions, generics, branded IDs, `satisfies`, and schema-derived types
+- use `unknown` only at true trust boundaries, then narrow immediately with validation or type guards
+- do not use `any` except when a third-party type hole cannot be modeled locally; isolate it behind a tiny typed adapter
+- avoid broad casts such as `as any`, double casts through `unknown`, and object maps when a typed shape is available
+- do not use `// @ts-ignore` or `// @ts-expect-error` unless the compiler is wrong or third-party types are broken; include the reason and keep it line-local
+
+Lint policy:
+- keep TypeScript-aware lint rules enabled, especially unsafe assignment/member access/calls, floating promises, and unused variables
+- do not add file-level or config-level rule disables to pass staged checks
+- if a lint exception is unavoidable, prefer a line-local disable with a concrete reason and a follow-up issue when appropriate
 
 Prefer architecture folders:
 - `domain/`
