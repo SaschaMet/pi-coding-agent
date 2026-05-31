@@ -13,7 +13,8 @@ Assistant workflow:
 
 Read first:
 - `[docs/engineering-standard.md]`
-- `[.pi/extensions/pi-quality-guard.ts]` when present
+- `[.github/hooks/quality-guard.mjs]` when present
+- `[.pi/extensions/quality-guard.ts]` when present
 
 Run standard checks with:
 - Fast: `[./scripts/run-coding-standard.sh --mode fast]`
@@ -24,8 +25,8 @@ Special rules:
 - Keep `[package manager]` as the canonical workflow unless explicitly changed.
 - Use the strictest practical types. Avoid `any`, `unknown`, broad casts, dynamic containers, and ignored type errors unless no precise type can be expressed.
 - Do not weaken lint or typecheck config to pass checks. Do not add broad disables. If a waiver is unavoidable, keep it line-local and document the concrete reason.
-- Keep the PI quality guard installed. AI file changes must run the existing linter/check when one is detectable; if none exists, the hook passes silently.
-- Do not read or change `.env` when it exists. Use `.env.example` for documenting required variables.
+- Keep the universal quality guard installed. AI file changes must run the existing linter/check when one is detectable; if none exists, the hook passes silently.
+- Do not read, search, list, or change `.env` when it exists. Use `.env.example` for documenting required variables.
 - Use warning mode first for heuristic AI-risk scripts on legacy repos.
 - Keep pre-commit fast; heavy checks belong in CI/nightly.
 - Do not add competing tools when the existing formatter, linter, type checker, test runner, or CI command can be extended.

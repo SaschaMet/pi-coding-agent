@@ -21,8 +21,8 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 - Missing formatter, linter, typecheck, tests, coverage, mutation, security, cleanup, and AI-risk checks are added only where they fit the repo.
 - Strict typing is enforced as an agent behavior: use the narrowest practical types and avoid `any`, `unknown`, dynamic/object escape hatches, or broad casts unless no safer boundary type exists.
 - Linting and typecheck rules are treated as quality gates. Disabling a rule requires a documented, local, narrow justification after first attempting a typed/code-level fix.
-- A PI post-change quality hook is installed or adapted so AI file changes run an existing linter/check when one is detectable, and pass silently when none exists.
-- A PI `.env` guard hook is installed or adapted so existing `.env` files cannot be read or changed by AI tools; `.env.example` remains available for documentation.
+- A universal agent quality hook is installed or adapted so AI file changes run an existing linter/check when one is detectable, and pass silently when none exists.
+- A universal `.env` guard is installed or adapted so existing `.env` files cannot be read or changed by AI tools; `.env.example` remains available for documentation.
 - Future agents can find the standard through `AGENTS.md` or an equivalent local instruction file.
 - The narrowest meaningful local and CI-oriented verification commands were run or documented if unavailable.
 
@@ -31,6 +31,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 1. Inspect before proposing:
    - languages, repo shape, package manager, frameworks, source/test layout
    - current format, lint, typecheck, test, coverage, mutation, hook, CI, audit, and secret-scan setup
+   - existing `.github/hooks`, `.claude/settings.json`, `.codex` or Codex plugin hook config, and `.pi/extensions`
    - existing `AGENTS.md`, `CLAUDE.md`, engineering docs, workflow files, and scripts
    - sensitive-data clues and AI-risk patterns such as test-only fixes, weak assertions, over-mocking, snapshot churn, and hardcoded fixtures
 2. Load references:
@@ -58,12 +59,17 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
    - start heuristic AI-risk checks in warning mode on legacy repos; make them blocking only after cleanup or explicit approval
    - prefer precise domain, inferred, generic, discriminated-union, branded, schema-derived, and readonly/container types over broad fallback types
    - do not use lint-disable comments, weakened lint config, `// @ts-ignore`, `type: ignore`, or equivalent bypasses to make staged checks pass unless the underlying tool is wrong and the exception is the narrowest possible line-level waiver
-   - install or adapt the PI quality guard hook from [scripts/samples/pi-quality-guard.ts](scripts/samples/pi-quality-guard.ts) into `.pi/extensions/` when the target repo uses PI; it must:
+   - install or adapt the universal quality guard hook from [scripts/samples/quality-guard.mjs](scripts/samples/quality-guard.mjs), usually into `.github/hooks/quality-guard.mjs`; it must:
      - block AI access to an existing `.env` file for read/search/list/write/edit tools while allowing `.env.example`
-     - run after successful AI `edit` and `write` operations
-     - detect possible file changes from AI `bash` operations by comparing git status before and after the command
+     - block search/list scopes that include an existing `.env`
+     - run after successful AI edit/write-style operations
+     - detect possible file changes from AI shell operations by comparing git status before and after the command
      - detect an existing linter/check first, using `make lint`, package scripts (`lint`, `check:fast`, `check`), Python Ruff from `pyproject.toml`, or pre-commit
      - no-op when no linter/check exists
+   - wire the universal hook for installed agents without mutating user-level config:
+     - Claude: merge [scripts/samples/claude-settings-hooks.json](scripts/samples/claude-settings-hooks.json) into project `.claude/settings.json`
+     - Codex: provide repo-local config from [scripts/samples/codex-hooks.toml](scripts/samples/codex-hooks.toml) or plugin hooks from [scripts/samples/codex-plugin-hooks.json](scripts/samples/codex-plugin-hooks.json)
+     - PI: copy [scripts/samples/pi-quality-guard.ts](scripts/samples/pi-quality-guard.ts) into `.pi/extensions/quality-guard.ts` as the thin adapter
    - when the repo lacks a standard executor, adapt [scripts/run-coding-standard.sh](scripts/run-coding-standard.sh) and the samples in [scripts/samples/](scripts/samples/)
    - update `.env.example`, CI workflows, hooks, engineering docs, and local agent instructions only when applicable
 6. Verify and repair:
@@ -96,7 +102,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 - [agents/openai.yaml](agents/openai.yaml): UI metadata and default prompt.
 - `references/`: standards, runtime defaults, CI snippets, and adapter guidance. Load only the files named in the workflow.
 - [scripts/run-coding-standard.sh](scripts/run-coding-standard.sh): portable runner for fast, full, CI, and pre-commit checks. Use `--help` before adapting it.
-- [scripts/samples/](scripts/samples/): sample Makefile, package scripts, pre-commit config, PI quality guard hook, and GitHub Actions wiring for target repos.
+- [scripts/samples/](scripts/samples/): sample Makefile, package scripts, pre-commit config, universal quality guard hook, agent hook wiring, and GitHub Actions wiring for target repos.
 - `templates/`: starting points for files written into target repositories. Adapt before use; do not copy blindly.
 
 ## Output

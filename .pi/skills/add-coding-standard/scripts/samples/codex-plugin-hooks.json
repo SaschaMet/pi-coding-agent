@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${PLUGIN_ROOT}/hooks/quality-guard.mjs",
+            "timeout": 20,
+            "statusMessage": "Checking quality guard"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${PLUGIN_ROOT}/hooks/quality-guard.mjs",
+            "timeout": 300,
+            "statusMessage": "Running post-change quality guard"
+          }
+        ]
+      }
+    ]
+  }
+}

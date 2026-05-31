@@ -24,7 +24,7 @@ A good coding standard must defend against false confidence.
 
 Use layered controls:
 - post-change AI hooks that run the repository's existing linter/check after AI file edits
-- AI tool guards that block reads and mutations of existing `.env` files
+- AI tool guards that block reads, searches, listings, and mutations of existing `.env` files
 - changed-line coverage
 - mutation testing on critical modules
 - review triggers for test-only diffs

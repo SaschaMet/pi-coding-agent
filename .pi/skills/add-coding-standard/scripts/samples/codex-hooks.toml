@@ -1,0 +1,20 @@
+[features]
+hooks = true
+
+[[hooks.PreToolUse]]
+matcher = ".*"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "node .github/hooks/quality-guard.mjs"
+timeout = 20
+statusMessage = "Checking quality guard"
+
+[[hooks.PostToolUse]]
+matcher = ".*"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "node .github/hooks/quality-guard.mjs"
+timeout = 300
+statusMessage = "Running post-change quality guard"
