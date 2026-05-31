@@ -19,7 +19,7 @@ Required:
 For production apps, APIs, services, and internal applications with business data.
 Additional requirements:
 - integration tests
-- coverage threshold
+- coverage threshold set to the current measured total first, then ratcheted upward over time
 - mutation tests for critical modules
 - architecture documentation
 - privacy classification
@@ -50,6 +50,7 @@ Always require:
 - one full verification command
 - one CI verification command
 - explicit owner, profile, and data classification when relevant
+- no unapproved test-only AI diffs: changed tests or snapshots require a paired implementation change unless the user explicitly requested test-only maintenance
 
 ## Verification command shape
 
@@ -75,6 +76,7 @@ When production modules are renamed, removed, or heavily refactored, review and 
 Agents must be ambitious about quality gates:
 - install or preserve a universal post-change agent hook that runs an existing linter/check after AI file changes and no-ops when no linter exists
 - install or preserve an agent guard that blocks AI reads, searches, listings, and writes involving existing `.env` files
+- install or preserve an agent guard that blocks changed tests or snapshots when no implementation files changed
 - fix typed code instead of bypassing the checker
 - model data with domain types, schemas, generics, discriminated unions, typed fixtures, and type guards before considering escape hatches
 - preserve or tighten lint rules unless the repository owner explicitly approves weakening them

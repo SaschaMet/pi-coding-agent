@@ -31,6 +31,19 @@ function writeExecutable(cwd: string, relativePath: string, content: string): st
     return filePath;
 }
 
+function runGit(cwd: string, args: string[]): void {
+    const result = spawnSync("git", args, { cwd, encoding: "utf-8" });
+    if (result.status !== 0) {
+        throw new Error(`git ${args.join(" ")} failed\n${result.stdout}\n${result.stderr}`);
+    }
+}
+
+function initializeGitRepo(cwd: string): void {
+    runGit(cwd, ["init"]);
+    runGit(cwd, ["config", "user.email", "test@example.com"]);
+    runGit(cwd, ["config", "user.name", "Test User"]);
+}
+
 function runHook(cwd: string, payload: Record<string, unknown>, env: NodeJS.ProcessEnv = process.env) {
     const result = spawnSync(process.execPath, [sampleHookPath], {
         cwd,
@@ -208,6 +221,47 @@ describe("add-coding-standard universal quality guard hook", () => {
         expect(result.parsed.continue).toBe(false);
         expect(result.parsed.stopReason).toContain("Post-change lint failed (package:lint)");
         expect(result.parsed.systemMessage).toContain("lint failed");
+    });
+
+    it("blocks test-only file changes", () => {
+        const cwd = makeTmpRepo("agent-quality-test-only-");
+        initializeGitRepo(cwd);
+        writeFile(cwd, "src/index.ts", "export const value = 1;\n");
+        runGit(cwd, ["add", "src/index.ts"]);
+        runGit(cwd, ["commit", "-m", "initial"]);
+        writeFile(cwd, "test/index.test.ts", "import { value } from '../src/index';\nexpect(value).toBe(1);\n");
+
+        const result = runHook(cwd, {
+            cwd,
+            hookEventName: "PostToolUse",
+            toolName: "write",
+            toolInput: { path: "test/index.test.ts" },
+        });
+
+        expect(result.status).toBe(2);
+        expect(result.parsed.continue).toBe(false);
+        expect(result.parsed.stopReason).toContain("Blocked test-only change");
+        expect(result.parsed.stopReason).toContain("test/index.test.ts");
+    });
+
+    it("allows test changes when implementation files also changed", () => {
+        const cwd = makeTmpRepo("agent-quality-test-with-implementation-");
+        initializeGitRepo(cwd);
+        writeFile(cwd, "src/index.ts", "export const value = 1;\n");
+        runGit(cwd, ["add", "src/index.ts"]);
+        runGit(cwd, ["commit", "-m", "initial"]);
+        writeFile(cwd, "src/index.ts", "export const value = 2;\n");
+        writeFile(cwd, "test/index.test.ts", "import { value } from '../src/index';\nexpect(value).toBe(2);\n");
+
+        const result = runHook(cwd, {
+            cwd,
+            hookEventName: "PostToolUse",
+            toolName: "write",
+            toolInput: { path: "test/index.test.ts" },
+        });
+
+        expect(result.status).toBe(0);
+        expect(result.parsed).toEqual({ continue: true });
     });
 });
 

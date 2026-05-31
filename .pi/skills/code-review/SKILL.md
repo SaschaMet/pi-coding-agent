@@ -27,12 +27,12 @@ Load only the references needed for the requested review scope:
 
 ## Review Scope
 
-| User request | Passes to run |
-| --- | --- |
-| Generic review, diff review, audit, or combined verdict | QA, Security, and Code Quality |
-| QA, regression, behavior, or test adequacy only | QA only |
-| Security review only | Security only |
-| Maintainability, performance, design, or code quality only | Code Quality only |
+| User request                                               | Passes to run                  |
+| ---------------------------------------------------------- | ------------------------------ |
+| Generic review, diff review, audit, or combined verdict    | QA, Security, and Code Quality |
+| QA, regression, behavior, or test adequacy only            | QA only                        |
+| Security review only                                       | Security only                  |
+| Maintainability, performance, design, or code quality only | Code Quality only              |
 
 ## Execution Steps
 
@@ -41,6 +41,7 @@ Load only the references needed for the requested review scope:
    - Run `git diff`
    - Review only added/modified lines, plus surrounding code needed to prove impact.
    - Identify the change intent, touched public contracts, and affected runtime paths before judging findings.
+   - Classify whether the diff is test-only: tests, snapshots, or fixtures changed while no implementation files changed.
    - For changed source files, capture current file line counts and whether the diff pushes any file over 250 lines.
 2. Discover project-specific quality commands and conventions:
    - Read `package.json` scripts when present.
@@ -74,18 +75,24 @@ Load only the references needed for the requested review scope:
 9. Apply precedence when duplicate root cause exists:
    - `security` > `qa` > `code_quality`
 10. Sort final findings:
-   - severity `HIGH` first, then `MEDIUM`, then `LOW`
-   - tie-break by category precedence above, then file+line
+
+- severity `HIGH` first, then `MEDIUM`, then `LOW`
+- tie-break by category precedence above, then file+line
+
 11. Quality-gate every finding before final output:
-   - exact changed line or nearest changed line
-   - concrete failure/exploit/maintenance scenario
-   - production or user impact
-   - smallest practical recommendation
-   - no generic advice, style preference, or broad rewrite unless it identifies a concrete simplification that removes meaningful complexity
+
+- exact changed line or nearest changed line
+- concrete failure/exploit/maintenance scenario
+- production or user impact
+- smallest practical recommendation
+- no generic advice, style preference, or broad rewrite unless it identifies a concrete simplification that removes meaningful complexity
+- unapproved test-only AI diffs are HIGH QA findings when tests, snapshots, or fixtures changed without implementation changes
+
 12. Produce a single final verdict:
-   - `FAIL` if any HIGH finding exists
-   - `REQUIRES_MODIFICATION` if only MEDIUM/LOW findings exist
-   - `PASS` if no findings
+
+- `FAIL` if any HIGH finding exists
+- `REQUIRES_MODIFICATION` if only MEDIUM/LOW findings exist
+- `PASS` if no findings
 
 ## Gotchas
 
@@ -93,8 +100,10 @@ Load only the references needed for the requested review scope:
 - A finding must name a concrete failing scenario, exploit path, regression, or maintenance cost.
 - Breaking changes are findings when the diff changes public API signatures, removes/renames public methods, changes return types, modifies database schemas, or changes required configuration without a compatible migration path.
 - Do not count missing tests as a finding unless the changed behavior is unprotected or the repo convention requires coverage.
+- Do not accept test-only diffs that claim implementation behavior changed. If tests, snapshots, or fixtures changed and no implementation files changed, fail the review unless the user explicitly requested test-only maintenance.
 - Do not implement fixes in this skill; switch only if the user explicitly asks for remediation.
 - Include suggested tests only when they directly prove the finding or close a changed-behavior gap.
+- Set thresholds to current measured totals so future changes cannot lower coverage. Increase only when the measured score improves.
 
 ## Merge Rules
 

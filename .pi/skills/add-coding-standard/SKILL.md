@@ -19,6 +19,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 - A Baseline, Standard, or Hardened profile is selected and documented with data classification when relevant.
 - Existing working tools and command names are preserved unless they conflict with the selected standard.
 - Missing formatter, linter, typecheck, tests, coverage, mutation, security, cleanup, and AI-risk checks are added only where they fit the repo.
+- Coverage thresholds are set to the repository's current measured totals first, then only ratcheted upward as coverage improves.
 - Strict typing is enforced as an agent behavior: use the narrowest practical types and avoid `any`, `unknown`, dynamic/object escape hatches, or broad casts unless no safer boundary type exists.
 - Linting and typecheck rules are treated as quality gates. Disabling a rule requires a documented, local, narrow justification after first attempting a typed/code-level fix.
 - A universal agent quality hook is installed or adapted so AI file changes run an existing linter/check when one is detectable, and pass silently when none exists.
@@ -64,6 +65,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
      - block search/list scopes that include an existing `.env`
      - run after successful AI edit/write-style operations
      - detect possible file changes from AI shell operations by comparing git status before and after the command
+     - block AI test-only worktree changes when changed test files exist and no implementation files changed
      - detect an existing linter/check first, using `make lint`, package scripts (`lint`, `check:fast`, `check`), Python Ruff from `pyproject.toml`, or pre-commit
      - no-op when no linter/check exists
    - wire the universal hook for installed agents without mutating user-level config:
@@ -86,6 +88,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 | No profile specified | Use Baseline for small tools/libraries, Standard for production apps/services, and ask before Hardened. |
 | Monorepo with mixed stacks | Apply shared policy at root and stack-specific tooling per package. |
 | Legacy repo with many heuristic warnings | Add warning-mode checks and document cleanup before blocking CI. |
+| Coverage exists without thresholds | Set thresholds to current measured totals so future changes cannot lower coverage; increase only when the measured score improves. |
 | Coverage is present but weak | Add behavioral test guidance and critical-module mutation checks; do not treat coverage alone as done. |
 
 ## Gotchas

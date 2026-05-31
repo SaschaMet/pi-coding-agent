@@ -7,6 +7,34 @@ const MUTATING_TOOLS = new Set(["edit", "write", "multiedit", "apply_patch", "cr
 const READ_ENV_TOOLS = new Set(["read", "grep", "glob", "find", "ls"]);
 const MUTATE_ENV_TOOLS = new Set(["edit", "write", "multiedit", "apply_patch", "create_file", "rename", "delete"]);
 const BASH_TOOLS = new Set(["bash"]);
+const IMPLEMENTATION_EXTENSIONS = new Set([
+  ".c",
+  ".cc",
+  ".cjs",
+  ".cpp",
+  ".cs",
+  ".css",
+  ".go",
+  ".h",
+  ".hpp",
+  ".java",
+  ".js",
+  ".jsx",
+  ".kt",
+  ".mjs",
+  ".php",
+  ".py",
+  ".rb",
+  ".rs",
+  ".scala",
+  ".scss",
+  ".sh",
+  ".swift",
+  ".ts",
+  ".tsx",
+  ".vue",
+]);
+const TEST_ARTIFACT_EXTENSIONS = new Set([".snap"]);
 
 const TOOL_ALIASES = new Map([
   ["read", "read"],
@@ -170,15 +198,7 @@ function getToolPathInput(toolName, input) {
 }
 
 function patchTouchesEnv(cwd, input) {
-  const patchText = firstNonEmptyString(input.command, input.patch, input.diff);
-  if (!patchText) return false;
-
-  for (const line of patchText.split(/\r?\n/)) {
-    const match = /^(?:\+\+\+|---|\*\*\* (?:Add|Update|Delete) File:)\s+(?:a\/|b\/)?(.+)$/.exec(line.trim());
-    if (match && isEnvPath(cwd, match[1])) return true;
-  }
-
-  return false;
+  return patchTouchedFiles(input).some((filePath) => isEnvPath(cwd, filePath));
 }
 
 function shouldBlockEnvAccess(cwd, toolName, input) {
@@ -203,9 +223,83 @@ function shouldBlockEnvAccess(cwd, toolName, input) {
 }
 
 function gitStatus(cwd) {
-  const result = spawnSync("git", ["status", "--porcelain"], { cwd, encoding: "utf8" });
+  const result = spawnSync("git", ["status", "--porcelain", "-uall"], { cwd, encoding: "utf8" });
   if (result.status !== 0) return undefined;
   return result.stdout;
+}
+
+function gitStatusFiles(statusText) {
+  if (typeof statusText !== "string") return [];
+
+  const files = [];
+  for (const line of statusText.split(/\r?\n/)) {
+    if (line.trim().length === 0) continue;
+    const rawPath = line.slice(3).trim();
+    const renamedPath = rawPath.includes(" -> ") ? rawPath.split(" -> ").at(-1) : rawPath;
+    if (renamedPath) files.push(renamedPath.replace(/^"|"$/g, ""));
+  }
+  return files;
+}
+
+function pathParts(filePath) {
+  return filePath.split(/[\\/]+/).filter(Boolean);
+}
+
+function isTestFile(filePath) {
+  const basename = path.basename(filePath);
+  const extension = path.extname(basename);
+  const parts = pathParts(filePath);
+
+  return (
+    parts.includes("test") ||
+    parts.includes("tests") ||
+    parts.includes("__tests__") ||
+    parts.includes("__snapshots__") ||
+    /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(basename) ||
+    /^test[-_]/i.test(basename) ||
+    TEST_ARTIFACT_EXTENSIONS.has(extension)
+  );
+}
+
+function isImplementationFile(filePath) {
+  const extension = path.extname(filePath);
+  if (!IMPLEMENTATION_EXTENSIONS.has(extension)) return false;
+  return !isTestFile(filePath);
+}
+
+function shouldBlockTestOnlyChanges(cwd) {
+  const status = gitStatus(cwd);
+  if (status === undefined) return undefined;
+
+  const changedFiles = gitStatusFiles(status);
+  const changedTestFiles = changedFiles.filter(isTestFile);
+  if (changedTestFiles.length === 0) return undefined;
+
+  const changedImplementationFiles = changedFiles.filter(isImplementationFile);
+  if (changedImplementationFiles.length > 0) return undefined;
+
+  return `Blocked test-only change: changed tests without implementation files (${changedTestFiles.join(", ")}). Change production code too, or ask for explicit approval for a test-only update.`;
+}
+
+function patchTouchedFiles(input) {
+  const patchText = firstNonEmptyString(input.command, input.patch, input.diff);
+  if (!patchText) return [];
+
+  const files = [];
+  for (const line of patchText.split(/\r?\n/)) {
+    const match = /^(?:\+\+\+|---|\*\*\* (?:Add|Update|Delete) File:)\s+(?:a\/|b\/)?(.+)$/.exec(line.trim());
+    if (match && match[1] !== "/dev/null") files.push(match[1]);
+  }
+  return files;
+}
+
+function mutatingToolTouchedTest(toolName, input) {
+  if (toolName === "apply_patch") return patchTouchedFiles(input).some(isTestFile);
+
+  const inputPath =
+    getToolPathInput(toolName, input) ??
+    firstNonEmptyString(input.new_path, input.newPath, input.destination, input.dest, input.target);
+  return inputPath ? isTestFile(inputPath) : false;
 }
 
 function snapshotDir(cwd) {
@@ -267,6 +361,20 @@ function runLint(cwd) {
   process.exit(2);
 }
 
+function blockTestOnlyChanges(cwd, shouldCheck = true) {
+  if (!shouldCheck) return false;
+
+  const blockReason = shouldBlockTestOnlyChanges(cwd);
+  if (!blockReason) return false;
+
+  outputJson({
+    continue: false,
+    stopReason: blockReason,
+    systemMessage: blockReason,
+  });
+  process.exit(2);
+}
+
 function main() {
   const payload = readStdinJson();
   const cwd = firstNonEmptyString(payload.cwd) ?? process.cwd();
@@ -300,6 +408,7 @@ function main() {
 
   if (eventName === "PostToolUse") {
     if (MUTATING_TOOLS.has(toolName)) {
+      blockTestOnlyChanges(cwd, mutatingToolTouchedTest(toolName, toolInput));
       if (runLint(cwd)) return;
       outputJson({ continue: true });
       return;
@@ -309,6 +418,7 @@ function main() {
       const before = loadStatusSnapshot(cwd, toolCallId);
       const after = gitStatus(cwd);
       if (before !== undefined && after !== undefined && before !== after) {
+        blockTestOnlyChanges(cwd);
         if (runLint(cwd)) return;
         outputJson({ continue: true });
         return;
