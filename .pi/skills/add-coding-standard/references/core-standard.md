@@ -38,6 +38,7 @@ Additional requirements:
 
 Always require:
 - no secrets in code, tests, fixtures, docs, or logs
+- no AI read or write access to an existing `.env`; document environment variables through `.env.example`
 - boundary validation for untrusted input
 - strongest practical types at implementation boundaries and inside core logic
 - no `any`, `unknown`, dynamic maps, blanket casts, or language-equivalent escape hatches where a precise type can be expressed
@@ -72,6 +73,8 @@ When production modules are renamed, removed, or heavily refactored, review and 
 ## Agent shortcut prevention
 
 Agents must be ambitious about quality gates:
+- install or preserve a post-change PI hook that runs an existing linter/check after AI file changes and no-ops when no linter exists
+- install or preserve a PI guard that blocks AI reads and writes to existing `.env` files
 - fix typed code instead of bypassing the checker
 - model data with domain types, schemas, generics, discriminated unions, typed fixtures, and type guards before considering escape hatches
 - preserve or tighten lint rules unless the repository owner explicitly approves weakening them

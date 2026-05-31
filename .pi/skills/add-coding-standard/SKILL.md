@@ -21,6 +21,8 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 - Missing formatter, linter, typecheck, tests, coverage, mutation, security, cleanup, and AI-risk checks are added only where they fit the repo.
 - Strict typing is enforced as an agent behavior: use the narrowest practical types and avoid `any`, `unknown`, dynamic/object escape hatches, or broad casts unless no safer boundary type exists.
 - Linting and typecheck rules are treated as quality gates. Disabling a rule requires a documented, local, narrow justification after first attempting a typed/code-level fix.
+- A PI post-change quality hook is installed or adapted so AI file changes run an existing linter/check when one is detectable, and pass silently when none exists.
+- A PI `.env` guard hook is installed or adapted so existing `.env` files cannot be read or changed by AI tools; `.env.example` remains available for documentation.
 - Future agents can find the standard through `AGENTS.md` or an equivalent local instruction file.
 - The narrowest meaningful local and CI-oriented verification commands were run or documented if unavailable.
 
@@ -56,6 +58,12 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
    - start heuristic AI-risk checks in warning mode on legacy repos; make them blocking only after cleanup or explicit approval
    - prefer precise domain, inferred, generic, discriminated-union, branded, schema-derived, and readonly/container types over broad fallback types
    - do not use lint-disable comments, weakened lint config, `// @ts-ignore`, `type: ignore`, or equivalent bypasses to make staged checks pass unless the underlying tool is wrong and the exception is the narrowest possible line-level waiver
+   - install or adapt the PI quality guard hook from [scripts/samples/pi-quality-guard.ts](scripts/samples/pi-quality-guard.ts) into `.pi/extensions/` when the target repo uses PI; it must:
+     - block AI access to an existing `.env` file for read/search/list/write/edit tools while allowing `.env.example`
+     - run after successful AI `edit` and `write` operations
+     - detect possible file changes from AI `bash` operations by comparing git status before and after the command
+     - detect an existing linter/check first, using `make lint`, package scripts (`lint`, `check:fast`, `check`), Python Ruff from `pyproject.toml`, or pre-commit
+     - no-op when no linter/check exists
    - when the repo lacks a standard executor, adapt [scripts/run-coding-standard.sh](scripts/run-coding-standard.sh) and the samples in [scripts/samples/](scripts/samples/)
    - update `.env.example`, CI workflows, hooks, engineering docs, and local agent instructions only when applicable
 6. Verify and repair:
@@ -88,7 +96,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 - [agents/openai.yaml](agents/openai.yaml): UI metadata and default prompt.
 - `references/`: standards, runtime defaults, CI snippets, and adapter guidance. Load only the files named in the workflow.
 - [scripts/run-coding-standard.sh](scripts/run-coding-standard.sh): portable runner for fast, full, CI, and pre-commit checks. Use `--help` before adapting it.
-- [scripts/samples/](scripts/samples/): sample Makefile, package scripts, pre-commit config, and GitHub Actions wiring for target repos.
+- [scripts/samples/](scripts/samples/): sample Makefile, package scripts, pre-commit config, PI quality guard hook, and GitHub Actions wiring for target repos.
 - `templates/`: starting points for files written into target repositories. Adapt before use; do not copy blindly.
 
 ## Output
