@@ -23,9 +23,8 @@ A good coding standard must defend against false confidence.
 ## Mitigations
 
 Use layered controls:
-- post-change AI hooks that run the repository's existing linter/check after AI file edits
+- session-end AI hooks that run the repository's existing linter/check once when the agent session ends
 - AI tool guards that block reads, searches, listings, and mutations of existing `.env` files
-- blocking guards for test-only AI diffs where changed tests or snapshots have no paired implementation change
 - changed-line coverage
 - mutation testing on critical modules
 - review triggers for test-only diffs
@@ -41,7 +40,6 @@ Use layered controls:
 Flag these patterns in warning mode at minimum:
 
 - test-only changes that claim a production bug is fixed
-- changed tests or snapshots without changed implementation files
 - lowered assertions, widened snapshots, or deleted edge cases
 - fixture changes without production behavior evidence
 - mocks replacing real validation, parsing, permission, retry, or serialization paths

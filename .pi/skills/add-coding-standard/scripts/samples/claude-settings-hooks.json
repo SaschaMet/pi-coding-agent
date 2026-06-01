@@ -2,23 +2,33 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": ".*",
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "node .github/hooks/quality-guard.mjs",
+            "command": ".github/hooks/scripts/block-env-read.sh",
+            "timeout": 20
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Grep|LS|Glob|Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".github/hooks/scripts/block-env-read.sh",
             "timeout": 20
           }
         ]
       }
     ],
-    "PostToolUse": [
+    "Stop": [
       {
         "matcher": ".*",
         "hooks": [
           {
             "type": "command",
-            "command": "node .github/hooks/quality-guard.mjs",
+            "command": ".github/hooks/scripts/lint-on-session-end.sh",
             "timeout": 300
           }
         ]

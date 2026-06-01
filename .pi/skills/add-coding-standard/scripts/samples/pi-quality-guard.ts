@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import type { ExtensionAPI, ToolResultEvent } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 const QUALITY_GUARD_REGISTERED = Symbol.for("pi.skills.add-coding-standard.pi-quality-guard.registered");
 
@@ -11,33 +11,30 @@ type HookResult = {
     continue?: boolean;
     stopReason?: string;
     systemMessage?: string;
+    permissionDecision?: string;
+    permissionDecisionReason?: string;
     hookSpecificOutput?: {
         hookEventName?: string;
         permissionDecision?: string;
         permissionDecisionReason?: string;
     };
 };
-type ToolResultPatch = {
-    content?: ToolResultEvent["content"];
-    details?: unknown;
-    isError?: boolean;
-};
 
-function hookScriptPath(cwd: string): string {
-    return path.join(cwd, ".github", "hooks", "quality-guard.mjs");
+function hookScriptPath(cwd: string, scriptName: string): string {
+    return path.join(cwd, ".github", "hooks", "scripts", scriptName);
 }
 
-function hookExists(cwd: string): boolean {
+function hookExists(cwd: string, scriptName: string): boolean {
     try {
-        return fs.statSync(hookScriptPath(cwd)).isFile();
+        return fs.statSync(hookScriptPath(cwd, scriptName)).isFile();
     } catch {
         return false;
     }
 }
 
-function runHook(cwd: string, payload: JsonObject): Promise<{ code: number | null; stdout: string; stderr: string }> {
+function runHook(cwd: string, scriptName: string, payload: JsonObject): Promise<{ code: number | null; stdout: string; stderr: string }> {
     return new Promise((resolve) => {
-        const child = spawn(process.execPath, [hookScriptPath(cwd)], {
+        const child = spawn("bash", [hookScriptPath(cwd, scriptName)], {
             cwd,
             stdio: ["pipe", "pipe", "pipe"],
         });
@@ -67,7 +64,7 @@ function parseHookResult(stdout: string): HookResult | undefined {
     const line = stdout
         .split(/\r?\n/)
         .map((part) => part.trim())
-        .filter(Boolean)
+        .filter((part) => part.startsWith("{") && part.endsWith("}"))
         .at(-1);
     if (!line) return undefined;
 
@@ -85,11 +82,8 @@ function getToolInput(event: { input?: ToolInput }): ToolInput {
     return event.input ?? {};
 }
 
-function textPatch(event: ToolResultEvent, message: string, isError: boolean): ToolResultPatch {
-    return {
-        isError,
-        content: [...event.content, { type: "text", text: message }],
-    };
+function compactMessage(stdout: string, stderr: string): string {
+    return [stdout.trim(), stderr.trim()].filter(Boolean).join("\n").slice(0, 8000);
 }
 
 export default function piQualityGuardExtension(pi: ExtensionAPI): void {
@@ -98,9 +92,9 @@ export default function piQualityGuardExtension(pi: ExtensionAPI): void {
     guardPi[QUALITY_GUARD_REGISTERED] = true;
 
     pi.on("tool_call", async (event, ctx) => {
-        if (!hookExists(ctx.cwd)) return undefined;
+        if (!hookExists(ctx.cwd, "block-env-read.sh")) return undefined;
 
-        const hook = await runHook(ctx.cwd, {
+        const hook = await runHook(ctx.cwd, "block-env-read.sh", {
             cwd: ctx.cwd,
             hookEventName: "PreToolUse",
             toolName: event.toolName,
@@ -108,8 +102,12 @@ export default function piQualityGuardExtension(pi: ExtensionAPI): void {
             toolCallId: event.toolCallId,
         });
         const result = parseHookResult(hook.stdout);
-        const decision = result?.hookSpecificOutput?.permissionDecision;
-        const reason = result?.hookSpecificOutput?.permissionDecisionReason ?? result?.stopReason ?? result?.systemMessage;
+        const decision = result?.hookSpecificOutput?.permissionDecision ?? result?.permissionDecision;
+        const reason =
+            result?.hookSpecificOutput?.permissionDecisionReason ??
+            result?.permissionDecisionReason ??
+            result?.stopReason ??
+            result?.systemMessage;
 
         if (decision === "deny" || result?.continue === false) {
             return { block: true, reason: reason ?? "Blocked by quality guard." };
@@ -118,25 +116,18 @@ export default function piQualityGuardExtension(pi: ExtensionAPI): void {
         return undefined;
     });
 
-    pi.on("tool_result", async (event: ToolResultEvent, ctx): Promise<ToolResultPatch | undefined> => {
-        if (event.isError || !hookExists(ctx.cwd)) return undefined;
+    pi.on("session_shutdown", async (event, ctx) => {
+        if (!hookExists(ctx.cwd, "lint-on-session-end.sh")) return undefined;
 
-        const hook = await runHook(ctx.cwd, {
+        const hook = await runHook(ctx.cwd, "lint-on-session-end.sh", {
             cwd: ctx.cwd,
-            hookEventName: "PostToolUse",
-            toolName: event.toolName,
-            toolInput: event.input,
-            toolCallId: event.toolCallId,
+            hookEventName: "SessionEnd",
+            reason: event.reason,
         });
-        const result = parseHookResult(hook.stdout);
-        const message = result?.systemMessage ?? result?.stopReason ?? hook.stderr.trim();
+        const message = parseHookResult(hook.stdout)?.systemMessage ?? compactMessage(hook.stdout, hook.stderr);
 
-        if (result?.continue === false || hook.code === 2) {
-            return textPatch(event, message || "Post-change quality guard failed.", true);
-        }
-
-        if (message) {
-            return textPatch(event, message, false);
+        if (message && ctx.hasUI) {
+            ctx.ui.notify(message, "info");
         }
 
         return undefined;

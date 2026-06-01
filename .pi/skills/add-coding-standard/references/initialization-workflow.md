@@ -20,7 +20,7 @@ Inspect at minimum:
 - test layout
 - CI/workflow files
 - existing hook files
-- existing agent hook files, including `.github/hooks`, `.claude/settings.json`, `.codex` or Codex plugin hooks, and `.pi/extensions`
+- existing agent hook files, including `.github/hooks`, `.github/copilot`, `.claude/settings.json`, `.codex` or Codex plugin hooks, and `.pi/extensions`
 - existing AGENTS, CLAUDE, or instruction files
 - coverage and mutation setup
 - type strictness settings and broad type escape hatches
@@ -38,7 +38,7 @@ Report these before editing:
 - Cleanup: stale tests, fixtures, snapshots, mocks, generated files, and helper scripts to inspect.
 - Type safety: strictness gaps, broad types, casts, ignored type errors, and trust-boundary validation gaps.
 - Lint integrity: disabled rules, ignore comments, staged-check bypasses, and whether each has a narrow documented reason.
-- AI hooks: whether Claude, Codex, and PI have a post-change lint/check hook and a `.env` access guard.
+- AI hooks: whether Claude, Codex, GitHub Copilot, and PI have a session-end lint/check hook and a `.env` access guard.
 - Questions: only material unknowns that the repository cannot answer.
 
 ## Good clarification questions
@@ -60,7 +60,7 @@ Part of implementation must be a local `AGENTS.md` or equivalent instruction fil
 - that it must ask targeted questions only when necessary
 - that it must use the strictest practical types and avoid `any`/`unknown` unless no safer type is available
 - that it must not weaken or disable linting/typechecking just to pass local, staged, or CI checks
-- that AI file changes must trigger the installed post-change lint/check hook when a linter exists
+- that agent sessions must trigger the installed session-end lint/check hook when a linter exists
 - that existing `.env` files are off-limits to AI read, search, list, and mutation tools
 - that it must then implement and verify the standard
 

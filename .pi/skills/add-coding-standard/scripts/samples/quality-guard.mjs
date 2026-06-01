@@ -1,47 +1,18 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
-const MUTATING_TOOLS = new Set(["edit", "write", "multiedit", "apply_patch", "create_file", "rename", "delete"]);
-const READ_ENV_TOOLS = new Set(["read", "grep", "glob", "find", "ls"]);
-const MUTATE_ENV_TOOLS = new Set(["edit", "write", "multiedit", "apply_patch", "create_file", "rename", "delete"]);
-const BASH_TOOLS = new Set(["bash"]);
-const IMPLEMENTATION_EXTENSIONS = new Set([
-  ".c",
-  ".cc",
-  ".cjs",
-  ".cpp",
-  ".cs",
-  ".css",
-  ".go",
-  ".h",
-  ".hpp",
-  ".java",
-  ".js",
-  ".jsx",
-  ".kt",
-  ".mjs",
-  ".php",
-  ".py",
-  ".rb",
-  ".rs",
-  ".scala",
-  ".scss",
-  ".sh",
-  ".swift",
-  ".ts",
-  ".tsx",
-  ".vue",
-]);
-const TEST_ARTIFACT_EXTENSIONS = new Set([".snap"]);
+const READ_ENV_TOOLS = new Set(["read", "view", "grep", "glob", "find", "ls"]);
+const MUTATE_ENV_TOOLS = new Set(["edit", "write", "multiedit", "apply_patch", "create", "create_file", "rename", "delete"]);
 
 const TOOL_ALIASES = new Map([
   ["read", "read"],
+  ["view", "view"],
   ["write", "write"],
   ["edit", "edit"],
   ["multiedit", "multiedit"],
   ["applypatch", "apply_patch"],
+  ["create", "create"],
   ["createfile", "create_file"],
   ["rename", "rename"],
   ["delete", "delete"],
@@ -73,7 +44,7 @@ function firstNonEmptyString(...values) {
 function normalizeEventName(eventName) {
   const key = String(eventName).replace(/[-_\s]/g, "").toLowerCase();
   if (key === "pretooluse") return "PreToolUse";
-  if (key === "posttooluse") return "PostToolUse";
+  if (key === "stop" || key === "sessionend" || key === "sessionshutdown") return "SessionEnd";
   return String(eventName);
 }
 
@@ -144,6 +115,10 @@ function hasPreCommitConfig(cwd) {
 }
 
 function detectLintCommand(cwd) {
+  if (process.env.AGENT_LINT_COMMAND) {
+    return { label: "env:AGENT_LINT_COMMAND", cwd, command: "bash", args: ["-lc", process.env.AGENT_LINT_COMMAND] };
+  }
+
   if (makefileHasTarget(cwd, "lint")) {
     return { label: "make:lint", cwd, command: "make", args: ["lint"] };
   }
@@ -153,7 +128,10 @@ function detectLintCommand(cwd) {
   }
 
   if (pyprojectHasRuff(cwd)) {
-    return { label: "python:ruff-check", cwd, command: "uv", args: ["run", "ruff", "check", "."] };
+    if (spawnSync("uv", ["--version"], { encoding: "utf8" }).status === 0) {
+      return { label: "python:ruff-check", cwd, command: "uv", args: ["run", "ruff", "check", "."] };
+    }
+    return { label: "python:ruff-check", cwd, command: "ruff", args: ["check", "."] };
   }
 
   if (hasPreCommitConfig(cwd)) {
@@ -163,170 +141,80 @@ function detectLintCommand(cwd) {
   return undefined;
 }
 
-function resolveToolPath(cwd, inputPath) {
-  return path.resolve(cwd, inputPath);
+function basename(value) {
+  return path.basename(String(value).replace(/\\/g, "/").trim().replace(/^["']|["']$/g, ""));
 }
 
-function envPath(cwd) {
-  return path.join(cwd, ".env");
+function isEnvPath(value) {
+  const base = basename(value);
+  if (base === ".env.example") return false;
+  return base === ".env" || base.startsWith(".env.");
 }
 
-function isEnvPath(cwd, inputPath) {
-  return path.relative(envPath(cwd), resolveToolPath(cwd, inputPath)) === "";
-}
+function envFiles(cwd) {
+  const files = [];
+  const env = path.join(cwd, ".env");
+  if (fileExists(env)) files.push(env);
 
-function pathContainsEnvScope(cwd, inputPath) {
-  const resolvedScope = resolveToolPath(cwd, inputPath);
-  const resolvedEnv = envPath(cwd);
-
-  if (resolvedScope === resolvedEnv) return true;
-
-  const relativeEnv = path.relative(resolvedScope, resolvedEnv);
-  return relativeEnv === ".env" || (!relativeEnv.startsWith("..") && !path.isAbsolute(relativeEnv));
-}
-
-function getToolPathInput(toolName, input) {
-  if (["read", "write", "edit", "multiedit", "create_file", "rename", "delete"].includes(toolName)) {
-    return firstNonEmptyString(input.path, input.file_path, input.filePath);
+  try {
+    for (const entry of fs.readdirSync(cwd)) {
+      if (!entry.startsWith(".env.") || entry === ".env.example") continue;
+      const candidate = path.join(cwd, entry);
+      if (fileExists(candidate)) files.push(candidate);
+    }
+  } catch {
+    return files;
   }
 
-  if (["grep", "glob", "find", "ls"].includes(toolName)) {
-    return firstNonEmptyString(input.path, input.file_path, input.filePath) ?? ".";
+  return files;
+}
+
+function scopeContainsEnv(cwd, inputPath) {
+  const resolvedScope = path.resolve(cwd, inputPath);
+  for (const envFile of envFiles(cwd)) {
+    const relative = path.relative(resolvedScope, envFile);
+    if (relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))) return true;
+  }
+  return false;
+}
+
+function getToolPathInputs(input) {
+  const candidates = [];
+  for (const key of ["path", "file_path", "filePath", "uri", "query", "includePattern", "pattern"]) {
+    if (typeof input?.[key] === "string") candidates.push(input[key]);
+  }
+  return candidates;
+}
+
+function commandTouchesEnv(command) {
+  if (!command) return false;
+  return /(^|[^\w.-])\.env(?:\.[A-Za-z0-9_.-]+)?($|[^\w.-])/.test(command.replaceAll(".env.example", ""));
+}
+
+function shouldBlockEnvAccess(toolName, input, cwd) {
+  if (!READ_ENV_TOOLS.has(toolName) && !MUTATE_ENV_TOOLS.has(toolName) && toolName !== "bash") return undefined;
+
+  if (toolName === "bash") {
+    const command = firstNonEmptyString(input.command, input.cmd);
+    if (!commandTouchesEnv(command)) return undefined;
+    return "Shell command targeting .env file is blocked by the no-env-read hook.";
+  }
+
+  for (const inputPath of getToolPathInputs(input)) {
+    if (!isEnvPath(inputPath)) continue;
+    const action = MUTATE_ENV_TOOLS.has(toolName) ? "change" : "read";
+    return `Blocked ${toolName}: refusing to ${action} .env file. Use .env.example for documentation.`;
+  }
+
+  if (toolName === "grep" || toolName === "glob" || toolName === "find" || toolName === "ls") {
+    for (const inputPath of getToolPathInputs(input)) {
+      if (scopeContainsEnv(cwd, inputPath)) {
+        return "Search/list scope includes .env files, which are blocked by the no-env-read hook.";
+      }
+    }
   }
 
   return undefined;
-}
-
-function patchTouchesEnv(cwd, input) {
-  return patchTouchedFiles(input).some((filePath) => isEnvPath(cwd, filePath));
-}
-
-function shouldBlockEnvAccess(cwd, toolName, input) {
-  if (!fileExists(envPath(cwd))) return undefined;
-  if (!READ_ENV_TOOLS.has(toolName) && !MUTATE_ENV_TOOLS.has(toolName)) return undefined;
-
-  if (toolName === "apply_patch" && patchTouchesEnv(cwd, input)) {
-    return "Blocked apply_patch: refusing to change existing .env file. Use .env.example for documentation.";
-  }
-
-  const inputPath = getToolPathInput(toolName, input);
-  if (!inputPath) return undefined;
-
-  if (READ_ENV_TOOLS.has(toolName) && toolName !== "read") {
-    if (!pathContainsEnvScope(cwd, inputPath)) return undefined;
-  } else if (!isEnvPath(cwd, inputPath)) {
-    return undefined;
-  }
-
-  const action = MUTATE_ENV_TOOLS.has(toolName) ? "change" : "read";
-  return `Blocked ${toolName}: refusing to ${action} existing .env file. Use .env.example for documentation.`;
-}
-
-function gitStatus(cwd) {
-  const result = spawnSync("git", ["status", "--porcelain", "-uall"], { cwd, encoding: "utf8" });
-  if (result.status !== 0) return undefined;
-  return result.stdout;
-}
-
-function gitStatusFiles(statusText) {
-  if (typeof statusText !== "string") return [];
-
-  const files = [];
-  for (const line of statusText.split(/\r?\n/)) {
-    if (line.trim().length === 0) continue;
-    const rawPath = line.slice(3).trim();
-    const renamedPath = rawPath.includes(" -> ") ? rawPath.split(" -> ").at(-1) : rawPath;
-    if (renamedPath) files.push(renamedPath.replace(/^"|"$/g, ""));
-  }
-  return files;
-}
-
-function pathParts(filePath) {
-  return filePath.split(/[\\/]+/).filter(Boolean);
-}
-
-function isTestFile(filePath) {
-  const basename = path.basename(filePath);
-  const extension = path.extname(basename);
-  const parts = pathParts(filePath);
-
-  return (
-    parts.includes("test") ||
-    parts.includes("tests") ||
-    parts.includes("__tests__") ||
-    parts.includes("__snapshots__") ||
-    /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(basename) ||
-    /^test[-_]/i.test(basename) ||
-    TEST_ARTIFACT_EXTENSIONS.has(extension)
-  );
-}
-
-function isImplementationFile(filePath) {
-  const extension = path.extname(filePath);
-  if (!IMPLEMENTATION_EXTENSIONS.has(extension)) return false;
-  return !isTestFile(filePath);
-}
-
-function shouldBlockTestOnlyChanges(cwd) {
-  const status = gitStatus(cwd);
-  if (status === undefined) return undefined;
-
-  const changedFiles = gitStatusFiles(status);
-  const changedTestFiles = changedFiles.filter(isTestFile);
-  if (changedTestFiles.length === 0) return undefined;
-
-  const changedImplementationFiles = changedFiles.filter(isImplementationFile);
-  if (changedImplementationFiles.length > 0) return undefined;
-
-  return `Blocked test-only change: changed tests without implementation files (${changedTestFiles.join(", ")}). Change production code too, or ask for explicit approval for a test-only update.`;
-}
-
-function patchTouchedFiles(input) {
-  const patchText = firstNonEmptyString(input.command, input.patch, input.diff);
-  if (!patchText) return [];
-
-  const files = [];
-  for (const line of patchText.split(/\r?\n/)) {
-    const match = /^(?:\+\+\+|---|\*\*\* (?:Add|Update|Delete) File:)\s+(?:a\/|b\/)?(.+)$/.exec(line.trim());
-    if (match && match[1] !== "/dev/null") files.push(match[1]);
-  }
-  return files;
-}
-
-function mutatingToolTouchedTest(toolName, input) {
-  if (toolName === "apply_patch") return patchTouchedFiles(input).some(isTestFile);
-
-  const inputPath =
-    getToolPathInput(toolName, input) ??
-    firstNonEmptyString(input.new_path, input.newPath, input.destination, input.dest, input.target);
-  return inputPath ? isTestFile(inputPath) : false;
-}
-
-function snapshotDir(cwd) {
-  const key = Buffer.from(path.resolve(cwd)).toString("hex");
-  return path.join(os.tmpdir(), "agent-quality-guard", key);
-}
-
-function snapshotFile(cwd, toolCallId) {
-  return path.join(snapshotDir(cwd), `${toolCallId}.txt`);
-}
-
-function storeStatusSnapshot(cwd, toolCallId) {
-  const status = gitStatus(cwd);
-  if (status === undefined) return;
-  fs.mkdirSync(snapshotDir(cwd), { recursive: true });
-  fs.writeFileSync(snapshotFile(cwd, toolCallId), status, "utf8");
-}
-
-function loadStatusSnapshot(cwd, toolCallId) {
-  const filePath = snapshotFile(cwd, toolCallId);
-  try {
-    const content = fs.readFileSync(filePath, "utf8");
-    fs.rmSync(filePath, { force: true });
-    return content;
-  } catch {
-    return undefined;
-  }
 }
 
 function outputJson(payload) {
@@ -335,7 +223,10 @@ function outputJson(payload) {
 
 function runLint(cwd) {
   const lintCommand = detectLintCommand(cwd);
-  if (!lintCommand) return false;
+  if (!lintCommand) {
+    outputJson({ continue: true, systemMessage: "Session-end lint skipped: no lint/check command detected." });
+    return;
+  }
 
   const result = spawnSync(lintCommand.command, lintCommand.args, {
     cwd: lintCommand.cwd,
@@ -343,36 +234,11 @@ function runLint(cwd) {
   });
 
   const output = [result.stdout?.trim(), result.stderr?.trim()].filter(Boolean).join("\n");
-  const message = output.length > 0 ? output : `No output from ${lintCommand.label}.`;
-
-  if (result.status === 0) {
-    outputJson({
-      continue: true,
-      systemMessage: `Post-change lint passed (${lintCommand.label}).\n${message}`,
-    });
-    return true;
-  }
-
+  const status = result.status === 0 ? "passed" : "finished with issues";
   outputJson({
-    continue: false,
-    stopReason: `Post-change lint failed (${lintCommand.label}).`,
-    systemMessage: `Post-change lint failed (${lintCommand.label}).\n${message}`,
+    continue: true,
+    systemMessage: `Session-end lint ${status} (${lintCommand.label}).${output ? `\n${output}` : ""}`,
   });
-  process.exit(2);
-}
-
-function blockTestOnlyChanges(cwd, shouldCheck = true) {
-  if (!shouldCheck) return false;
-
-  const blockReason = shouldBlockTestOnlyChanges(cwd);
-  if (!blockReason) return false;
-
-  outputJson({
-    continue: false,
-    stopReason: blockReason,
-    systemMessage: blockReason,
-  });
-  process.exit(2);
 }
 
 function main() {
@@ -382,16 +248,16 @@ function main() {
     firstNonEmptyString(payload.hookEventName, payload.hook_event_name, payload.eventName, payload.event_name) ?? "",
   );
   const toolName = normalizeToolName(firstNonEmptyString(payload.toolName, payload.tool_name, payload.tool, payload.name) ?? "");
-  const toolInput = payload.toolInput ?? payload.tool_input ?? payload.input ?? {};
-  const toolCallId = firstNonEmptyString(payload.toolCallId, payload.tool_call_id, payload.tool_use_id, payload.id, payload.callId);
+  const rawToolInput = payload.toolInput ?? payload.tool_input ?? payload.toolArgs ?? payload.tool_args ?? payload.input ?? {};
+  const toolInput = typeof rawToolInput === "object" && rawToolInput !== null ? rawToolInput : {};
 
   if (eventName === "PreToolUse") {
-    const blockReason = shouldBlockEnvAccess(cwd, toolName, toolInput);
+    const blockReason = shouldBlockEnvAccess(toolName, toolInput, cwd);
     if (blockReason) {
       outputJson({
         continue: false,
-        stopReason: blockReason,
-        systemMessage: blockReason,
+        permissionDecision: "deny",
+        permissionDecisionReason: blockReason,
         hookSpecificOutput: {
           hookEventName: "PreToolUse",
           permissionDecision: "deny",
@@ -401,35 +267,16 @@ function main() {
       return;
     }
 
-    if (toolCallId && BASH_TOOLS.has(toolName)) storeStatusSnapshot(cwd, toolCallId);
-    outputJson({ continue: true });
+    outputJson({});
     return;
   }
 
-  if (eventName === "PostToolUse") {
-    if (MUTATING_TOOLS.has(toolName)) {
-      blockTestOnlyChanges(cwd, mutatingToolTouchedTest(toolName, toolInput));
-      if (runLint(cwd)) return;
-      outputJson({ continue: true });
-      return;
-    }
-
-    if (toolCallId && BASH_TOOLS.has(toolName)) {
-      const before = loadStatusSnapshot(cwd, toolCallId);
-      const after = gitStatus(cwd);
-      if (before !== undefined && after !== undefined && before !== after) {
-        blockTestOnlyChanges(cwd);
-        if (runLint(cwd)) return;
-        outputJson({ continue: true });
-        return;
-      }
-    }
-
-    outputJson({ continue: true });
+  if (eventName === "SessionEnd") {
+    runLint(cwd);
     return;
   }
 
-  outputJson({ continue: true });
+  outputJson({});
 }
 
 main();

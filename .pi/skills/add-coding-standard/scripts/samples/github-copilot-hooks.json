@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "matcher": "bash|read|view|grep|glob|find|ls|edit|write|multiedit|apply_patch|create|create_file|rename|delete",
+        "bash": ".github/hooks/scripts/block-env-read.sh",
+        "timeoutSec": 20
+      }
+    ],
+    "sessionEnd": [
+      {
+        "type": "command",
+        "bash": ".github/hooks/scripts/lint-on-session-end.sh",
+        "timeoutSec": 300
+      }
+    ]
+  }
+}
