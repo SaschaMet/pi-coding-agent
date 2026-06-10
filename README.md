@@ -2,7 +2,6 @@
 
 Git-tracked PI config/runtime parity stack for a global PI runtime (`~/.pi/agent`) that adds:
 
-- Codex-style plan mode
 - Claude Code-style subagents via `@tintinweb/pi-subagents`
 - Shared skills (including `~/.codex/skills`)
 
@@ -224,13 +223,6 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 ## Implementation Workflow
 
 - See [`docs/reference/implementation-workflow.md`](docs/reference/implementation-workflow.md) for a concise implementation checklist.
-
-## Plan Mode
-
-See [`.pi/extensions/plan-mode/README.md`](.pi/extensions/plan-mode/README.md) for the full plan mode behavior and configuration.
-
-- `/plan` - toggle read-only plan mode
-- `Ctrl+Alt+P` - toggle plan mode
 
 ## Troubleshooting
 

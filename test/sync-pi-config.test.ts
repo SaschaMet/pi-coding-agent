@@ -221,4 +221,46 @@ describe("sync-pi-config", () => {
             globalOnly: "keep-global",
         });
     });
+
+    it("does not pull global extension directories into local project config", () => {
+        const { localPiDir, globalAgentDir } = setupRoots("pi-sync-global-extension-dirs-");
+        const localPlanMode = path.join(localPiDir, "extensions", "plan-mode", "index.ts");
+        const globalPlanMode = path.join(globalAgentDir, "extensions", "plan-mode", "index.ts");
+        const localCustomExtension = path.join(localPiDir, "extensions", "read-boundary-guard.ts");
+
+        fs.mkdirSync(path.dirname(localPlanMode), { recursive: true });
+        fs.writeFileSync(localPlanMode, "export default function localPlanMode() {}\n", "utf-8");
+        fs.mkdirSync(path.dirname(globalPlanMode), { recursive: true });
+        fs.writeFileSync(globalPlanMode, "export default function globalPlanMode() {}\n", "utf-8");
+        fs.writeFileSync(localCustomExtension, "export default function readBoundaryGuard() {}\n", "utf-8");
+
+        const result = syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
+
+        expect(result.updated).toBe(0);
+        expect(result.deleted).toBe(1);
+        expect(fs.existsSync(localPlanMode)).toBe(false);
+        expect(fs.existsSync(path.dirname(localPlanMode))).toBe(false);
+        expect(fs.existsSync(localCustomExtension)).toBe(true);
+    });
+
+    it("does not push local extension directories that duplicate global plugin extensions", () => {
+        const { localPiDir, globalAgentDir } = setupRoots("pi-sync-global-extension-dir-push-");
+        const localPlanMode = path.join(localPiDir, "extensions", "plan-mode", "index.ts");
+        const globalPlanMode = path.join(globalAgentDir, "extensions", "plan-mode", "index.ts");
+        const localCustomExtension = path.join(localPiDir, "extensions", "read-boundary-guard.ts");
+
+        fs.mkdirSync(path.dirname(localPlanMode), { recursive: true });
+        fs.writeFileSync(localPlanMode, "export default function localPlanMode() {}\n", "utf-8");
+        fs.mkdirSync(path.dirname(globalPlanMode), { recursive: true });
+        fs.writeFileSync(globalPlanMode, "export default function globalPlanMode() {}\n", "utf-8");
+        fs.writeFileSync(localCustomExtension, "export default function readBoundaryGuard() {}\n", "utf-8");
+
+        const result = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+
+        expect(result.updated).toBe(1);
+        expect(result.deleted).toBe(1);
+        expect(fs.existsSync(localPlanMode)).toBe(false);
+        expect(fs.readFileSync(globalPlanMode, "utf-8")).toBe("export default function globalPlanMode() {}\n");
+        expect(fs.existsSync(path.join(globalAgentDir, "extensions", "read-boundary-guard.ts"))).toBe(true);
+    });
 });

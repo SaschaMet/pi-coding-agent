@@ -10,6 +10,7 @@ type JsonObject = Record<string, unknown>;
 const EXCLUDED_TOP_LEVEL_PATHS = new Set(["auth.json", "sessions", "npm", "models.json"]);
 const SETTINGS_RELATIVE_PATH = "settings.json";
 const MCP_RELATIVE_PATH = "mcp.json";
+const EXTENSIONS_RELATIVE_PATH = "extensions";
 
 function resolveGlobalAgentDir(): string {
     const fromEnv = process.env.PI_CODING_AGENT_DIR?.trim();
@@ -65,6 +66,40 @@ function listRelativeFilesRecursive(root: string): string[] {
 
     walk("");
     return files.sort();
+}
+
+function getExtensionDirectoryName(relativePath: string): string | undefined {
+    const normalized = relativePath.split(path.sep).join("/");
+    const parts = normalized.split("/");
+    if (parts.length < 3 || parts[0] !== EXTENSIONS_RELATIVE_PATH) return undefined;
+    return parts[1];
+}
+
+function isExtensionsRelativePath(relativePath: string): boolean {
+    const normalized = relativePath.split(path.sep).join("/");
+    return normalized === EXTENSIONS_RELATIVE_PATH || normalized.startsWith(`${EXTENSIONS_RELATIVE_PATH}/`);
+}
+
+function listExtensionDirectoryNames(root: string): Set<string> {
+    const extensionsRoot = path.join(root, EXTENSIONS_RELATIVE_PATH);
+    if (!fs.existsSync(extensionsRoot)) return new Set();
+
+    return new Set(
+        fs
+            .readdirSync(extensionsRoot, { withFileTypes: true })
+            .filter((entry) => entry.isDirectory())
+            .map((entry) => entry.name),
+    );
+}
+
+function removePulledGlobalExtensionDirectories(files: string[], globalAgentDir: string): string[] {
+    const globalExtensionDirectories = listExtensionDirectoryNames(globalAgentDir);
+    if (globalExtensionDirectories.size === 0) return files;
+
+    return files.filter((relativePath) => {
+        const extensionDirectory = getExtensionDirectoryName(relativePath);
+        return extensionDirectory === undefined || !globalExtensionDirectories.has(extensionDirectory);
+    });
 }
 
 function parseObjectJson(text: string): JsonObject | undefined {
@@ -178,8 +213,30 @@ function removeFileIfExists(filePath: string): boolean {
     return true;
 }
 
-function isPreservedTargetOnlyRelativePath(relativePath: string): boolean {
+function removeDirectoryIfExists(dirPath: string): boolean {
+    if (!fs.existsSync(dirPath)) return false;
+    fs.rmSync(dirPath, { recursive: true, force: true });
+    return true;
+}
+
+function isPreservedTargetOnlyRelativePath(mode: Mode, relativePath: string): boolean {
+    if (mode === "pull" && isExtensionsRelativePath(relativePath)) return true;
+    if (mode === "push" && getExtensionDirectoryName(relativePath) !== undefined) return true;
     return relativePath === MCP_RELATIVE_PATH;
+}
+
+function pruneLocalExtensionDirectoriesThatExistGlobally(localPiDir: string, globalAgentDir: string): number {
+    const globalExtensionDirectories = listExtensionDirectoryNames(globalAgentDir);
+    if (globalExtensionDirectories.size === 0) return 0;
+
+    let deleted = 0;
+    for (const extensionName of globalExtensionDirectories) {
+        const localExtensionDir = path.join(localPiDir, EXTENSIONS_RELATIVE_PATH, extensionName);
+        if (removeDirectoryIfExists(localExtensionDir)) deleted += 1;
+    }
+
+    pruneEmptyManagedDirectories(localPiDir);
+    return deleted;
 }
 
 function pruneEmptyManagedDirectories(root: string, relativeDir = ""): void {
@@ -208,8 +265,12 @@ export function syncManagedPiDirectory(mode: Mode, localPiDir: string, globalAge
     const sourceRoot = mode === "push" ? localPiDir : globalAgentDir;
     const targetRoot = mode === "push" ? globalAgentDir : localPiDir;
     ensureDir(targetRoot);
+    let deleted = pruneLocalExtensionDirectoriesThatExistGlobally(localPiDir, globalAgentDir);
 
-    const sourceFiles = listRelativeFilesRecursive(sourceRoot);
+    const sourceFiles =
+        mode === "pull"
+            ? removePulledGlobalExtensionDirectories(listRelativeFilesRecursive(sourceRoot), globalAgentDir)
+            : listRelativeFilesRecursive(sourceRoot);
     const sourceSet = new Set(sourceFiles);
 
     let updated = 0;
@@ -219,10 +280,9 @@ export function syncManagedPiDirectory(mode: Mode, localPiDir: string, globalAge
         if (copyFileIfChanged(sourcePath, targetPath, relativePath)) updated += 1;
     }
 
-    let deleted = 0;
     for (const targetRelativePath of listRelativeFilesRecursive(targetRoot)) {
         if (sourceSet.has(targetRelativePath)) continue;
-        if (isPreservedTargetOnlyRelativePath(targetRelativePath)) continue;
+        if (isPreservedTargetOnlyRelativePath(mode, targetRelativePath)) continue;
         const targetPath = path.join(targetRoot, targetRelativePath);
         if (removeFileIfExists(targetPath)) deleted += 1;
     }

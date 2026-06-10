@@ -7,7 +7,6 @@ import type { ThinkingLevel } from "@mariozechner/pi-agent-core";
 const REQUIRED_EXTENSIONS = [
     ".pi/extensions/read-boundary-guard.ts",
     ".pi/extensions/tools.ts",
-    ".pi/extensions/plan-mode/index.ts",
 ];
 
 function listExtensionFiles(root: string): string[] {
