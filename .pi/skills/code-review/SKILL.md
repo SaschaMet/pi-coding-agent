@@ -6,7 +6,7 @@ description: Use this skill when the user asks to review local changes, inspect 
 # Code Quality Check Orchestrator
 
 You are a unified reviewer. Review outcomes, not personal style. Run the focused passes required by the requested scope, then merge findings deterministically.
-Use subagents for specialist passes only when delegated review tooling is available and allowed. Otherwise run the same passes in the parent session. The parent session owns context capture, result collection, dedupe, final verdict, and final response.
+Always use subagents for every selected specialist pass. The parent session is the coordinator only: it owns context capture, pass selection, prompt construction, result collection, dedupe, final verdict, and final response. The parent session must not perform specialist review itself.
 
 ## Goal
 
@@ -58,15 +58,18 @@ Load only the references needed for the requested review scope:
    - relevant public APIs, schemas, config keys, CLI flags, event names, and database migrations touched by the diff
    - surrounding interfaces/callers needed to verify compatibility
    - explicit focus areas requested by the user
-4. Execute the selected read-only specialist passes:
+4. Execute the selected read-only specialist passes through subagents:
    - QA: correctness/regressions/edge cases/test adequacy only.
    - Security: concrete exploitable vulnerabilities only.
    - Code Quality: maintainability/performance/reliability/integration/design only.
-   - When subagents are available and allowed, spawn `generic-readonly` agents for selected passes. Prefer background agents for independent passes, then retrieve each result with `get_subagent_result({ wait: true })`.
-   - When subagents are unavailable or not allowed, run the same selected passes in the parent session and keep category ownership separate.
+   - Spawn one read-only subagent per selected pass using `multi_agent_v1.spawn_agent`.
+   - Use `agent_type: "qa-validator"` for the QA pass.
+   - Use `agent_type: "reviewer"` for Security and Code Quality passes, with the prompt restricting category ownership.
+   - Run selected passes in parallel whenever more than one pass is selected.
+   - If subagent tooling is unavailable, blocked, or any selected agent fails, stop and report the exact blocker. Do not run the missing pass in the parent session and do not invent that pass.
    - Give each pass the diff summary, relevant file paths, review context, validation context, exact reference path to read, strict category ownership, and required finding schema.
    - Apply strict non-overlap ownership. Out-of-scope items become scope notes, not findings.
-5. Wait until every selected pass has finished before merging, deduping, or producing a verdict. Do not proceed with partial results.
+5. Wait for every selected pass with `multi_agent_v1.wait_agent` before merging, deduping, or producing a verdict. Do not proceed with partial results.
 6. Collect pass outputs.
 7. Normalize each finding into:
    - `category`, `severity`, `file`, `line`, `title`, `evidence`, `recommendation`, `confidence`
@@ -117,42 +120,34 @@ Load only the references needed for the requested review scope:
 
 ## Subagent Examples
 
-Use this pattern after capturing `git status`, `git diff`, touched files, `Review Context`, and `Project Validation Context`.
+Use this pattern after capturing `git status`, `git diff`, touched files, `Review Context`, and `Project Validation Context`. Adapt only the pass list to the requested scope.
 
 ```text
-Agent({
-  subagent_type: "generic-readonly",
-  description: "QA review",
-  run_in_background: true,
-  prompt: "Run the QA pass for this code review. Read references/qa-validator.md from the code-review skill directory. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Review Context>, <Project Validation Context>. Report only correctness, regression, edge-case, breaking-change, and changed-behavior test adequacy findings. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report security or maintainability-only issues."
+multi_agent_v1.spawn_agent({
+  agent_type: "qa-validator",
+  message: "Run the QA pass for this code review. Read <absolute code-review skill dir>/references/qa-validator.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Review Context>, <Project Validation Context>. Report only correctness, regression, edge-case, breaking-change, and changed-behavior test adequacy findings. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report security or maintainability-only issues."
 })
 
-Agent({
-  subagent_type: "generic-readonly",
-  description: "Security review",
-  run_in_background: true,
-  prompt: "Run the Security pass for this code review. Read references/security-review.md from the code-review skill directory. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Review Context>, <Project Validation Context>. Report only concrete exploitable vulnerabilities with proof of exploit path. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or maintainability-only issues."
+multi_agent_v1.spawn_agent({
+  agent_type: "reviewer",
+  message: "Run the Security pass for this code review. Read <absolute code-review skill dir>/references/security-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Review Context>, <Project Validation Context>. Report only concrete exploitable vulnerabilities with proof of exploit path. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or maintainability-only issues."
 })
 
-Agent({
-  subagent_type: "generic-readonly",
-  description: "Quality review",
-  run_in_background: true,
-  prompt: "Run the Code Quality pass for this code review. Read references/code-review.md from the code-review skill directory. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <file size context including files over 250 lines>, <Review Context>, <Project Validation Context>. Report maintainability, performance, scalability, reliability, integration, portability, or design-quality findings only when they show concrete impact and a smaller organization that removes meaningful complexity. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or security issues."
+multi_agent_v1.spawn_agent({
+  agent_type: "reviewer",
+  message: "Run the Code Quality pass for this code review. Read <absolute code-review skill dir>/references/code-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <file size context including files over 250 lines>, <Review Context>, <Project Validation Context>. Report maintainability, performance, scalability, reliability, integration, portability, or design-quality findings only when they show concrete impact and a smaller organization that removes meaningful complexity. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or security issues."
 })
 
-get_subagent_result({ agent_id: "<qa-agent-id>", wait: true, verbose: false })
-get_subagent_result({ agent_id: "<security-agent-id>", wait: true, verbose: false })
-get_subagent_result({ agent_id: "<quality-agent-id>", wait: true, verbose: false })
+multi_agent_v1.wait_agent({ targets: ["<qa-agent-id>", "<security-agent-id>", "<quality-agent-id>"], timeout_ms: 3600000 })
 ```
 
 This skill-specific orchestration:
 
 - Parent session gathers context once and passes it to all agents.
-- Agents are read-only and independent, so background execution is appropriate.
+- Agents are read-only and independent, so parallel execution is required for multi-pass reviews.
 - Parent session waits for all selected subagent results to complete before collecting, deduping, sorting, or deciding the verdict.
 - Parent session dedupes, applies category precedence, sorts findings, and writes the final verdict.
-- If any agent fails, stop and report the exact failure. Do not invent that pass.
+- If any agent fails or subagent tooling is unavailable, stop and report the exact failure. Do not perform fallback specialist review in the parent session and do not invent that pass.
 
 ## Required Output
 
