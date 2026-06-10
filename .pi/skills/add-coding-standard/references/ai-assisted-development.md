@@ -16,6 +16,7 @@ A good coding standard must defend against false confidence.
 - Tests added that do not execute production code.
 - Over-mocking that bypasses real behavior.
 - Coverage raised while branch quality and mutation resistance remain weak.
+- Copy/pasted implementation added to satisfy one visible scenario instead of extracting or reusing existing behavior.
 - Dead tests, stale fixtures, and stale snapshots left behind after refactors.
 - Type errors bypassed with `any`, `unknown`, broad casts, `type: ignore`, `// @ts-ignore`, or equivalent escape hatches.
 - Lint rules disabled or weakened to satisfy staged checks instead of fixing the code.
@@ -27,6 +28,7 @@ Use layered controls:
 - AI tool guards that block reads, searches, listings, and mutations of existing `.env` files
 - changed-line coverage
 - mutation testing on critical modules
+- copy/paste detection for duplicated implementation logic
 - review triggers for test-only diffs
 - checks for orphaned tests
 - checks for stale snapshots and fixtures
@@ -44,6 +46,7 @@ Flag these patterns in warning mode at minimum:
 - fixture changes without production behavior evidence
 - mocks replacing real validation, parsing, permission, retry, or serialization paths
 - hardcoded branches matching visible examples
+- new or expanded duplicated production code, especially validation, permissions, parsing, retries, serialization, calculations, and data mapping
 - new or expanded `any`, `unknown`, `object`, untyped containers, broad casts, or ignored type errors without proof that no precise type is practical
 - new lint-disable comments or weakened lint configuration, especially near changed code
 
@@ -51,3 +54,13 @@ Flag these patterns in warning mode at minimum:
 
 Start heuristic checks in warning mode on existing repos.
 Promote them to blocking CI after cleanup and stabilization.
+
+## Duplicate-code detection
+
+Prefer existing duplicate-code tooling when present. Otherwise use `jscpd@5`/`cpd` for JavaScript, TypeScript, Python, and mixed repos because it supports broad language detection, `.jscpd.json`, `gitignore`, threshold exits, SARIF, JSON, and token-efficient `ai` reports.
+
+Default wiring:
+- Baseline or legacy repo: warning mode, usually `cpd . --reporters ai,json --output reports/jscpd`, and document top clones for cleanup.
+- Standard/Hardened: blocking CI after a baseline threshold is chosen, usually with `threshold` plus `json` or `sarif` reporters.
+- Exclusions: generated files, build outputs, vendored code, dependencies, lockfiles, fixtures, snapshots, coverage, and report directories unless explicitly in scope.
+- Triage: prioritize duplicated domain logic over tests or glue; use reports to prevent new duplication, not to force broad churn.

@@ -5,6 +5,7 @@ check-fast:
 
 check-full: check-fast
 	$(MAKE) test-coverage
+	$(MAKE) dup-check
 	$(MAKE) ai-risk-check
 
 ci-verify: check-full
@@ -12,6 +13,9 @@ ci-verify: check-full
 
 test-coverage:
 	@echo "Replace with the repo coverage command."
+
+dup-check:
+	cpd . --reporters console,threshold --threshold 5 --output reports/jscpd
 
 audit:
 	@echo "Replace with the repo dependency and secret audit commands."

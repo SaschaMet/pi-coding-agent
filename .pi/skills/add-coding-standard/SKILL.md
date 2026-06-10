@@ -1,6 +1,6 @@
 ---
 name: add-coding-standard
-description: Use this skill when the user asks to add, initialize, harden, standardize, or audit a repository's coding standard, quality gates, CI checks, hooks, tests, coverage, mutation testing, security checks, or AI-development guardrails. Use it for repo-wide standards work, not ordinary feature implementation, isolated lint fixes, or generic coding advice.
+description: Use this skill when the user asks to add, initialize, harden, standardize, or audit a repository's coding standard, quality gates, CI checks, hooks, tests, coverage, mutation testing, copy/paste detection, security checks, or AI-development guardrails. Use it for repo-wide standards work, not ordinary feature implementation, isolated lint fixes, or generic coding advice.
 ---
 
 # Add Coding Standard
@@ -9,7 +9,7 @@ Install or audit a profile-based engineering standard with the smallest repo-spe
 
 ## Trigger Boundary
 
-Use for repo-wide quality standards: formatter, linter, typing, tests, coverage, mutation testing, security checks, hooks, CI, cleanup checks, and AI-development guardrails.
+Use for repo-wide quality standards: formatter, linter, typing, tests, coverage, mutation testing, copy/paste detection, security checks, hooks, CI, cleanup checks, and AI-development guardrails.
 
 Do not use for ordinary feature work, one-off lint fixes, generic code advice, or broad architecture redesign. For a large standard that conflicts with current architecture, create a spec first.
 
@@ -18,7 +18,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 - The repository shape, language stack, package manager, existing checks, CI, hooks, and instruction files were inspected first.
 - A Baseline, Standard, or Hardened profile is selected and documented with data classification when relevant.
 - Existing working tools and command names are preserved unless they conflict with the selected standard.
-- Missing formatter, linter, typecheck, tests, coverage, mutation, security, cleanup, and AI-risk checks are added only where they fit the repo.
+- Missing formatter, linter, typecheck, tests, coverage, mutation, duplicate-code, security, cleanup, and AI-risk checks are added only where they fit the repo.
 - Strict typing is enforced as an agent behavior: use the narrowest practical types and avoid `any`, `unknown`, dynamic/object escape hatches, or broad casts unless no safer boundary type exists.
 - Linting and typecheck rules are treated as quality gates. Disabling a rule requires a documented, local, narrow justification after first attempting a typed/code-level fix.
 - A universal agent session-end lint hook is installed or adapted so an existing linter/check runs when the agent session ends, reports informational results, always exits successfully, and passes silently when none exists.
@@ -30,7 +30,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 
 1. Inspect before proposing:
    - languages, repo shape, package manager, frameworks, source/test layout
-   - current format, lint, typecheck, test, coverage, mutation, hook, CI, audit, and secret-scan setup
+   - current format, lint, typecheck, test, coverage, mutation, copy/paste detection, hook, CI, audit, and secret-scan setup
    - existing `.github/hooks`, `.github/copilot`, `.claude/settings.json`, `.codex` or Codex plugin hook config, and `.pi/extensions`
    - existing `AGENTS.md`, `CLAUDE.md`, engineering docs, workflow files, and scripts
    - sensitive-data clues and AI-risk patterns such as test-only fixes, weak assertions, over-mocking, snapshot churn, and hardcoded fixtures
@@ -52,10 +52,12 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
    - missing checks and docs
    - conflicting workflows to remove or consolidate
    - stale tests, fixtures, snapshots, mocks, helper files, or generated artifacts to inspect
+   - duplicate-code hotspots and whether copy/paste detection should warn locally or block CI
    - targeted questions that cannot be answered from the repo
 5. Implement only the selected standard:
    - normalize scripts to one fast local check, one full check, and one CI verification command where practical
-   - keep pre-commit fast; put mutation, cleanup, and heavier AI-risk checks in CI or nightly unless the repo is small
+   - keep pre-commit fast; put mutation, duplicate-code, cleanup, and heavier AI-risk checks in CI or nightly unless the repo is small
+   - add copy/paste detection where it fits: preserve existing duplicate-code tooling; otherwise prefer `jscpd@5`/`cpd` with `.jscpd.json`, `gitignore: true`, generated/build/vendor ignores, `threshold` reporter for blocking CI, and `ai` or `json` reporter for agent-readable diagnosis
    - start heuristic AI-risk checks in warning mode on legacy repos; make them blocking only after cleanup or explicit approval
    - prefer precise domain, inferred, generic, discriminated-union, branded, schema-derived, and readonly/container types over broad fallback types
    - do not use lint-disable comments, weakened lint config, `// @ts-ignore`, `type: ignore`, or equivalent bypasses to make staged checks pass unless the underlying tool is wrong and the exception is the narrowest possible line-level waiver
@@ -85,6 +87,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 | --- | --- |
 | Multiple package managers exist | Preserve the manager used by lockfiles and current scripts; ask only if evidence conflicts. |
 | Existing tool partly satisfies the standard | Extend it instead of replacing it. |
+| No duplicate-code detector exists | Add jscpd/cpd in warning mode for Baseline or legacy repos; make it blocking for Standard/Hardened only after establishing a repo-specific threshold. |
 | No profile specified | Use Baseline for small tools/libraries, Standard for production apps/services, and ask before Hardened. |
 | Monorepo with mixed stacks | Apply shared policy at root and stack-specific tooling per package. |
 | Legacy repo with many heuristic warnings | Add warning-mode checks and document cleanup before blocking CI. |
@@ -95,6 +98,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 - Do not ask for information the repository can answer. Inspect first.
 - Do not add a second formatter, linter, package manager, test runner, or CI command when one can be extended.
 - Do not delete or rewrite tests just to satisfy cleanup. Prove they are stale or obsolete first.
+- Do not refactor every detected clone blindly. Use copy/paste reports to gate new duplication and target meaningful domain duplication first.
 - Do not weaken typing or disable linting to pass local or staged checks. Fix the code first; use a waiver only with a concrete reason and the smallest possible scope.
 - Do not mutate trivial glue code to improve mutation scores. Target domain rules, validation, permissions, calculations, and parsing.
 - Do not silently bless snapshot churn. Require a behavioral reason for changed snapshots.
@@ -104,7 +108,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 - [agents/openai.yaml](agents/openai.yaml): UI metadata and default prompt.
 - `references/`: standards, runtime defaults, CI snippets, and adapter guidance. Load only the files named in the workflow.
 - [scripts/run-coding-standard.sh](scripts/run-coding-standard.sh): portable runner for fast, full, CI, and pre-commit checks. Use `--help` before adapting it.
-- [scripts/samples/](scripts/samples/): sample Makefile, package scripts, pre-commit config, `.env` guard, session-end lint hook, agent hook wiring, and GitHub Actions wiring for target repos.
+- [scripts/samples/](scripts/samples/): sample Makefile, package scripts, jscpd config, pre-commit config, `.env` guard, session-end lint hook, agent hook wiring, and GitHub Actions wiring for target repos.
 - `templates/`: starting points for files written into target repositories. Adapt before use; do not copy blindly.
 
 ## Output

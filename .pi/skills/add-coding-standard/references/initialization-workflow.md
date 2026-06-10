@@ -23,6 +23,7 @@ Inspect at minimum:
 - existing agent hook files, including `.github/hooks`, `.github/copilot`, `.claude/settings.json`, `.codex` or Codex plugin hooks, and `.pi/extensions`
 - existing AGENTS, CLAUDE, or instruction files
 - coverage and mutation setup
+- duplicate-code detector setup, such as jscpd/cpd config, clone reports, thresholds, or equivalent tooling
 - type strictness settings and broad type escape hatches
 - lint-disable comments and weakened lint configuration
 - data-sensitivity clues
@@ -36,6 +37,7 @@ Report these before editing:
 - Missing: checks, docs, hooks, CI jobs, templates, and guard scripts to add.
 - Conflicts: duplicate or competing tools to consolidate.
 - Cleanup: stale tests, fixtures, snapshots, mocks, generated files, and helper scripts to inspect.
+- Duplicate code: existing copy/paste detector, ignored paths, current threshold or warning mode, and production clone hotspots.
 - Type safety: strictness gaps, broad types, casts, ignored type errors, and trust-boundary validation gaps.
 - Lint integrity: disabled rules, ignore comments, staged-check bypasses, and whether each has a narrow documented reason.
 - AI hooks: whether Claude, Codex, GitHub Copilot, and PI have a session-end lint/check hook and a `.env` access guard.
@@ -47,6 +49,7 @@ Ask only when inspection cannot answer:
 - profile level
 - canonical package manager in a mixed repo
 - CI placement for mutation tests
+- warning vs blocking mode for duplicate-code thresholds on legacy repos
 - blocking vs warning mode for heuristic guard scripts
 - scope in a monorepo
 
@@ -73,7 +76,7 @@ Required behavior:
 - `--help` documents modes, defaults, examples, and exit codes.
 - `--dry-run` prints planned checks without executing them.
 - `--mode fast` runs the local fast check.
-- `--mode full` runs coverage and broader local checks.
-- `--mode ci` runs the CI verification command.
+- `--mode full` runs coverage, duplicate-code detection where configured, and broader local checks.
+- `--mode ci` runs the CI verification command, including duplicate-code thresholds when configured.
 - `--mode pre-commit` runs pre-commit hooks or the git hook directly.
 - stdout is structured summary data; subprocess output goes to stderr.

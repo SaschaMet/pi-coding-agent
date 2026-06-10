@@ -14,6 +14,7 @@ Required:
 - unit tests for core logic
 - secret scanning
 - dependency audit
+- duplicate-code detection in warning mode when the repo has enough source files for useful signal
 
 ### Standard
 For production apps, APIs, services, and internal applications with business data.
@@ -21,6 +22,7 @@ Additional requirements:
 - integration tests
 - coverage threshold
 - mutation tests for critical modules
+- duplicate-code threshold with copy/paste reports in CI
 - architecture documentation
 - privacy classification
 - AI-risk guard scripts in warning or CI mode
@@ -30,6 +32,7 @@ For internet-facing or sensitive-data systems.
 Additional requirements:
 - stricter mutation expectations on critical modules
 - changed-line coverage enforcement
+- stricter duplicate-code threshold and SARIF/CI annotation where supported
 - cleanup checks for tests and artifacts in CI
 - stronger logging/audit requirements
 - threat-model note
@@ -45,6 +48,7 @@ Always require:
 - no broad lint or typecheck disables. Any waiver must be line-local, justified in code, and used only after a code-level fix was attempted.
 - parameterized database access
 - lockfiles committed
+- copy/paste detection excludes generated, build, vendored, lockfile, snapshot, fixture, and dependency directories unless the repo intentionally audits those files
 - one canonical workflow per language
 - one fast local verification command
 - one full verification command
@@ -56,8 +60,8 @@ Always require:
 Prefer these script names unless the repo already has clear equivalents:
 
 - Fast local check: format check, lint, typecheck, and narrow unit tests.
-- Full local check: fast check plus coverage and integration tests.
-- CI verification: full check plus audits, cleanup checks, and profile-specific heavy checks.
+- Full local check: fast check plus coverage, integration tests, and duplicate-code detection where fast enough.
+- CI verification: full check plus audits, copy/paste threshold checks, cleanup checks, and profile-specific heavy checks.
 
 ## Cleanup as a standard
 

@@ -1,4 +1,4 @@
 interface:
   display_name: "Add Coding Standard"
   short_description: "Install or audit repo-wide engineering quality gates"
-  default_prompt: "Use $add-coding-standard to inspect this repository, choose the smallest suitable Baseline/Standard/Hardened profile, produce a gap analysis, implement missing executable quality gates, require the strictest practical types, reject shortcut lint/typecheck disables, update local agent instructions, and verify the result."
+  default_prompt: "Use $add-coding-standard to inspect this repository, choose the smallest suitable Baseline/Standard/Hardened profile, produce a gap analysis, implement missing executable quality gates including copy/paste detection where useful, require the strictest practical types, reject shortcut lint/typecheck disables, update local agent instructions, and verify the result."

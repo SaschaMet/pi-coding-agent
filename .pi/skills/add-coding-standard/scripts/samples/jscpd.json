@@ -1,0 +1,22 @@
+{
+  "path": ["."],
+  "reporters": ["console", "json"],
+  "gitignore": true,
+  "minLines": 5,
+  "minTokens": 50,
+  "threshold": 5,
+  "ignore": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/coverage/**",
+    "**/reports/**",
+    "**/vendor/**",
+    "**/*.min.*",
+    "**/*.lock",
+    "**/fixtures/**",
+    "**/__fixtures__/**",
+    "**/__snapshots__/**"
+  ]
+}

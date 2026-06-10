@@ -16,7 +16,7 @@ Defaults:
 
 Modes:
   fast        Prefer make check-fast, package check:fast/check, common lint/type/test commands, then pre-commit fallback.
-  full        Prefer make check-full, package check:full/check, or common coverage commands.
+  full        Prefer make check-full, package check:full/check, duplicate-code scripts, or common coverage commands.
   ci          Prefer make ci-verify, package ci/check:ci, or full-mode commands.
   pre-commit  Run pre-commit only.
 
@@ -144,6 +144,29 @@ add_package_script() {
   esac
 }
 
+add_duplication_check() {
+  for script in dup:check duplicates:check duplication:check cpd jscpd; do
+    if package_has_script "$script"; then
+      add_package_script "$script"
+      return 0
+    fi
+  done
+
+  if [ -f .jscpd.json ] || [ -f .jscpd.cjs ] || [ -f .jscpd.js ]; then
+    if has_cmd cpd; then
+      add_command "duplicate-code:cpd" "cpd ."
+      return 0
+    fi
+    if has_cmd jscpd; then
+      add_command "duplicate-code:jscpd" "jscpd ."
+      return 0
+    fi
+    echo "warning: jscpd config found but cpd/jscpd command is unavailable" >&2
+  fi
+
+  return 1
+}
+
 add_pre_commit() {
   if [ -f .pre-commit-config.yaml ] || [ -f .pre-commit-config.yml ]; then
     if has_cmd pre-commit; then
@@ -189,6 +212,7 @@ build_commands() {
     full)
       if make_has_target check-full; then add_command "make:check-full" "make check-full"; return; fi
       for script in check:full check test:coverage test:mutation; do add_common_type_script "$script" || true; done
+      add_duplication_check || true
       if [ "${#commands[@]}" -gt 0 ]; then return; fi
       if [ -f pyproject.toml ] && has_cmd uv; then
         add_command "python:pytest-cov" "uv run pytest --cov=src --cov-context=test --cov-report=xml --cov-report=term-missing"
@@ -197,6 +221,7 @@ build_commands() {
     ci)
       if make_has_target ci-verify; then add_command "make:ci-verify" "make ci-verify"; return; fi
       for script in ci check:ci check:full check; do add_common_type_script "$script" || true; done
+      add_duplication_check || true
       ;;
   esac
 }
