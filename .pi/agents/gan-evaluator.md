@@ -1,6 +1,6 @@
 ---
 description: Evaluator agent for GAN-style workflows. Strictly reviews generator output against the original objective, rubric, tests, architecture, and risks. Use only after generator output exists.
-tools: bash, read, grep, find, ls, ask_questions, ask
+tools: bash, read, grep, find, ls
 prompt_mode: replace
 ---
 

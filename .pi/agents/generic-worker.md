@@ -1,6 +1,6 @@
 ---
 description: Mutating delegated agent for implementation and file-update tasks.
-tools: write, edit, bash, read, grep, find, ls, ask_questions, ask
+tools: write, edit, bash, read, grep, find, ls
 prompt_mode: append
 ---
 

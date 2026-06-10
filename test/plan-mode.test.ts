@@ -25,7 +25,7 @@ describe("plan mode behavior", () => {
         fs.mkdirSync(path.join(tmp, ".pi"), { recursive: true });
         fs.writeFileSync(
             path.join(tmp, ".pi", "agent.config.json"),
-            JSON.stringify({ planMode: { allowedTools: ["read", "grep", "ask_questions"] } }, null, 2),
+            JSON.stringify({ planMode: { allowedTools: ["read", "grep", "bash"] } }, null, 2),
             "utf-8",
         );
 
@@ -46,7 +46,7 @@ describe("plan mode behavior", () => {
         await pi.handlers.get("session_start")?.[0]({}, ctx);
         await (pi as any).commands.get("plan")?.handler({}, ctx);
 
-        expect((pi as any).activeTools).toEqual(["read", "grep", "ask_questions"]);
+        expect((pi as any).activeTools).toEqual(["read", "grep", "bash"]);
     });
 
     it("keeps subagent out of default plan mode guidance", async () => {
@@ -71,25 +71,16 @@ describe("plan mode behavior", () => {
 
         expect((pi as any).activeTools).not.toContain("subagent");
         expect(content).not.toContain("For research use subagents");
-        expect(content).toContain("Ask clarifying questions using ask_questions.");
+        expect(content).toContain("Create a detailed numbered plan");
     });
 
-    it("registers a configurable shortcut for toggling the plan widget", async () => {
-        const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-plan-mode-shortcut-"));
-        fs.mkdirSync(path.join(tmp, ".pi"), { recursive: true });
-        fs.writeFileSync(
-            path.join(tmp, ".pi", "agent.config.json"),
-            JSON.stringify({ planMode: { toggleWidgetShortcut: "ctrl+shift+w" } }, null, 2),
-            "utf-8",
-        );
-
+    it("does not register todo or widget commands", async () => {
         const pi = createFakePi();
         planModeExtension(pi as any);
         pi.getFlag = () => false;
 
         const ui = createUi();
         const ctx = {
-            cwd: tmp,
             hasUI: true,
             ui,
             sessionManager: {
@@ -99,11 +90,12 @@ describe("plan mode behavior", () => {
 
         await pi.handlers.get("session_start")?.[0]({}, ctx);
 
-        expect(pi.shortcuts.some((entry) => entry.shortcut === "ctrl+shift+w")).toBe(true);
-        expect(pi.commands.get("plan-widget")).toBeDefined();
+        expect(pi.commands.get("todos")).toBeUndefined();
+        expect(pi.commands.get("plan-widget")).toBeUndefined();
+        expect(pi.shortcuts.some((entry) => entry.shortcut === "ctrl+alt+p")).toBe(true);
     });
 
-    it("keeps the plan collapsed by default and reveals it on demand", async () => {
+    it("prompts for next action after a plan without tracking todos", async () => {
         const pi = createFakePi();
         planModeExtension(pi as any);
         pi.getFlag = (name: string) => (name === "plan" ? true : undefined);
@@ -135,24 +127,15 @@ describe("plan mode behavior", () => {
             ctx,
         );
 
-        const visibleWidgetCalls = ui.setWidget.mock.calls.filter(([key, content]) => key === "plan-todos" && content !== undefined);
-        expect(visibleWidgetCalls).toHaveLength(0);
-        expect(ui.setStatus.mock.calls.some(([key, value]) => key === "plan-mode" && String(value).includes("Plan ready"))).toBe(true);
-
-        const toggleCommand = (pi as any).commands.get("plan-widget");
-        expect(toggleCommand).toBeDefined();
-        await toggleCommand.handler({}, ctx);
-
-        const revealedWidgetCalls = ui.setWidget.mock.calls.filter(([key, content]) => key === "plan-todos" && content !== undefined);
-        expect(revealedWidgetCalls.length).toBeGreaterThan(0);
-        const latestWidgetUpdate = revealedWidgetCalls.at(-1);
-        expect(latestWidgetUpdate?.[1]).toEqual([
-            "☐ A new extension file for the tool, likely .pi/extensions/custom-tool.ts with tests and docs",
-            "☐ Define a minimal parameter schema for a single required url string",
+        expect(ui.select).toHaveBeenCalledWith("Plan mode - what next?", [
+            "Execute the plan",
+            "Stay in plan mode",
+            "Refine the plan",
         ]);
+        expect(ui.setWidget).not.toHaveBeenCalled();
     });
 
-    it("clears plan widget/status during session switch", async () => {
+    it("clears plan status during session switch", async () => {
         const pi = createFakePi();
         planModeExtension(pi as any);
         pi.getFlag = () => false;
@@ -185,16 +168,13 @@ describe("plan mode behavior", () => {
             ctx,
         );
 
-        await (pi as any).commands.get("plan-widget")?.handler({}, ctx);
-        expect(ui.setWidget.mock.calls.some(([key, content]) => key === "plan-todos" && content !== undefined)).toBe(true);
-
         await pi.handlers.get("session_before_switch")?.[0]({ reason: "new" }, ctx);
 
-        expect(ui.setWidget.mock.calls.some(([key, content]) => key === "plan-todos" && content === undefined)).toBe(true);
+        expect(ui.setWidget).not.toHaveBeenCalled();
         expect(ui.setStatus.mock.calls.some(([key, value]) => key === "plan-mode" && value === undefined)).toBe(true);
     });
 
-    it("restores cleared plan state on session_switch", async () => {
+    it("restores cleared plan mode state on session_switch", async () => {
         const pi = createFakePi();
         planModeExtension(pi as any);
         pi.getFlag = () => false;
@@ -229,12 +209,10 @@ describe("plan mode behavior", () => {
 
         await pi.handlers.get("session_switch")?.[0]({}, ctx);
 
-        await (pi as any).commands.get("todos")?.handler({}, ctx);
-        expect(ui.notify.mock.calls.some(([message]) => String(message).includes("No todos"))).toBe(true);
         expect(ui.setStatus.mock.calls.some(([key, value]) => key === "plan-mode" && value === undefined)).toBe(true);
     });
 
-    it("restores cleared plan state on session_established", async () => {
+    it("restores cleared plan mode state on session_established", async () => {
         const pi = createFakePi();
         planModeExtension(pi as any);
         pi.getFlag = () => false;
@@ -269,23 +247,20 @@ describe("plan mode behavior", () => {
 
         await pi.handlers.get("session_established")?.[0]({}, ctx);
 
-        await (pi as any).commands.get("todos")?.handler({}, ctx);
-        expect(ui.notify.mock.calls.some(([message]) => String(message).includes("No todos"))).toBe(true);
         expect(ui.setStatus.mock.calls.some(([key, value]) => key === "plan-mode" && value === undefined)).toBe(true);
     });
 
-    it("does not leak todos into a fresh session without persisted plan state", async () => {
+    it("does not leak plan execution context into a fresh session", async () => {
         const pi = createFakePi();
         planModeExtension(pi as any);
         pi.getFlag = () => false;
 
-        let entries: any[] = [];
         const ui = createUi();
         const ctx = {
             hasUI: true,
             ui,
             sessionManager: {
-                getEntries: () => entries,
+                getEntries: () => [],
             },
         };
 
@@ -308,16 +283,8 @@ describe("plan mode behavior", () => {
             ctx,
         );
 
-        await (pi as any).commands.get("todos")?.handler({}, ctx);
-        expect(ui.notify.mock.calls.some(([message]) => String(message).includes("Plan Progress"))).toBe(true);
-
-        // Simulate creating/switching to a brand-new session in the same process.
-        entries = [];
         await pi.handlers.get("session_start")?.[0]({ reason: "new" }, ctx);
 
-        await (pi as any).commands.get("todos")?.handler({}, ctx);
-        expect(ui.notify.mock.calls.some(([message]) => String(message).includes("No todos"))).toBe(true);
-        expect(ui.setWidget.mock.calls.some(([key, content]) => key === "plan-todos" && content === undefined)).toBe(true);
         expect(ui.setStatus.mock.calls.some(([key, value]) => key === "plan-mode" && value === undefined)).toBe(true);
 
         const contextResult = await pi.handlers.get("context")?.[0](

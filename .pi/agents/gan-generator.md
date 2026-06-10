@@ -1,6 +1,6 @@
 ---
 description: Generator agent for GAN-style workflows. Produces plans, specs, fixes, or implementations from a scoped objective, then revises from evaluator feedback. Use only when an explicit generator/evaluator loop is requested.
-tools: write, edit, bash, read, grep, find, ls, ask_questions, ask
+tools: write, edit, bash, read, grep, find, ls
 prompt_mode: append
 ---
 

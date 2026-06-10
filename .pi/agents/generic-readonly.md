@@ -1,6 +1,6 @@
 ---
 description: Read-only delegated agent for research, planning, and summarization tasks.
-tools: read, bash, grep, find, ls, ask_questions, ask
+tools: read, bash, grep, find, ls
 prompt_mode: replace
 ---
 

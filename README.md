@@ -5,7 +5,6 @@ Git-tracked PI config/runtime parity stack for a global PI runtime (`~/.pi/agent
 - Codex-style plan mode
 - Claude Code-style subagents via `@tintinweb/pi-subagents`
 - Shared skills (including `~/.codex/skills`)
-- Structured planner Q&A tool: `ask_questions` (alias: `ask`)
 
 ## Quick Start
 
@@ -231,27 +230,7 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 See [`.pi/extensions/plan-mode/README.md`](.pi/extensions/plan-mode/README.md) for the full plan mode behavior and configuration.
 
 - `/plan` - toggle read-only plan mode
-- `/todos` - show the current plan progress
-- `/plan-widget` - toggle the plan widget visibility
 - `Ctrl+Alt+P` - toggle plan mode
-- Widget toggle shortcut defaults to `Ctrl+Alt+W`
-- Override the widget shortcut in `.pi/agent.config.json`:
-
-```json
-{
-  "planMode": {
-    "toggleWidgetShortcut": "ctrl+shift+w"
-  }
-}
-```
-
-## Tool Interfaces
-
-### `ask_questions` / `ask`
-
-- Input: `questions[]` where each item has `id`, `label`, `question`, `options[]`, optional `allow_other`
-- Output: `details.answers` keyed by `id`
-- Non-interactive fallback: deterministic first-option selection
 
 ## Troubleshooting
 
@@ -273,7 +252,6 @@ See [`.pi/extensions/plan-mode/README.md`](.pi/extensions/plan-mode/README.md) f
 
 ## Failure Handling Notes
 
-- `ask_questions` in non-interactive mode returns deterministic fallback answers.
 - Outside-cwd `read`/`write`/`edit`/`grep`/`find`/`ls` requests require explicit approval and are denied without UI.
 - Global PI directory is read-only: outside-cwd reads/list/search are allowed under `~/.pi` (or `PI_CODING_AGENT_DIR`), while writes/edits are denied.
 

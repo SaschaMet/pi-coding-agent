@@ -7,25 +7,19 @@
  * Features:
  * - /plan command or Ctrl+Alt+P to toggle
  * - Bash restricted to allowlisted read-only commands
- * - Extracts numbered plan steps from "Plan:" sections
- * - [DONE:n] markers to complete steps during execution
- * - Progress tracking widget during execution
  */
 
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
 import type { AssistantMessage, TextContent } from "@mariozechner/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
-import { Key, type KeyId } from "@mariozechner/pi-tui";
+import { Key } from "@mariozechner/pi-tui";
 import { loadProjectAgentConfig } from "../shared/agent-config.ts";
-import { extractTodoItems, formatTodoItemsForDisplay, isSafeCommand, markCompletedSteps, type TodoItem } from "./utils.ts";
+import { isSafeCommand } from "./utils.ts";
 
 // Tools
-const DEFAULT_PLAN_MODE_TOOLS = ["read", "bash", "grep", "find", "ls", "ask_questions", "ask"];
-
-const DEFAULT_PLAN_WIDGET_SHORTCUT = "ctrl+alt+w";
+const DEFAULT_PLAN_MODE_TOOLS = ["read", "bash", "grep", "find", "ls"];
 
 interface PlanModeConfig {
-    toggleWidgetShortcut?: string | null;
     allowedTools?: string[] | null;
 }
 
@@ -69,10 +63,6 @@ function getTextContent(message: AssistantMessage): string {
 
 export default function planModeExtension(pi: ExtensionAPI): void {
     let planModeEnabled = false;
-    let executionMode = false;
-    let planWidgetVisible = false;
-    let shortcutRegistered = false;
-    let todoItems: TodoItem[] = [];
     let normalModeTools: string[] = [];
     let planModeTools: string[] = [...DEFAULT_PLAN_MODE_TOOLS];
 
@@ -83,43 +73,15 @@ export default function planModeExtension(pi: ExtensionAPI): void {
     });
 
     function updateStatus(ctx: ExtensionContext): void {
-        const hasPlan = todoItems.length > 0;
-        const shouldShowWidget = hasPlan && (executionMode || planWidgetVisible);
-
-        // Footer status
-        if (executionMode && hasPlan) {
-            const completed = todoItems.filter((t) => t.completed).length;
-            ctx.ui.setStatus("plan-mode", ctx.ui.theme.fg("accent", `📋 ${completed}/${todoItems.length}`));
-        } else if (planModeEnabled) {
-            ctx.ui.setStatus(
-                "plan-mode",
-                ctx.ui.theme.fg("warning", hasPlan ? `Plan ready (${todoItems.length})` : "⏸ plan"),
-            );
+        if (planModeEnabled) {
+            ctx.ui.setStatus("plan-mode", ctx.ui.theme.fg("warning", "plan"));
         } else {
             ctx.ui.setStatus("plan-mode", undefined);
-        }
-
-        // Widget showing todo list
-        if (shouldShowWidget) {
-            const lines = todoItems.map((item) => {
-                if (executionMode && item.completed) {
-                    return (
-                        ctx.ui.theme.fg("success", "☑ ") + ctx.ui.theme.fg("muted", ctx.ui.theme.strikethrough(item.text))
-                    );
-                }
-                return `${ctx.ui.theme.fg("muted", "☐ ")}${item.text}`;
-            });
-            ctx.ui.setWidget("plan-todos", lines);
-        } else {
-            ctx.ui.setWidget("plan-todos", undefined);
         }
     }
 
     function togglePlanMode(ctx: ExtensionContext): void {
         planModeEnabled = !planModeEnabled;
-        executionMode = false;
-        planWidgetVisible = false;
-        todoItems = [];
 
         if (planModeEnabled) {
             normalModeTools = pi.getActiveTools();
@@ -132,41 +94,9 @@ export default function planModeExtension(pi: ExtensionAPI): void {
         updateStatus(ctx);
     }
 
-    function togglePlanWidget(ctx: ExtensionContext): void {
-        if (todoItems.length === 0) {
-            ctx.ui.notify("No plan available yet.", "info");
-            return;
-        }
-        planWidgetVisible = !planWidgetVisible;
-        updateStatus(ctx);
-        ctx.ui.notify(planWidgetVisible ? "Plan widget shown." : "Plan widget hidden.", "info");
-    }
-
-    function persistState(): void {
-        // Intentionally no-op.
-        // Plan todos are runtime-only to avoid stale todo resurrection across sessions.
-    }
-
     pi.registerCommand("plan", {
         description: "Toggle plan mode (read-only exploration)",
         handler: async (_args, ctx) => togglePlanMode(ctx),
-    });
-
-    pi.registerCommand("todos", {
-        description: "Show current plan todo list",
-        handler: async (_args, ctx) => {
-            if (todoItems.length === 0) {
-                ctx.ui.notify("No todos. Create a plan first with /plan", "info");
-                return;
-            }
-            const list = todoItems.map((item, i) => `${i + 1}. ${item.completed ? "✓" : "○"} ${item.text}`).join("\n");
-            ctx.ui.notify(`Plan Progress:\n${list}`, "info");
-        },
-    });
-
-    pi.registerCommand("plan-widget", {
-        description: "Toggle the plan widget visibility",
-        handler: async (_args, ctx) => togglePlanWidget(ctx),
     });
 
     pi.registerShortcut(Key.ctrlAlt("p"), {
@@ -187,9 +117,9 @@ export default function planModeExtension(pi: ExtensionAPI): void {
         }
     });
 
-    // Filter out stale plan/execution context when neither mode is active
+    // Filter out stale plan/execution context when plan mode is inactive
     pi.on("context", async (event) => {
-        if (planModeEnabled || executionMode) return;
+        if (planModeEnabled) return;
 
         return {
             messages: event.messages.filter((m) => {
@@ -214,7 +144,7 @@ export default function planModeExtension(pi: ExtensionAPI): void {
         };
     });
 
-    // Inject plan/execution context before agent starts
+    // Inject plan context before agent starts
     pi.on("before_agent_start", async () => {
         if (planModeEnabled) {
             const fileMutationAllowed = planModeTools.includes("edit") || planModeTools.includes("write");
@@ -232,8 +162,6 @@ Restrictions:
 ${mutationLine}
 - Bash is restricted to an allowlist of read-only commands
 
-Ask clarifying questions using ask_questions.
-
 Create a detailed numbered plan under a "Plan:" header:
 
 Plan:
@@ -246,89 +174,24 @@ Do NOT attempt to make changes - just describe what you would do.`,
                 },
             };
         }
-
-        if (executionMode && todoItems.length > 0) {
-            const remaining = todoItems.filter((t) => !t.completed);
-            const todoList = formatTodoItemsForDisplay(remaining);
-            return {
-                message: {
-                    customType: "plan-execution-context",
-                    content: `[EXECUTING PLAN - Full tool access enabled]
-
-Remaining steps:
-${todoList}
-
-Execute each step in order.
-After completing a step, include a [DONE:n] tag in your response.`,
-                    display: false,
-                },
-            };
-        }
-    });
-
-    // Track progress after each turn
-    pi.on("turn_end", async (event, ctx) => {
-        if (!executionMode || todoItems.length === 0) return;
-        if (!isAssistantMessage(event.message)) return;
-
-        const text = getTextContent(event.message);
-        if (markCompletedSteps(text, todoItems) > 0) {
-            updateStatus(ctx);
-        }
-        persistState();
     });
 
     // Handle plan completion and plan mode UI
     pi.on("agent_end", async (event, ctx) => {
-        // Check if execution is complete
-        if (executionMode && todoItems.length > 0) {
-            if (todoItems.every((t) => t.completed)) {
-                executionMode = false;
-                planWidgetVisible = false;
-                todoItems = [];
-                pi.setActiveTools(normalModeTools.length > 0 ? normalModeTools : pi.getAllTools().map((tool) => tool.name));
-                updateStatus(ctx);
-                ctx.ui.notify("Plan complete.", "info");
-                persistState(); // Save cleared state so resume doesn't restore old execution mode
-            }
-            return;
-        }
-
         if (!planModeEnabled || !ctx.hasUI) return;
 
-        // Extract todos from last assistant message
         const lastAssistant = [...event.messages].reverse().find(isAssistantMessage);
-        if (lastAssistant) {
-            const extracted = extractTodoItems(getTextContent(lastAssistant));
-            if (extracted.length > 0) {
-                todoItems = extracted;
-            }
-        }
+        if (!lastAssistant || !getTextContent(lastAssistant).match(/\*{0,2}Plan:\*{0,2}\s*\n/i)) return;
 
-        // Show plan steps and prompt for next action
-        if (todoItems.length > 0) {
-            updateStatus(ctx);
-        }
-
-        const choice = await ctx.ui.select("Plan mode - what next?", [
-            todoItems.length > 0 ? "Execute the plan (track progress)" : "Execute the plan",
-            "Stay in plan mode",
-            "Refine the plan",
-        ]);
+        const choice = await ctx.ui.select("Plan mode - what next?", ["Execute the plan", "Stay in plan mode", "Refine the plan"]);
 
         if (choice?.startsWith("Execute")) {
             planModeEnabled = false;
-            executionMode = todoItems.length > 0;
             pi.setActiveTools(normalModeTools.length > 0 ? normalModeTools : pi.getAllTools().map((tool) => tool.name));
             updateStatus(ctx);
 
-            const firstTodo = todoItems[0];
-            const execMessage =
-                firstTodo
-                    ? `Execute the plan. Start with: ${firstTodo.text}`
-                    : "Execute the plan you just created.";
             pi.sendMessage(
-                { customType: "plan-mode-execute", content: execMessage, display: false },
+                { customType: "plan-mode-execute", content: "Execute the plan you just created.", display: false },
                 { triggerTurn: true },
             );
         } else if (choice === "Refine the plan") {
@@ -341,9 +204,6 @@ After completing a step, include a [DONE:n] tag in your response.`,
 
     function resetSessionState(): void {
         planModeEnabled = false;
-        executionMode = false;
-        planWidgetVisible = false;
-        todoItems = [];
         normalModeTools = [];
     }
 
@@ -376,16 +236,6 @@ After completing a step, include a [DONE:n] tag in your response.`,
         const cwd = ctx.cwd ?? process.cwd();
         const config = loadPlanModeConfig(cwd);
         planModeTools = resolvePlanModeTools(pi, config);
-        if (!shortcutRegistered) {
-            const shortcut = config.toggleWidgetShortcut?.trim() || DEFAULT_PLAN_WIDGET_SHORTCUT;
-            if (shortcut) {
-                pi.registerShortcut(shortcut as KeyId, {
-                    description: "Toggle the plan widget visibility",
-                    handler: async (shortcutCtx) => togglePlanWidget(shortcutCtx),
-                });
-            }
-            shortcutRegistered = true;
-        }
 
         resetSessionState();
         restoreSessionState(ctx, shouldIncludePlanFlag(event));
