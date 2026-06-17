@@ -20,6 +20,8 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 - Existing working tools and command names are preserved unless they conflict with the selected standard.
 - Missing formatter, linter, typecheck, tests, coverage, mutation, duplicate-code, security, cleanup, and AI-risk checks are added only where they fit the repo.
 - Strict typing is enforced as an agent behavior: use the narrowest practical types and avoid `any`, `unknown`, dynamic/object escape hatches, or broad casts unless no safer boundary type exists.
+- Public and non-trivial functions, methods, and classes have concise purpose-focused documentation comments in the language's local convention, such as JSDoc/TSDoc, Python docstrings, or equivalent.
+- A lint, doc-lint, or equivalent static rule checks required documentation comments when the repo's language/tooling supports it.
 - Linting and typecheck rules are treated as quality gates. Disabling a rule requires a documented, local, narrow justification after first attempting a typed/code-level fix.
 - A universal agent session-end lint hook is installed or adapted so an existing linter/check runs when the agent session ends, reports informational results, always exits successfully, and passes silently when none exists.
 - A universal `.env` guard is installed or adapted so existing `.env` files cannot be read or changed by AI tools; `.env.example` remains available for documentation.
@@ -60,6 +62,8 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
    - add copy/paste detection where it fits: preserve existing duplicate-code tooling; otherwise prefer `jscpd@5`/`cpd` with `.jscpd.json`, `gitignore: true`, generated/build/vendor ignores, `threshold` reporter for blocking CI, and `ai` or `json` reporter for agent-readable diagnosis
    - start heuristic AI-risk checks in warning mode on legacy repos; make them blocking only after cleanup or explicit approval
    - prefer precise domain, inferred, generic, discriminated-union, branded, schema-derived, and readonly/container types over broad fallback types
+   - require concise documentation comments for public and non-trivial functions, methods, and classes; match the repo's existing convention and describe purpose, parameters, returns, side effects, or raised errors only when useful
+   - add or tighten the existing linter/doc-linter rule that verifies those required comments when supported, such as JSDoc/TSDoc rules for TypeScript/JavaScript or docstring rules for Python; do not add a competing linter when the current one can be extended
    - do not use lint-disable comments, weakened lint config, `// @ts-ignore`, `type: ignore`, or equivalent bypasses to make staged checks pass unless the underlying tool is wrong and the exception is the narrowest possible line-level waiver
    - install or adapt the universal `.env` guard from [scripts/samples/block-env-read.sh](scripts/samples/block-env-read.sh), usually into `.github/hooks/scripts/block-env-read.sh`; it must:
      - block AI access to `.env` and `.env.*` files for read/search/list/write/edit tools while allowing `.env.example`
