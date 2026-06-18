@@ -17,6 +17,7 @@ Run Red, Green, and Refactor phases in the parent session by default. Use subage
 - Reuse existing test frameworks and coverage tooling — do not invent new setups without asking.
 - Investigate root causes when tests fail. Never silence a failure without verifying behavior.
 - Keep changes narrowly scoped. No drive-by refactors.
+- Preserve CARDS during each cycle: clarity of intent, correct dependency direction, local change impact, invalid-state prevention, and separation of domain/orchestration/IO concerns.
 - Notebooks are out of scope unless explicitly requested.
 - Use the available file-edit tool for edits. Use the available shell/command tool for test and coverage runs.
 
@@ -26,6 +27,7 @@ Run Red, Green, and Refactor phases in the parent session by default. Use subage
 - Do not ask about integration tests when the user already specified test scope or the change is clearly unit-level.
 - Do not add dependencies or new test infrastructure when existing tooling can cover the behavior.
 - Coverage targets apply to changed paths; avoid broad test padding.
+- Do not make a test pass by adding cross-layer shortcuts, broad nullable states, casts, dynamic maps, or mixed concerns.
 
 ## Workflow
 
@@ -57,6 +59,7 @@ Clarify only decisions the repository and request do not answer before writing c
 | Coverage tooling is missing | Ask before adding coverage dependencies or config; otherwise report coverage unavailable. |
 
 Record each planned TDD cycle in `update_plan` before starting.
+For each cycle that touches architecture or domain logic, also record the owner module, dependency boundary, invariant under test, and invalid state that must be rejected or made unrepresentable.
 
 ### Step 2 — Red Phase (Write Failing Tests)
 
@@ -64,8 +67,9 @@ Follow [references/red-phase.md](references/red-phase.md).
 
 1. Read relevant existing test files, write one failing unit test for the current cycle, and run the narrowest test scope.
 2. Confirm failure for the expected reason.
-3. If integration tests were requested, write failing integration tests using collected input/output pairs and confirm they fail.
-4. Do NOT write production code.
+3. When the behavior touches domain rules, write the Red test against the invariant or invalid state, not only the happy path.
+4. If integration tests were requested, write failing integration tests using collected input/output pairs and confirm they fail.
+5. Do NOT write production code.
 
 Mark the Red step completed in `update_plan`.
 
@@ -75,9 +79,10 @@ Follow [references/green-phase.md](references/green-phase.md).
 
 1. Read the failing test output and production files needed for the fix.
 2. Write the smallest production code change that makes the failing tests pass.
-3. Re-run the exact same test command until tests pass.
-4. Run the nearest broader affected test scope.
-5. Do NOT add features, optimize, or refactor in this phase.
+3. Keep the implementation inside the owning module or boundary; do not bypass architecture to satisfy the test.
+4. Re-run the exact same test command until tests pass.
+5. Run the nearest broader affected test scope.
+6. Do NOT add features, optimize, or refactor in this phase.
 
 Mark the Green step completed in `update_plan`.
 
@@ -86,7 +91,7 @@ Mark the Green step completed in `update_plan`.
 Follow [references/refactor-phase.md](references/refactor-phase.md).
 
 1. Refactor only after Green passes.
-2. Apply one improvement at a time.
+2. Apply one CARDS improvement at a time when useful: clearer names/types, restored dependency direction, smaller change surface, stronger invariant representation, or cleaner concern separation.
 3. Re-run all affected tests after each change.
 4. If any test fails, revert only the refactor change and investigate.
 5. Do NOT add new functionality.

@@ -106,6 +106,18 @@ Default changes:
 - Cover the main failure path when the change writes data, calls dependencies, or changes auth
 - Reuse existing test patterns instead of inventing a new harness
 
+### 9. CARDS Architecture Fit
+
+Ask only if the plan creates a decision about architecture ownership or invalid-state handling that common defaults cannot resolve.
+
+Default changes:
+
+- Clarity: rename overloaded concepts and assign one owner for each responsibility
+- Alignment: keep dependencies pointing toward stable domain/core code and away from adapters, UI, transport, persistence, or vendor details
+- Resilience: choose the design where the next likely small change stays in one module or boundary
+- Domain Integrity: prevent invalid states with types, schemas, constructors, validators, or persistence constraints
+- Separation: keep domain policy, orchestration, IO, presentation, and formatting separate unless the repo has an explicit local pattern
+
 ## Categories Usually Not Worth A Question
 
 These should almost never become explicit questions unless they hide a critical business trade-off:

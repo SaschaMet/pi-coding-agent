@@ -24,6 +24,7 @@ Run standard checks with:
 
 Special rules:
 - Keep `[package manager]` as the canonical workflow unless explicitly changed.
+- Apply CARDS when changing architecture: clarity of intent, dependency alignment toward stable domain/core modules, small-change resilience, domain integrity through invalid-state prevention, and separation of domain/orchestration/IO/presentation concerns.
 - Use the strictest practical types. Avoid `any`, `unknown`, broad casts, dynamic containers, and ignored type errors unless no precise type can be expressed.
 - Do not weaken lint or typecheck config to pass checks. Do not add broad disables. If a waiver is unavoidable, keep it line-local and document the concrete reason.
 - Keep the `.env` guard and session-end lint hook installed. Agent sessions must run the existing linter/check at session end when one is detectable; if none exists, the hook passes silently.
@@ -31,3 +32,4 @@ Special rules:
 - Use warning mode first for heuristic AI-risk scripts on legacy repos.
 - Keep pre-commit fast; heavy checks belong in CI/nightly.
 - Do not add competing tools when the existing formatter, linter, type checker, test runner, or CI command can be extended.
+- Do not add new layers or cross-layer shortcuts without repo evidence or an approved spec.

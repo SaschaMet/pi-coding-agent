@@ -26,7 +26,13 @@ Before asking or flagging a single thing, build context:
 4. For repo-bound plans, explore entry points, data flow, existing tests, deployment config, and prior plans in `docs/plans/`.
 5. Check for prior art: similar features, past decisions, existing patterns.
 6. Identify the **blast radius** — what breaks if this design is wrong?
-7. Note every claim the user makes about how something works. You will verify these against the codebase during questioning.
+7. Build a CARDS note for architecture-heavy plans:
+   - Clarity: ambiguous concepts, names, or responsibilities.
+   - Alignment: dependency direction and ownership boundaries.
+   - Resilience: whether likely small changes stay local.
+   - Domain Integrity: invalid states the design allows or prevents.
+   - Separation: whether domain policy, orchestration, IO, and presentation are mixed.
+8. Note every claim the user makes about how something works. You will verify these against the codebase during questioning.
 
 Do NOT ask questions the codebase already answers. Your credibility depends on doing homework first.
 
@@ -41,6 +47,7 @@ These behaviors run in parallel throughout the entire session — not as a discr
 ## Step 2 — Risk Assessment
 
 Silently categorize risks using [references/risk-taxonomy.md](references/risk-taxonomy.md).
+For architecture or design prompts, apply CARDS before asking questions. Convert obvious CARDS fixes into default changes; ask only when dependency direction, ownership, invariants, or separation require a user decision.
 Rank into three tiers:
 
 | Tier         | Definition                                                                   | Action                                            |
@@ -116,6 +123,7 @@ starting with Critical tier. Keep the session short.
 - **Reversibility**: "If this is wrong, how expensive is it to undo?"
 - **Concrete scenarios**: When domain relationships are being discussed, invent specific scenarios that probe edge cases and force precision about boundaries between concepts. "What happens if a Customer places an Order and then the User account is deleted mid-fulfillment?"
 - **Code contradiction**: When the user states how something works, verify it against the codebase. If the code contradicts the claim, surface it directly. "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
+- **CARDS pressure**: Turn architecture risks into concrete trade-offs. "This moves payment policy into a queue adapter. Is the adapter now allowed to own domain decisions, or should the policy stay in the payment domain service?"
 
 ### Escalation Protocol
 

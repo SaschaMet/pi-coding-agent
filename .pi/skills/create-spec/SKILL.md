@@ -21,6 +21,7 @@ Extract:
 3. Test and CI commands that can verify outcomes.
 4. High-risk areas: auth, schema, migrations, infra, public APIs.
 5. Existing org/domain rules that should become invariants.
+6. CARDS architecture constraints: clarity, dependency alignment, resilience to small changes, domain integrity, and separation of concerns.
 
 ## Step 2 - Clarify unresolved decisions
 
@@ -62,11 +63,12 @@ Use [references/spec-template.md](references/spec-template.md) as the output tem
 5. **Execution Steps**: implementation sequence and file targets.
 6. **Verification Plan**: criterion-to-check mapping with commands/evidence.
 7. **Invariants and Contracts**: org/domain rules that always apply.
-8. **Risks, One-Way Doors, Rollback**: failure modes and recovery.
-9. **Traceability and Audit**: source, approval, and criteria-to-evidence mapping.
-10. **Definition of Done**: traceability from intent -> criteria -> verification.
-11. **Open Questions / Deferred Decisions**: unresolved decisions separated from requirements.
-12. **Handoff**: implementation, verification, and escalation notes.
+8. **CARDS Architecture Contract**: design constraints for clarity, alignment, resilience, domain integrity, and separation.
+9. **Risks, One-Way Doors, Rollback**: failure modes and recovery.
+10. **Traceability and Audit**: source, approval, and criteria-to-evidence mapping.
+11. **Definition of Done**: traceability from intent -> criteria -> verification.
+12. **Open Questions / Deferred Decisions**: unresolved decisions separated from requirements.
+13. **Handoff**: implementation, verification, and escalation notes.
 
 ### Spec quality requirements
 
@@ -75,6 +77,7 @@ Use [references/spec-template.md](references/spec-template.md) as the output tem
 - Grade outcomes, not implementation paths: acceptance criteria should describe observable behavior.
 - Mark any irreversible change as a one-way door.
 - Add escalation triggers for sensitive changes.
+- Encode CARDS constraints as verifiable implementation guardrails when the change touches architecture or domain logic.
 - If uncertainty remains, capture it in `Open Questions / Deferred Decisions`.
 - When `Open Questions / Deferred Decisions` is non-empty, write a visible implementation guard that says implementation must stop and prompt the user for answers before any code, config, migration, or test changes begin.
 

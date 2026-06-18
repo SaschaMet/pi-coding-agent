@@ -36,14 +36,23 @@ Use this gate before finalizing a spec.
 - [ ] Org invariants are listed or referenced.
 - [ ] Domain contracts are listed.
 - [ ] Security/compliance requirements are explicit where relevant.
+- [ ] Invalid states are named with enforcement points.
 
-## 7. Risk Controls
+## 7. CARDS Architecture Contract
+
+- [ ] Clarity: names, terms, and responsibilities are unambiguous.
+- [ ] Alignment: dependency direction and owner modules are explicit.
+- [ ] Resilience: likely follow-up changes have a local change path.
+- [ ] Domain Integrity: invariants and invalid states are enforced by design.
+- [ ] Separation: domain policy, orchestration, IO, presentation, and formatting boundaries are explicit.
+
+## 8. Risk Controls
 
 - [ ] One-way doors are marked.
 - [ ] Rollback path is documented for risky changes.
 - [ ] Escalation triggers are defined for sensitive modifications.
 
-## 8. Handoff Clarity
+## 9. Handoff Clarity
 
 - [ ] Implementation steps identify exact file targets.
 - [ ] Verifier can validate without hidden assumptions.

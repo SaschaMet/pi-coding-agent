@@ -13,6 +13,12 @@ structure, and DRY-ness without changing behavior.
 
 ## What to Improve
 
+- CARDS:
+  - Clarity: names, types, and flow communicate intent.
+  - Alignment: dependency direction matches the existing architecture.
+  - Resilience: the next small behavior change stays local.
+  - Domain Integrity: invalid states are rejected or made unrepresentable.
+  - Separation: domain, orchestration, IO, and presentation concerns stay apart.
 - Remove duplication (DRY).
 - Improve names (variables, functions, classes) for clarity.
 - Simplify complex conditionals or deeply nested logic.
@@ -22,7 +28,7 @@ structure, and DRY-ness without changing behavior.
 ## Process
 
 1. Review the production code written in the Green phase.
-2. Identify one improvement opportunity.
+2. Identify one improvement opportunity, preferring CARDS issues before cosmetic cleanup.
 3. Apply the refactoring.
 4. Run the full affected test suite.
 5. If any test fails, revert and investigate.

@@ -45,6 +45,12 @@ If you see out-of-scope concerns, do not emit them as findings. Add a short hand
 
 ## Strict Maintainability Bar
 
+- Apply CARDS when the diff changes architecture or design:
+  - Clarity: changed code communicates intent through names, types, and control flow.
+  - Alignment: dependencies point toward stable domain/core modules, not from core logic into adapters, UI, IO, or vendor details.
+  - Resilience: a small likely follow-up change stays local instead of requiring edits across unrelated modules.
+  - Domain Integrity: invalid states are impossible or rejected at boundaries, not carried as nullable modes, casts, flags, or unchecked maps.
+  - Separation: domain policy, orchestration, persistence, transport, UI, and formatting remain isolated and composable.
 - Look for code-judo moves that preserve behavior while removing branches, modes, helpers, or layers.
 - Treat new ad-hoc conditionals in already busy flows as design risk, not style.
 - Flag special-case feature logic leaking into shared or canonical paths when it makes the path harder to reason about.
@@ -60,11 +66,13 @@ If you see out-of-scope concerns, do not emit them as findings. Add a short hand
 - Changed APIs remain ergonomic and compatible for callers.
 - Algorithms, database access, loops, I/O, and memory use scale for expected data sizes.
 - Dependencies and module boundaries avoid unnecessary coupling and cycles.
+- Dependency direction preserves CARDS Alignment: stable domain/core logic does not import volatile adapters, UI, transport, persistence, or vendor-specific code unless that is the established local architecture.
 - New abstractions reduce actual complexity; they are not speculative.
 - Removed or duplicated code does not leave stale paths, dead branches, or inconsistent behavior.
 - The diff does not add spaghetti branching where a clearer model, helper, dispatcher, or module boundary should exist.
 - Large changed files remain justified and organized; files crossing 250 lines have a clear decomposition story.
 - Type boundaries make invariants explicit instead of relying on casts, `any`, `unknown`, nullable modes, or silent fallbacks.
+- The design prevents invalid domain states by construction or boundary validation, not by comments or caller discipline.
 
 ## Required Output
 

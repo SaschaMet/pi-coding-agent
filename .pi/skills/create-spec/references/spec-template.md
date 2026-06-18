@@ -67,51 +67,60 @@ Then ...
 **Domain contracts:**
 - ...
 
-## 7. Verification Plan
+## 7. CARDS Architecture Contract
 
-### 7.1 Automated Verification Matrix
+- Clarity: ...
+- Alignment: ...
+- Resilience: ...
+- Domain Integrity: ...
+- Separation: ...
+
+## 8. Verification Plan
+
+### 8.1 Automated Verification Matrix
 
 | Criterion | Check Type | Command / System | Expected Evidence |
 | --- | --- | --- | --- |
 | AC1 | Unit | `npm run test -- ...` | ... |
 | AC2 | Integration | `...` | ... |
 
-### 7.2 Manual Verification Checklist
+### 8.2 Manual Verification Checklist
 
 - [ ] Step 1: command/input -> expected result
 - [ ] Step 2: command/input -> expected result
 
-### 7.3 Regression Checks
+### 8.3 Regression Checks
 
 - [ ] Existing tests: `...`
 - [ ] Existing flows unchanged: `...`
 
-## 8. Risks, One-Way Doors, Rollback
+## 9. Risks, One-Way Doors, Rollback
 
 | Risk | Severity | Mitigation | One-Way Door | Rollback |
 | --- | --- | --- | --- | --- |
 | ... | High | ... | Yes/No | ... |
 
-## 9. Traceability and Audit
+## 10. Traceability and Audit
 
 - Source ticket/PRD: ...
 - Reviewer/approver: ...
 - Link acceptance criteria to verification artifacts.
 
-## 10. Definition of Done
+## 11. Definition of Done
 
 - [ ] Scope boundaries respected (`modify/call/forbid`).
+- [ ] CARDS architecture contract respected or explicitly waived.
 - [ ] All acceptance criteria pass.
 - [ ] Verification evidence captured.
 - [ ] Risks and rollback documented.
 
-## 11. Open Questions / Deferred Decisions
+## 12. Open Questions / Deferred Decisions
 
 If this section has any unanswered item, implementation must not start.
 
 - [ ] ...
 
-## 12. Handoff
+## 13. Handoff
 
 - Implementation agent should read: `...`
 - Implementation blocked: Yes/No. If yes, stop and prompt the user to answer `Open Questions / Deferred Decisions` before making changes.

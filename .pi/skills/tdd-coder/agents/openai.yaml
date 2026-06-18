@@ -1,4 +1,4 @@
 interface:
   display_name: "TDD Coder"
   short_description: "Implement explicit TDD requests with red-green-refactor discipline"
-  default_prompt: "Use $tdd-coder to implement this change test-first: write the failing unit test, add minimal code, refactor after green, and run focused validation and coverage when available."
+  default_prompt: "Use $tdd-coder to implement this change test-first: write the failing unit test, add minimal code without violating CARDS architecture boundaries, refactor after green, and run focused validation and coverage when available."

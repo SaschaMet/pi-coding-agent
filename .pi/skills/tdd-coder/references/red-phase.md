@@ -12,17 +12,19 @@ and FAIL when run against the current codebase.
 - Keep test data local, deterministic, and minimal.
 - Mock external dependencies (network, filesystem, databases) unless this IS an integration test.
 - For integration tests: use the user-provided input/output pairs; load fixtures when they exist.
+- When testing domain behavior, include the invalid state or invariant boundary that must fail before implementation.
 - Do NOT write any implementation or production code.
 - Do NOT fix existing code to make tests pass.
 
 ## Process
 
 1. Identify the next behavior to test from the requirements.
-2. Write the test (unit or integration).
-3. Run the narrowest test command targeting only the new test.
-4. Confirm the test fails for the EXPECTED reason (missing function, wrong return value, etc.).
-5. If the test fails for an unexpected reason (import error, syntax error), fix only the test.
-6. Report: test name, file, run command, and failure reason.
+2. Identify the owner module, dependency boundary, and invariant when the behavior touches architecture or domain logic.
+3. Write the test (unit or integration).
+4. Run the narrowest test command targeting only the new test.
+5. Confirm the test fails for the EXPECTED reason (missing function, wrong return value, etc.).
+6. If the test fails for an unexpected reason (import error, syntax error), fix only the test.
+7. Report: test name, file, owner boundary, invariant when relevant, run command, and failure reason.
 
 ## Anti-patterns to Avoid
 

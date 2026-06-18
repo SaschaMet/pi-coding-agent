@@ -1,7 +1,7 @@
 interface:
   display_name: "Grill Me"
   short_description: "Stress-test a plan or design for high-impact risks and contradictions"
-  default_prompt: "Use $grill-me to pressure-test this plan or design with concise adversarial questioning. Focus on high-impact risks, contradictions, assumptions, and unresolved decisions."
+  default_prompt: "Use $grill-me to pressure-test this plan or design with concise adversarial questioning. Focus on high-impact risks, CARDS architecture gaps, contradictions, assumptions, and unresolved decisions."
 
 policy:
   allow_implicit_invocation: true

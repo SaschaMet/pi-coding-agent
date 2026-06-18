@@ -57,17 +57,18 @@ Load only the references needed for the requested review scope:
    - intended user-visible behavior when inferable from request, branch, commits, PR text, or tests
    - relevant public APIs, schemas, config keys, CLI flags, event names, and database migrations touched by the diff
    - surrounding interfaces/callers needed to verify compatibility
+   - CARDS architecture notes when the diff touches design: clarity of intent, dependency direction, change isolation, invalid-state prevention, and separation of domain/orchestration/IO concerns
    - explicit focus areas requested by the user
 4. Execute the selected read-only specialist passes through subagents:
    - QA: correctness/regressions/edge cases/test adequacy only.
    - Security: concrete exploitable vulnerabilities only.
-   - Code Quality: maintainability/performance/reliability/integration/design only.
+   - Code Quality: maintainability/performance/reliability/integration/design only, including CARDS regressions with concrete impact.
    - Spawn one read-only subagent per selected pass using `multi_agent_v1.spawn_agent`.
    - Use `agent_type: "qa-validator"` for the QA pass.
    - Use `agent_type: "reviewer"` for Security and Code Quality passes, with the prompt restricting category ownership.
    - Run selected passes in parallel whenever more than one pass is selected.
    - If subagent tooling is unavailable, blocked, or any selected agent fails, stop and report the exact blocker. Do not run the missing pass in the parent session and do not invent that pass.
-   - Give each pass the diff summary, relevant file paths, review context, validation context, exact reference path to read, strict category ownership, and required finding schema.
+   - Give each pass the diff summary, relevant file paths, review context, CARDS architecture notes when present, validation context, exact reference path to read, strict category ownership, and required finding schema.
    - Apply strict non-overlap ownership. Out-of-scope items become scope notes, not findings.
 5. Wait for every selected pass with `multi_agent_v1.wait_agent` before merging, deduping, or producing a verdict. Do not proceed with partial results.
 6. Collect pass outputs.
@@ -135,7 +136,7 @@ multi_agent_v1.spawn_agent({
 
 multi_agent_v1.spawn_agent({
   agent_type: "reviewer",
-  message: "Run the Code Quality pass for this code review. Read <absolute code-review skill dir>/references/code-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <file size context including files over 250 lines>, <Review Context>, <Project Validation Context>. Report maintainability, performance, scalability, reliability, integration, portability, or design-quality findings only when they show concrete impact and a smaller organization that removes meaningful complexity. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or security issues."
+  message: "Run the Code Quality pass for this code review. Read <absolute code-review skill dir>/references/code-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <file size context including files over 250 lines>, <Review Context>, <CARDS architecture notes when present>, <Project Validation Context>. Report maintainability, performance, scalability, reliability, integration, portability, or design-quality findings only when they show concrete impact and a smaller organization that removes meaningful complexity. Include CARDS regressions only when they create a concrete maintenance, correctness, or integration cost. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or security issues."
 })
 
 multi_agent_v1.wait_agent({ targets: ["<qa-agent-id>", "<security-agent-id>", "<quality-agent-id>"], timeout_ms: 3600000 })

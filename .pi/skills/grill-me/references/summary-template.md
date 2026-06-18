@@ -76,6 +76,7 @@ Use the full table format only when the session has enough questions or decision
 - **Questions Asked**: Keep this short. If you asked more than 3 questions, you should have a strong reason.
 - **Answers Given**: Map answers directly to the questions. Do not add unrelated commentary.
 - **Default Changes**: This is where obvious best-practice actions go. Example: OpenAPI/Swagger for API docs when the plan changes an API and the repo does not specify another standard.
+  Include CARDS defaults when architecture risks did not require a user decision: clarity, alignment, resilience, domain integrity, or separation.
 - **Risks Accepted**: The user explicitly acknowledged the risk and chose to proceed.
   Include their reasoning so the decision is auditable.
 - **Open Issues**: Questions that could not be resolved in this session.

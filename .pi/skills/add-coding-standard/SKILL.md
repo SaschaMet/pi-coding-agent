@@ -19,6 +19,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 - A Baseline, Standard, or Hardened profile is selected and documented with data classification when relevant.
 - Existing working tools and command names are preserved unless they conflict with the selected standard.
 - Missing formatter, linter, typecheck, tests, coverage, mutation, duplicate-code, security, cleanup, and AI-risk checks are added only where they fit the repo.
+- CARDS architecture guardrails are documented where the repo has meaningful architecture boundaries: Clarity, Alignment, Resilience, Domain Integrity, and Separation.
 - Strict typing is enforced as an agent behavior: use the narrowest practical types and avoid `any`, `unknown`, dynamic/object escape hatches, or broad casts unless no safer boundary type exists.
 - Public and non-trivial functions, methods, and classes have concise purpose-focused documentation comments in the language's local convention, such as JSDoc/TSDoc, Python docstrings, or equivalent.
 - A lint, doc-lint, or equivalent static rule checks required documentation comments when the repo's language/tooling supports it.
@@ -36,6 +37,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
    - existing `.github/hooks`, `.github/copilot`, `.claude/settings.json`, `.codex` or Codex plugin hook config, and `.pi/extensions`
    - existing `AGENTS.md`, `CLAUDE.md`, engineering docs, workflow files, and scripts
    - sensitive-data clues and AI-risk patterns such as test-only fixes, weak assertions, over-mocking, snapshot churn, and hardcoded fixtures
+   - existing architecture boundaries, dependency direction, domain invariants, invalid-state handling, and separation between domain, orchestration, IO, and presentation
 2. Load references:
    - Always read [references/core-standard.md](references/core-standard.md), [references/initialization-workflow.md](references/initialization-workflow.md), and [references/ai-assisted-development.md](references/ai-assisted-development.md).
    - For TypeScript browser apps, read [references/typescript-frontend.md](references/typescript-frontend.md).
@@ -55,6 +57,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
    - conflicting workflows to remove or consolidate
    - stale tests, fixtures, snapshots, mocks, helper files, or generated artifacts to inspect
    - duplicate-code hotspots and whether copy/paste detection should warn locally or block CI
+   - CARDS gaps: unclear intent, wrong-way dependencies, broad change blast radius, invalid domain states, or mixed concerns
    - targeted questions that cannot be answered from the repo
 5. Implement only the selected standard:
    - normalize scripts to one fast local check, one full check, and one CI verification command where practical
@@ -62,6 +65,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
    - add copy/paste detection where it fits: preserve existing duplicate-code tooling; otherwise prefer `jscpd@5`/`cpd` with `.jscpd.json`, `gitignore: true`, generated/build/vendor ignores, `threshold` reporter for blocking CI, and `ai` or `json` reporter for agent-readable diagnosis
    - start heuristic AI-risk checks in warning mode on legacy repos; make them blocking only after cleanup or explicit approval
    - prefer precise domain, inferred, generic, discriminated-union, branded, schema-derived, and readonly/container types over broad fallback types
+   - document CARDS as executable architecture guidance when architecture boundaries exist: dependency direction, owner modules, invalid-state prevention, and concern separation
    - require concise documentation comments for public and non-trivial functions, methods, and classes; match the repo's existing convention and describe purpose, parameters, returns, side effects, or raised errors only when useful
    - add or tighten the existing linter/doc-linter rule that verifies those required comments when supported, such as JSDoc/TSDoc rules for TypeScript/JavaScript or docstring rules for Python; do not add a competing linter when the current one can be extended
    - do not use lint-disable comments, weakened lint config, `// @ts-ignore`, `type: ignore`, or equivalent bypasses to make staged checks pass unless the underlying tool is wrong and the exception is the narrowest possible line-level waiver
@@ -96,6 +100,8 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 | Monorepo with mixed stacks | Apply shared policy at root and stack-specific tooling per package. |
 | Legacy repo with many heuristic warnings | Add warning-mode checks and document cleanup before blocking CI. |
 | Coverage is present but weak | Add behavioral test guidance and critical-module mutation checks; do not treat coverage alone as done. |
+| Architecture boundaries exist but are undocumented | Add CARDS guidance to the engineering standard or local agent instructions without forcing a new architecture. |
+| Current architecture conflicts with CARDS | Document the conflict and create a spec before changing module boundaries. |
 
 ## Gotchas
 
@@ -104,6 +110,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 - Do not delete or rewrite tests just to satisfy cleanup. Prove they are stale or obsolete first.
 - Do not refactor every detected clone blindly. Use copy/paste reports to gate new duplication and target meaningful domain duplication first.
 - Do not weaken typing or disable linting to pass local or staged checks. Fix the code first; use a waiver only with a concrete reason and the smallest possible scope.
+- Do not impose new layers just to satisfy CARDS. Preserve the local architecture and add guardrails for dependency direction, invariant ownership, and concern separation.
 - Do not mutate trivial glue code to improve mutation scores. Target domain rules, validation, permissions, calculations, and parsing.
 - Do not silently bless snapshot churn. Require a behavioral reason for changed snapshots.
 

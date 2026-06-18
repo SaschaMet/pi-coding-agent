@@ -11,6 +11,7 @@ Required:
 - linting
 - strict typing
 - narrowest practical static types
+- CARDS Clarity and Domain Integrity through clear names, precise types, and boundary validation for invalid inputs
 - unit tests for core logic
 - secret scanning
 - dependency audit
@@ -23,7 +24,7 @@ Additional requirements:
 - coverage threshold
 - mutation tests for critical modules
 - duplicate-code threshold with copy/paste reports in CI
-- architecture documentation
+- architecture documentation that captures CARDS Alignment, Resilience, Domain Integrity, and Separation for meaningful module boundaries
 - privacy classification
 - AI-risk guard scripts in warning or CI mode
 
@@ -36,6 +37,7 @@ Additional requirements:
 - cleanup checks for tests and artifacts in CI
 - stronger logging/audit requirements
 - threat-model note
+- stricter architecture checks for wrong-way dependencies, unsafe domain states, and cross-boundary shortcuts in sensitive flows
 
 ## Universal rules
 
@@ -44,6 +46,12 @@ Always require:
 - no AI read, search, list, or write access to an existing `.env`; document environment variables through `.env.example`
 - boundary validation for untrusted input
 - strongest practical types at implementation boundaries and inside core logic
+- CARDS architecture checks where the repo has meaningful boundaries:
+  - Clarity: code names, types, and file organization communicate intent.
+  - Alignment: dependencies point from volatile adapters/UI/IO toward stable domain/core code, not the reverse, unless local architecture explicitly differs.
+  - Resilience: likely small changes stay local; broad edits require a spec.
+  - Domain Integrity: invalid states are prevented with types, schemas, constructors, validators, or persistence constraints.
+  - Separation: domain policy, orchestration, IO, presentation, and formatting remain isolated and composable.
 - no `any`, `unknown`, dynamic maps, blanket casts, or language-equivalent escape hatches where a precise type can be expressed
 - no broad lint or typecheck disables. Any waiver must be line-local, justified in code, and used only after a code-level fix was attempted.
 - parameterized database access
@@ -81,5 +89,6 @@ Agents must be ambitious about quality gates:
 - install or preserve an agent guard that blocks AI reads, searches, listings, and writes involving existing `.env` files
 - fix typed code instead of bypassing the checker
 - model data with domain types, schemas, generics, discriminated unions, typed fixtures, and type guards before considering escape hatches
+- preserve architecture boundaries instead of adding cross-layer shortcuts to satisfy tests or checks
 - preserve or tighten lint rules unless the repository owner explicitly approves weakening them
 - treat `eslint-disable`, `biome-ignore`, `// @ts-ignore`, `// @ts-expect-error`, `type: ignore`, `# noqa`, and similar comments as exceptions that need a reason and the smallest possible scope

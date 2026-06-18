@@ -45,6 +45,16 @@ Default discovery commands:
 - [ ] Org-wide invariants (security, compliance, reliability)
 - [ ] Domain-level contracts (module rules, API contracts)
 - [ ] Constraints that must be encoded as acceptance criteria
+- [ ] Invalid states that should be rejected or made unrepresentable
+- [ ] Current owner module for each domain rule
+
+## 6.1 CARDS Architecture Notes
+
+- [ ] Clarity: terms, responsibilities, and file/module intent are unambiguous
+- [ ] Alignment: dependency direction and ownership boundaries are identified
+- [ ] Resilience: likely follow-up changes should remain local to named modules
+- [ ] Domain Integrity: invariants and invalid states have enforcement points
+- [ ] Separation: domain policy, orchestration, IO, presentation, and formatting boundaries are explicit
 
 ## 7. Risk and Reversibility
 
