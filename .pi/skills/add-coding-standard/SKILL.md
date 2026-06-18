@@ -23,7 +23,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 - Strict typing is enforced as an agent behavior: use the narrowest practical types and avoid `any`, `unknown`, dynamic/object escape hatches, or broad casts unless no safer boundary type exists.
 - Public and non-trivial functions, methods, and classes have concise purpose-focused documentation comments in the language's local convention, such as JSDoc/TSDoc, Python docstrings, or equivalent.
 - A lint, doc-lint, or equivalent static rule checks required documentation comments when the repo's language/tooling supports it.
-- Linting and typecheck rules are treated as quality gates. Disabling a rule requires a documented, local, narrow justification after first attempting a typed/code-level fix.
+- Linting and typecheck rules are treated as quality gates. AI agents must not add or expand lint ignore rules, lint-disable comments, ignored type errors, weakened lint config, or broad ignore patterns to pass checks; any exception requires explicit repository-owner/user approval.
 - A universal agent session-end lint hook is installed or adapted so an existing linter/check runs when the agent session ends, reports informational results, always exits successfully, and passes silently when none exists.
 - A universal `.env` guard is installed or adapted so existing `.env` files cannot be read or changed by AI tools; `.env.example` remains available for documentation.
 - Future agents can find the standard through `AGENTS.md` or an equivalent local instruction file.
@@ -68,7 +68,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
    - document CARDS as executable architecture guidance when architecture boundaries exist: dependency direction, owner modules, invalid-state prevention, and concern separation
    - require concise documentation comments for public and non-trivial functions, methods, and classes; match the repo's existing convention and describe purpose, parameters, returns, side effects, or raised errors only when useful
    - add or tighten the existing linter/doc-linter rule that verifies those required comments when supported, such as JSDoc/TSDoc rules for TypeScript/JavaScript or docstring rules for Python; do not add a competing linter when the current one can be extended
-   - do not use lint-disable comments, weakened lint config, `// @ts-ignore`, `type: ignore`, or equivalent bypasses to make staged checks pass unless the underlying tool is wrong and the exception is the narrowest possible line-level waiver
+   - do not use lint-disable comments, weakened lint config, `// @ts-ignore`, `type: ignore`, broad ignore patterns, or equivalent bypasses to make staged checks pass; fix the code or stop and request explicit repository-owner/user approval for a line-local documented exception
    - install or adapt the universal `.env` guard from [scripts/samples/block-env-read.sh](scripts/samples/block-env-read.sh), usually into `.github/hooks/scripts/block-env-read.sh`; it must:
      - block AI access to `.env` and `.env.*` files for read/search/list/write/edit tools while allowing `.env.example`
      - block shell commands that target `.env` or `.env.*` files
@@ -109,7 +109,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 - Do not add a second formatter, linter, package manager, test runner, or CI command when one can be extended.
 - Do not delete or rewrite tests just to satisfy cleanup. Prove they are stale or obsolete first.
 - Do not refactor every detected clone blindly. Use copy/paste reports to gate new duplication and target meaningful domain duplication first.
-- Do not weaken typing or disable linting to pass local or staged checks. Fix the code first; use a waiver only with a concrete reason and the smallest possible scope.
+- Do not weaken typing or disable linting to pass local or staged checks. Fix the code first; if the tool is wrong, stop and request explicit repository-owner/user approval before adding the smallest documented line-local exception.
 - Do not impose new layers just to satisfy CARDS. Preserve the local architecture and add guardrails for dependency direction, invariant ownership, and concern separation.
 - Do not mutate trivial glue code to improve mutation scores. Target domain rules, validation, permissions, calculations, and parsing.
 - Do not silently bless snapshot churn. Require a behavioral reason for changed snapshots.

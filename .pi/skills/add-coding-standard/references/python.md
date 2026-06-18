@@ -19,7 +19,7 @@ Core rules:
 - use the narrowest practical types for collections, callables, protocols, literals, typed dicts, dataclasses, and Pydantic models
 - avoid `Any`, `object`, untyped `dict`, untyped `list`, broad casts, and `type: ignore` when a precise type can be expressed
 - use `Any` only at unavoidable third-party or dynamic boundaries; isolate it behind a typed adapter and narrow immediately
-- do not use `# noqa`, Ruff ignores, or Pyright ignores to pass staged checks unless the exception is line-local, justified, and narrower than a code-level fix
+- do not add `# noqa`, Ruff ignores, Pyright ignores, or broad ignore patterns to pass staged checks; if the tool is wrong, stop and request explicit repository-owner/user approval for a line-local documented exception narrower than a code-level fix
 - use timezone-aware datetimes
 - use `Decimal` for money
 - use `yaml.safe_load`

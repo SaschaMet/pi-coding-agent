@@ -25,6 +25,7 @@ In scope:
 - Documentation drift only when changed behavior affects public usage, operations, onboarding, or API contracts
 - Structural regressions where the changed code adds avoidable concepts, branches, coupling, or indirection
 - File growth that pushes a changed source file over 250 lines without a strong decomposition reason
+- New or expanded lint ignore rules, lint-disable comments, ignored type errors, weakened lint config, broad ignore patterns, and equivalents such as `eslint-disable`, `biome-ignore`, `// @ts-ignore`, `// @ts-expect-error`, `type: ignore`, and `# noqa`
 
 Out of scope:
 - Exploitable security vulnerabilities (owned by `security-review`)
@@ -42,6 +43,7 @@ If you see out-of-scope concerns, do not emit them as findings. Add a short hand
 - Tie each finding to a concrete cost: harder future change, measurable inefficiency, operational failure, or integration breakage.
 - Prefer the smallest local refactor or guard unless a clear reorganization would delete meaningful complexity.
 - Do not report naming, formatting, or comment issues unless they hide behavior, violate local convention, or materially slow maintenance.
+- Treat unapproved lint/typecheck bypasses as quality-gate regressions, not style issues. Broad config/file-level ignores or weakened lint config are HIGH. Line-local undocumented suppressions are at least MEDIUM.
 
 ## Strict Maintainability Bar
 
@@ -73,6 +75,7 @@ If you see out-of-scope concerns, do not emit them as findings. Add a short hand
 - Large changed files remain justified and organized; files crossing 250 lines have a clear decomposition story.
 - Type boundaries make invariants explicit instead of relying on casts, `any`, `unknown`, nullable modes, or silent fallbacks.
 - The design prevents invalid domain states by construction or boundary validation, not by comments or caller discipline.
+- The diff does not add or expand lint/typecheck bypasses unless explicit repository-owner/user approval is shown in the review context.
 
 ## Required Output
 

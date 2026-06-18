@@ -35,7 +35,7 @@ Use layered controls:
 - checks for tests with no production execution where tooling supports it
 - behavioral assertions over call-count assertions
 - strict-type review for newly introduced broad types, casts, and ignore comments
-- lint-disable review that rejects broad, file-level, config-level, or unjustified waivers
+- lint-disable review that rejects AI-added ignore rules, broad/file-level/config-level disables, ignored type errors, broad ignore patterns, and any waiver without explicit repository-owner/user approval
 
 ## Review triggers
 
@@ -48,7 +48,7 @@ Flag these patterns in warning mode at minimum:
 - hardcoded branches matching visible examples
 - new or expanded duplicated production code, especially validation, permissions, parsing, retries, serialization, calculations, and data mapping
 - new or expanded `any`, `unknown`, `object`, untyped containers, broad casts, or ignored type errors without proof that no precise type is practical
-- new lint-disable comments or weakened lint configuration, especially near changed code
+- new or expanded lint-disable comments, ignored type errors, weakened lint configuration, or broad ignore patterns, especially near changed code
 
 ## Policy recommendation
 

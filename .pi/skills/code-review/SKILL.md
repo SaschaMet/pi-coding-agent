@@ -15,7 +15,7 @@ Always use subagents for every selected specialist pass. The parent session is t
 - Strict category ownership:
   - `qa` owns correctness/regressions/edge cases/test adequacy
   - `security` owns exploitable security vulnerabilities
-  - `code_quality` owns maintainability/performance/design quality
+  - `code_quality` owns maintainability/performance/design quality and lint/typecheck bypasses
 
 ## Reference Material
 
@@ -43,6 +43,7 @@ Load only the references needed for the requested review scope:
    - Identify the change intent, touched public contracts, and affected runtime paths before judging findings.
    - Classify whether the diff is test-only: tests, snapshots, or fixtures changed while no implementation files changed.
    - For changed source files, capture current file line counts and whether the diff pushes any file over 250 lines.
+   - Scan added/modified lines and config for new or expanded lint ignore rules, lint-disable comments, ignored type errors, weakened lint config, broad ignore patterns, and equivalents such as `eslint-disable`, `biome-ignore`, `// @ts-ignore`, `// @ts-expect-error`, `type: ignore`, and `# noqa`.
 2. Discover project-specific quality commands and conventions:
    - Read `package.json` scripts when present.
    - Read top-level and near-root `*.toml`, `*.yaml`, `*.yml`, etc. files for task/test/lint tool config.
@@ -63,6 +64,7 @@ Load only the references needed for the requested review scope:
    - QA: correctness/regressions/edge cases/test adequacy only.
    - Security: concrete exploitable vulnerabilities only.
    - Code Quality: maintainability/performance/reliability/integration/design only, including CARDS regressions with concrete impact.
+   - Code Quality also owns lint/typecheck bypass findings: flag new or expanded lint ignore rules, lint-disable comments, ignored type errors, weakened lint config, broad ignore patterns, and equivalent bypasses unless the diff shows explicit repository-owner/user approval.
    - Spawn one read-only subagent per selected pass using `multi_agent_v1.spawn_agent`.
    - Use `agent_type: "qa-validator"` for the QA pass.
    - Use `agent_type: "reviewer"` for Security and Code Quality passes, with the prompt restricting category ownership.
@@ -91,6 +93,7 @@ Load only the references needed for the requested review scope:
 - smallest practical recommendation
 - no generic advice, style preference, or broad rewrite unless it identifies a concrete simplification that removes meaningful complexity
 - unapproved test-only AI diffs are HIGH QA findings when tests, snapshots, or fixtures changed without implementation changes
+- unapproved lint/typecheck bypasses are Code Quality findings; broad config/file-level ignores or weakened lint config are HIGH, line-local undocumented suppressions are at least MEDIUM
 
 12. Produce a single final verdict:
 
@@ -105,6 +108,7 @@ Load only the references needed for the requested review scope:
 - Breaking changes are findings when the diff changes public API signatures, removes/renames public methods, changes return types, modifies database schemas, or changes required configuration without a compatible migration path.
 - Do not count missing tests as a finding unless the changed behavior is unprotected or the repo convention requires coverage.
 - Do not accept test-only diffs that claim implementation behavior changed. If tests, snapshots, or fixtures changed and no implementation files changed, fail the review unless the user explicitly requested test-only maintenance.
+- Do not accept AI-added lint/typecheck bypasses. New or expanded ignore rules, disable comments, ignored type errors, weakened lint config, or broad ignore patterns must be flagged unless the user or repository owner explicitly approved the exact exception.
 - Do not implement fixes in this skill; switch only if the user explicitly asks for remediation.
 - Include suggested tests only when they directly prove the finding or close a changed-behavior gap.
 - Set thresholds to current measured totals so future changes cannot lower coverage. Increase only when the measured score improves.
@@ -136,7 +140,7 @@ multi_agent_v1.spawn_agent({
 
 multi_agent_v1.spawn_agent({
   agent_type: "reviewer",
-  message: "Run the Code Quality pass for this code review. Read <absolute code-review skill dir>/references/code-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <file size context including files over 250 lines>, <Review Context>, <CARDS architecture notes when present>, <Project Validation Context>. Report maintainability, performance, scalability, reliability, integration, portability, or design-quality findings only when they show concrete impact and a smaller organization that removes meaningful complexity. Include CARDS regressions only when they create a concrete maintenance, correctness, or integration cost. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or security issues."
+  message: "Run the Code Quality pass for this code review. Read <absolute code-review skill dir>/references/code-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <file size context including files over 250 lines>, <lint/typecheck bypass scan>, <Review Context>, <CARDS architecture notes when present>, <Project Validation Context>. Report maintainability, performance, scalability, reliability, integration, portability, design-quality, and lint/typecheck bypass findings only when they show concrete impact or add/expand a quality-gate bypass. Include CARDS regressions only when they create a concrete maintenance, correctness, or integration cost. Flag unapproved new/expanded lint ignore rules, lint-disable comments, ignored type errors, weakened lint config, broad ignore patterns, and equivalents as findings. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or security issues."
 })
 
 multi_agent_v1.wait_agent({ targets: ["<qa-agent-id>", "<security-agent-id>", "<quality-agent-id>"], timeout_ms: 3600000 })

@@ -53,7 +53,7 @@ Always require:
   - Domain Integrity: invalid states are prevented with types, schemas, constructors, validators, or persistence constraints.
   - Separation: domain policy, orchestration, IO, presentation, and formatting remain isolated and composable.
 - no `any`, `unknown`, dynamic maps, blanket casts, or language-equivalent escape hatches where a precise type can be expressed
-- no broad lint or typecheck disables. Any waiver must be line-local, justified in code, and used only after a code-level fix was attempted.
+- no AI-added lint or typecheck bypasses. Agents must not add or expand lint ignore rules, lint-disable comments, ignored type errors, weakened lint config, or broad ignore patterns unless the repository owner/user explicitly approves a line-local documented exception after a code-level fix was attempted.
 - parameterized database access
 - lockfiles committed
 - copy/paste detection excludes generated, build, vendored, lockfile, snapshot, fixture, and dependency directories unless the repo intentionally audits those files
@@ -90,5 +90,5 @@ Agents must be ambitious about quality gates:
 - fix typed code instead of bypassing the checker
 - model data with domain types, schemas, generics, discriminated unions, typed fixtures, and type guards before considering escape hatches
 - preserve architecture boundaries instead of adding cross-layer shortcuts to satisfy tests or checks
-- preserve or tighten lint rules unless the repository owner explicitly approves weakening them
-- treat `eslint-disable`, `biome-ignore`, `// @ts-ignore`, `// @ts-expect-error`, `type: ignore`, `# noqa`, and similar comments as exceptions that need a reason and the smallest possible scope
+- preserve or tighten lint rules; do not weaken them unless the repository owner explicitly approves the exact change
+- treat new or expanded `eslint-disable`, `biome-ignore`, `// @ts-ignore`, `// @ts-expect-error`, `type: ignore`, `# noqa`, ignore-file patterns, and similar bypasses as blocked AI shortcuts unless explicitly owner-approved, line-local where possible, documented, and smaller than a code-level fix
