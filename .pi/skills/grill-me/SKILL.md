@@ -17,24 +17,24 @@ Keep the session focused on high-impact uncertainty. Prefer fewer, sharper quest
 
 ## Step 1 — Silent Research
 
-Before asking or flagging a single thing, build context:
+Before asking or flagging a single thing, build context. If `graphify-out/graph.json` exists at the repository root, query graphify first for the plan's named systems, dependency paths, owner modules, god nodes, surprising connections, and community boundaries. If no graph exists and the plan is architecture-heavy, cross-module, or depends on unclear code relationships, run `graphify <repo-root> --mode deep --no-viz` before questioning. Do not run graphify for non-repo-bound plans or small localized plans where direct file inspection is sufficient.
 
 1. Read the idea / plan / design the user provided in full.
 2. If the plan is repo-bound and workspace context is needed, read relevant project files in a single parallel batch: AGENTS.md, CONTRIBUTING.md,
    architecture docs, ADRs, README, key config files, and `CONTEXT.md` (or `CONTEXT-MAP.md`).
-3. For repo-bound plans, use `rg --files` to map the named or nearest project areas; use `rg` for fast text searches.
+3. For repo-bound plans, use `rg --files` to map the named or nearest project areas; use `rg` for fast text searches. Use graphify query/path/explain output to prioritize which files and relationships to inspect, not to replace direct verification.
 4. For repo-bound plans, explore entry points, data flow, existing tests, deployment config, and prior plans in `docs/plans/`.
 5. Check for prior art: similar features, past decisions, existing patterns.
-6. Identify the **blast radius** — what breaks if this design is wrong?
+6. Identify the **blast radius** — what breaks if this design is wrong? Include graphify communities, god nodes, surprising connections, and shortest paths when they show affected boundaries or hidden dependencies.
 7. Build a CARDS note for architecture-heavy plans:
    - Clarity: ambiguous concepts, names, or responsibilities.
    - Alignment: dependency direction and ownership boundaries.
    - Resilience: whether likely small changes stay local.
    - Domain Integrity: invalid states the design allows or prevents.
    - Separation: whether domain policy, orchestration, IO, and presentation are mixed.
-8. Note every claim the user makes about how something works. You will verify these against the codebase during questioning.
+8. Note every claim the user makes about how something works. You will verify these against the codebase and graphify context during questioning.
 
-Do NOT ask questions the codebase already answers. Your credibility depends on doing homework first.
+Do NOT ask questions the codebase or existing graphify graph already answers. Your credibility depends on doing homework first.
 
 ## Language Discipline
 
@@ -47,7 +47,7 @@ These behaviors run in parallel throughout the entire session — not as a discr
 ## Step 2 — Risk Assessment
 
 Silently categorize risks using [references/risk-taxonomy.md](references/risk-taxonomy.md).
-For architecture or design prompts, apply CARDS before asking questions. Convert obvious CARDS fixes into default changes; ask only when dependency direction, ownership, invariants, or separation require a user decision.
+For architecture or design prompts, apply CARDS before asking questions. Use graphify evidence to find dependency direction, ownership, invariants, separation, god-node concentration, and cross-community coupling. Convert obvious CARDS fixes into default changes; ask only when dependency direction, ownership, invariants, or separation require a user decision.
 Rank into three tiers:
 
 | Tier         | Definition                                                                   | Action                                            |
@@ -122,7 +122,7 @@ starting with Critical tier. Keep the session short.
 - **Dependency risk**: "You depend on X. What's your fallback if it's down/deprecated/slow?"
 - **Reversibility**: "If this is wrong, how expensive is it to undo?"
 - **Concrete scenarios**: When domain relationships are being discussed, invent specific scenarios that probe edge cases and force precision about boundaries between concepts. "What happens if a Customer places an Order and then the User account is deleted mid-fulfillment?"
-- **Code contradiction**: When the user states how something works, verify it against the codebase. If the code contradicts the claim, surface it directly. "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
+- **Code contradiction**: When the user states how something works, verify it against the codebase and graphify paths when available. If the code contradicts the claim, surface it directly. "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
 - **CARDS pressure**: Turn architecture risks into concrete trade-offs. "This moves payment policy into a queue adapter. Is the adapter now allowed to own domain decisions, or should the policy stay in the payment domain service?"
 
 ### Escalation Protocol

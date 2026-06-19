@@ -31,6 +31,8 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 
 ## Workflow
 
+Before Step 1, check whether `graphify-out/graph.json` exists at the target repository root. If it exists, use `graphify query` for architecture, dependency, ownership, duplicate-hotspot, and cross-file relationship questions before falling back to manual traversal. If no graph exists and the standard work is architecture-heavy, monorepo-wide, or unclear from local file inspection, run `graphify <path> --mode deep --no-viz` before producing the gap analysis; otherwise continue with direct repo inspection. Treat graph output as supporting evidence, not a substitute for reading the exact files you will edit.
+
 1. Inspect before proposing:
    - languages, repo shape, package manager, frameworks, source/test layout
    - current format, lint, typecheck, test, coverage, mutation, copy/paste detection, hook, CI, audit, and secret-scan setup
@@ -38,6 +40,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
    - existing `AGENTS.md`, `CLAUDE.md`, engineering docs, workflow files, and scripts
    - sensitive-data clues and AI-risk patterns such as test-only fixes, weak assertions, over-mocking, snapshot churn, and hardcoded fixtures
    - existing architecture boundaries, dependency direction, domain invariants, invalid-state handling, and separation between domain, orchestration, IO, and presentation
+   - graphify evidence when available: god nodes, surprising connections, community boundaries, dependency paths, and duplicate or cross-cutting hotspots relevant to the standard
 2. Load references:
    - Always read [references/core-standard.md](references/core-standard.md), [references/initialization-workflow.md](references/initialization-workflow.md), and [references/ai-assisted-development.md](references/ai-assisted-development.md).
    - For TypeScript browser apps, read [references/typescript-frontend.md](references/typescript-frontend.md).
@@ -58,6 +61,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
    - stale tests, fixtures, snapshots, mocks, helper files, or generated artifacts to inspect
    - duplicate-code hotspots and whether copy/paste detection should warn locally or block CI
    - CARDS gaps: unclear intent, wrong-way dependencies, broad change blast radius, invalid domain states, or mixed concerns
+   - graphify-backed relationship findings, including source nodes/paths when they affect architecture guardrails or quality-gate placement
    - targeted questions that cannot be answered from the repo
 5. Implement only the selected standard:
    - normalize scripts to one fast local check, one full check, and one CI verification command where practical
@@ -100,12 +104,12 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 | Monorepo with mixed stacks | Apply shared policy at root and stack-specific tooling per package. |
 | Legacy repo with many heuristic warnings | Add warning-mode checks and document cleanup before blocking CI. |
 | Coverage is present but weak | Add behavioral test guidance and critical-module mutation checks; do not treat coverage alone as done. |
-| Architecture boundaries exist but are undocumented | Add CARDS guidance to the engineering standard or local agent instructions without forcing a new architecture. |
+| Architecture boundaries exist but are undocumented | Query graphify first when `graphify-out/graph.json` exists, then add CARDS guidance to the engineering standard or local agent instructions without forcing a new architecture. |
 | Current architecture conflicts with CARDS | Document the conflict and create a spec before changing module boundaries. |
 
 ## Gotchas
 
-- Do not ask for information the repository can answer. Inspect first.
+- Do not ask for information the repository or existing graphify graph can answer. Inspect first.
 - Do not add a second formatter, linter, package manager, test runner, or CI command when one can be extended.
 - Do not delete or rewrite tests just to satisfy cleanup. Prove they are stale or obsolete first.
 - Do not refactor every detected clone blindly. Use copy/paste reports to gate new duplication and target meaningful domain duplication first.

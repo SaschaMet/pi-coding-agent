@@ -36,6 +36,8 @@ Load only the references needed for the requested review scope:
 
 ## Execution Steps
 
+Before Step 1, check whether `graphify-out/graph.json` exists at the repository root. If it exists, use `graphify query`, `graphify path`, or `graphify explain` to build review context for changed architecture, dependency paths, public contracts, ownership boundaries, or cross-file behavior. If no graph exists and the diff is architecture-heavy or touches unclear cross-module flows, run `graphify <repo-root> --mode deep --no-viz` before spawning specialist passes. Do not run graphify for small localized diffs where direct file inspection is sufficient. Treat graphify output as context passed to specialists, not as a finding by itself.
+
 1. Capture review context:
    - Run `git status`
    - Run `git diff`
@@ -59,6 +61,7 @@ Load only the references needed for the requested review scope:
    - relevant public APIs, schemas, config keys, CLI flags, event names, and database migrations touched by the diff
    - surrounding interfaces/callers needed to verify compatibility
    - CARDS architecture notes when the diff touches design: clarity of intent, dependency direction, change isolation, invalid-state prevention, and separation of domain/orchestration/IO concerns
+   - graphify context when available: relevant paths, explained nodes, god nodes, surprising connections, and community-boundary crossings touched by the diff
    - explicit focus areas requested by the user
 4. Execute the selected read-only specialist passes through subagents:
    - QA: correctness/regressions/edge cases/test adequacy only.
@@ -70,7 +73,7 @@ Load only the references needed for the requested review scope:
    - Use `agent_type: "reviewer"` for Security and Code Quality passes, with the prompt restricting category ownership.
    - Run selected passes in parallel whenever more than one pass is selected.
    - If subagent tooling is unavailable, blocked, or any selected agent fails, stop and report the exact blocker. Do not run the missing pass in the parent session and do not invent that pass.
-   - Give each pass the diff summary, relevant file paths, review context, CARDS architecture notes when present, validation context, exact reference path to read, strict category ownership, and required finding schema.
+   - Give each pass the diff summary, relevant file paths, review context, graphify context when available, CARDS architecture notes when present, validation context, exact reference path to read, strict category ownership, and required finding schema.
    - Apply strict non-overlap ownership. Out-of-scope items become scope notes, not findings.
 5. Wait for every selected pass with `multi_agent_v1.wait_agent` before merging, deduping, or producing a verdict. Do not proceed with partial results.
 6. Collect pass outputs.
@@ -103,7 +106,7 @@ Load only the references needed for the requested review scope:
 
 ## Gotchas
 
-- Review the current diff by default. Do not expand into a whole-repo audit unless the user asks.
+- Review the current diff by default. Do not expand into a whole-repo audit unless the user asks; graphify queries must stay scoped to changed files, callers, contracts, and directly affected paths.
 - A finding must name a concrete failing scenario, exploit path, regression, or maintenance cost.
 - Breaking changes are findings when the diff changes public API signatures, removes/renames public methods, changes return types, modifies database schemas, or changes required configuration without a compatible migration path.
 - Do not count missing tests as a finding unless the changed behavior is unprotected or the repo convention requires coverage.
@@ -119,13 +122,13 @@ Load only the references needed for the requested review scope:
 - Keep the strongest evidence and clearest recommendation.
 - Keep only one canonical finding per dedupe key.
 - Preserve specialist handoff notes in a separate section when useful.
-- Prefer evidence that references project-specific commands/config discovered from `package.json`, `*.toml`, and `README/docs`.
+- Prefer evidence that references project-specific commands/config discovered from `package.json`, `*.toml`, and `README/docs`; use graphify evidence only when it points to a concrete changed path, caller, dependency, or boundary.
 - Report only actionable issues with concrete impact. Structural findings are valid when they show a concrete maintenance cost and a clearer organization that deletes meaningful complexity.
 - If a finding depends on an assumption, state the assumption and confidence.
 
 ## Subagent Examples
 
-Use this pattern after capturing `git status`, `git diff`, touched files, `Review Context`, and `Project Validation Context`. Adapt only the pass list to the requested scope.
+Use this pattern after capturing `git status`, `git diff`, touched files, graphify context when available, `Review Context`, and `Project Validation Context`. Adapt only the pass list to the requested scope.
 
 ```text
 multi_agent_v1.spawn_agent({
