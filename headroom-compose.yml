@@ -1,0 +1,36 @@
+# Headroom compression proxy for the @raquezha/noheadroom PI extension.
+#
+# The extension (see Headroom-Readme.md) sends PI tool-output text to this proxy's
+# /v1/compress endpoint, gets a compressed version back, and substitutes it into the
+# conversation before PI sends it to whatever model/provider you use. The proxy itself
+# does NOT call an LLM and needs no provider API key — it runs Headroom's token-mode
+# compression locally.
+#
+#   docker compose -f headroom-compose.yml up -d
+#   docker compose -f headroom-compose.yml logs -f
+#   docker compose -f headroom-compose.yml down
+#
+# Then in PI: /headroom health  (should report online at http://127.0.0.1:8788)
+#
+# Notes:
+# - HEADROOM_HOST=0.0.0.0 is REQUIRED so the published port reaches the proxy.
+# - One proxy serves ALL providers (it compresses message content, not provider calls),
+#   so OAuth subscriptions (github-copilot, openai-codex) are covered too.
+# - Set the extension's autoStart=false when using Docker (it manages this container, not pip).
+
+services:
+  headroom:
+    image: ghcr.io/chopratejas/headroom:latest
+    container_name: headroom
+    restart: unless-stopped
+    ports:
+      - "8788:8788"
+    environment:
+      HEADROOM_HOST: "0.0.0.0"
+      HEADROOM_PORT: "8788"
+      HEADROOM_TELEMETRY: "off"
+    # The extension calls /v1/compress, so the proxy runs in token-compression mode.
+    # Verified against :latest (image 0.27.0): entrypoint is `headroom proxy`, so these
+    # flags append to form `headroom proxy --mode token --no-cache`. If a future image
+    # uses a bare `headroom` entrypoint, prepend "proxy": ["proxy","--mode","token","--no-cache"].
+    command: ["--mode", "token", "--no-cache"]

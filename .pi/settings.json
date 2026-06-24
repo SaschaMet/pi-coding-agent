@@ -14,7 +14,8 @@
         "useProjectEnv": true
     },
     "packages": [
-        "npm:@tintinweb/pi-subagents"
+        "npm:@tintinweb/pi-subagents",
+        "npm:@raquezha/noheadroom"
     ],
     "skills": [
         "~/.pi/agent/skills",
