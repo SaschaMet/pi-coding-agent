@@ -24,6 +24,8 @@ Load only the references needed for the requested review scope:
 - `references/qa-validator.md` for correctness, regression, edge-case, and test adequacy review.
 - `references/security-review.md` for exploitable vulnerability review.
 - `references/code-review.md` for maintainability, performance, and design review.
+- `references/threat-model.md` only when the Security pass is selected: build the diff-scoped Threat Context that tells the Security pass what counts as a vulnerability here.
+- `references/security-verification.md` only when the Security pass returns at least one finding: separate discovery from verification and triage severity before the verdict.
 
 ## Review Scope
 
@@ -46,6 +48,7 @@ Before Step 1, check whether `graphify-out/graph.json` exists at the repository 
    - Classify whether the diff is test-only: tests, snapshots, or fixtures changed while no implementation files changed.
    - For changed source files, capture current file line counts and whether the diff pushes any file over 250 lines.
    - Scan added/modified lines and config for new or expanded lint ignore rules, lint-disable comments, ignored type errors, weakened lint config, broad ignore patterns, and equivalents such as `eslint-disable`, `biome-ignore`, `// @ts-ignore`, `// @ts-expect-error`, `type: ignore`, and `# noqa`.
+   - When the Security pass will run, determine whether the diff touches a trust boundary (new/changed entry point, authn/authz, input parsing/validation/deserialization, file/network/subprocess I/O, secret/credential/token handling, or a security-relevant config default), and check for `THREAT_MODEL.md` at the repository root. Use these to build Threat Context in Step 4.
 2. Discover project-specific quality commands and conventions:
    - Read `package.json` scripts when present.
    - Read top-level and near-root `*.toml`, `*.yaml`, `*.yml`, etc. files for task/test/lint tool config.
@@ -64,8 +67,9 @@ Before Step 1, check whether `graphify-out/graph.json` exists at the repository 
    - graphify context when available: relevant paths, explained nodes, god nodes, surprising connections, and community-boundary crossings touched by the diff
    - explicit focus areas requested by the user
 4. Execute the selected read-only specialist passes through subagents:
+   - When the Security pass is selected, first read `references/threat-model.md` and build a diff-scoped Threat Context block (from `THREAT_MODEL.md` if present, else a lightweight 4-question sketch, else a one-line "no new trust boundary" note). Pass this block to the Security discovery subagent so it knows what counts as a vulnerability here.
    - QA: correctness/regressions/edge cases/test adequacy only.
-   - Security: concrete exploitable vulnerabilities only.
+   - Security: concrete exploitable vulnerabilities only. Run as two waves: (a) a discovery subagent that reports candidate findings, then (b) an independent verification pass per `references/security-verification.md` that re-reads only the cited code, returns confirmed/unconfirmed + confidence, and sets severity from the triage rubric. Do not give the verifier the discovery agent's reasoning.
    - Code Quality: maintainability/performance/reliability/integration/design only, including CARDS regressions with concrete impact.
    - Code Quality also owns lint/typecheck bypass findings: flag new or expanded lint ignore rules, lint-disable comments, ignored type errors, weakened lint config, broad ignore patterns, and equivalent bypasses unless the diff shows explicit repository-owner/user approval.
    - Spawn one read-only subagent per selected pass using `multi_agent_v1.spawn_agent`.
@@ -75,7 +79,7 @@ Before Step 1, check whether `graphify-out/graph.json` exists at the repository 
    - If subagent tooling is unavailable, blocked, or any selected agent fails, stop and report the exact blocker. Do not run the missing pass in the parent session and do not invent that pass.
    - Give each pass the diff summary, relevant file paths, review context, graphify context when available, CARDS architecture notes when present, validation context, exact reference path to read, strict category ownership, and required finding schema.
    - Apply strict non-overlap ownership. Out-of-scope items become scope notes, not findings.
-5. Wait for every selected pass with `multi_agent_v1.wait_agent` before merging, deduping, or producing a verdict. Do not proceed with partial results.
+5. Wait for every selected pass with `multi_agent_v1.wait_agent` before merging, deduping, or producing a verdict. Do not proceed with partial results. When the Security pass ran, wait for its discovery subagent, then run and wait for the verification wave before merging: drop `unconfirmed` security findings with confidence < 0.5, demote borderline ones to LOW, and record dropped/demoted findings as a one-line scope note.
 6. Collect pass outputs.
 7. Normalize each finding into:
    - `category`, `severity`, `file`, `line`, `title`, `evidence`, `recommendation`, `confidence`
@@ -112,6 +116,8 @@ Before Step 1, check whether `graphify-out/graph.json` exists at the repository 
 - Do not count missing tests as a finding unless the changed behavior is unprotected or the repo convention requires coverage.
 - Do not accept test-only diffs that claim implementation behavior changed. If tests, snapshots, or fixtures changed and no implementation files changed, fail the review unless the user explicitly requested test-only maintenance.
 - Do not accept AI-added lint/typecheck bypasses. New or expanded ignore rules, disable comments, ignored type errors, weakened lint config, or broad ignore patterns must be flagged unless the user or repository owner explicitly approved the exact exception.
+- Do not let the Security discovery agent verify its own findings. Verification must be an independent subagent that sees only the finding and cited code, never the discovery reasoning; this is what keeps false positives down. Set final security severity from the triage rubric, not the discovery agent's first guess.
+- Do not treat a missing `THREAT_MODEL.md` as a finding. When the diff touches no trust boundary, pass a one-line "no new trust boundary" note and skip the 4-question sketch.
 - Do not implement fixes in this skill; switch only if the user explicitly asks for remediation.
 - Include suggested tests only when they directly prove the finding or close a changed-behavior gap.
 - Set thresholds to current measured totals so future changes cannot lower coverage. Increase only when the measured score improves.
@@ -136,9 +142,16 @@ multi_agent_v1.spawn_agent({
   message: "Run the QA pass for this code review. Read <absolute code-review skill dir>/references/qa-validator.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Review Context>, <Project Validation Context>. Report only correctness, regression, edge-case, breaking-change, and changed-behavior test adequacy findings. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report security or maintainability-only issues."
 })
 
+// Security wave (a): discovery
 multi_agent_v1.spawn_agent({
   agent_type: "reviewer",
-  message: "Run the Security pass for this code review. Read <absolute code-review skill dir>/references/security-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Review Context>, <Project Validation Context>. Report only concrete exploitable vulnerabilities with proof of exploit path. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or maintainability-only issues."
+  message: "Run the Security discovery pass for this code review. Read <absolute code-review skill dir>/references/security-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Threat Context>, <Review Context>, <Project Validation Context>. Use the Threat Context to decide what counts as a vulnerability here. Report only concrete exploitable vulnerabilities with proof of exploit path. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or maintainability-only issues."
+})
+
+// Security wave (b): independent verification, one per finding (or batched for <=3). Pass ONLY the finding and cited file paths, never the discovery reasoning.
+multi_agent_v1.spawn_agent({
+  agent_type: "reviewer",
+  message: "Verify one security finding. Read <absolute code-review skill dir>/references/security-verification.md. You are given only the finding and the cited code; you have not seen the discovery agent's reasoning. Finding: <file>, <line>, <title>, <claimed exploit path>. Re-read the cited code and its immediate callers/callees, try to refute the finding, and check the triage factors. Return: verdict (confirmed|unconfirmed), confidence (0.00-1.00), severity (HIGH|MEDIUM|LOW from the rubric), reason (one line)."
 })
 
 multi_agent_v1.spawn_agent({
