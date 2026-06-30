@@ -4,14 +4,18 @@
     "description": "Project-local PI coding agent parity stack",
     "main": "src/main.ts",
     "scripts": {
+        "predev": "bash scripts/headroom-up.sh --quiet",
         "dev": "tsx watch src/main.ts",
+        "preagent": "bash scripts/headroom-up.sh --quiet",
         "agent": "tsx src/main.ts",
         "smoke": "tsx scripts/smoke.ts",
         "typecheck": "tsc --noEmit",
         "test": "vitest run",
         "test:coverage": "vitest run --coverage",
         "pi:pull-global": "tsx scripts/sync-pi-config.ts pull",
-        "pi:sync-global": "tsx scripts/sync-pi-config.ts push"
+        "pi:sync-global": "tsx scripts/sync-pi-config.ts push",
+        "headroom:up": "bash scripts/headroom-up.sh",
+        "headroom:down": "docker compose -f headroom-compose.yml down"
     },
     "keywords": [],
     "author": "",

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Init Project"
+  short_description: "Bootstrap a repo's AGENTS.md DOX tree and coding standard"
+  default_prompt: "Use $init-project to inspect this repository and its SYSTEM.md, generate a root AGENTS.md that distills SYSTEM.md's durable rules, build a DOX-structured tree of child AGENTS.md files for each durable boundary with a walkable Child DOX Index, wire in an existing coding standard or run add-coding-standard to create one, then verify the DOX chain is consistent and report changed files."

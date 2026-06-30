@@ -110,6 +110,29 @@ In a PI session:
 
 The footer shows `✓ Headroom -NN% (… saved)` once compression is applied.
 
+## Keeping the proxy running before each session
+
+The container uses `restart: unless-stopped`, so once started it survives reboots as long as
+the Docker daemon launches (enable "Start Docker Desktop on login" for a zero-touch baseline).
+On top of that, [`scripts/headroom-up.sh`](scripts/headroom-up.sh) guarantees it per session —
+it's idempotent (instant if already healthy), brings the container up otherwise, and is
+**non-blocking** (if Docker is down it warns and lets PI start anyway).
+
+- **`npm run agent` / `npm run dev`** already run it automatically via `preagent` / `predev`
+  hooks — nothing to do.
+- **Manual / global `pi`** — call it first, or wrap `pi` in your shell. Add to `~/.zshrc`:
+
+  ```zsh
+  pi() {
+    "$HOME/Projects/pi-coding-agent/scripts/headroom-up.sh" --quiet
+    command pi "$@"
+  }
+  ```
+
+  (If you use the `picoder` launcher from the main README, add the same `headroom-up.sh` line at
+  the top of that function instead.)
+- **Standalone controls:** `npm run headroom:up` / `npm run headroom:down`.
+
 ## Usage
 
 `/headroom [on|off|status|health|stats]` — toggle compression for the session, check health, or
