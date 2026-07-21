@@ -17,20 +17,29 @@
 # - One proxy serves ALL providers (it compresses message content, not provider calls),
 #   so OAuth subscriptions (github-copilot, openai-codex) are covered too.
 # - Set the extension's autoStart=false when using Docker (it manages this container, not pip).
+# - Container listens on 8787 (the image default) internally; only the host-side publish
+#   is remapped to 8788. Do NOT set HEADROOM_PORT to change the internal bind port — the
+#   image's baked-in HEALTHCHECK hardcodes `curl http://127.0.0.1:8787/readyz`, so bumping
+#   the internal port makes the healthcheck fail (curl exit 7) forever while the proxy
+#   itself works fine. This was live for 5+ days before being caught (Docker showed
+#   "unhealthy", `/health` still answered from the host since the port PUBLISH was correct).
 
 services:
   headroom:
-    image: ghcr.io/chopratejas/headroom:latest
+    image: ghcr.io/headroomlabs-ai/headroom:latest
     container_name: headroom
     restart: unless-stopped
     ports:
-      - "8788:8788"
+      - "8788:8787"
     environment:
       HEADROOM_HOST: "0.0.0.0"
-      HEADROOM_PORT: "8788"
       HEADROOM_TELEMETRY: "off"
     # The extension calls /v1/compress, so the proxy runs in token-compression mode.
-    # Verified against :latest (image 0.27.0): entrypoint is `headroom proxy`, so these
+    # Verified against :latest (image 0.32.0): entrypoint is `headroom proxy`, so these
     # flags append to form `headroom proxy --mode token --no-cache`. If a future image
     # uses a bare `headroom` entrypoint, prepend "proxy": ["proxy","--mode","token","--no-cache"].
+    #
+    # Image moved orgs: the repo transferred from chopratejas/headroom to headroomlabs-ai/headroom
+    # on 2026-06-29 (after v0.28.0). GHCR did not redirect the old package, so
+    # ghcr.io/chopratejas/headroom:latest is frozen at v0.27.0 forever — do not revert this.
     command: ["--mode", "token", "--no-cache"]

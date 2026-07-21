@@ -164,4 +164,4 @@ OAuth subscriptions — which is exactly why the extension is the primary path. 
 ## Further reading
 
 - **Extension:** <https://pi.dev/packages/@raquezha/noheadroom> · <https://www.npmjs.com/package/@raquezha/noheadroom>
-- **Headroom:** <https://github.com/chopratejas/headroom> · docs <https://headroom-docs.vercel.app/docs> · proxy <https://headroom-docs.vercel.app/docs/proxy>
+- **Headroom:** <https://github.com/headroomlabs-ai/headroom> · docs <https://headroom-docs.vercel.app/docs> · proxy <https://headroom-docs.vercel.app/docs/proxy>
