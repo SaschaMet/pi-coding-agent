@@ -26,14 +26,40 @@
 
 services:
   headroom:
-    image: ghcr.io/headroomlabs-ai/headroom:latest
+    # :main tracks the unreleased default branch, not a tagged version — chosen deliberately
+    # to get HEADROOM_COMPRESS_ALLOW_REMOTE (merged 2026-07-21, commit 1329ed7, PR #2458),
+    # which isn't in any tagged release yet (confirmed absent from v0.32.0). Trade-off:
+    # :main can carry other in-progress/untagged changes and moves without a changelog entry
+    # to review — re-pin to a tagged release once one ships this fix, and re-verify the
+    # command/entrypoint/env assumptions below still hold when you do.
+    image: ghcr.io/headroomlabs-ai/headroom:main
     container_name: headroom
     restart: unless-stopped
     ports:
-      - "8788:8787"
+      # Bound to 127.0.0.1 only: HEADROOM_COMPRESS_ALLOW_REMOTE below relaxes /v1/compress's
+      # loopback check (necessary because host->container traffic through Docker's port
+      # publishing arrives as a non-loopback source IP, not 127.0.0.1, as seen by the app
+      # inside the container). Without this explicit bind, compose publishes on ALL host
+      # interfaces by default, which combined with ALLOW_REMOTE would expose /v1/compress
+      # to the whole LAN, not just this machine.
+      - "127.0.0.1:8788:8787"
     environment:
       HEADROOM_HOST: "0.0.0.0"
       HEADROOM_TELEMETRY: "off"
+      # /v1/compress is loopback-gated by default (server.py, issue #1537) — the app sees
+      # requests arriving through Docker's port-forwarding as non-loopback and 404s them.
+      # HEADROOM_COMPRESS_ALLOW_REMOTE is the documented, scoped opt-out for exactly this
+      # (drops ONLY /v1/compress's loopback dependency; HEADROOM_PROXY_TOKEN auth and every
+      # other admin/debug/settings/CCR route's loopback gate are unaffected). Do NOT "fix"
+      # this by patching loopback_guard.py instead — that disables the peer-IP check for
+      # every loopback-gated route in the proxy (admin/runtime-env, settings write, CCR
+      # retrieve, etc.), not just this one, and silently stops working on the next bump.
+      #
+      # Live as of :main (see image comment above) — was a no-op under the previous :latest
+      # pin (v0.32.0), which predates this feature. Note the CCR retrieve family
+      # (/v1/retrieve*) has NO such override, ever, by design — that gap can't be fixed by
+      # env var regardless of version, :main included.
+      HEADROOM_COMPRESS_ALLOW_REMOTE: "1"
     # The extension calls /v1/compress, so the proxy runs in token-compression mode.
     # Verified against :latest (image 0.32.0): entrypoint is `headroom proxy`, so these
     # flags append to form `headroom proxy --mode token --no-cache`. If a future image
