@@ -61,3 +61,24 @@ sed -i '' 's/if (mode === "silent")/if (mode === "silent" || reason === "no-appl
 Verified before applying: the target string `if (mode === "silent")` occurs exactly once in `index.js` (inside `announceGuardSkip`), so this can't collide with the *other* `mode === "silent"` check in `announceAppliedCompression` (that one reads `mode === "quiet" || mode === "silent"`, a different literal string). Confirmed with `node --check` that the patched file is still syntactically valid.
 
 *(Note: if the extension is updated or reinstalled, this patch must be reapplied — it edits installed `node_modules` output, which any reinstall of `@raquezha/noheadroom` will overwrite.)*
+
+## 3. CCR "Proactive Expansion" Auto-Reinjects Old Content (Disabled)
+
+**Symptom:**
+Content from earlier in a session (or, per Headroom's own changelog, potentially from a different project) reappears unprompted in the message stream, sometimes phrased as an instruction rather than as obviously-quoted history — with no explicit retrieval call and no clearly-flagged boundary marking it as replayed text.
+
+**Cause:**
+Headroom's CCR (Compress-Cache-Retrieve) architecture has two distinct retrieval paths:
+1. **Explicit** — the model calls the `headroom_retrieve` MCP tool with a hash from a prior compression. Agent-initiated, on demand. This is the only path documented on Headroom's public docs site.
+2. **Proactive expansion** — a `ContextTracker` feature, **default enabled**, that scores relevance between a new query and previously-compressed content and, above a threshold (default 0.3, capped at 2 expansions/query), automatically reinjects the *full original cached content* into the message stream — with no tool call, and no clear signal to the model that the content is replayed history rather than a fresh instruction. Confirmed via `docker exec headroom headroom proxy --help` and Headroom's architecture docs; not mentioned anywhere in the public configuration docs, which describe CCR as purely on-demand.
+
+This is a real, previously-exploited-by-accident failure class, not a hypothetical: Headroom's own v0.23.0 changelog lists "ccr: scope proactive expansion by workspace" as a fix for proactive expansion **leaking cached content across projects**. The mechanism reinjecting arbitrary old text automatically — including, in one observed case, what appears to be a genuine Claude Code auto-compaction system-prompt fragment that had passed through the proxy earlier in a long session — is a self-inflicted prompt-injection vector: an LLM has no reliable way to distinguish "this is old cached text being replayed for reference" from "this is a new instruction to follow," regardless of whether the replay was triggered by an external attacker or, as here, the compression layer's own automation.
+
+**Solution (applied):** disabled proactive expansion entirely in [`headroom-compose.yml`](headroom-compose.yml):
+
+```yaml
+environment:
+  HEADROOM_NO_CCR_PROACTIVE_EXPANSION: "1"
+```
+
+Verified: the container starts healthy with this set (`docker exec headroom env | grep ccr` confirms it's applied), and `/health` still reports `"ready":true`. This does **not** disable CCR retrieval outright — `headroom_retrieve` remains available as an explicit, agent-initiated MCP tool call. It only removes the automatic, unrequested reinjection path. The tradeoff: if you ever want Headroom to proactively resurface relevant compressed context on its own (rather than only when explicitly asked), that convenience is now off — treated as an acceptable cost given the mechanism has no verified safeguard against replaying instruction-shaped content.

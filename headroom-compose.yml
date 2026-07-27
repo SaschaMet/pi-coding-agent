@@ -60,6 +60,17 @@ services:
       # (/v1/retrieve*) has NO such override, ever, by design — that gap can't be fixed by
       # env var regardless of version, :main included.
       HEADROOM_COMPRESS_ALLOW_REMOTE: "1"
+      # CCR's Context Tracker otherwise auto-reinjects full original content back into
+      # the message stream (relevance-scored, default ON, up to 2x/query) with NO explicit
+      # retrieve call and no reliable marker distinguishing replayed history from a live
+      # instruction. v0.23.0's changelog ("scope proactive expansion by workspace")
+      # confirms this class of bug already leaked stale content across projects once.
+      # Verified via `docker exec headroom headroom proxy --help`: this env var is real
+      # (flag equivalent --no-ccr-proactive-expansion also exists, same effect — env
+      # var chosen for consistency with the rest of this block). Disabling it keeps CCR
+      # retrieval available only via the explicit, agent-initiated headroom_retrieve MCP
+      # tool call — never auto-injected. See noheadroom.README.md section 3.
+      HEADROOM_NO_CCR_PROACTIVE_EXPANSION: "1"
     # The extension calls /v1/compress, so the proxy runs in token-compression mode.
     # Verified against :latest (image 0.32.0): entrypoint is `headroom proxy`, so these
     # flags append to form `headroom proxy --mode token --no-cache`. If a future image

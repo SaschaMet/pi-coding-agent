@@ -20,6 +20,8 @@ Do not use for ordinary feature work, isolated edits to one existing `AGENTS.md`
 - Child `AGENTS.md` files exist for each durable boundary, each with the six DOX sections and a populated Child DOX Index.
 - Every parent's Child DOX Index links to its direct children; the tree is walkable from root.
 - A coding standard is wired into Work Guidance: an existing standard is referenced, or `add-coding-standard` was run (or proposed) to create one.
+- A `.claudeignore` exists at the repo root excluding `node_modules`, build artifacts, and lockfiles.
+- The project's `.pi/settings.json` has an `ignorePatterns` array excluding the same paths as a tool-layer guardrail.
 - The result was verified: the DOX chain is consistent and links resolve.
 
 ## Workflow
@@ -31,6 +33,7 @@ Before Step 1, check whether `graphify-out/graph.json` exists at the repo root. 
    - Repo shape: languages, package manager, frameworks, source/test layout, top-level directories.
    - Existing agent docs: `AGENTS.md`, `CLAUDE.md`, `.cursorrules`, `README` engineering sections. Preserve and extend; do not clobber.
    - Existing coding standard: `AGENTS.md` standard sections, engineering-standard docs, lint/format/test/CI config, hooks.
+   - When inspecting, don't `cat` entire large files — grep for the relevant symbols or sections and read targeted line ranges instead.
 2. Read [references/dox-framework.md](references/dox-framework.md) for the exact section templates, Child DOX Index syntax, and closeout rules.
 3. Create the root `AGENTS.md` (adapt [templates/AGENTS-root.md](templates/AGENTS-root.md)):
    - Distill `SYSTEM.md`'s durable rules (communication, safety, principles, coding workflow) into Local Contracts and Work Guidance. Reference `SYSTEM.md` by path for the full source; do not paste it wholesale.
@@ -43,7 +46,26 @@ Before Step 1, check whether `graphify-out/graph.json` exists at the repo root. 
 5. Wire in the coding standard:
    - If a usable standard already exists, reference it from Work Guidance (root and relevant children).
    - Otherwise invoke the `add-coding-standard` skill to install one, then reference what it produced. If the user did not ask for a standard, propose it and continue without blocking.
-6. Verify and report:
+6. Set up `.claudeignore`:
+   - If a `.claudeignore` already exists at the repo root, extend it rather than overwriting.
+   - Otherwise create one excluding `node_modules`, build artifacts (e.g. `dist`, `build`, `.next`, `out`), and lockfiles (e.g. `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`).
+7. Set up `ignorePatterns` in `.pi/settings.json`:
+   - This is a hard guardrail at the tool layer: `read`/`edit`/`write` refuse to touch matching paths, unlike `.claudeignore` which only affects what gets surfaced.
+   - If `.pi/settings.json` already exists, add or extend its `ignorePatterns` array rather than overwriting the file.
+   - Otherwise create `.pi/settings.json` with an `ignorePatterns` array covering the same exclusions as `.claudeignore`, e.g.:
+     ```json
+     {
+       "ignorePatterns": [
+         "**/.svn/**",
+         "**/node_modules/**",
+         "**/.venv/**",
+         "**/dist/**",
+         "**/*.pem"
+       ]
+     }
+     ```
+   - `~/.pi/agent/settings.json` holds global rules across all projects; `.pi/settings.json` in the repo holds local rules. Use `!pattern` to re-include a specific file and `+path` to force-include an exact path when a broad pattern is too aggressive.
+8. Verify and report:
    - Confirm every Child DOX Index link resolves and the chain reads consistently from root to leaves.
    - Report created/changed files, the boundaries chosen, and the coding-standard decision.
 
@@ -58,6 +80,8 @@ Before Step 1, check whether `graphify-out/graph.json` exists at the repo root. 
 | Existing coding standard present | Reference it from Work Guidance; do not install a second one. |
 | No coding standard, user didn't request one | Propose `add-coding-standard`; create the DOX tree regardless. |
 | `SYSTEM.md` rule conflicts with repo reality | Document repo reality in the local contract; flag the conflict rather than inventing rules. |
+| `.claudeignore` already exists | Extend it with any missing exclusions; do not overwrite. |
+| `.pi/settings.json` already exists | Add/extend its `ignorePatterns` array; preserve the rest of the file. |
 
 ## Gotchas
 
@@ -67,6 +91,10 @@ Before Step 1, check whether `graphify-out/graph.json` exists at the repo root. 
 - Do not put concrete local details in the root or broad project rules in a leaf. Broad in parents, specific in children.
 - Do not install a second coding standard when one exists. Reference the existing one from Work Guidance.
 - Do not overwrite an existing `AGENTS.md`. Extend it into DOX shape and preserve current content.
+- Do not skip `.claudeignore`. Exclude `node_modules`, build artifacts, and lockfiles so agents don't waste context reading them.
+- Do not `cat` an entire large file during inspection. Grep for what's relevant and read specific line ranges instead.
+- Do not rely on `.claudeignore` alone for sensitive paths (e.g. `*.pem`, `.env`). Mirror those in `.pi/settings.json`'s `ignorePatterns` so tools are hard-blocked, not just steered away.
+- Do not overwrite an existing `.pi/settings.json` wholesale when adding `ignorePatterns`. Merge into it and preserve any other keys already present.
 
 ## Skill Layout
 
@@ -92,6 +120,12 @@ When planning or reporting, use:
 
 ## Coding Standard
 - [referenced existing | ran add-coding-standard | proposed]
+
+## .claudeignore
+- [created | extended | already present]
+
+## .pi/settings.json ignorePatterns
+- [created | extended | already present]
 
 ## Verification
 - Index links resolve:
