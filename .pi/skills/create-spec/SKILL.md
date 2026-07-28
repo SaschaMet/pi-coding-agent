@@ -71,6 +71,8 @@ Use [references/spec-template.md](references/spec-template.md) as the output tem
 12. **Open Questions / Deferred Decisions**: unresolved decisions separated from requirements.
 13. **Handoff**: implementation, verification, and escalation notes.
 
+Important: Use a sub-agent for writing the spec to not clutter the context window. The sub-agent should be given the spec template and the research context, and should produce a draft spec for review.
+
 ### Spec quality requirements
 
 - Prefer concrete, testable language over ambiguous wording.
