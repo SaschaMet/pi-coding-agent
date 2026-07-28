@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 const READ_BOUNDARY_GUARD_REGISTERED = Symbol.for("pi.extensions.read-boundary-guard.registered");
 const GUARDED_TOOLS = new Set(["read", "write", "edit", "grep", "find", "ls"]);

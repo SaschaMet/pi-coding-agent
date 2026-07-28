@@ -37,10 +37,11 @@ The package was scanned before adoption (source + published `dist/`). Summary:
 
 **Verdict: safe to use.** Residual *non-security* caveats:
 
-1. **Compatibility.** It's written against `@earendil-works/pi-*` (an optional peer-dep fork of the
-   PI API); this repo runs `@mariozechner/pi-*@0.65`. The imports are type-only and the host
-   injects the real `ExtensionAPI`, but confirm it loads and that the `context` hook accepts
-   returned `{messages}` — verify with `/headroom status` and `/headroom stats` after enabling.
+1. **Compatibility.** It's written against `@earendil-works/pi-*`; this repo now runs
+   `@earendil-works/pi-*@^0.82.1` too (migrated from the deprecated `@mariozechner/pi-*@0.65`
+   lineage), so the previous scope mismatch no longer applies. Still confirm it loads and that
+   the `context` hook accepts returned `{messages}` — verify with `/headroom status` and
+   `/headroom stats` after enabling.
 2. **Maturity.** v0.2.5, first published 2026-06-13, single maintainer, described as "personal."
 3. **What it sends.** Tool outputs + prompts go to `127.0.0.1:8788` for compression (local only).
 4. **Persistent proxy.** If you let the extension auto-start a *pip* proxy, it runs detached and

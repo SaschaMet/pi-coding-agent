@@ -1,4 +1,4 @@
-import type { ExtensionHandler, SessionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionHandler, SessionContext } from "@earendil-works/pi-coding-agent";
 
 export interface SessionEstablishedEvent {
   type: "session_established";
@@ -6,7 +6,7 @@ export interface SessionEstablishedEvent {
   ctx: SessionContext;
 }
 
-declare module "@mariozechner/pi-coding-agent" {
+declare module "@earendil-works/pi-coding-agent" {
   interface ExtensionRunner {
     emit(event: SessionEstablishedEvent): Promise<undefined>;
   }

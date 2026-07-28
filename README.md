@@ -249,22 +249,22 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 
 ## Upstream Docs
 
-The underlying [`@mariozechner/pi-coding-agent`](https://www.npmjs.com/package/@mariozechner/pi-coding-agent) package ships comprehensive docs:
+The underlying [`@earendil-works/pi-coding-agent`](https://www.npmjs.com/package/@earendil-works/pi-coding-agent) package ships comprehensive docs:
 
-- [README](https://www.npmjs.com/package/@mariozechner/pi-coding-agent) — overview, quick start, CLI reference
-- [Providers & Models](node_modules/@mariozechner/pi-coding-agent/docs/providers.md)
-- [Settings](node_modules/@mariozechner/pi-coding-agent/docs/settings.md)
-- [Skills](node_modules/@mariozechner/pi-coding-agent/docs/skills.md)
-- [Extensions](node_modules/@mariozechner/pi-coding-agent/docs/extensions.md)
-- [Prompt Templates](node_modules/@mariozechner/pi-coding-agent/docs/prompt-templates.md)
-- [Sessions & Compaction](node_modules/@mariozechner/pi-coding-agent/docs/session.md)
-- [Keybindings](node_modules/@mariozechner/pi-coding-agent/docs/keybindings.md)
-- [Themes](node_modules/@mariozechner/pi-coding-agent/docs/themes.md)
-- [SDK](node_modules/@mariozechner/pi-coding-agent/docs/sdk.md)
-- [RPC](node_modules/@mariozechner/pi-coding-agent/docs/rpc.md)
-- [Terminal Setup](node_modules/@mariozechner/pi-coding-agent/docs/terminal-setup.md)
-- [Windows](node_modules/@mariozechner/pi-coding-agent/docs/windows.md)
-- [Development](node_modules/@mariozechner/pi-coding-agent/docs/development.md)
+- [README](https://www.npmjs.com/package/@earendil-works/pi-coding-agent) — overview, quick start, CLI reference
+- [Providers & Models](node_modules/@earendil-works/pi-coding-agent/docs/providers.md)
+- [Settings](node_modules/@earendil-works/pi-coding-agent/docs/settings.md)
+- [Skills](node_modules/@earendil-works/pi-coding-agent/docs/skills.md)
+- [Extensions](node_modules/@earendil-works/pi-coding-agent/docs/extensions.md)
+- [Prompt Templates](node_modules/@earendil-works/pi-coding-agent/docs/prompt-templates.md)
+- [Sessions & Compaction](node_modules/@earendil-works/pi-coding-agent/docs/sessions.md)
+- [Keybindings](node_modules/@earendil-works/pi-coding-agent/docs/keybindings.md)
+- [Themes](node_modules/@earendil-works/pi-coding-agent/docs/themes.md)
+- [SDK](node_modules/@earendil-works/pi-coding-agent/docs/sdk.md)
+- [RPC](node_modules/@earendil-works/pi-coding-agent/docs/rpc.md)
+- [Terminal Setup](node_modules/@earendil-works/pi-coding-agent/docs/terminal-setup.md)
+- [Windows](node_modules/@earendil-works/pi-coding-agent/docs/windows.md)
+- [Development](node_modules/@earendil-works/pi-coding-agent/docs/development.md)
 
 Subagent extension docs:
 

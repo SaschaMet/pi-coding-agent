@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import { DefaultResourceLoader, SettingsManager, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import type { ThinkingLevel } from "@mariozechner/pi-agent-core";
+import { DefaultResourceLoader, getAgentDir, SettingsManager, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 
 const REQUIRED_EXTENSIONS = [
     ".pi/extensions/read-boundary-guard.ts",
@@ -88,8 +88,9 @@ async function main(): Promise<void> {
     const registeredTools = fakePi.getAllTools().map((tool) => tool.name);
     void registeredTools;
 
+    const agentDir = getAgentDir();
     const settingsManager = SettingsManager.create(cwd);
-    const loader = new DefaultResourceLoader({ cwd, settingsManager });
+    const loader = new DefaultResourceLoader({ cwd, agentDir, settingsManager });
     await loader.reload();
 
     const settingsPath = path.join(cwd, ".pi", "settings.json");

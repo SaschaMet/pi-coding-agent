@@ -21,11 +21,14 @@
     "author": "",
     "license": "ISC",
     "type": "module",
+    "engines": {
+        "node": ">=22.19.0"
+    },
     "dependencies": {
-        "@mariozechner/pi-agent-core": "^0.65.0",
-        "@mariozechner/pi-ai": "^0.65.0",
-        "@mariozechner/pi-coding-agent": "^0.65.0",
-        "@mariozechner/pi-tui": "^0.65.0",
+        "@earendil-works/pi-agent-core": "^0.82.1",
+        "@earendil-works/pi-ai": "^0.82.1",
+        "@earendil-works/pi-coding-agent": "^0.82.1",
+        "@earendil-works/pi-tui": "^0.82.1",
         "@sinclair/typebox": "^0.34.49",
         "chalk": "^5.6.2"
     },

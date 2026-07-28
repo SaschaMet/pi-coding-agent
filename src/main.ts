@@ -1,7 +1,6 @@
 import { existsSync } from "node:fs";
 import process from "node:process";
 import {
-    AuthStorage,
     createAgentSessionFromServices,
     createAgentSessionRuntime,
     createAgentSessionServices,
@@ -9,12 +8,11 @@ import {
     InteractiveMode,
     type SessionContext,
     SessionManager,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import type { SessionEstablishedEvent } from "./session-established-event.ts";
 
 async function main(): Promise<void> {
     const cwd = process.cwd();
-    const authStorage = AuthStorage.create();
     const sessionManager = SessionManager.continueRecent(cwd);
     const sessionFile = sessionManager.getSessionFile();
     const didLoadExistingSessionFile = sessionFile !== undefined && existsSync(sessionFile);
@@ -25,7 +23,6 @@ async function main(): Promise<void> {
             const services = await createAgentSessionServices({
                 cwd: runtimeCwd,
                 agentDir,
-                authStorage,
             });
 
             const created = await createAgentSessionFromServices({

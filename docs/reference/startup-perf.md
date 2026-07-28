@@ -39,6 +39,17 @@ from this repo — it needs a fast-path in upstream `main.js`/`cli.js` that
 checks `--version`/`--help` before the heavy imports, or converts them to
 dynamic `import()`.
 
+**Update (2026-07-28):** this repo's own dependency was bumped from the
+deprecated `@mariozechner/pi-coding-agent@^0.65.0` lineage to
+`@earendil-works/pi-coding-agent@^0.82.1` (see
+`docs/specs/spec-pi-earendil-works-migration.md`), so it's no longer behind
+the globally-installed CLI — the 16-version gap described below is closed.
+The `--version`/`--help` fast-path issue itself is still unresolved upstream
+as of that version; it wasn't in scope for the dependency migration.
+
+<details>
+<summary>Original note (now historical) on the version gap</summary>
+
 This repo's own dependency (`@mariozechner/pi-coding-agent@^0.65.0` in
 `package.json`) is 16 minor versions behind the globally-installed CLI
 (`0.81.1`). Skimmed the changelog between those versions for anything
@@ -49,6 +60,8 @@ dependency is likely still worthwhile for the other accumulated startup/perf
 fixes in that changelog (e.g. lazy provider-SDK loading, session read-twice
 fix, moving model-catalog refresh out of startup) — but is a 16-version jump
 with its own compatibility risk, so it's not applied here automatically.
+
+</details>
 
 **The bigger, actually-actionable cost is extension loading**, and it *is*
 configured in files this repo/user controls. `pi` has a built-in startup
