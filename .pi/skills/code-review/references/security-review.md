@@ -25,10 +25,23 @@ If you see out-of-scope issues, do not emit them as findings. Add a short handof
 ## Core Constraints
 
 - Use `git status` and `git diff`.
-- Review only added/modified code; ignore deleted lines.
+- Review added/modified code, plus deleted lines per the Deleted-Code Rule below.
 - Report any candidate with a traceable exploit path and confidence >= 0.6; the independent verification pass makes the final keep/drop call, so do not pre-filter borderline-but-traceable findings into silence.
 - Prefer HIGH and MEDIUM severity only.
 - Skip theoretical concerns and hardening-only comments.
+
+## Deleted-Code Rule
+
+Do not ignore deleted lines wholesale. Read the diff's removed lines specifically for dropped validation, authn/authz checks, sanitization, or security guards. An unexplained removal of any of these is a candidate HIGH finding even with no added code, because it reopens a previously closed path.
+
+## Escalation Triggers
+
+Treat any of these as an automatic candidate finding, then verify the exploit path before reporting:
+
+- Removed or weakened authn/authz check, validation call, or sanitization step with no equivalent replacement.
+- Access modifier loosened (private/internal → public/exported, an `onlyOwner`-style guard removed).
+- New external call, deserialization, or dynamic code execution added without accompanying input validation.
+- Security-relevant config default changed to a weaker value (auth disabled, TLS/verification off, permissive CORS, expanded trust).
 
 ## High-Signal Security Categories
 
@@ -40,6 +53,7 @@ If you see out-of-scope issues, do not emit them as findings. Add a short handof
 - Insecure handling of secrets, tokens, credentials, PII, or security-relevant logs
 - Missing validation/sanitization only when attacker-controlled input reaches a dangerous sink
 - Authentication/session/config changes that weaken a security boundary
+- Dangerous defaults or silent failures: a zero/empty/negative value that silently disables a check, a catch block that turns a security failure into a success return, or untrusted input selecting a crypto algorithm/mode
 
 ## Hard Exclusions
 

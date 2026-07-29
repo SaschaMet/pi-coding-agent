@@ -7,19 +7,26 @@ Discovery and verification must be separated. A second agent that only sees the 
 
 Use this reference after the Security discovery subagent returns findings, when at least one security finding exists. Skip it when the Security pass produced no findings.
 
+## Route: Standard vs Complex
+
+Before verifying, classify each finding:
+
+- **Standard** — single file/function, a well-understood bug class (injection, missing auth check, hardcoded secret, etc.), no concurrency in the trigger. Verify with one read of the cited code plus immediate callers/callees.
+- **Complex** — spans 3+ files/modules, involves concurrency/race/TOCTOU, or the root cause is ambiguous. Trace one additional hop of callers/callees beyond the immediate ones, and check for existing tests or comments describing the intended behavior, before defaulting to `unconfirmed`. A shallow look at a Complex finding is not sufficient grounds to refute it.
+
 ## Verification pass
 
 For the security findings (one verification subagent per finding, or one batched verifier for ≤3 findings), give the verifier **only**:
 
 - the finding: file, line, title, claimed exploit path
-- read access to the cited code and its immediate callers/callees
+- read access to the cited code and its immediate callers/callees (plus one further hop for Complex findings, per the routing above)
 
 Do **not** give the verifier the discovery agent's evidence narrative or confidence. The verifier re-derives the conclusion independently.
 
 The verifier's task, stated as disproof:
 
-1. Re-read the cited code and the path from attacker-controlled input to the sink.
-2. Try to refute the finding. Default to `unconfirmed` when the exploit path cannot be traced in the actual code.
+1. Re-read the cited code and the path from attacker-controlled input to the sink, tracing the depth required by the Standard/Complex route.
+2. Try to refute the finding. Default to `unconfirmed` when the exploit path cannot be traced in the actual code at the required depth.
 3. Check common false-positive patterns: input is not attacker-controlled, framework auto-escapes/parameterizes, value is validated upstream, sink is not reachable on this path, code path is test-only or dead.
 4. Return a verdict and confidence.
 
