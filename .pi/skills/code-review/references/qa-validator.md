@@ -34,6 +34,7 @@ If you see out-of-scope risk, do not emit it as a finding. Add a short handoff n
 - Test-only diffs are blocking when tests, snapshots, or fixtures changed and no implementation files changed, unless the user explicitly requested test-only maintenance.
 - Set test thresholds to current measured totals so future changes cannot lower coverage. Increase only when the measured score improves.
 - Flag compatibility regressions when callers, tests, docs, migrations, or public contracts show the old behavior is still required.
+- When the diff introduces caching meant to protect a downstream rate limit or reduce latency, trace the actual runtime call pattern before accepting "no regression": is the cache-holding object constructed once per process/module, or freshly per request/call? Rate the finding HIGH when the cache cannot activate under the real call pattern on a hot path (for example, on every unauthenticated request), and cite the specific caller. This covers caching whose purpose is rate-limit or latency protection; general performance review belongs to `code-review`.
 - For each finding, include the user-visible or caller-visible scenario that fails.
 
 ## Workflow
@@ -41,7 +42,7 @@ If you see out-of-scope risk, do not emit it as a finding. Add a short handoff n
 1. Restate expected behavior from request + DoD.
 2. Identify likely regression, edge-case, and breaking-change risks.
 3. Classify the diff as implementation+test, implementation-only, test-only, or docs/config-only.
-4. Read changed files and dependent call paths.
+4. Read changed files and dependent call paths. For any cache or reused resource the diff introduces, follow the call path far enough to establish how often its holder is constructed at runtime.
 5. Check boundary values, invalid inputs, null/empty states, error paths, concurrency-sensitive paths, and integration/API contract compatibility when touched.
 6. Validate with the narrowest relevant tests/checks available.
 7. Emit structured findings and a verdict.

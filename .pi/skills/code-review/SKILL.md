@@ -26,6 +26,7 @@ Load only the references needed for the requested review scope:
 - `references/code-review.md` for maintainability, performance, and design review.
 - `references/threat-model.md` only when the Security pass is selected: build the diff-scoped Threat Context that tells the Security pass what counts as a vulnerability here.
 - `references/security-verification.md` only when the Security pass returns at least one finding: separate discovery from verification and triage severity before the verdict.
+- `references/severity.md` whenever you assign or merge severities: canonical rubric for severity floors, compounding findings, and pre-existing-but-load-bearing code.
 
 ## Review Scope
 
@@ -63,7 +64,7 @@ Before Step 1, check whether `graphify-out/graph.json` exists at the repository 
    - intended user-visible behavior when inferable from request, branch, commits, PR text, or tests
    - relevant public APIs, schemas, config keys, CLI flags, event names, and database migrations touched by the diff
    - surrounding interfaces/callers needed to verify compatibility
-   - blast radius: for changed public/exported symbols, a cheap grep-based caller/reference count (repo-wide, not a full call graph). Note any symbol with a wide call-site count or that is exported/public API as high blast radius — QA and Code Quality use this to weight severity when the diff also changes that symbol's signature or behavior.
+   - blast radius: for changed public/exported symbols, a cheap grep-based caller/reference count (repo-wide, not a full call graph). Note any symbol with a wide call-site count or that is exported/public API as high blast radius — QA and Code Quality use this to weight severity when the diff also changes that symbol's signature or behavior. When the diff introduces a new shared constant, threshold, buffer, or cache/memoization pattern, also grep the surrounding function/module for call sites that perform the same conceptual check or would need the same pattern, and note any that do not adopt it — inconsistent adoption is reportable even when those call sites are unchanged. This clause covers only invariants the diff itself introduces; when the diff introduces none, skip it rather than expanding into a whole-repo audit.
    - CARDS architecture notes when the diff touches design: clarity of intent, dependency direction, change isolation, invalid-state prevention, and separation of domain/orchestration/IO concerns
    - graphify context when available: relevant paths, explained nodes, god nodes, surprising connections, and community-boundary crossings touched by the diff
    - explicit focus areas requested by the user
@@ -78,7 +79,7 @@ Before Step 1, check whether `graphify-out/graph.json` exists at the repository 
    - Use `agent_type: "reviewer"` for Security and Code Quality passes, with the prompt restricting category ownership.
    - Run selected passes in parallel whenever more than one pass is selected.
    - If subagent tooling is unavailable, blocked, or any selected agent fails, stop and report the exact blocker. Do not run the missing pass in the parent session and do not invent that pass.
-   - Give each pass the diff summary, relevant file paths, review context, graphify context when available, CARDS architecture notes when present, validation context, exact reference path to read, strict category ownership, and required finding schema.
+   - Give each pass the diff summary, relevant file paths, review context, blast-radius notes including any new invariants the diff introduces and the call sites that did not adopt them, graphify context when available, CARDS architecture notes when present, validation context, exact reference path to read, strict category ownership, and required finding schema.
    - Apply strict non-overlap ownership. Out-of-scope items become scope notes, not findings.
 5. Wait for every selected pass with `multi_agent_v1.wait_agent` before merging, deduping, or producing a verdict. Do not proceed with partial results. When the Security pass ran, wait for its discovery subagent, then run and wait for the verification wave before merging: drop `unconfirmed` security findings with confidence < 0.5, demote borderline ones to LOW, and record dropped/demoted findings as a one-line scope note.
 6. Collect pass outputs.
@@ -102,6 +103,7 @@ Before Step 1, check whether `graphify-out/graph.json` exists at the repository 
 - no generic advice, style preference, or broad rewrite unless it identifies a concrete simplification that removes meaningful complexity
 - unapproved test-only AI diffs are HIGH QA findings when tests, snapshots, or fixtures changed without implementation changes
 - unapproved lint/typecheck bypasses are Code Quality findings; broad config/file-level ignores or weakened lint config are HIGH, line-local undocumented suppressions are at least MEDIUM
+- compounding findings: when the most likely fix for one finding would activate or worsen another, raise the dependent finding's severity to reflect the combined failure scenario and state the causal chain in its evidence field. Apply this once, here in the merge step, over the union of all pass outputs — never delegate it to a specialist subagent, which sees only its own category. Escalation limits are in `references/severity.md`
 
 12. Produce a single final verdict:
 
@@ -132,6 +134,7 @@ If a pass or the parent catches itself thinking any of these, stop and do the re
 - Do not let the Security discovery agent verify its own findings. Verification must be an independent subagent that sees only the finding and cited code, never the discovery reasoning; this is what keeps false positives down. Set final security severity from the triage rubric, not the discovery agent's first guess.
 - Do not treat a missing `THREAT_MODEL.md` as a finding. When the diff touches no trust boundary, pass a one-line "no new trust boundary" note and skip the 4-question sketch.
 - Do not implement fixes in this skill; switch only if the user explicitly asks for remediation.
+- Do not cap a finding at LOW just because the code causing it predates the diff. Severity reflects production impact if the diff ships as-is; "this behavior already existed" is a scope note, not a severity discount, when the diff's own new code is what makes the defect reachable, relied-upon, or newly load-bearing. Keep this to defects the diff's new code makes load-bearing — it is not a license to flag unrelated pre-existing issues the diff never touches.
 - Include suggested tests only when they directly prove the finding or close a changed-behavior gap.
 - Set thresholds to current measured totals so future changes cannot lower coverage. Increase only when the measured score improves.
 
@@ -152,7 +155,7 @@ Use this pattern after capturing `git status`, `git diff`, touched files, graphi
 ```text
 multi_agent_v1.spawn_agent({
   agent_type: "qa-validator",
-  message: "Run the QA pass for this code review. Read <absolute code-review skill dir>/references/qa-validator.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Review Context>, <Project Validation Context>. Report only correctness, regression, edge-case, breaking-change, and changed-behavior test adequacy findings. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report security or maintainability-only issues."
+  message: "Run the QA pass for this code review. Read <absolute code-review skill dir>/references/qa-validator.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Review Context>, <blast radius and new invariants introduced by the diff, including call sites that did not adopt them>, <Project Validation Context>. Report only correctness, regression, edge-case, breaking-change, and changed-behavior test adequacy findings. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report security or maintainability-only issues."
 })
 
 // Security wave (a): discovery
@@ -169,7 +172,7 @@ multi_agent_v1.spawn_agent({
 
 multi_agent_v1.spawn_agent({
   agent_type: "reviewer",
-  message: "Run the Code Quality pass for this code review. Read <absolute code-review skill dir>/references/code-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <file size context including files over 250 lines>, <lint/typecheck bypass scan>, <Review Context>, <CARDS architecture notes when present>, <Project Validation Context>. Report maintainability, performance, scalability, reliability, integration, portability, design-quality, and lint/typecheck bypass findings only when they show concrete impact or add/expand a quality-gate bypass. Include CARDS regressions only when they create a concrete maintenance, correctness, or integration cost. Flag unapproved new/expanded lint ignore rules, lint-disable comments, ignored type errors, weakened lint config, broad ignore patterns, and equivalents as findings. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or security issues."
+  message: "Run the Code Quality pass for this code review. Read <absolute code-review skill dir>/references/code-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <file size context including files over 250 lines>, <lint/typecheck bypass scan>, <Review Context>, <blast radius and new invariants introduced by the diff, including call sites that did not adopt them>, <CARDS architecture notes when present>, <Project Validation Context>. Report maintainability, performance, scalability, reliability, integration, portability, design-quality, and lint/typecheck bypass findings only when they show concrete impact or add/expand a quality-gate bypass. Include CARDS regressions only when they create a concrete maintenance, correctness, or integration cost. Flag unapproved new/expanded lint ignore rules, lint-disable comments, ignored type errors, weakened lint config, broad ignore patterns, and equivalents as findings. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or security issues."
 })
 
 multi_agent_v1.wait_agent({ targets: ["<qa-agent-id>", "<security-agent-id>", "<quality-agent-id>"], timeout_ms: 3600000 })

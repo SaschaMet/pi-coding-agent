@@ -20,6 +20,7 @@ In scope:
 - API ergonomics and long-term extensibility concerns
 - Duplication, dead/redundant code, and excessive complexity when they create real maintenance cost
 - Scalability risks such as unbounded queries, missing pagination, inefficient algorithms, avoidable repeated I/O, or cache misuse
+- Cache and resource construction scope that does not match the intended reuse lifetime, such as a cache, token, connection, or memoized value rebuilt fresh on every call or request on a hot/high-traffic path instead of being shared. Treat this as a functional/reliability defect, not a style nit, whenever it defeats a stated or implied optimization
 - Reliability risks such as resource leaks, swallowed errors, brittle dependency use, and unclear error propagation
 - Integration and portability risks such as incompatible interfaces, deprecated/unstable APIs, platform-specific assumptions, or cyclic/high coupling
 - Documentation drift only when changed behavior affects public usage, operations, onboarding, or API contracts
@@ -67,6 +68,7 @@ If you see out-of-scope concerns, do not emit them as findings. Add a short hand
 - Error handling preserves useful context and does not hide failures.
 - Changed APIs remain ergonomic and compatible for callers.
 - Algorithms, database access, loops, I/O, and memory use scale for expected data sizes.
+- A value meant to be cached or reused (token, connection, memoized result, pooled resource) is constructed at a scope that matches its intended lifetime. Rate a cache rebuilt per call or per request on a hot path by the production impact it causes — added latency, rate-limit exposure on a downstream dependency — not by the fact that it is "only" an optimization. Check this only when the diff introduces or relocates such a value.
 - Dependencies and module boundaries avoid unnecessary coupling and cycles.
 - Dependency direction preserves CARDS Alignment: stable domain/core logic does not import volatile adapters, UI, transport, persistence, or vendor-specific code unless that is the established local architecture.
 - New abstractions reduce actual complexity; they are not speculative.
