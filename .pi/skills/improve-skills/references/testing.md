@@ -65,6 +65,7 @@ Use this when the skill triggers but results are weak.
 - Compare against a baseline without the skill when practical.
 - Inspect traces, not only final answers.
 - Look for wasted exploration, skipped steps, wrong defaults, unnecessary abstractions, and ignored references.
+- Check each completion criterion is _checkable_; flag **premature completion** — the agent declaring a step done before it is.
 - Revise the smallest instruction that explains the failure.
 
 Common fixes:

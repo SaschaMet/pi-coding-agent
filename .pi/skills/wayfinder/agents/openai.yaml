@@ -1,0 +1,6 @@
+interface:
+  display_name: "Wayfinder"
+  short_description: "Map a large effort as decision tickets"
+  default_prompt: "Use $wayfinder to plan an effort too big for one session. Chart a map of decision tickets on the tracker, or work the next frontier ticket. Produce decisions, not deliverables; hand off to create-spec when the map clears."
+policy:
+  allow_implicit_invocation: false

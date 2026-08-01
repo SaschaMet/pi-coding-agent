@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prototype"
+  short_description: "Throwaway code that answers a design question"
+  default_prompt: "Use $prototype to settle a design question by running something. Pick the logic or UI branch first, keep the code throwaway, surface the state, and capture the answer before deleting it."

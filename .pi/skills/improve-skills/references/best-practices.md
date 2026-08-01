@@ -26,6 +26,17 @@ The frontmatter `description` is the trigger contract.
 - Keep it concise and under 1024 characters.
 - Avoid descriptions so broad they trigger for ordinary coding tasks.
 
+## Invocation
+
+Decide how the skill is reached before editing it:
+
+- **Model-invoked** — keeps its `description`, so the agent can fire it autonomously and other skills can reach it. Costs **context load**: the description sits in the window every turn. Mechanics: omit `disable-model-invocation`.
+- **User-invoked** — sets `disable-model-invocation: true`; only a human typing its name reaches it (no other skill can). Zero context load, but it spends **cognitive load**: the human is the index that must remember it exists.
+
+Pick model-invocation only when the agent must reach the skill on its own, or another skill must. If it only ever fires by hand, make it user-invoked.
+
+When user-invoked skills pile up past what can be remembered, that cognitive load is cured by a **router skill**: one user-invoked skill that names the others and when to reach for each.
+
 ## Body Structure
 
 Recommended order:
@@ -62,6 +73,14 @@ Use the smallest pattern that solves the observed problem:
 | Required report shape | Markdown output template |
 | Fragile batch operation | Plan-validate-execute |
 | Repeated deterministic logic | Bundled script |
+
+## Leading Words
+
+A **leading word** is a compact concept already living in the model's pretraining that the agent thinks with while running the skill (e.g. _lesson_, _fog of war_, _tracer bullets_). Reused in the text, it anchors a whole region of behaviour in the fewest tokens by recruiting priors the model already holds.
+
+It serves predictability twice: in the body it anchors _execution_ (same behaviour each time the word appears); in the description it anchors _invocation_ (shared language between prompts, docs, and code fires the skill more reliably).
+
+Hunt for restatements that a leading word retires — a quality spelled out at three sites, a description spending a sentence on one idea. Each is a passage begging to collapse into a single token (e.g. "fast, deterministic, low-overhead" -> _tight_; "a loop you believe in" -> _red_, a fuzzy gate turned into a binary observable state). Fewer tokens, and a sharper hook. Assume every skill carries them; go find them.
 
 ## Defaults
 
@@ -116,6 +135,14 @@ When improving `AGENTS.md`, optimize for automatic discovery and low context loa
 - Reuse existing docs only after trimming human-oriented background.
 - Keep orphan docs searchable if they remain outside `AGENTS.md`.
 - For net-new architecture that conflicts with existing patterns, write a spec instead of bending old instructions.
+
+## Pruning
+
+Keep each meaning in a **single source of truth**: one authoritative place, so changing behaviour is a one-place edit.
+
+Check every line for **relevance**: does it still bear on what the skill does?
+
+Then hunt **no-ops** sentence by sentence, not just line by line: run the no-op test on each sentence in isolation — does it change behaviour versus the default? — and when one fails, delete the whole sentence rather than trim words from it. Be aggressive; most failing prose should go, not be rewritten.
 
 ## Anti-Patterns
 

@@ -7,6 +7,10 @@ description: Use this skill when the user asks to create, revise, audit, optimiz
 
 Improve agent-facing instructions with the smallest useful change. Treat skills, `AGENTS.md`, and similar files as execution context, not human documentation.
 
+## Goal
+
+The artifact's root virtue is **predictability**: the agent taking the same _process_ every run, not producing the same output. Every change below serves that — tighten the recurring path, cut what lets the agent drift. End with the smallest useful change, not the most comprehensive one.
+
 ## Definition of Done
 
 - The artifact targets a specific agent task or failure mode.
@@ -49,6 +53,8 @@ Improve agent-facing instructions with the smallest useful change. Treat skills,
    - use `references/testing.md` for trigger tests, validation loops, and skill output evaluation
    - revise based on failures, not assumptions
 
+Every workflow step ends on a **completion criterion**: a condition the agent can check to tell done from not-done. Where a step's output matters, make the criterion _exhaustive_ ("every reference linked from `SKILL.md` resolved", not "update references") so a vague goal invites premature completion. Never start the next step before the current criterion is met.
+
 Read `references/best-practices.md` when creating a new skill, doing a substantial rewrite, choosing between inline guidance and references, or deciding whether a script belongs in a skill.
 
 ## Pattern Selector
@@ -69,8 +75,13 @@ Use the pattern that matches the observed problem:
 ## Skill-Specific Rules
 
 - `description` is the trigger contract. Write it as "Use this skill when..." and describe user intent, not internal implementation.
+- Front-load the skill's **leading word** — the compact pretrained concept it anchors on — the description does its invocation work there.
+- **One trigger per branch.** Synonyms that rename a single branch are duplication; collapse them and keep only genuinely distinct branches.
+- **Cut identity already in the body.** Keep the description to triggers plus any "when another skill needs…" reach clause — do not restate the body.
 - Include explicit near-boundaries: when to use the skill and when not to.
 - Keep descriptions under 1024 characters.
+- Decide **invocation** up front: user-invoked (`disable-model-invocation: true`, no context load, but it spends your cognitive load) vs model-invoked (always in the window, reaches itself and other skills). Reach for model-invocation only when the agent must fire it on its own or another skill must. See `references/best-practices.md`.
+- Diagnose problems with the shared failure-mode vocabulary before reaching for prose edits; see `references/failure-modes.md` (read when auditing or troubleshooting a skill).
 - Keep `SKILL.md` under 500 lines unless there is a strong reason; split references before it becomes a knowledge dump.
 - Do not add `README.md`, changelogs, installation guides, or broad auxiliary docs inside a skill unless the runtime explicitly requires them.
 - Regenerate or update `agents/openai.yaml` when UI metadata becomes stale.

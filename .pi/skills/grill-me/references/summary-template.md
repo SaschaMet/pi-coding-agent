@@ -73,7 +73,7 @@ Use the full table format only when the session has enough questions or decision
 
 ## Guidelines
 
-- **Questions Asked**: Keep this short. If you asked more than 3 questions, you should have a strong reason.
+- **Questions Asked**: List only the questions that were truly necessary. `SKILL.md` owns the question budget.
 - **Answers Given**: Map answers directly to the questions. Do not add unrelated commentary.
 - **Default Changes**: This is where obvious best-practice actions go. Example: OpenAPI/Swagger for API docs when the plan changes an API and the repo does not specify another standard.
   Include CARDS defaults when architecture risks did not require a user decision: clarity, alignment, resilience, domain integrity, or separation.
@@ -82,4 +82,4 @@ Use the full table format only when the session has enough questions or decision
 - **Open Issues**: Questions that could not be resolved in this session.
   Include a concrete next step (e.g., "benchmark under load", "check with security team").
 - **Recommended Next Steps**: Ordered by priority. Keep to 3–5 items.
-  If the user has the `interactive-planner` skill, suggest handing off there.
+  When the plan is ready to be written up, suggest handing off to `$create-spec`.

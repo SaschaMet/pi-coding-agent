@@ -39,7 +39,7 @@ Load only the references needed for the requested review scope:
 
 ## Execution Steps
 
-Before Step 1, check whether `graphify-out/graph.json` exists at the repository root. If it exists, use `graphify query`, `graphify path`, or `graphify explain` to build review context for changed architecture, dependency paths, public contracts, ownership boundaries, or cross-file behavior. If no graph exists and the diff is architecture-heavy or touches unclear cross-module flows, run `graphify <repo-root> --mode deep --no-viz` before spawning specialist passes. Do not run graphify for small localized diffs where direct file inspection is sufficient. Treat graphify output as context passed to specialists, not as a finding by itself.
+Before Step 1, check whether `graphify-out/graph.json` exists at the repository root. If it exists, use `graphify query`, `graphify path`, or `graphify explain` to build review context for changed architecture, dependency paths, public contracts, ownership boundaries, or cross-file behavior. If no graph exists and the diff is architecture-heavy or touches unclear cross-module flows, run `graphify <repo-root> --mode deep --no-viz` before dispatching specialist passes. Do not run graphify for small localized diffs where direct file inspection is sufficient. Treat graphify output as context passed to specialists, not as a finding by itself.
 
 1. Capture review context:
    - Run `git status`
@@ -50,12 +50,13 @@ Before Step 1, check whether `graphify-out/graph.json` exists at the repository 
    - For changed source files, capture current file line counts and whether the diff pushes any file over 250 lines.
    - Scan added/modified lines and config for new or expanded lint ignore rules, lint-disable comments, ignored type errors, weakened lint config, broad ignore patterns, and equivalents such as `eslint-disable`, `biome-ignore`, `// @ts-ignore`, `// @ts-expect-error`, `type: ignore`, and `# noqa`.
    - When the Security pass will run, determine whether the diff touches a trust boundary (new/changed entry point, authn/authz, input parsing/validation/deserialization, file/network/subprocess I/O, secret/credential/token handling, or a security-relevant config default), and check for `THREAT_MODEL.md` at the repository root. Use these to build Threat Context in Step 4.
+   - This capture happens once, here. Specialist passes consume it; they never re-run `git status` or `git diff`.
 2. Discover project-specific quality commands and conventions:
    - Read `package.json` scripts when present.
    - Read top-level and near-root `*.toml`, `*.yaml`, `*.yml`, etc. files for task/test/lint tool config.
    - Read `README*` and nearest docs sections describing test/lint/typecheck/format/check workflows.
    - Build a `Project Validation Context` block that includes:
-     - preferred commands (exact command strings)
+     - preferred commands (exact command strings, runnable as written, including the path convention for targeting a single test file)
      - required command ordering constraints (if documented)
      - tool names and config hints (for example, `vitest`, `pytest`, `cargo test`, `ruff`, `eslint`, `biome`)
      - explicit "do not run" or environment constraints from docs
@@ -68,48 +69,37 @@ Before Step 1, check whether `graphify-out/graph.json` exists at the repository 
    - CARDS architecture notes when the diff touches design: clarity of intent, dependency direction, change isolation, invalid-state prevention, and separation of domain/orchestration/IO concerns
    - graphify context when available: relevant paths, explained nodes, god nodes, surprising connections, and community-boundary crossings touched by the diff
    - explicit focus areas requested by the user
-4. Execute the selected read-only specialist passes through subagents:
+4. Dispatch the selected read-only specialist passes as subagents:
    - When the Security pass is selected, first read `references/threat-model.md` and build a diff-scoped Threat Context block (from `THREAT_MODEL.md` if present, else a lightweight 4-question sketch, else a one-line "no new trust boundary" note). Pass this block to the Security discovery subagent so it knows what counts as a vulnerability here.
-   - QA: correctness/regressions/edge cases/test adequacy only.
-   - Security: concrete exploitable vulnerabilities only. Run as two waves: (a) a discovery subagent that reports candidate findings, then (b) an independent verification pass per `references/security-verification.md` that re-reads only the cited code, returns confirmed/unconfirmed + confidence, and sets severity from the triage rubric. Do not give the verifier the discovery agent's reasoning.
-   - Code Quality: maintainability/performance/reliability/integration/design only, including CARDS regressions with concrete impact.
-   - Code Quality also owns lint/typecheck bypass findings: flag new or expanded lint ignore rules, lint-disable comments, ignored type errors, weakened lint config, broad ignore patterns, and equivalent bypasses unless the diff shows explicit repository-owner/user approval.
-   - Spawn one read-only subagent per selected pass using `multi_agent_v1.spawn_agent`.
-   - Use `agent_type: "qa-validator"` for the QA pass.
-   - Use `agent_type: "reviewer"` for Security and Code Quality passes, with the prompt restricting category ownership.
-   - Run selected passes in parallel whenever more than one pass is selected.
-   - If subagent tooling is unavailable, blocked, or any selected agent fails, stop and report the exact blocker. Do not run the missing pass in the parent session and do not invent that pass.
+   - Security runs as two waves: (a) a discovery subagent that reports candidate findings, then (b) an independent verification pass per `references/security-verification.md`. Do not give the verifier the discovery agent's reasoning.
+   - Code Quality owns the lint/typecheck bypasses found in Step 1; they are findings unless the diff shows explicit repository-owner/user approval.
+   - Spawn every selected pass with `Agent` using the dispatch table in **Subagent Dispatch**. Issue all spawns for one wave in a single message so they run concurrently.
    - Give each pass the diff summary, relevant file paths, review context, blast-radius notes including any new invariants the diff introduces and the call sites that did not adopt them, graphify context when available, CARDS architecture notes when present, validation context, exact reference path to read, strict category ownership, and required finding schema.
    - Apply strict non-overlap ownership. Out-of-scope items become scope notes, not findings.
-5. Wait for every selected pass with `multi_agent_v1.wait_agent` before merging, deduping, or producing a verdict. Do not proceed with partial results. When the Security pass ran, wait for its discovery subagent, then run and wait for the verification wave before merging: drop `unconfirmed` security findings with confidence < 0.5, demote borderline ones to LOW, and record dropped/demoted findings as a one-line scope note.
-6. Collect pass outputs.
-7. Normalize each finding into:
+5. Collect every dispatched pass with `get_subagent_result({ agent_id, wait: true })` before merging, deduping, or producing a verdict. Do not proceed with partial results while an agent is still running.
+   - When the Security pass ran, collect its discovery agent first, then dispatch and collect the verification wave before merging: drop `unconfirmed` security findings with confidence < 0.5, demote borderline ones to LOW, and record dropped/demoted findings as a one-line scope note.
+   - If subagent tooling is unavailable, blocked, or a selected agent never starts, stop and report the exact blocker. Do not run the missing pass in the parent session and do not invent that pass.
+   - If an agent stops, times out, or exhausts its `max_turns` budget after producing partial output, keep every completed pass, report the partial findings, and add a scope note naming the incomplete pass and what it did not check. A review with an incomplete pass never returns `PASS`.
+6. Normalize each finding into:
    - `category`, `severity`, `file`, `line`, `title`, `evidence`, `recommendation`, `confidence`
-8. Dedupe with key:
+7. Dedupe with key:
    - `(file, line, normalized_root_cause)`
-9. Apply precedence when duplicate root cause exists:
+8. Apply precedence when duplicate root cause exists:
    - `security` > `qa` > `code_quality`
-10. Sort final findings:
-
-- severity `HIGH` first, then `MEDIUM`, then `LOW`
-- tie-break by category precedence above, then file+line
-
-11. Quality-gate every finding before final output:
-
-- exact changed line or nearest changed line
-- concrete failure/exploit/maintenance scenario
-- production or user impact
-- smallest practical recommendation
-- no generic advice, style preference, or broad rewrite unless it identifies a concrete simplification that removes meaningful complexity
-- unapproved test-only AI diffs are HIGH QA findings when tests, snapshots, or fixtures changed without implementation changes
-- unapproved lint/typecheck bypasses are Code Quality findings; broad config/file-level ignores or weakened lint config are HIGH, line-local undocumented suppressions are at least MEDIUM
-- compounding findings: when the most likely fix for one finding would activate or worsen another, raise the dependent finding's severity to reflect the combined failure scenario and state the causal chain in its evidence field. Apply this once, here in the merge step, over the union of all pass outputs — never delegate it to a specialist subagent, which sees only its own category. Escalation limits are in `references/severity.md`
-
-12. Produce a single final verdict:
-
-- `FAIL` if any HIGH finding exists
-- `REQUIRES_MODIFICATION` if only MEDIUM/LOW findings exist
-- `PASS` if no findings
+9. Sort final findings:
+   - severity `HIGH` first, then `MEDIUM`, then `LOW`
+   - tie-break by category precedence above, then file+line
+10. Quality-gate every finding before final output:
+    - exact changed line or nearest changed line
+    - concrete failure/exploit/maintenance scenario
+    - production or user impact
+    - smallest practical recommendation
+    - no generic advice, style preference, or broad rewrite unless it identifies a concrete simplification that removes meaningful complexity
+    - severity floors, compounding escalation, and the pre-existing-code rule come from `references/severity.md`. Apply compounding escalation only here, over the union of all pass outputs — never delegate it to a specialist subagent, which sees only its own category.
+11. Produce a single final verdict:
+    - `FAIL` if any HIGH finding exists
+    - `REQUIRES_MODIFICATION` if only MEDIUM/LOW findings exist
+    - `PASS` if no findings and every selected pass completed
 
 ## Gotchas
 
@@ -124,19 +114,11 @@ If a pass or the parent catches itself thinking any of these, stop and do the re
 | "The discovery agent sounded confident" | Discovery agents rationalize their own findings; that is exactly the failure mode verification exists to catch | Verifier re-derives the exploit path independently and ignores discovery's confidence |
 | "It's just a refactor, no behavior change" | Refactors routinely break invariants (removed guard, changed error path) while preserving surface behavior | Diff against actual removed/changed lines, not the stated intent, before ruling out impact |
 | "The complex finding didn't confirm on first read" | A shallow read of a cross-component or concurrency finding is not sufficient to refute it | Route to Complex verification (one extra hop, check tests/comments) before defaulting to unconfirmed |
+| "Running the suite will settle this" | Executing tests is the slowest way to answer most review questions and routinely burns the pass's whole budget on runner setup and path guessing | Read the code and the existing tests; execute only under the single-command rule in the dispatch table |
 
 - Review the current diff by default. Do not expand into a whole-repo audit unless the user asks; graphify queries must stay scoped to changed files, callers, contracts, and directly affected paths.
-- A finding must name a concrete failing scenario, exploit path, regression, or maintenance cost.
-- Breaking changes are findings when the diff changes public API signatures, removes/renames public methods, changes return types, modifies database schemas, or changes required configuration without a compatible migration path.
-- Do not count missing tests as a finding unless the changed behavior is unprotected or the repo convention requires coverage.
-- Do not accept test-only diffs that claim implementation behavior changed. If tests, snapshots, or fixtures changed and no implementation files changed, fail the review unless the user explicitly requested test-only maintenance.
-- Do not accept AI-added lint/typecheck bypasses. New or expanded ignore rules, disable comments, ignored type errors, weakened lint config, or broad ignore patterns must be flagged unless the user or repository owner explicitly approved the exact exception.
-- Do not let the Security discovery agent verify its own findings. Verification must be an independent subagent that sees only the finding and cited code, never the discovery reasoning; this is what keeps false positives down. Set final security severity from the triage rubric, not the discovery agent's first guess.
-- Do not treat a missing `THREAT_MODEL.md` as a finding. When the diff touches no trust boundary, pass a one-line "no new trust boundary" note and skip the 4-question sketch.
 - Do not implement fixes in this skill; switch only if the user explicitly asks for remediation.
-- Do not cap a finding at LOW just because the code causing it predates the diff. Severity reflects production impact if the diff ships as-is; "this behavior already existed" is a scope note, not a severity discount, when the diff's own new code is what makes the defect reachable, relied-upon, or newly load-bearing. Keep this to defects the diff's new code makes load-bearing — it is not a license to flag unrelated pre-existing issues the diff never touches.
 - Include suggested tests only when they directly prove the finding or close a changed-behavior gap.
-- Set thresholds to current measured totals so future changes cannot lower coverage. Increase only when the measured score improves.
 
 ## Merge Rules
 
@@ -148,43 +130,39 @@ If a pass or the parent catches itself thinking any of these, stop and do the re
 - Report only actionable issues with concrete impact. Structural findings are valid when they show a concrete maintenance cost and a clearer organization that deletes meaningful complexity.
 - If a finding depends on an assumption, state the assumption and confidence.
 
-## Subagent Examples
+## Subagent Dispatch
 
-Use this pattern after capturing `git status`, `git diff`, touched files, graphify context when available, `Review Context`, and `Project Validation Context`. Adapt only the pass list to the requested scope.
+Dispatch only after capturing `git status`, `git diff`, touched files, graphify context when available, `Review Context`, and `Project Validation Context`. Every pass runs read-only in the background; the parent collects with `get_subagent_result`.
+
+| Pass | `subagent_type` | `max_turns` | Reference to read | Pass-specific inputs |
+| --- | --- | --- | --- | --- |
+| QA | `generic-readonly` | 8 | `references/qa-validator.md` | blast radius and new invariants introduced by the diff, including call sites that did not adopt them |
+| Security discovery | `generic-readonly` | 6 | `references/security-review.md` | Threat Context |
+| Security verification | `generic-readonly` | 4 | `references/security-verification.md` | one finding (file, line, title, claimed exploit path) and the cited file paths — nothing else |
+| Code Quality | `generic-readonly` | 6 | `references/code-review.md` | file size context including files over 250 lines, lint/typecheck bypass scan, CARDS architecture notes, blast radius and new invariants |
+
+Spawn template — vary only the pass name, reference, budget, inputs, and owned categories:
 
 ```text
-multi_agent_v1.spawn_agent({
-  agent_type: "qa-validator",
-  message: "Run the QA pass for this code review. Read <absolute code-review skill dir>/references/qa-validator.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Review Context>, <blast radius and new invariants introduced by the diff, including call sites that did not adopt them>, <Project Validation Context>. Report only correctness, regression, edge-case, breaking-change, and changed-behavior test adequacy findings. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report security or maintainability-only issues."
+Agent({
+  subagent_type: "generic-readonly",
+  description: "<pass> pass",
+  max_turns: <budget from table>,
+  run_in_background: true,
+  prompt: "Run the <pass> pass for this code review. Read <absolute code-review skill dir>/<reference from table>. Scope: current diff only, supplied below — do not re-run git status or git diff. Inputs: <diff summary>, <touched files>, <Review Context>, <Project Validation Context>, <pass-specific inputs from table>. Report only <owned categories>. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report <other categories>."
 })
-
-// Security wave (a): discovery
-multi_agent_v1.spawn_agent({
-  agent_type: "reviewer",
-  message: "Run the Security discovery pass for this code review. Read <absolute code-review skill dir>/references/security-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <Threat Context>, <Review Context>, <Project Validation Context>. Use the Threat Context to decide what counts as a vulnerability here. Report only concrete exploitable vulnerabilities with proof of exploit path. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or maintainability-only issues."
-})
-
-// Security wave (b): independent verification, one per finding (or batched for <=3). Pass ONLY the finding and cited file paths, never the discovery reasoning.
-multi_agent_v1.spawn_agent({
-  agent_type: "reviewer",
-  message: "Verify one security finding. Read <absolute code-review skill dir>/references/security-verification.md. You are given only the finding and the cited code; you have not seen the discovery agent's reasoning. Finding: <file>, <line>, <title>, <claimed exploit path>. Re-read the cited code and its immediate callers/callees, try to refute the finding, and check the triage factors. Return: verdict (confirmed|unconfirmed), confidence (0.00-1.00), severity (HIGH|MEDIUM|LOW from the rubric), reason (one line)."
-})
-
-multi_agent_v1.spawn_agent({
-  agent_type: "reviewer",
-  message: "Run the Code Quality pass for this code review. Read <absolute code-review skill dir>/references/code-review.md. Scope: current diff only. Inputs: <git status>, <diff summary>, <touched files>, <file size context including files over 250 lines>, <lint/typecheck bypass scan>, <Review Context>, <blast radius and new invariants introduced by the diff, including call sites that did not adopt them>, <CARDS architecture notes when present>, <Project Validation Context>. Report maintainability, performance, scalability, reliability, integration, portability, design-quality, and lint/typecheck bypass findings only when they show concrete impact or add/expand a quality-gate bypass. Include CARDS regressions only when they create a concrete maintenance, correctness, or integration cost. Flag unapproved new/expanded lint ignore rules, lint-disable comments, ignored type errors, weakened lint config, broad ignore patterns, and equivalents as findings. Use this schema per finding: category, severity, file, line, title, evidence, recommendation, confidence. Do not report QA or security issues."
-})
-
-multi_agent_v1.wait_agent({ targets: ["<qa-agent-id>", "<security-agent-id>", "<quality-agent-id>"], timeout_ms: 3600000 })
 ```
 
-This skill-specific orchestration:
+Pass-specific prompt clauses:
 
-- Parent session gathers context once and passes it to all agents.
-- Agents are read-only and independent, so parallel execution is required for multi-pass reviews.
-- Parent session waits for all selected subagent results to complete before collecting, deduping, sorting, or deciding the verdict.
-- Parent session dedupes, applies category precedence, sorts findings, and writes the final verdict.
-- If any agent fails or subagent tooling is unavailable, stop and report the exact failure. Do not perform fallback specialist review in the parent session and do not invent that pass.
+- QA: "Answer from the diff, the changed files, and the existing tests. Run at most one test command, only when a finding needs execution proof that reading cannot give and Project Validation Context supplies the exact command string; no retries if it fails to run — record the assumption and lower confidence instead."
+- Security verification: "You are given only the finding and the cited code; you have not seen the discovery agent's reasoning. Re-read the cited code and its immediate callers/callees, try to refute the finding, and check the triage factors. Return: verdict (confirmed|unconfirmed), confidence (0.00-1.00), severity (HIGH|MEDIUM|LOW from the rubric), reason (one line)."
+
+Collect each dispatched agent:
+
+```text
+get_subagent_result({ agent_id: "<agent-id>", wait: true })
+```
 
 ## Required Output
 
