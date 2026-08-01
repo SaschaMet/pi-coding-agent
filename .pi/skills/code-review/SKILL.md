@@ -107,14 +107,14 @@ Before Step 1, check whether `graphify-out/graph.json` exists at the repository 
 
 If a pass or the parent catches itself thinking any of these, stop and do the required action instead:
 
-| Rationalization | Why it's wrong | Required action |
-| --- | --- | --- |
-| "It's a small diff, this is probably fine" | Blast radius and exploit impact don't correlate with diff size; a one-line change can remove an auth check | Judge risk from what changed (trust boundary, blast radius, deleted checks), not line count |
-| "Tests pass, so behavior is correct" | Passing tests are evidence, not proof; they only cover what was written | QA still checks edge cases and regressions the tests don't exercise |
-| "The discovery agent sounded confident" | Discovery agents rationalize their own findings; that is exactly the failure mode verification exists to catch | Verifier re-derives the exploit path independently and ignores discovery's confidence |
-| "It's just a refactor, no behavior change" | Refactors routinely break invariants (removed guard, changed error path) while preserving surface behavior | Diff against actual removed/changed lines, not the stated intent, before ruling out impact |
-| "The complex finding didn't confirm on first read" | A shallow read of a cross-component or concurrency finding is not sufficient to refute it | Route to Complex verification (one extra hop, check tests/comments) before defaulting to unconfirmed |
-| "Running the suite will settle this" | Executing tests is the slowest way to answer most review questions and routinely burns the pass's whole budget on runner setup and path guessing | Read the code and the existing tests; execute only under the single-command rule in the dispatch table |
+| Rationalization                                    | Why it's wrong                                                                                                                                   | Required action                                                                                        |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| "It's a small diff, this is probably fine"         | Blast radius and exploit impact don't correlate with diff size; a one-line change can remove an auth check                                       | Judge risk from what changed (trust boundary, blast radius, deleted checks), not line count            |
+| "Tests pass, so behavior is correct"               | Passing tests are evidence, not proof; they only cover what was written                                                                          | QA still checks edge cases and regressions the tests don't exercise                                    |
+| "The discovery agent sounded confident"            | Discovery agents rationalize their own findings; that is exactly the failure mode verification exists to catch                                   | Verifier re-derives the exploit path independently and ignores discovery's confidence                  |
+| "It's just a refactor, no behavior change"         | Refactors routinely break invariants (removed guard, changed error path) while preserving surface behavior                                       | Diff against actual removed/changed lines, not the stated intent, before ruling out impact             |
+| "The complex finding didn't confirm on first read" | A shallow read of a cross-component or concurrency finding is not sufficient to refute it                                                        | Route to Complex verification (one extra hop, check tests/comments) before defaulting to unconfirmed   |
+| "Running the suite will settle this"               | Executing tests is the slowest way to answer most review questions and routinely burns the pass's whole budget on runner setup and path guessing | Read the code and the existing tests; execute only under the single-command rule in the dispatch table |
 
 - Review the current diff by default. Do not expand into a whole-repo audit unless the user asks; graphify queries must stay scoped to changed files, callers, contracts, and directly affected paths.
 - Do not implement fixes in this skill; switch only if the user explicitly asks for remediation.
@@ -134,12 +134,12 @@ If a pass or the parent catches itself thinking any of these, stop and do the re
 
 Dispatch only after capturing `git status`, `git diff`, touched files, graphify context when available, `Review Context`, and `Project Validation Context`. Every pass runs read-only in the background; the parent collects with `get_subagent_result`.
 
-| Pass | `subagent_type` | `max_turns` | Reference to read | Pass-specific inputs |
-| --- | --- | --- | --- | --- |
-| QA | `generic-readonly` | 8 | `references/qa-validator.md` | blast radius and new invariants introduced by the diff, including call sites that did not adopt them |
-| Security discovery | `generic-readonly` | 6 | `references/security-review.md` | Threat Context |
-| Security verification | `generic-readonly` | 4 | `references/security-verification.md` | one finding (file, line, title, claimed exploit path) and the cited file paths — nothing else |
-| Code Quality | `generic-readonly` | 6 | `references/code-review.md` | file size context including files over 250 lines, lint/typecheck bypass scan, CARDS architecture notes, blast radius and new invariants |
+| Pass                  | `subagent_type`    | `max_turns` | Reference to read                     | Pass-specific inputs                                                                                                                    |
+| --------------------- | ------------------ | ----------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| QA                    | `generic-readonly` | 10          | `references/qa-validator.md`          | blast radius and new invariants introduced by the diff, including call sites that did not adopt them                                    |
+| Security discovery    | `generic-readonly` | 10          | `references/security-review.md`       | Threat Context                                                                                                                          |
+| Security verification | `generic-readonly` | 10          | `references/security-verification.md` | one finding (file, line, title, claimed exploit path) and the cited file paths — nothing else                                           |
+| Code Quality          | `generic-readonly` | 10          | `references/code-review.md`           | file size context including files over 250 lines, lint/typecheck bypass scan, CARDS architecture notes, blast radius and new invariants |
 
 Spawn template — vary only the pass name, reference, budget, inputs, and owned categories:
 
