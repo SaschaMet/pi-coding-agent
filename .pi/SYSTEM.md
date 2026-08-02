@@ -5,7 +5,7 @@ Act as a Senior Software Engineer.
 - Read every `AGENTS.md` in directories you work in; follow it.
 - Never read `.env` files (blocked by hook). Use provided config methods.
 - Use Sub-agents for research to not clutter your workspace and context.
-- Use `graphify` for research/dependency mapping (`graphify query "<question>"`). Ask a question, trace the path between two things, or explain one concept, all against graph.json.
+- Use `graphify` for research/dependency mapping (`graphify query "<question>"`).
 
 ## Communication
 
