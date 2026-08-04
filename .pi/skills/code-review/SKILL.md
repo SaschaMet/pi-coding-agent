@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Use this skill when the user asks to review local changes, inspect a diff, audit code quality, check security, assess QA risk, or produce a combined review verdict. Focus on actionable defects in the changed code. Do not use for implementation requests, broad architecture brainstorming, or style-only cleanup unless review is explicitly requested.
+description: Use this skill when the user asks to do a code review, to review local changes, inspect a diff, audit code quality, check security, assess QA risk, or produce a combined review verdict. Focus on actionable defects in the changed code. Do not use for implementation requests, broad architecture brainstorming, or style-only cleanup unless review is explicitly requested.
 ---
 
 # Code Quality Check Orchestrator
@@ -134,12 +134,12 @@ If a pass or the parent catches itself thinking any of these, stop and do the re
 
 Dispatch only after capturing `git status`, `git diff`, touched files, graphify context when available, `Review Context`, and `Project Validation Context`. Every pass runs read-only in the background; the parent collects with `get_subagent_result`.
 
-| Pass                  | `subagent_type`    | `max_turns` | Reference to read                     | Pass-specific inputs                                                                                                                    |
-| --------------------- | ------------------ | ----------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| QA                    | `generic-readonly` | 10          | `references/qa-validator.md`          | blast radius and new invariants introduced by the diff, including call sites that did not adopt them                                    |
-| Security discovery    | `generic-readonly` | 10          | `references/security-review.md`       | Threat Context                                                                                                                          |
-| Security verification | `generic-readonly` | 10          | `references/security-verification.md` | one finding (file, line, title, claimed exploit path) and the cited file paths — nothing else                                           |
-| Code Quality          | `generic-readonly` | 10          | `references/code-review.md`           | file size context including files over 250 lines, lint/typecheck bypass scan, CARDS architecture notes, blast radius and new invariants |
+| Pass                  | `subagent_type`                  | `max_turns` | Reference to read                     | Pass-specific inputs                                                                                                                    |
+| --------------------- | -------------------------------- | ----------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| QA                    | `generic-readonly` or `readonly` | 10          | `references/qa-validator.md`          | blast radius and new invariants introduced by the diff, including call sites that did not adopt them                                    |
+| Security discovery    | `generic-readonly` or `readonly` | 10          | `references/security-review.md`       | Threat Context                                                                                                                          |
+| Security verification | `generic-readonly` or `readonly` | 10          | `references/security-verification.md` | one finding (file, line, title, claimed exploit path) and the cited file paths — nothing else                                           |
+| Code Quality          | `generic-readonly` or `readonly` | 10          | `references/code-review.md`           | file size context including files over 250 lines, lint/typecheck bypass scan, CARDS architecture notes, blast radius and new invariants |
 
 Spawn template — vary only the pass name, reference, budget, inputs, and owned categories:
 
@@ -175,14 +175,16 @@ Return markdown with this exact structure:
 
 ## Findings
 
-1. category: security|qa|code_quality
+1. title: short title
+   category: security|qa|code_quality
    severity: HIGH|MEDIUM|LOW
    file: path/to/file
    line: 123
-   title: short title
    evidence: concrete proof
-   recommendation: smallest corrective action
    confidence: high|medium|low
+   recommendation: smallest corrective action
+   \n
+2. ...
 
 ## Final Verdict
 
