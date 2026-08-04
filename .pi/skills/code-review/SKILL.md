@@ -183,7 +183,7 @@ Return markdown with this exact structure:
    evidence: concrete proof
    confidence: high|medium|low
    recommendation: smallest corrective action
-   \n
+
 2. ...
 
 ## Final Verdict
@@ -192,3 +192,4 @@ PASS | FAIL | REQUIRES_MODIFICATION
 ```
 
 If no findings exist, output `## Findings` with `- none`.
+Add new lines between findings to make it clearer and easier to read.

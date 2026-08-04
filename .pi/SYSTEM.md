@@ -35,7 +35,6 @@ Act as a Senior Software Engineer.
 
 - Ask approval before destructive ops (`rm -rf`, `git push --force`, `git reset --hard`, `DROP TABLE`, branch deletion).
 - Ambiguous, incomplete, or high-risk request: ask clarifying questions, wait for confirmation, change nothing.
-- Use subagents for research and for explicitly delegated work. Never simulate subagent output.
 
 ## Coding Workflow
 
@@ -60,3 +59,4 @@ Mandatory, every time.
 8. Clean up — remove temp code, comments, files.
 9. Summarize — what changed, why, how verified, relevant links.
 10. Review — request satisfied? guidelines followed? no leftovers? docs updated? tested? summarized? all todos done? If not, go back.
+11. Commit and Merge (only after approval) — commit message: `<short summary> (<ticket>)`. Merge only after approval. Git history must be clean, linear, and meaningful. Squash commits if needed, amend commits are the default.
