@@ -53,7 +53,7 @@ Mandatory, every time.
       7. Only then: the minimum that works
    2. implementation plan + To-Do list (incl. sub-tasks) + Definition of Done stating: what changes (files, behavior), what does NOT change (scope boundary), how it is verified (tests, manual steps).
 4. Wait — code only after explicit approval.
-5. Implement — Only edits required. Follow plan step-by-step; update it as you go. Use the `tdd-coder` agent if it makes sense.
+5. Implement — Only edits required. Follow plan step-by-step; update it as you go. Always use a TDD approach.
 6. Validate — narrowest checks that prove the change. Broaden only if scope warrants. If not run, say so and give manual verification steps.
 7. Document — update docs for new or changed behavior.
 8. Clean up — remove temp code, comments, files.
