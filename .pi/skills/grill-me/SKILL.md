@@ -74,12 +74,12 @@ Defaults to apply without asking:
 
 Replace generic prompts with concrete findings:
 
-| Instead of asking               | Do this                                                       |
-| ------------------------------- | ------------------------------------------------------------- |
-| "Have you considered pagination?" | Flag the missing pagination as a default change              |
-| "What about error handling?"    | Name the specific unhandled error path                        |
-| "Did you think about security?" | Name the exact attack surface                                 |
-| "What's your testing strategy?" | No tests in the plan is the finding — record the tests to add |
+| Instead of asking                 | Do this                                                       |
+| --------------------------------- | ------------------------------------------------------------- |
+| "Have you considered pagination?" | Flag the missing pagination as a default change               |
+| "What about error handling?"      | Name the specific unhandled error path                        |
+| "Did you think about security?"   | Name the exact attack surface                                 |
+| "What's your testing strategy?"   | No tests in the plan is the finding — record the tests to add |
 
 **Done when**: the remaining question list contains only decisions the user alone can make.
 
@@ -100,9 +100,9 @@ Work the remaining decision-forcing risks one at a time. Keep the session short.
 - **ONE question or flag at a time.** Wait for the answer before moving to the next.
 - Ask Critical first, highest impact within the tier first, then High. Medium never becomes a question.
 - Start each with the risk tier label: `[Critical]` or `[High]`.
+- Use a `ask-user-question` or `user-input` tool if available, otherwise ask one concise chat question.
 - Keep questions concrete and specific. No abstract "what about scalability?" — instead:
   "This stores session state in memory. What happens to in-flight requests during a rolling deploy?"
-- Use the available user-input tool when present; otherwise ask one concise chat question.
 - If an answer resolves the remaining high risks through an obvious default, stop asking and move to the summary.
 - If there are no decision-forcing questions, skip questioning entirely and go straight to the summary.
 
