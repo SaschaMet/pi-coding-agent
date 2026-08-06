@@ -1,7 +1,7 @@
 {
     "enableSkillCommands": true,
     "defaultProvider": "lmstudio",
-    "defaultModel": "qwen/qwen3.6-35b-a3b",
+    "defaultModel": "iqRouter/qwen3.6",
     "defaultThinkingLevel": "medium",
     "compaction": {
         "enabled": true,
