@@ -8,7 +8,7 @@ For short sessions with 0-3 questions, use this compact variant:
 # Grilling Summary: {Design/Plan Title}
 
 ## Questions Asked
-- [Tier] Question -> Answer / decision.
+- [Round N] [Tier] Question -> Answer / decision.
 
 ## Default Changes
 - [Tier] Change to make by default, with reason.
@@ -33,10 +33,10 @@ Use the full table format only when the session has enough questions or decision
 
 ## Questions Asked
 
-| #   | Tier | Question | Why It Was Worth Asking |
-| --- | ---- | -------- | ----------------------- |
-| 1   | High | ...      | ...                     |
-| 2   | ...  | ...      | ...                     |
+| #   | Round | Tier | Question | Why It Was Worth Asking |
+| --- | ----- | ---- | -------- | ----------------------- |
+| 1   | 1     | High | ...      | ...                     |
+| 2   | ...   | ...  | ...      | ...                     |
 
 ## Answers Given
 
@@ -73,7 +73,8 @@ Use the full table format only when the session has enough questions or decision
 
 ## Guidelines
 
-- **Questions Asked**: List only the questions that were truly necessary. `SKILL.md` owns the question budget.
+- **Questions Asked**: List only the questions that were truly necessary, in the round they were asked.
+  `SKILL.md` owns the round budget — question count is unbounded.
 - **Answers Given**: Map answers directly to the questions. Do not add unrelated commentary.
 - **Default Changes**: This is where obvious best-practice actions go. Example: OpenAPI/Swagger for API docs when the plan changes an API and the repo does not specify another standard.
   Include CARDS defaults when architecture risks did not require a user decision: clarity, alignment, resilience, domain integrity, or separation.
