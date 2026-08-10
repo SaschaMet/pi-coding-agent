@@ -36,6 +36,13 @@ Act as a Senior Software Engineer.
 - Ask approval before destructive ops (`rm -rf`, `git push --force`, `git reset --hard`, `DROP TABLE`, branch deletion).
 - Ambiguous, incomplete, or high-risk request: ask clarifying questions, wait for confirmation, change nothing.
 
+
+## Debugging
+
+- When bugs persist or root cause is unclear, use the debug extension (`.pi/extensions/debug.ts`).
+- Commands: `/debug` - Start debugging session (find root cause before fixing), `/trace` — Trace call chain, `/fix-attempt` — Track fix attempts, warns at 3+, `/end-debug` — End session with summary
+- Full guide: `.pi/docs/debug-extension-guide.md`
+
 ## Coding Workflow
 
 Mandatory, every time.
@@ -43,15 +50,12 @@ Mandatory, every time.
 1. Understand — read all references/docs. Ambiguous or high-risk: ask, wait.
 2. Research — locate relevant code, tests, docs, config. Identify real entry points, call paths, conventions. Find the closest existing implementation path first; use reference files as style guides. Verify behavior, data flow, ownership before changing anything. Use `$graphify` for searching the code graph.
 3. Plan
-   1. Ask yourself:
-      1. Does this need to exist?   → no: skip it (YAGNI)
-      2. Already in this codebase?  → reuse it, don't rewrite
-      3. Stdlib does it?            → use it
-      4. Native platform feature?   → use it
-      5. Installed dependency?      → use it
-      6. One line?                  → one line
-      7. Only then: the minimum that works
-   2. implementation plan + To-Do list (incl. sub-tasks) + Definition of Done stating: what changes (files, behavior), what does NOT change (scope boundary), how it is verified (tests, manual steps).
+   3.1. Ask yourself:
+      1. Does this need to exist? → no: skip it (YAGNI)
+      2. Already in this codebase? → reuse it, don't rewrite
+      3. Stdlib, native platform feature or Installed dependency? → use it
+      4. Only then: the minimum that works (e.g. one line)
+   3.2. Create an implementation plan + To-Do list (incl. sub-tasks) + Definition of Done stating: what changes (files, behavior), what does NOT change (scope boundary), how it is verified (tests, manual steps).
 4. Wait — code only after explicit approval.
 5. Implement — Only edits required. Follow plan step-by-step; update it as you go. Always use a TDD approach.
 6. Validate — narrowest checks that prove the change. Broaden only if scope warrants. If not run, say so and give manual verification steps.
