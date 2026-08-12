@@ -42,6 +42,7 @@ export function createFakePi(): FakePi & Record<string, any> {
   const widgets: Array<{ key: string; content: any; options?: any }> = [];
   const statuses: Array<{ key: string; value: any }> = [];
   const notifications: Array<{ message: string; level?: string }> = [];
+  const entries: Array<{ type: "custom"; customType: string; data?: any }> = [];
   const activeTools: string[] = [];
 
   return {
@@ -54,6 +55,7 @@ export function createFakePi(): FakePi & Record<string, any> {
     widgets,
     statuses,
     notifications,
+    entries,
     activeTools,
     registerTool: (tool: RegisteredTool) => {
       tools.set(tool.name, tool);
@@ -77,7 +79,10 @@ export function createFakePi(): FakePi & Record<string, any> {
     sendUserMessage: (message: any) => {
       sentUserMessages.push(message);
     },
-    appendEntry: () => undefined,
+    // Records what the extension persisted, so a test can replay it as a session branch.
+    appendEntry: (customType: string, data?: any) => {
+      entries.push({ type: "custom", customType, data });
+    },
     setSessionName: () => undefined,
     getSessionName: () => undefined,
     setLabel: () => undefined,

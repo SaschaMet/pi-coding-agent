@@ -1,24 +1,18 @@
-import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ToolCallEvent, ToolCallEventResult } from "@earendil-works/pi-coding-agent";
+import {
+    firstNonEmptyString,
+    isOutsideWorkingDirectory,
+    isWithinRoot,
+    resolveInputPath,
+    resolvePathWithRealAncestor,
+} from "./lib/extension-helpers.ts";
 
 const READ_BOUNDARY_GUARD_REGISTERED = Symbol.for("pi.extensions.read-boundary-guard.registered");
 const GUARDED_TOOLS = new Set(["read", "write", "edit", "grep", "find", "ls"]);
 const READ_ONLY_TOOLS = new Set(["read", "grep", "find", "ls"]);
 const MUTATING_TOOLS = new Set(["write", "edit"]);
-
-type ToolCallEvent = {
-    toolName: string;
-    input: Record<string, unknown>;
-};
-
-function firstNonEmptyString(...values: unknown[]): string | undefined {
-    for (const value of values) {
-        if (typeof value === "string" && value.trim().length > 0) return value;
-    }
-    return undefined;
-}
 
 function getToolPathInput(toolName: string, input: Record<string, unknown>): string | undefined {
     if (toolName === "read" || toolName === "write" || toolName === "edit") {
@@ -31,62 +25,6 @@ function getToolPathInput(toolName: string, input: Record<string, unknown>): str
     }
 
     return undefined;
-}
-
-function expandHomePath(rawPath: string): string {
-    const trimmed = rawPath.trim();
-    if (trimmed === "~") return os.homedir();
-    if (trimmed.startsWith("~/") || trimmed.startsWith(`~${path.sep}`)) {
-        return path.join(os.homedir(), trimmed.slice(2));
-    }
-
-    const home = process.env.HOME;
-    if (home && (trimmed.startsWith("$HOME/") || trimmed.startsWith("${HOME}/"))) {
-        const prefixLen = trimmed.startsWith("$HOME/") ? "$HOME/".length : "${HOME}/".length;
-        return path.join(home, trimmed.slice(prefixLen));
-    }
-
-    return trimmed;
-}
-
-function resolvePathWithRealAncestor(candidate: string): string {
-    const absolute = path.resolve(candidate);
-    const partsToReattach: string[] = [];
-    const root = path.parse(absolute).root;
-
-    let cursor = absolute;
-    while (true) {
-        try {
-            const realBase = fs.realpathSync.native(cursor);
-            if (partsToReattach.length === 0) return path.normalize(realBase);
-            return path.normalize(path.join(realBase, ...partsToReattach.reverse()));
-        } catch {
-            if (cursor === root) break;
-            partsToReattach.push(path.basename(cursor));
-            cursor = path.dirname(cursor);
-        }
-    }
-
-    return absolute;
-}
-
-function isOutsideWorkingDirectory(inputPath: string, cwd: string): boolean {
-    const resolvedCwd = resolvePathWithRealAncestor(cwd);
-    const resolvedTarget = resolveInputPath(inputPath, cwd);
-    const relative = path.relative(resolvedCwd, resolvedTarget);
-    return relative.length > 0 && (relative.startsWith("..") || path.isAbsolute(relative));
-}
-
-function resolveInputPath(inputPath: string, cwd: string): string {
-    const normalizedInputPath = expandHomePath(inputPath);
-    return resolvePathWithRealAncestor(
-        path.isAbsolute(normalizedInputPath) ? normalizedInputPath : path.join(cwd, normalizedInputPath),
-    );
-}
-
-function isWithinRoot(targetPath: string, rootPath: string): boolean {
-    const relative = path.relative(rootPath, targetPath);
-    return relative.length === 0 || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
 function resolveGlobalPiReadOnlyRoot(): string {
@@ -103,11 +41,10 @@ export default function readBoundaryGuardExtension(pi: ExtensionAPI): void {
     guardPi[READ_BOUNDARY_GUARD_REGISTERED] = true;
     const globalPiReadOnlyRoot = resolveGlobalPiReadOnlyRoot();
 
-    pi.on("tool_call", async (event, ctx) => {
+    pi.on("tool_call", async (event: ToolCallEvent, ctx): Promise<ToolCallEventResult | undefined> => {
         if (!GUARDED_TOOLS.has(event.toolName)) return undefined;
 
-        const input = (event as ToolCallEvent).input ?? {};
-        const inputPath = getToolPathInput(event.toolName, input);
+        const inputPath = getToolPathInput(event.toolName, event.input as Record<string, unknown>);
         if (!inputPath) {
             return {
                 block: true,

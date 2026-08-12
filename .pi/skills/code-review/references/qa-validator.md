@@ -92,6 +92,8 @@ Return markdown with this exact structure:
   line: 123
   title: short finding title
   evidence: concrete proof (code path, failing scenario, test output if a command was run)
+  explanation: what this is / why it matters / why fix it now — per finding-explanation.md, plain language
+    for a decision-maker, never a restatement of evidence
   recommendation: smallest corrective action
   confidence: 0.00-1.00
 

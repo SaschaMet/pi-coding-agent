@@ -6,6 +6,8 @@ import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 
 const REQUIRED_EXTENSIONS = [
     ".pi/extensions/read-boundary-guard.ts",
+    ".pi/extensions/write-boundary-guard.ts",
+    ".pi/extensions/gates.ts",
     ".pi/extensions/tools.ts",
 ];
 

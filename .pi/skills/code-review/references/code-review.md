@@ -94,6 +94,8 @@ Return markdown with this exact structure:
   line: 123
   title: short quality/perf/maintainability title
   evidence: concrete code path and impact
+  explanation: what this is / why it matters / why fix it now — per finding-explanation.md, plain language
+    for a decision-maker, never a restatement of evidence
   recommendation: smallest practical improvement
   confidence: 0.00-1.00
 

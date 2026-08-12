@@ -87,6 +87,8 @@ Return markdown with this exact structure:
   line: 123
   title: short vulnerability title
   evidence: exploit path and concrete vulnerable code path
+  explanation: what this is / why it matters / why fix it now — per finding-explanation.md, plain language
+    for a decision-maker, never a restatement of the exploit path
   recommendation: smallest effective mitigation
   confidence: 0.00-1.00
 

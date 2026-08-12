@@ -3,6 +3,11 @@
 Use this structure for the final spec document. Collapse optional sections for
 small tasks, but keep scope, criteria, and verification explicit.
 
+The `Scope` section is machine-read: `.pi/extensions/lib/spec-scope.ts` parses its
+`**Modify:**` and `**Forbid:**` lists into the write boundaries the guard enforces.
+Reformatting that section — a different heading level, renamed labels, a table instead
+of lists — changes what the guard allows, with no compile error. Change the parser too.
+
 ```md
 # Spec: {Feature Name}
 

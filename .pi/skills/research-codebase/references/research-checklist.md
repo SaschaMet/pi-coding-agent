@@ -1,6 +1,9 @@
-# Research Checklist (Spec Authoring)
+# Research Checklist
 
-Work through this before writing the spec. Skip sections that do not apply.
+Work through this before writing the research document. Skip sections that do not apply.
+
+Sections 6.1 and 8 matter when the research will feed a spec; skip them for a pure
+investigation.
 
 Default discovery commands:
 

@@ -31,6 +31,13 @@ Use this gate before finalizing a spec.
 - [ ] Commands/inputs and expected outputs are concrete.
 - [ ] Regression checks for existing behavior are included.
 
+## 5.1 Slice Integrity
+
+- [ ] Each execution step is independently runnable and demoable.
+- [ ] No step depends on a later step to be verifiable.
+- [ ] Steps are not ordered by stack layer (all migrations, then all services, then API, then UI).
+- [ ] The first step produces something observable end-to-end, even against mock data.
+
 ## 6. Invariants and Compliance
 
 - [ ] Org invariants are listed or referenced.
