@@ -12,3 +12,4 @@ docs/plans/**
 .gitignore
 .pi/models-store.json
 .pi/pi-cache-optimizer-stats.json
+.pi/settings.json
