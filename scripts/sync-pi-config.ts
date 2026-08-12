@@ -13,6 +13,11 @@ const EXCLUDED_TOP_LEVEL_PATHS = new Set([
 	"npm",
 	"models.json",
 ]);
+// Extension directories containing this marker file are considered
+// system-managed and will be pruned from local during sync.
+// User-created directories without the marker are left intact.
+// See scripts/sync-pi-config.md for details.
+const MANAGED_EXTENSION_MARKER = ".pi-managed";
 const SETTINGS_RELATIVE_PATH = "settings.json";
 const MCP_RELATIVE_PATH = "mcp.json";
 const EXTENSIONS_RELATIVE_PATH = "extensions";
@@ -265,6 +270,10 @@ function isPreservedTargetOnlyRelativePath(
 	return relativePath === MCP_RELATIVE_PATH;
 }
 
+function isManagedExtensionDir(dirPath: string): boolean {
+	return fs.existsSync(path.join(dirPath, MANAGED_EXTENSION_MARKER));
+}
+
 function pruneLocalExtensionDirectoriesThatExistGlobally(
 	localPiDir: string,
 	globalAgentDir: string,
@@ -275,6 +284,13 @@ function pruneLocalExtensionDirectoriesThatExistGlobally(
 
 	const removed: string[] = [];
 	for (const extensionName of globalExtensionDirectories) {
+		const globalExtPath = path.join(
+			globalAgentDir,
+			EXTENSIONS_RELATIVE_PATH,
+			extensionName,
+		);
+		if (!isManagedExtensionDir(globalExtPath)) continue;
+
 		const localExtensionDir = path.join(
 			localPiDir,
 			EXTENSIONS_RELATIVE_PATH,
