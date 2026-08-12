@@ -8,3 +8,7 @@ coverage
 docs/plans/**
 .DS_Store
 .tokensave
+.pi/mcp-cache.json
+.gitignore
+.pi/models-store.json
+.pi/pi-cache-optimizer-stats.json

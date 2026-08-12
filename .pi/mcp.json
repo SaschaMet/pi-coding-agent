@@ -1,0 +1,70 @@
+{
+  "mcpServers": {
+    "MCP_DOCKER_PLAYWRIGHT": {
+      "command": "docker",
+      "args": [
+        "mcp",
+        "gateway",
+        "run",
+        "--profile",
+        "playwright"
+      ],
+      "type": "stdio",
+      "directTools": false,
+      "idleTimeout": 10,
+      "lifecycle": "lazy"
+    },
+    "MCP_DOCKER_CONTEXT7": {
+      "command": "docker",
+      "args": [
+        "mcp",
+        "gateway",
+        "run",
+        "--profile",
+        "context7"
+      ],
+      "type": "stdio",
+      "directTools": true,
+      "idleTimeout": 10,
+      "lifecycle": "lazy"
+    },
+    "MCP_DOCKER_Sandbox": {
+      "command": "docker",
+      "args": [
+        "mcp",
+        "gateway",
+        "run",
+        "--profile",
+        "sandbox"
+      ],
+      "type": "stdio",
+      "directTools": false,
+      "idleTimeout": 10,
+      "lifecycle": "lazy"
+    },
+    "MCP_DOCKER_FETCH_WEB_SEARCH": {
+      "command": "docker",
+      "args": [
+        "mcp",
+        "gateway",
+        "run",
+        "--profile",
+        "fetch_web_search"
+      ],
+      "type": "stdio",
+      "directTools": false,
+      "idleTimeout": 10,
+      "lifecycle": "lazy"
+    },
+    "atlassian": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://mcp.atlassian.com/v1/mcp/authv2"
+      ],
+      "type": "stdio",
+      "lifecycle": "lazy"
+    }
+  }
+}

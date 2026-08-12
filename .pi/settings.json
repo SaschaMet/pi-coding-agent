@@ -1,21 +1,27 @@
 {
-    "enableSkillCommands": true,
-    "defaultProvider": "lmstudio",
-    "defaultModel": "iqRouter/qwen3.6",
-    "defaultThinkingLevel": "medium",
-    "compaction": {
-        "enabled": true,
-        "reserveTokens": 12288,
-        "keepRecentTokens": 16384
-    },
-    "theme": "dark",
-    "envService": {
-        "envFile": "/Users/saschametzger/Projects/pi-coding-agent/.env",
-        "useProjectEnv": true
-    },
-    "packages": [
-        "npm:@tintinweb/pi-subagents",
-        "npm:@raquezha/noheadroom"
-    ],
-    "lastChangelogVersion": "0.64.0"
+  "enableSkillCommands": true,
+  "defaultProvider": "iqRouter",
+  "defaultModel": "grunt",
+  "defaultThinkingLevel": "high",
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 12288,
+    "keepRecentTokens": 16384
+  },
+  "theme": "dark",
+  "envService": {
+    "envFile": "/Users/saschametzger/Projects/pi-coding-agent/.env",
+    "useProjectEnv": true
+  },
+  "packages": [
+    "npm:@tintinweb/pi-subagents",
+    "npm:@raquezha/noheadroom",
+    "npm:pi-mcp-adapter",
+    "npm:pi-spark",
+    "npm:@juicesharp/rpiv-ask-user-question",
+    "npm:@juicesharp/rpiv-todo",
+    "npm:pi-lens",
+    "npm:pi-cache-optimizer"
+  ],
+  "lastChangelogVersion": "0.84.1"
 }

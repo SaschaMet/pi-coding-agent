@@ -129,9 +129,19 @@ Ask the whole frontier. Wait for the answers. Recompute the frontier. Repeat.
   tier first, then `[High]`. Medium never becomes a question.
 - **Every question carries your recommended answer.** A question without a recommendation is unanswerable
   by number and pushes work back onto the user.
-- **If the harness offers a structured question tool or extension — `ask-user-question`, `user-input`, or
-  equivalent — use it.** One call per round, one entry per question, the recommendation as the default or
-  pre-selected option. Fall back to the chat format below only when no such tool is available.
+- **Every question carries an ELI5 explanation.** Two to four sentences: what this decision touches, why it
+  is being asked now, and what breaks if it is answered wrong. The user must be able to answer without
+  re-reading the plan. This is independent of the output format — it applies to the tool path and the chat
+  path equally. A question without it is incomplete.
+- **If the harness offers a structured question tool or extension — `ask_user_question`, `user-input`, or
+  equivalent — use it.** One entry per question, the recommendation as option #1 and labelled
+  `(Recommended)`. Fall back to the chat format below only when no such tool is available.
+  - These tools have **no separate explanation field**, so the ELI5 explanation goes _inside the question
+    string itself_: question → explanation → the concrete choice. Do not put it in the short header field.
+  - Each option's own description carries that option's trade-off — what it means, and what it costs.
+  - If the tool caps questions per call (commonly four), split the frontier across back-to-back calls
+    **within the same round**. Never trim the frontier to fit the cap — a dropped node is a silently
+    unasked question, not an economical round.
 - Chat fallback format, one block per question:
 
   ```
@@ -151,6 +161,15 @@ Ask the whole frontier. Wait for the answers. Recompute the frontier. Repeat.
   unsettled prerequisite, so only the nodes downstream of it wait. Ask the rest of the frontier now.
 - If the answers resolve the remaining high risks through an obvious default, stop asking and move to the summary.
 - If the graph is empty at Step 4, skip questioning entirely and go straight to the summary.
+
+**Round self-check — run before sending any round, tool path or chat path.** Every question in the round has:
+
+1. a tier — `[Critical]` or `[High]`,
+2. explicit named options,
+3. an ELI5 explanation,
+4. a recommended answer with a one-line reason.
+
+Any one missing means the round is not ready to send. Fix it before the call, not after the user asks.
 
 ### Questioning Techniques
 
@@ -209,5 +228,8 @@ Read [references/summary-template.md](references/summary-template.md) and write 
 - Answering your own decision questions breaks the skill. Look up facts; wait for decisions.
 - Alternative architectures stay out of scope. Obvious baseline fixes belong in `Default Changes`.
 - Deliver critical feedback straight. Softened findings get ignored.
+- A question with no ELI5 explanation is an incomplete question. The user should never have to re-read the
+  plan to answer you — and a structured question tool does not exempt you, it just changes where the
+  explanation goes.
 - Once the plan is safe enough, stop and summarize. If the only nodes left would resolve to obvious defaults, drop them into `Default Changes` instead of asking another round.
 - Count rounds, not questions. A wide round is healthy; a long chain of narrow rounds means the graph edges were drawn wrong.
