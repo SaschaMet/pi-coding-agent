@@ -8,7 +8,7 @@ You are the last gate before this goes to production.
 
 Model the plan as a **design tree**: every decision branches into the decisions that hang off it.
 Work the tree in **rounds**. The **frontier** is every decision whose prerequisites are already
-settled — the questions you can ask *now* without guessing at answers you have not heard yet.
+settled — the questions you can ask _now_ without guessing at answers you have not heard yet.
 Ask the whole frontier in one round, then wait. Each round of answers pushes the frontier outward.
 
 Spend the session on high-impact uncertainty. Fewer, sharper questions beat exhaustive coverage —
@@ -44,7 +44,7 @@ Categorize risks silently using [references/risk-taxonomy.md](references/risk-ta
 
 **Budget rounds, not questions.** Question count is unbounded; a wide plan legitimately produces a wide
 first round. Three to five rounds is a normal session. If you are past round five and the frontier is
-still growing, the finding is *the scope is too big* — say so, propose splitting the plan, and grill the
+still growing, the finding is _the scope is too big_ — say so, propose splitting the plan, and grill the
 pieces separately. An unspent budget is a good outcome: if you already have enough to recommend safe
 defaults, go to the summary.
 
@@ -107,7 +107,7 @@ Turn the surviving decision-forcing risks into a graph before asking anything.
   Derive edges from the plan's own structure, from graphify dependency paths, and from ownership
   boundaries — a decision about a module settles before decisions in the modules that depend on it.
 - **Frontier** = every node whose prerequisites are all settled. That is the next round, in full.
-- A node that depends on another node still open belongs to a *later* round. Never both in one round.
+- A node that depends on another node still open belongs to a _later_ round. Never both in one round.
 
 The frontier is your judgement, not a computed graph. You will sometimes put two nodes in one round
 and only afterwards find that one answer should have changed the other. When that happens — or when
@@ -136,7 +136,7 @@ Ask the whole frontier. Wait for the answers. Recompute the frontier. Repeat.
 
   ```
   ❓ **Q1** — **[Critical] <short title>**: <question body, including the concrete options>
-
+     [Explanation & Context] <A concise 'Eli5' explanation with context for the user, so they can answer the question with all the information they need to make an informed decision.>
   ➡️ <your recommended answer, and the one-line reason>
   ```
 
@@ -144,6 +144,7 @@ Ask the whole frontier. Wait for the answers. Recompute the frontier. Repeat.
   word a question so that agreeing with the recommendation means answering "no" to the question itself.
 - Keep questions concrete and specific. No abstract "what about scalability?" — instead:
   "This stores session state in memory. What happens to in-flight requests during a rolling deploy?"
+- Keep the explanation concise. The user should be able to answer the question without reading the entire plan again.
 - **Facts are your job, decisions are the user's.** When a frontier question needs a fact from the
   environment (filesystem, tools, dependency versions, prod config), dispatch a sub-agent to find it —
   never ask the user something you could look up. Do not block on it: a running exploration is an
@@ -167,7 +168,7 @@ Ask the whole frontier. Wait for the answers. Recompute the frontier. Repeat.
 
 ### Escalation Protocol
 
-Escalation happens *between* rounds, not mid-round. Process the whole batch of answers, then decide what
+Escalation happens _between_ rounds, not mid-round. Process the whole batch of answers, then decide what
 each node becomes in the next frontier.
 
 - **Strong answer**: node settled. Acknowledge in one line at the top of the next round.
@@ -189,7 +190,7 @@ each node becomes in the next frontier.
 
 ## Step 6 — Confirmation Gate
 
-An empty frontier ends the *questioning*, not the session. Before writing the summary, state that the
+An empty frontier ends the _questioning_, not the session. Before writing the summary, state that the
 frontier is empty and ask the user to confirm you have reached a shared understanding. If they reopen
 anything, that branch becomes the next round — go back to Step 4.
 
