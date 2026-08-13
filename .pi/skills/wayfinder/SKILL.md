@@ -22,6 +22,8 @@ Two modes. Either way, **never resolve more than one non-research ticket per ses
 
 Before either mode, read [references/tracker.md](references/tracker.md) — you need it before the first tracker write.
 
+**MANDATORY GATE**: Before charting any map, invoke `$research-codebase` skill to understand the codebase. Do not proceed until `docs/research/research-{topic}.md` exists. A map built on assumptions is a map to the wrong destination.
+
 ### Chart the map
 
 User invokes with a loose idea.
@@ -112,11 +114,11 @@ Every ticket is either **HITL** — human in the loop, worked *with* a human who
 
 ## Fog of war
 
-The map is _deliberately_ incomplete: don't chart what you can't yet see. Beyond the live tickets lies the **fog of war** — decisions you can tell are coming but can't pin down, because they hang on questions still open. Resolving a ticket clears the fog ahead of it, graduating whatever's now specifiable into fresh tickets, one at a time, until the way is clear and no tickets remain.
+The map is *deliberately* incomplete: don't chart what you can't yet see. Beyond the live tickets lies the **fog of war** — decisions you can tell are coming but can't pin down, because they hang on questions still open. Resolving a ticket clears the fog ahead of it, graduating whatever's now specifiable into fresh tickets, one at a time, until the way is clear and no tickets remain.
 
 `## Not yet specified` is where that dim view is written down: the suspected question, the area to revisit. Everything there is in scope, just not sharp enough to ticket. It doubles as a signpost for collaborators reading where the effort is headed.
 
-**Fog or ticket?** The test is whether you can state the question precisely now — _not_ whether you can answer it now.
+**Fog or ticket?** The test is whether you can state the question precisely now — *not* whether you can answer it now.
 
 - **Ticket** when the question is already sharp, even if blocked and unactionable.
 - **Not yet specified** when you can't yet phrase it that sharply. Don't pre-slice the fog into ticket-sized pieces: one patch may graduate into several tickets, or none.
@@ -125,6 +127,6 @@ Not yet specified excludes what's already decided, what's already a live ticket,
 
 ## Out of scope
 
-Fog only ever gathers _toward_ the destination. The destination fixes the scope, so work beyond it is **out of scope** — it isn't fog and doesn't belong in Not yet specified. Scope, not sharpness, lands it there. Out-of-scope work never graduates; it returns only if the destination is redrawn, and then as a fresh effort, not a resumption.
+Fog only ever gathers *toward* the destination. The destination fixes the scope, so work beyond it is **out of scope** — it isn't fog and doesn't belong in Not yet specified. Scope, not sharpness, lands it there. Out-of-scope work never graduates; it returns only if the destination is redrawn, and then as a fresh effort, not a resumption.
 
 When a ticket turns out to sit past the destination — mis-scoped while charting, or exposed by a resolution — **close it** (a closed ticket is unambiguously off the frontier) and leave one line in `## Out of scope`: the gist plus why, linking the closed ticket. It stays out of Decisions-so-far, which records the route actually walked; a scope boundary isn't a step on it.

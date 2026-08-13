@@ -13,11 +13,9 @@ Produce a spec document, not implementation code. Research first, then author a 
 
 Check `docs/research/` first. If a research document already answers how this part of the codebase works, **read it and do not repeat the search** — cite it in the spec's Traceability section and move to Step 2. Research is expensive; re-deriving it is waste.
 
-If no such document exists:
+If no such document exists: **invoke `$research-codebase` skill now**.
 
-- For anything beyond a small single-file change, run the `$research-codebase` skill and let it produce `docs/research/research-{topic}.md`. Return here with that document.
-- For a small single-file spec, inspect directly using
-  [../research-codebase/references/research-checklist.md](../research-codebase/references/research-checklist.md).
+**MANDATORY GATE**: Do not proceed to Step 2 until `docs/research/research-{topic}.md` exists and is reviewed. This applies to ALL specs, including small single-file changes. Direct inspection alone is insufficient.
 
 If `graphify-out/graph.json` exists at the repository root, query graphify first for architecture, ownership boundaries, dependency paths, prior-art nodes, and cross-file relationships relevant to the spec. If no graph exists and the requested spec is architecture-heavy, cross-module, or unclear from direct file inspection, run `graphify <repo-root> --mode deep --no-viz` before drafting. Do not run graphify for small single-file specs where normal inspection is enough.
 
@@ -138,7 +136,7 @@ Front-loading alignment is the trade: an hour of design turns a six-hour review 
 
 ## Quality bar
 
-- Never skip repository research.
+- Never skip repository research. Always invoke `$research-codebase` before creating any spec.
 - Never ship a spec without explicit scope boundaries.
 - Never leave criteria unverifiable.
 - Never allow implementation to start while any open question or deferred decision remains unanswered.
