@@ -67,14 +67,15 @@ Use [references/spec-template.md](references/spec-template.md) as the output tem
 3. **Acceptance Criteria**: checklist items that are objectively verifiable.
 4. **BDD Scenarios**: `Given / When / Then` for each criterion.
 5. **Execution Steps**: implementation sequence and file targets, ordered as vertical slices (see below).
-6. **Verification Plan**: criterion-to-check mapping with commands/evidence.
-7. **Invariants and Contracts**: org/domain rules that always apply.
-8. **CARDS Architecture Contract**: design constraints for clarity, alignment, resilience, domain integrity, and separation.
-9. **Risks, One-Way Doors, Rollback**: failure modes and recovery.
-10. **Traceability and Audit**: source, approval, and criteria-to-evidence mapping.
-11. **Definition of Done**: traceability from intent -> criteria -> verification.
-12. **Open Questions / Deferred Decisions**: unresolved decisions separated from requirements.
-13. **Handoff**: implementation, verification, and escalation notes.
+6. **Invariants and Contracts**: org/domain rules that always apply.
+7. **CARDS Architecture Contract**: design constraints for clarity, alignment, resilience, domain integrity, and separation.
+8. **Architecture Impact & Data Flow Changes**: visual diagrams showing what changes, how data flows shift, blast radius, and dependency changes. Required for Medium+ specs. Omit for Small.
+9. **Verification Plan**: criterion-to-check mapping with commands/evidence.
+10. **Risks, One-Way Doors, Rollback**: failure modes and recovery.
+11. **Traceability and Audit**: source, approval, and criteria-to-evidence mapping.
+12. **Definition of Done**: traceability from intent -> criteria -> verification.
+13. **Open Questions / Deferred Decisions**: unresolved decisions separated from requirements.
+14. **Handoff**: implementation, verification, and escalation notes.
 
 Important: Use a sub-agent for writing the spec to not clutter the context window. The sub-agent should be given the spec template and the research context, and should produce a draft spec for review.
 
@@ -127,9 +128,9 @@ Size selects which design phases actually run. Do not run all of them for every 
 - **Small** — single behavior, 1-2 files, tight criteria.
   Phases: scope + criteria + verification only. No design sections. Roughly the class of work that can be one-shot with light feedback; do not over-specify it.
 - **Medium** — 2-5 files, edge cases, integration touch points.
-  Adds a **System Design** section: how services, endpoints, schemas, and stores interact. Sequence of calls and contract shapes, no implementation detail.
+  Adds a **System Design** section: how services, endpoints, schemas, and stores interact. Sequence of calls and contract shapes, no implementation detail. Also adds **Architecture Impact** (data flow diagrams + blast radius + layer impact).
 - **Large** — cross-module, API/schema updates, stronger rollback plan.
-  Adds **Product Intent** (the user problem in user terms, and what success looks like) and **Program Design** (call-stack outline in pseudocode, file-tree diff, type signatures for key functions) before execution steps.
+  Adds **Product Intent** (the user problem in user terms, and what success looks like) and **Program Design** (call-stack outline in pseudocode, file-tree diff, type signatures for key functions) before execution steps. Full **Architecture Impact** (all subsections: data flow, component changes, blast radius, dependency table, layer impact).
 - **Epic** — split into multiple specs by subsystem, each sized on its own.
 
 Front-loading alignment is the trade: an hour of design turns a six-hour review into twenty minutes. Cheap for Medium and up, waste for Small.

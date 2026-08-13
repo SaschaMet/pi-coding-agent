@@ -53,13 +53,25 @@ Use this gate before finalizing a spec.
 - [ ] Domain Integrity: invariants and invalid states are enforced by design.
 - [ ] Separation: domain policy, orchestration, IO, presentation, and formatting boundaries are explicit.
 
-## 8. Risk Controls
+## 8. Architecture Impact (Medium+)
+
+- [ ] Data flow diagram shows before/after states.
+- [ ] Changed flows are itemized with impact notes.
+- [ ] Blast radius identifies direct and transitive dependents.
+- [ ] New dependencies are listed with fallback behavior.
+- [ ] Layer impact table shows which layers change and risk per layer.
+- [ ] Stack view visualizes changes across layers (Medium+).
+- [ ] Unchanged layers are explicitly called out.
+- [ ] Visuals use mermaid, ASCII, or tables (renderable formats).
+- [ ] Section omitted for Small specs.
+
+## 9. Risk Controls
 
 - [ ] One-way doors are marked.
 - [ ] Rollback path is documented for risky changes.
 - [ ] Escalation triggers are defined for sensitive modifications.
 
-## 9. Handoff Clarity
+## 10. Handoff Clarity
 
 - [ ] Implementation steps identify exact file targets.
 - [ ] Verifier can validate without hidden assumptions.

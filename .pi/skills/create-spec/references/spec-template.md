@@ -80,38 +80,128 @@ Then ...
 - Domain Integrity: ...
 - Separation: ...
 
-## 8. Verification Plan
+## 8. Architecture Impact & Data Flow Changes
 
-### 8.1 Automated Verification Matrix
+> Small specs: omit this section. Medium: include 8.1 + 8.3 + 8.5. Large: all subsections.
+
+### 8.1 Data Flow Changes
+
+**Before:**
+```mermaid
+graph LR
+  A[Existing Component A] --> B[Existing Component B]
+```
+
+**After:**
+
+```mermaid
+graph LR
+  A[Existing Component A] --> B[Existing Component B]
+  B --> C[New Component C]  
+```
+
+**Changed Flows:**
+
+| Flow | Before | After | Impact |
+|------|--------|-------|--------|
+| ... | ... | ... | ... |
+
+### 8.2 Component Changes
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Component │────▶│   Component │────▶│   Component │
+└─────────────┘     └──────┬──────┘     └─────────────┘
+                           │
+                      ┌────▼──────┐
+                      │  New Comp │   ← NEW
+                      └───────────┘
+```
+
+### 8.3 Blast Radius
+
+**Components affected by this change:**
+
+- Direct: `path/to/file.ts`
+- Transitive: `path/to/consumer.ts` (contract unchanged)
+- External: `external-service` (new dependency)
+
+### 8.4 Dependency Changes
+
+| Type | Component | Direction | Notes |
+|------|-----------|-----------|-------|
+| New | ... | A → B | ... |
+| Modified | ... | Internal | ... |
+| Removed | ... | A → B | ... |
+
+### 8.5 Layer Impact
+
+**Layers affected by this change:**
+
+| Layer | Files Changed | What Changes | Risk |
+|-------|---------------|--------------|------|
+| Presentation (UI) | `src/components/LoginForm.tsx` | New input field + validation | Low — isolated UI change |
+| Business Logic | `src/services/auth.service.ts` | New validation rule | Medium — affects all login flows |
+| Data Access | `src/repositories/user.repo.ts` | New query parameter | Low — additive change |
+| Infrastructure | `docker-compose.yml` | New Redis service | High — runtime dependency |
+
+**Stack View:**
+
+```
+┌─────────────────────────────────────────────────┐
+│  Presentation Layer  │  ✏️ LoginForm.tsx         │
+│                     │  ✏️ LoginValidation.ts     │
+├─────────────────────────────────────────────────┤
+│  Business Logic    │  ✏️ auth.service.ts        │
+│                   │  ➕ cache.strategy.ts       │
+├─────────────────────────────────────────────────┤
+│  Data Access       │  ✏️ user.repo.ts           │
+│                   │  ➕ cache.repo.ts           │
+├─────────────────────────────────────────────────┤
+│  Infrastructure    │  ✏️ docker-compose.yml     │
+│                   │  ✏️ env.config.ts          │
+└─────────────────────────────────────────────────┘
+
+Legend: ✏️ Modified  ➕ New  ➖ Removed  ⚠️ Breaking
+```
+
+**Unchanged Layers:**
+
+- Database Schema (no migration required)
+- External APIs (contract unchanged)
+
+## 9. Verification Plan
+
+### 9.1 Automated Verification Matrix
 
 | Criterion | Check Type | Command / System | Expected Evidence |
 | --- | --- | --- | --- |
 | AC1 | Unit | `npm run test -- ...` | ... |
 | AC2 | Integration | `...` | ... |
 
-### 8.2 Manual Verification Checklist
+### 9.2 Manual Verification Checklist
 
 - [ ] Step 1: command/input -> expected result
 - [ ] Step 2: command/input -> expected result
 
-### 8.3 Regression Checks
+### 9.3 Regression Checks
 
 - [ ] Existing tests: `...`
 - [ ] Existing flows unchanged: `...`
 
-## 9. Risks, One-Way Doors, Rollback
+## 10. Risks, One-Way Doors, Rollback
 
 | Risk | Severity | Mitigation | One-Way Door | Rollback |
 | --- | --- | --- | --- | --- |
 | ... | High | ... | Yes/No | ... |
 
-## 10. Traceability and Audit
+## 11. Traceability and Audit
 
 - Source ticket/PRD: ...
 - Reviewer/approver: ...
 - Link acceptance criteria to verification artifacts.
 
-## 11. Definition of Done
+## 12. Definition of Done
 
 - [ ] Scope boundaries respected (`modify/call/forbid`).
 - [ ] CARDS architecture contract respected or explicitly waived.
@@ -119,18 +209,19 @@ Then ...
 - [ ] Verification evidence captured.
 - [ ] Risks and rollback documented.
 
-## 12. Open Questions / Deferred Decisions
+## 13. Open Questions / Deferred Decisions
 
 If this section has any unanswered item, implementation must not start.
 
 - [ ] ...
 
-## 13. Handoff
+## 14. Handoff
 
 - Implementation agent should read: `...`
 - Implementation blocked: Yes/No. If yes, stop and prompt the user to answer `Open Questions / Deferred Decisions` before making changes.
 - Verifier should validate: `...`
 - Escalation triggers: `...`
+
 ```
 
 Use short sections for small changes. Keep criteria and checks measurable.
