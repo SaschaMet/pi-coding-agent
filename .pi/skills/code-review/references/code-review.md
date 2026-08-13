@@ -14,6 +14,7 @@ Assume there is often a "code judo" move available: a reorganization that uses t
 ## Scope Ownership
 
 In scope:
+
 - Maintainability and readability issues
 - Modularity, coupling, and complexity concerns
 - Performance/resource/concurrency risks
@@ -23,12 +24,13 @@ In scope:
 - Cache and resource construction scope that does not match the intended reuse lifetime, such as a cache, token, connection, or memoized value rebuilt fresh on every call or request on a hot/high-traffic path instead of being shared. Treat this as a functional/reliability defect, not a style nit, whenever it defeats a stated or implied optimization
 - Reliability risks such as resource leaks, swallowed errors, brittle dependency use, and unclear error propagation
 - Integration and portability risks such as incompatible interfaces, deprecated/unstable APIs, platform-specific assumptions, or cyclic/high coupling
-- Documentation drift only when changed behavior affects public usage, operations, onboarding, or API contracts
+- Documentation drift: flag all documentation drift (outdated comments, missing docs for new code, stale descriptions) — always flag, regardless of scope
 - Structural regressions where the changed code adds avoidable concepts, branches, coupling, or indirection
 - File growth that pushes a changed source file over 250 lines without a strong decomposition reason
 - New or expanded lint ignore rules, lint-disable comments, ignored type errors, weakened lint config, broad ignore patterns, and equivalents such as `eslint-disable`, `biome-ignore`, `// @ts-ignore`, `// @ts-expect-error`, `type: ignore`, and `# noqa`
 
 Out of scope:
+
 - Exploitable security vulnerabilities (owned by `security-review`)
 - Test adequacy/coverage gaps (owned by `qa-validator`)
 - Pure request/DoD correctness validation (owned by `qa-validator`)
@@ -43,7 +45,7 @@ If you see out-of-scope concerns, do not emit them as findings. Add a short hand
 - Avoid speculative style nits.
 - Tie each finding to a concrete cost: harder future change, measurable inefficiency, operational failure, or integration breakage.
 - Prefer the smallest local refactor or guard unless a clear reorganization would delete meaningful complexity.
-- Do not report naming, formatting, or comment issues unless they hide behavior, violate local convention, or materially slow maintenance.
+- Report all naming, formatting, and comment issues as optional findings — flag them but mark as optional so they can be addressed separately from blocking issues.
 - Treat unapproved lint/typecheck bypasses as quality-gate regressions, not style issues. Broad config/file-level ignores or weakened lint config are HIGH. Line-local undocumented suppressions are at least MEDIUM.
 
 ## Strict Maintainability Bar
