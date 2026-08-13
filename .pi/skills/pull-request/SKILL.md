@@ -1,179 +1,154 @@
 ---
 name: pull-request
-description: Use this skill only when the user explicitly asks to prepare or update an existing GitHub pull request from local changes, including PR body, commits, screenshots, or reviewer context. Validate `gh`, branch safety, staged scope, push state, and description before editing the PR. Do not use to create a new PR or for generic git help.
+description: Use this skill when the user asks to create, update, or prepare a GitHub pull request from local changes, including PR body, clean git history, screenshots, or reviewer context. Validate gh, branch safety, staged scope, and push state before creating or editing the PR. Do not use for generic git help or when the user only wants to commit without a PR.
+disable-model-invocation: true
 ---
 
 # Pull Request
 
-Goal: update an existing PR with a safe commit and reviewer-ready description. Do not create PRs in this skill.
+Make every PR **review-ready**: clean history, clear description, concrete verification. The reviewer should answer four questions in under two minutes: what changed, why, how to verify, what can go wrong.
 
-Trigger only when the user explicitly asks for PR preparation, PR update, PR description, or this skill by name.
+## Definition of Done
+
+- Branch is not `main`, `master`, default branch, or detached HEAD.
+- Git history is clean: focused commits, no merge noise, no WIP messages.
+- PR exists (created or updated) with a body that matches the pushed code.
+- Description answers: what changed, why, user impact, verification steps, residual risk.
+- Verification checklist is checked (`- [x]`) only when actually passing.
+- Screenshots attached for UI-visible changes (or explicitly noted as N/A).
 
 ## Gotchas
 
-- This skill updates existing PRs only. If no PR exists for the branch, stop.
-- Never stage with `git add .`; stage explicit in-scope files from `git status`.
+- Never stage with `git add .` — stage explicit files from `git status`.
 - Do not commit or push from `main`, `master`, the default branch, or detached HEAD.
-- PR text must match pushed code. Push before editing the PR body when local commits are ahead.
-
-## Required inputs
-
-- PR description template: `references/pr_description_template.md`.
-- For UI-visible changes, capture screenshots with an available project UI validation workflow.
+- PR text must match pushed code — push before editing the PR body when local commits are ahead.
+- Never use `git commit --amend` unless the user explicitly asks.
+- Do not stage sensitive files: `.env*`, `*.pem`, `*.key`, `id_rsa*`, credential files.
 
 ## Workflow
 
-1. Invocation gate
+### 1. Environment and Branch Gate
 
-- Continue only when the user explicitly invokes this skill or asks for PR preparation/update.
-- Do not trigger for generic git status, commit-only, or code-review requests.
-
-2. Environment and branch gate
-
-- Check GitHub CLI first: `gh --version`.
-- If `gh` is unavailable, abort.
-- Check current branch: `git branch --show-current`.
-- Abort on detached HEAD.
-- Resolve repository default branch: `gh repo view --json defaultBranchRef`.
-- If current branch equals default branch, abort immediately. Do not stage files, do not commit, do not create or edit a PR.
-- Also abort if current branch is `main` or `master`.
-- When aborting, provide: `git checkout -b <feature-branch-name>`
-- If there are no changed files (`git status --short` is empty), continue only in description-only mode after resolving an existing PR. Do not commit.
+- Check `gh` is available: `gh --version`. Abort if not.
+- Check current branch: `git branch --show-current`. Abort on detached HEAD.
+- Resolve default branch: `gh repo view --json defaultBranchRef`.
+- If current branch equals default branch, `main`, or `master`: abort. Suggest `git checkout -b <feature-branch-name>`.
 - Do not create the branch automatically. Create it only if the user explicitly asks.
-- Do not use `git commit --amend` unless the user explicitly asks.
 
-3. Resolve existing PR (no creation)
+**Completion:** Branch is safe for PR work.
 
-- Resolve PR for current branch:
-  - `gh pr view --json number,url,state,baseRefName,headRefName`
-- If no PR exists for the current branch, abort and tell the user to create the PR first.
-- Do not create PRs in this skill.
+### 2. Resolve or Create PR
 
-4. Choose mode
+- Check for existing PR: `gh pr view --json number,url,state,baseRefName,headRefName`
+- If no PR exists and user wants one: create it.
+  - `gh pr create --title "<short title>" --body-file <description_path>`
+  - Use a placeholder body initially; fill it in later steps.
+- If PR exists: note its number and continue.
+- If no PR exists and user did not ask to create one: stop after reporting branch state.
 
-- Local changes present: use commit/update mode and continue through staging, commit, push, and PR body update.
-- Clean branch with existing PR: use description-only mode. Skip staging and commit. Gather PR context from the remote branch and update the PR body only.
+**Completion:** PR number is resolved.
 
-5. Stage and commit
+### 3. Stage and Commit (if local changes exist)
 
-Skip this step in description-only mode.
-
-- Inspect changes first (`git status --short` & `git diff`)
+- Check for changes: `git status --short`.
+- If clean: skip to step 5 (description-only mode).
+- Inspect diff: `git diff`.
 - Plan commit boundaries:
-  - Prefer one focused commit when changes are a single concern.
-  - Split into multiple commits only for clearly separate concerns.
-- Stage explicit files only from `git status` output and only for in-scope task files:
-  - `git add <file1> <file2> ...`
-  - Never use `git add .` for this workflow.
-- Do not stage sensitive files by default: `.env*`, `*.pem`, `*.key`, `id_rsa*`, secrets/config credential files.
+  - One focused commit for a single concern.
+  - Multiple commits only for clearly separate concerns.
+- Stage explicit files: `git add <file1> <file2> ...`
 - Review staged diff: `git diff --staged`.
-- Create commit message from staged diff:
-  - Subject in imperative mood, <= 72 chars.
-  - Optional scope when obvious (example: `api:`, `ui:`, `docs:`).
-  - Explain why and impact; avoid only "what changed" language.
-  - Body includes: why, key changes, risk/migration notes if needed.
-  - Do not include AI attribution or `Co-Authored-By` trailers.
+- Write commit message:
+  - Subject: imperative mood, 72 chars max, optional scope prefix (`api:`, `ui:`, `docs:`).
+  - Body: why, key changes, risk or migration notes.
+  - No AI attribution or `Co-Authored-By` trailers.
 - Commit: `git commit -m "<subject>" -m "<body>"`.
 
-6. Push policy before PR update
+**Completion:** Changes committed with focused, descriptive messages.
 
-- Check branch sync state:
-  - `git fetch origin`
-  - `git status -sb`
-- If branch has unpushed commits, push before updating PR body:
-  - `git push`
-- If the current branch has no upstream, use `git push -u origin HEAD` for the current feature branch.
-- If push is not desired, abort and report that PR description may not match remote code.
+### 4. Clean Git History (if needed)
 
-7. Read or initialize description
+- If the branch has more than 3 commits or contains WIP or merge noise:
+  - Offer to squash: `git reset --soft $(git log --oneline --no-merges | tail -1 | cut -d' ' -f1)`
+  - Let the user confirm before rebasing.
+  - After squash, amend the commit message to reflect all changes.
+- If the user asks for interactive rebase: guide them through `git rebase -i`.
+- Never force-push without explicit user confirmation: `git push --force-with-lease`.
 
-- Determine description output path:
-  - `./.pi/pr_descriptions/{pr_number}_description.md`
-- If an existing description file is present, read and update it instead of rewriting blindly.
-- If missing, initialize from `references/pr_description_template.md`.
+**Completion:** History is linear, focused, and readable.
 
-8. Gather PR context
+### 5. Push
 
-- Collect:
-  - PR diff: `gh pr diff {pr_number}`
-  - Commits: `gh pr view {pr_number} --json commits`
-  - Base branch: `gh pr view {pr_number} --json baseRefName`
-  - Fetch base branch ref first: `git fetch origin {base_branch}`
-  - Changed files: `git diff --name-status origin/{base_branch}...HEAD`
-- For context, read referenced files that are not fully shown in the diff.
-- Analyze for:
-  - Problem being solved
-  - User-facing impact
-  - Implementation details
-  - Breaking changes or migration requirements
-  - Risks, rollback strategy, and reviewer focus areas
+- Fetch latest: `git fetch origin`.
+- Check sync: `git status -sb`.
+- Push unpushed commits:
+  - With upstream: `git push`
+  - Without upstream: `git push -u origin HEAD`
+- If push is not desired: abort and report that PR description may not match remote code.
 
-9. Capture visual evidence (when applicable)
+**Completion:** Remote branch matches local commits.
+
+### 6. Capture Screenshots (UI changes only)
 
 - Applicable when changes affect UI, layout, styling, or user-visible behavior.
-- Use the available project UI validation workflow to open the target URL and capture screenshots.
-- Prefer both states without disturbing the working tree:
-  - before screenshot from the base branch in a separate worktree when practical
-  - after screenshot from the PR branch
-- If a safe before-state capture is not practical, include after-only evidence and state why before evidence is unavailable.
-- Save screenshots in repository so PR markdown renders them, for example:
-  - `docs/pr_screenshots/pr-{pr_number}/before.png`
-  - `docs/pr_screenshots/pr-{pr_number}/after.png`
-- Add screenshot files to the commit when created.
-- If not applicable or capture fails, state this explicitly in PR description.
+- Read `references/screenshots.md` for capture workflow.
+- Save to `docs/pr_screenshots/pr-{pr_number}/` (before.png, after.png).
+- Add screenshot files to the commit if created.
+- If not applicable or capture fails: note "N/A" in the PR description.
 
-10. Fill verification section
+**Completion:** Screenshots captured and committed, or marked N/A.
 
-- For each checklist item under "How to verify it":
+### 7. Generate Description
+
+- Initialize from `references/pr_description_template.md` if no description exists.
+- If a description file exists at `./.pi/pr_descriptions/{pr_number}_description.md`: read and update it.
+- Gather PR context:
+  - Diff: `gh pr diff {pr_number}`
+  - Commits: `gh pr view {pr_number} --json commits`
+  - Changed files: `git diff --name-status origin/{base_branch}...HEAD`
+- Analyze for: problem solved, user impact, implementation approach, breaking changes, risks, reviewer focus areas.
+- Fill every section from the template. Write in ELI5 style:
+  - Use simple language a junior developer understands.
+  - Explain "why" before "how".
+  - Use bullet points, not paragraphs.
+  - Include concrete examples, not abstract descriptions.
+- For verification checklist:
   - Auto-run only safe, read-only commands.
-  - For mutating/destructive commands, require explicit user confirmation first.
-  - Mark `- [x]` only when passing.
-  - Leave `- [ ]` on failure/manual-only checks and add a short note.
-- Include a BDD workflow the reviewer can execute to verify changes manually (when needed):
-  - `Given` preconditions/environment
-  - `When` exact user actions
-  - `Then` expected observable outcomes
-- BDD manual steps must be concrete and reproducible, not generic.
+  - For mutating commands: require explicit user confirmation.
+  - Mark `- [x]` only when passing. Leave `- [ ]` on failure with a note.
+- Include at least one concrete `Given / When / Then` scenario for manual testing.
 
-11. Generate description
+**Completion:** Description file written with all sections filled.
 
-- Fill every section from the template.
-- Keep it specific, concise, and scannable.
-- Focus on why + user impact, not only code mechanics.
-- Include concrete reviewer guidance:
-  - areas needing extra scrutiny
-  - known limitations
-  - follow-up work (if any)
-- For UI changes, include markdown image links to before/after screenshots.
+### 8. Update PR Body
 
-12. Save and update PR body
-
-- Write description file to the selected output path.
-- Update existing PR body:
-  - `gh pr edit {pr_number} --body-file <description_path>`
-- Do not create PRs in this skill.
+- Update existing PR: `gh pr edit {pr_number} --body-file <description_path>`
 - Confirm success and call out any unchecked verification steps.
+- Report the PR URL.
 
-## Outcome checks
+**Completion:** PR body matches the description file. PR is review-ready.
 
-- Current branch is not default, `main`, `master`, or detached HEAD.
-- Only in-scope files were staged; no sensitive files were staged by default.
-- Local commits, pushed branch state, and PR body describe the same code.
-- PR description answers: what changed, why, user impact, verification, residual risk.
-- PR body does not claim tests, screenshots, or checks that were not produced.
-- Manual verification uses concrete `Given / When / Then` when automation is insufficient.
+## Outcome Checks
+
+Run these before declaring the PR done:
+
+- [ ] Branch is not default, `main`, `master`, or detached HEAD.
+- [ ] Only in-scope files were staged; no sensitive files.
+- [ ] Local commits, pushed branch, and PR body describe the same code.
+- [ ] PR description answers: what, why, user impact, verification, risk.
+- [ ] PR body does not claim tests, screenshots, or checks that were not produced.
+- [ ] Manual verification uses concrete `Given / When / Then` when automation is insufficient.
+- [ ] Git history is linear, focused, and free of WIP messages.
 
 ## Quality Bar
 
-- Include breaking-change notes prominently when applicable.
-- If multiple components were changed, organize by component.
-- Avoid vague claims like "minor fixes"; describe concrete behavior changes.
-- Changelog summary must be one concise, user-readable entry.
-- Keep commits and PR narrative aligned: each commit should map to a described change.
-- Ensure reviewer can answer quickly (if applicable):
+- Breaking changes: mention prominently at the top of the description.
+- Multi-component changes: organize by component.
+- Never write "minor fixes" — describe the concrete behavior change.
+- Changelog summary: one concise, user-readable entry.
+- Each commit should map to a described change in the PR.
+- The reviewer can answer quickly:
   - What changed?
   - How was it verified?
   - How to verify it?
   - What can still go wrong?
-- For UI changes, include clear before/after screenshots.
-- Manual-test sections include at least one concrete `Given/When/Then` scenario when manual checks are required.

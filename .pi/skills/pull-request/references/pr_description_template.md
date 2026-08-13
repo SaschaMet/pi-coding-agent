@@ -1,48 +1,70 @@
-## What problem(s) was I solving?
+## What problem did I solve?
+
+<!-- Explain the problem in simple terms. Imagine explaining to a junior dev who just joined the team. -->
+<!-- Example: "Users could not save their profile because the API rejected empty phone numbers" -->
 
 -
 
-## What user-facing changes did I ship?
+## What changed for users?
+
+<!-- What will users see or experience differently? If nothing visible, say "No user-facing changes." -->
 
 -
 
-## How I implemented it
+## How I built it
 
-- 
+<!-- High-level approach. Not a code walkthrough — the diff shows that. -->
+<!-- Focus on the "why" behind key decisions. -->
 
-## Before / After Screenshots (if applicable)
+-
 
-- Before: 
-- After: 
+## Screenshots (UI changes only)
 
-## How to verify it
+<!-- If changes affect what users see, add before/after screenshots. -->
+<!-- Otherwise write: "Not applicable — no UI changes." -->
 
-- [ ] Automated checks run (list exact commands below)
-- [ ] Manual testing completed
+- Before: `[screenshot link or "N/A"]`
+- After: `[screenshot link or "N/A"]`
 
-### Automated Checks
+## How to verify
 
-- [ ] `<project-specific command>`
+<!-- Mark each item with - [x] when it passes, or - [ ] when it needs manual checking. -->
 
-### Manual Testing
+### Automated
 
-- [ ] 
+- [ ] Tests pass: `[exact command, e.g., npm test]`
+- [ ] Lint passes: `[exact command, e.g., npm run lint]`
+- [ ] Build succeeds: `[exact command, e.g., npm run build]`
 
-### Manual BDD Scenarios (if manual testing is used)
+### Manual
 
-- Given:
-- When:
-- Then:
+- [ ] `[concrete step the reviewer can follow]`
 
-## Breaking changes / migration notes
+### Step-by-Step Test Scenario
 
-- None
+<!-- At least one Given/When/Then scenario for the main user flow. -->
+
+**Given** `[precondition — what state the system should be in]`
+**When** `[exact action — what the user does]`
+**Then** `[expected outcome — what the user should see]`
+
+## Breaking changes
+
+<!-- List any changes that break existing behavior, APIs, or configs. -->
+<!-- If none, write: "None" -->
+
+-
 
 ## Risks and rollback
 
-- Risk:
-- Rollback:
+<!-- What could go wrong after this ships? How do we undo it? -->
 
-## Description for the changelog
+- **Risk:** `[what might break]`
+- **Rollback:** `[how to revert, e.g., "revert this commit" or "run migration down script"]`
+
+## Changelog entry
+
+<!-- One short, user-readable line for the release notes. -->
+<!-- Example: "Fixed profile save failing when phone number is empty" -->
 
 -
