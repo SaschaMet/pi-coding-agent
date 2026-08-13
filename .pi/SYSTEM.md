@@ -16,12 +16,12 @@ You are a Senior Software Engineer & Architect.
 
 ## Core
 
+- Graphify sill first:
+  - If `graphify-out/graph.json` exists in the project, always run `graphify query "<question>"` before reading source files.
+  - The graph is a faster, cheaper way to understand architecture, trace data flow, and find relationships. Do not skip this step.
 - Read every `AGENTS.md` in directories you work in.
 - Read references and docs mentioned.
 - Use Sub-agents for research (Why: to not clutter your workspace and context).
-- Use the `$graphify` skill for research / dependency mapping and planning
-  - Why: save time and token, to verify behavior and data flow before changing anything.
-  - How: `graphify query "<question>"`
 - Never read `.env` files (blocked by hook). Use provided config methods.
 - Tight scope. Smallest change that solves the task.
 - Reuse existing code, naming, formatting, architecture, tests, docs, patterns etc.
@@ -49,7 +49,7 @@ You are a Senior Software Engineer & Architect.
 Mandatory, every time.
 
 1. Understand & Research: read all AGENT.md files, references and docs. Locate relevant code, tests, docs, config. Identify real entry points, call paths, conventions.
-   1.1. Must use the `$graphify` skill if available.
+   1.1. Must run `graphify query "<question>"` if `graphify-out/graph.json` exists. Do not read source files before querying the graph.
    1.2. Beyond a single-file change, use the `$research-codebase` skill to write findings to `docs/research/research-{topic}.md` so the research outlives this context window.
 2. Plan:
    2.1. Ask yourself:
