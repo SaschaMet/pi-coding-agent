@@ -28,6 +28,32 @@ function resolveGlobalAgentDir(): string {
 	return path.join(os.homedir(), ".pi", "agent");
 }
 
+function resolveClaudeConfigDir(): string {
+	return path.join(os.homedir(), ".claude");
+}
+
+const SYSTEM_MD_RELATIVE_PATH = ".pi/SYSTEM.md";
+const CLAUDE_MD_FILENAME = "CLAUDE.md";
+
+export function copySystemMdToClaudeMd(projectRoot: string): boolean {
+	const sourcePath = path.join(projectRoot, SYSTEM_MD_RELATIVE_PATH);
+	if (!fs.existsSync(sourcePath)) return false;
+
+	const claudeDir = resolveClaudeConfigDir();
+	ensureDir(claudeDir);
+	const targetPath = path.join(claudeDir, CLAUDE_MD_FILENAME);
+
+	const sourceBuf = fs.readFileSync(sourcePath);
+
+	if (fs.existsSync(targetPath)) {
+		const targetBuf = fs.readFileSync(targetPath);
+		if (sourceBuf.equals(targetBuf)) return false;
+	}
+
+	fs.writeFileSync(targetPath, sourceBuf);
+	return true;
+}
+
 function parseMode(argv: string[]): Mode {
 	const mode = argv[2] as Mode | undefined;
 	if (!mode || (mode !== "pull" && mode !== "push")) {
@@ -421,6 +447,14 @@ export function main(): void {
 		result.deleted.length === 0
 	) {
 		console.log("No changes.");
+	}
+
+	if (copySystemMdToClaudeMd(projectRoot)) {
+		console.log(
+			`Copied SYSTEM.md -> ${resolveClaudeConfigDir()}/${CLAUDE_MD_FILENAME}`,
+		);
+	} else {
+		console.log("SYSTEM.md -> CLAUDE.md: no changes.");
 	}
 }
 

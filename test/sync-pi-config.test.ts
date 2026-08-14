@@ -2,7 +2,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { syncManagedPiDirectory } from "../scripts/sync-pi-config.ts";
+import {
+	syncManagedPiDirectory,
+	copySystemMdToClaudeMd,
+} from "../scripts/sync-pi-config.ts";
 
 function writeJson(filePath: string, value: unknown): void {
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -383,5 +386,106 @@ describe("sync-pi-config", () => {
 				path.join(globalAgentDir, "extensions", "read-boundary-guard.ts"),
 			),
 		).toBe(true);
+	});
+
+	describe("copySystemMdToClaudeMd", () => {
+		it("returns false when SYSTEM.md does not exist", () => {
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-sync-no-system-"));
+			tmpRoots.push(root);
+			const piDir = path.join(root, ".pi");
+			fs.mkdirSync(piDir, { recursive: true });
+
+			const result = copySystemMdToClaudeMd(root);
+			expect(result).toBe(false);
+		});
+
+		it("copies SYSTEM.md to CLAUDE.md when target does not exist", () => {
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-sync-copy-new-"));
+			tmpRoots.push(root);
+			const piDir = path.join(root, ".pi");
+			fs.mkdirSync(piDir, { recursive: true });
+			const systemMdPath = path.join(piDir, "SYSTEM.md");
+			const systemMdContent = "# Test System\nContent here\n";
+			fs.writeFileSync(systemMdPath, systemMdContent, "utf-8");
+
+			// Use a fake home directory by creating a .claude dir in our temp root
+			// We need to patch os.homedir for this test
+			const originalHomeDir = os.homedir;
+			os.homedir = () => root;
+
+			try {
+				const result = copySystemMdToClaudeMd(root);
+				expect(result).toBe(true);
+
+				const claudeMdPath = path.join(root, ".claude", "CLAUDE.md");
+				expect(fs.existsSync(claudeMdPath)).toBe(true);
+				expect(fs.readFileSync(claudeMdPath, "utf-8")).toBe(systemMdContent);
+			} finally {
+				os.homedir = originalHomeDir;
+			}
+		});
+
+		it("updates CLAUDE.md when SYSTEM.md content changes", () => {
+			const root = fs.mkdtempSync(
+				path.join(os.tmpdir(), "pi-sync-copy-update-"),
+			);
+			tmpRoots.push(root);
+			const piDir = path.join(root, ".pi");
+			const claudeDir = path.join(root, ".claude");
+			fs.mkdirSync(piDir, { recursive: true });
+			fs.mkdirSync(claudeDir, { recursive: true });
+
+			const systemMdPath = path.join(piDir, "SYSTEM.md");
+			const claudeMdPath = path.join(claudeDir, "CLAUDE.md");
+
+			fs.writeFileSync(systemMdPath, "# Old Content\n", "utf-8");
+			fs.writeFileSync(claudeMdPath, "# Old Content\n", "utf-8");
+
+			const originalHomeDir = os.homedir;
+			os.homedir = () => root;
+
+			try {
+				// First call should report no change
+				let result = copySystemMdToClaudeMd(root);
+				expect(result).toBe(false);
+
+				// Update SYSTEM.md
+				const newContent = "# New Content\nUpdated\n";
+				fs.writeFileSync(systemMdPath, newContent, "utf-8");
+
+				// Second call should update
+				result = copySystemMdToClaudeMd(root);
+				expect(result).toBe(true);
+				expect(fs.readFileSync(claudeMdPath, "utf-8")).toBe(newContent);
+			} finally {
+				os.homedir = originalHomeDir;
+			}
+		});
+
+		it("returns false when SYSTEM.md content is unchanged", () => {
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-sync-copy-same-"));
+			tmpRoots.push(root);
+			const piDir = path.join(root, ".pi");
+			const claudeDir = path.join(root, ".claude");
+			fs.mkdirSync(piDir, { recursive: true });
+			fs.mkdirSync(claudeDir, { recursive: true });
+
+			const systemMdPath = path.join(piDir, "SYSTEM.md");
+			const claudeMdPath = path.join(claudeDir, "CLAUDE.md");
+			const content = "# Same Content\n";
+
+			fs.writeFileSync(systemMdPath, content, "utf-8");
+			fs.writeFileSync(claudeMdPath, content, "utf-8");
+
+			const originalHomeDir = os.homedir;
+			os.homedir = () => root;
+
+			try {
+				const result = copySystemMdToClaudeMd(root);
+				expect(result).toBe(false);
+			} finally {
+				os.homedir = originalHomeDir;
+			}
+		});
 	});
 });

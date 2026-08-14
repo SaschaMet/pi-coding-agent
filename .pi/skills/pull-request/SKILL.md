@@ -11,7 +11,7 @@ Make every PR **review-ready**: clean history, clear description, concrete verif
 ## Definition of Done
 
 - Branch is not `main`, `master`, default branch, or detached HEAD.
-- Git history is clean: focused commits, no merge noise, no WIP messages.
+- Git history must be clean, linear, and meaningful. Squash commits if needed, amend commits are the default. Focused commits only, no merge noise, no WIP messages.
 - PR exists (created or updated) with a body that matches the pushed code.
 - Description answers: what changed, why, user impact, verification steps, residual risk.
 - Verification checklist is checked (`- [x]`) only when actually passing.
@@ -22,7 +22,6 @@ Make every PR **review-ready**: clean history, clear description, concrete verif
 - Never stage with `git add .` — stage explicit files from `git status`.
 - Do not commit or push from `main`, `master`, the default branch, or detached HEAD.
 - PR text must match pushed code — push before editing the PR body when local commits are ahead.
-- Never use `git commit --amend` unless the user explicitly asks.
 - Do not stage sensitive files: `.env*`, `*.pem`, `*.key`, `id_rsa*`, credential files.
 
 ## Workflow
@@ -127,28 +126,3 @@ Make every PR **review-ready**: clean history, clear description, concrete verif
 - Report the PR URL.
 
 **Completion:** PR body matches the description file. PR is review-ready.
-
-## Outcome Checks
-
-Run these before declaring the PR done:
-
-- [ ] Branch is not default, `main`, `master`, or detached HEAD.
-- [ ] Only in-scope files were staged; no sensitive files.
-- [ ] Local commits, pushed branch, and PR body describe the same code.
-- [ ] PR description answers: what, why, user impact, verification, risk.
-- [ ] PR body does not claim tests, screenshots, or checks that were not produced.
-- [ ] Manual verification uses concrete `Given / When / Then` when automation is insufficient.
-- [ ] Git history is linear, focused, and free of WIP messages.
-
-## Quality Bar
-
-- Breaking changes: mention prominently at the top of the description.
-- Multi-component changes: organize by component.
-- Never write "minor fixes" — describe the concrete behavior change.
-- Changelog summary: one concise, user-readable entry.
-- Each commit should map to a described change in the PR.
-- The reviewer can answer quickly:
-  - What changed?
-  - How was it verified?
-  - How to verify it?
-  - What can still go wrong?

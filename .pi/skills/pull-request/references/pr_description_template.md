@@ -26,34 +26,16 @@
 - Before: `[screenshot link or "N/A"]`
 - After: `[screenshot link or "N/A"]`
 
-## How to verify
+## How to verify it works manually
 
 <!-- Mark each item with - [x] when it passes, or - [ ] when it needs manual checking. -->
 
-### Automated
-
-- [ ] Tests pass: `[exact command, e.g., npm test]`
-- [ ] Lint passes: `[exact command, e.g., npm run lint]`
-- [ ] Build succeeds: `[exact command, e.g., npm run build]`
-
-### Manual
-
 - [ ] `[concrete step the reviewer can follow]`
-
-### Step-by-Step Test Scenario
-
-<!-- At least one Given/When/Then scenario for the main user flow. -->
-
-**Given** `[precondition — what state the system should be in]`
-**When** `[exact action — what the user does]`
-**Then** `[expected outcome — what the user should see]`
 
 ## Breaking changes
 
 <!-- List any changes that break existing behavior, APIs, or configs. -->
 <!-- If none, write: "None" -->
-
--
 
 ## Risks and rollback
 
@@ -61,10 +43,3 @@
 
 - **Risk:** `[what might break]`
 - **Rollback:** `[how to revert, e.g., "revert this commit" or "run migration down script"]`
-
-## Changelog entry
-
-<!-- One short, user-readable line for the release notes. -->
-<!-- Example: "Fixed profile save failing when phone number is empty" -->
-
--
