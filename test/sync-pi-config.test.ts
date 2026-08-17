@@ -128,11 +128,7 @@ describe("sync-pi-config", () => {
 
 		const sourceRaw =
 			'{\n  "defaultProvider": "source",\n  "packages": ["npm:pi-mcp-adapter@1.0.0"]\n}\n';
-		fs.writeFileSync(
-			path.join(localPiDir, "settings.json"),
-			sourceRaw,
-			"utf-8",
-		);
+		fs.writeFileSync(path.join(localPiDir, "settings.json"), sourceRaw, "utf-8");
 		fs.writeFileSync(
 			path.join(globalAgentDir, "settings.json"),
 			"{ invalid json",
@@ -202,9 +198,7 @@ describe("sync-pi-config", () => {
 	});
 
 	it("does not delete target-only mcp.json during push sync", () => {
-		const { localPiDir, globalAgentDir } = setupRoots(
-			"pi-sync-mcp-target-only-",
-		);
+		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-mcp-target-only-");
 
 		writeJson(path.join(localPiDir, "settings.json"), {
 			packages: [],
@@ -219,9 +213,7 @@ describe("sync-pi-config", () => {
 
 		expect(result.deleted.length).toBe(0);
 		expect(
-			JSON.parse(
-				fs.readFileSync(path.join(globalAgentDir, "mcp.json"), "utf-8"),
-			),
+			JSON.parse(fs.readFileSync(path.join(globalAgentDir, "mcp.json"), "utf-8")),
 		).toEqual({
 			mcpServers: {
 				globalOnly: { command: "global-server" },
@@ -239,17 +231,11 @@ describe("sync-pi-config", () => {
 			globalOnly: "keep-global",
 		});
 
-		const pullResult = syncManagedPiDirectory(
-			"pull",
-			localPiDir,
-			globalAgentDir,
-		);
+		const pullResult = syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
 		expect(pullResult.updated.length).toBe(0);
 		expect(pullResult.deleted.length).toBe(0);
 		expect(
-			JSON.parse(
-				fs.readFileSync(path.join(localPiDir, "models.json"), "utf-8"),
-			),
+			JSON.parse(fs.readFileSync(path.join(localPiDir, "models.json"), "utf-8")),
 		).toEqual({
 			localOnly: "keep-local",
 		});
@@ -261,17 +247,11 @@ describe("sync-pi-config", () => {
 			globalOnly: "keep-global",
 		});
 
-		const pushResult = syncManagedPiDirectory(
-			"push",
-			localPiDir,
-			globalAgentDir,
-		);
+		const pushResult = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
 		expect(pushResult.updated.length).toBe(0);
 		expect(pushResult.deleted.length).toBe(0);
 		expect(
-			JSON.parse(
-				fs.readFileSync(path.join(localPiDir, "models.json"), "utf-8"),
-			),
+			JSON.parse(fs.readFileSync(path.join(localPiDir, "models.json"), "utf-8")),
 		).toEqual({
 			localOnly: "keep-local",
 		});
@@ -285,9 +265,7 @@ describe("sync-pi-config", () => {
 	});
 
 	it("skips syncing trust.json for both pull and push", () => {
-		const { localPiDir, globalAgentDir } = setupRoots(
-			"pi-sync-trust-skip-",
-		);
+		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-trust-skip-");
 
 		writeJson(path.join(localPiDir, "trust.json"), {
 			trustedDirectories: ["/local/only/path"],
@@ -296,17 +274,11 @@ describe("sync-pi-config", () => {
 			trustedDirectories: ["/global/only/path"],
 		});
 
-		const pullResult = syncManagedPiDirectory(
-			"pull",
-			localPiDir,
-			globalAgentDir,
-		);
+		const pullResult = syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
 		expect(pullResult.updated.length).toBe(0);
 		expect(pullResult.deleted.length).toBe(0);
 		expect(
-			JSON.parse(
-				fs.readFileSync(path.join(localPiDir, "trust.json"), "utf-8"),
-			),
+			JSON.parse(fs.readFileSync(path.join(localPiDir, "trust.json"), "utf-8")),
 		).toEqual({
 			trustedDirectories: ["/local/only/path"],
 		});
@@ -318,17 +290,11 @@ describe("sync-pi-config", () => {
 			trustedDirectories: ["/global/only/path"],
 		});
 
-		const pushResult = syncManagedPiDirectory(
-			"push",
-			localPiDir,
-			globalAgentDir,
-		);
+		const pushResult = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
 		expect(pushResult.updated.length).toBe(0);
 		expect(pushResult.deleted.length).toBe(0);
 		expect(
-			JSON.parse(
-				fs.readFileSync(path.join(localPiDir, "trust.json"), "utf-8"),
-			),
+			JSON.parse(fs.readFileSync(path.join(localPiDir, "trust.json"), "utf-8")),
 		).toEqual({
 			trustedDirectories: ["/local/only/path"],
 		});
@@ -350,40 +316,102 @@ describe("sync-pi-config", () => {
 			trustedDirectories: ["/local/only/path"],
 		});
 
-		const pullResult = syncManagedPiDirectory(
-			"pull",
-			localPiDir,
-			globalAgentDir,
-		);
+		const pullResult = syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
 		expect(pullResult.deleted.length).toBe(0);
 		expect(fs.existsSync(path.join(localPiDir, "trust.json"))).toBe(true);
-		expect(
-			fs.existsSync(path.join(globalAgentDir, "trust.json")),
-		).toBe(false);
+		expect(fs.existsSync(path.join(globalAgentDir, "trust.json"))).toBe(false);
 
 		writeJson(path.join(globalAgentDir, "trust.json"), {
 			trustedDirectories: ["/global/only/path"],
 		});
 
-		const pushResult = syncManagedPiDirectory(
-			"push",
-			localPiDir,
-			globalAgentDir,
-		);
+		const pushResult = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
 		expect(pushResult.deleted.length).toBe(0);
 		expect(
 			JSON.parse(
-				fs.readFileSync(
-					path.join(globalAgentDir, "trust.json"),
-					"utf-8",
-				),
+				fs.readFileSync(path.join(globalAgentDir, "trust.json"), "utf-8"),
 			),
 		).toEqual({
 			trustedDirectories: ["/global/only/path"],
 		});
 	});
 
-	it("does not pull global extension directories into local project config", () => {
+	it("skips syncing top-level AGENTS.md for both pull and push", () => {
+		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-agents-md-skip-");
+
+		fs.writeFileSync(
+			path.join(localPiDir, "AGENTS.md"),
+			"# local contract\n",
+			"utf-8",
+		);
+		fs.writeFileSync(
+			path.join(globalAgentDir, "AGENTS.md"),
+			"# global contract\n",
+			"utf-8",
+		);
+		fs.mkdirSync(path.join(localPiDir, "extensions"), { recursive: true });
+		fs.writeFileSync(
+			path.join(localPiDir, "extensions", "AGENTS.md"),
+			"# nested local contract\n",
+			"utf-8",
+		);
+
+		const pullResult = syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
+		expect(pullResult.deleted.length).toBe(0);
+		expect(fs.readFileSync(path.join(localPiDir, "AGENTS.md"), "utf-8")).toBe(
+			"# local contract\n",
+		);
+		expect(fs.readFileSync(path.join(globalAgentDir, "AGENTS.md"), "utf-8")).toBe(
+			"# global contract\n",
+		);
+
+		const pushResult = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+		expect(pushResult.deleted.length).toBe(0);
+		expect(pushResult.updated).toEqual(["extensions/AGENTS.md"]);
+		expect(fs.readFileSync(path.join(localPiDir, "AGENTS.md"), "utf-8")).toBe(
+			"# local contract\n",
+		);
+		expect(fs.readFileSync(path.join(globalAgentDir, "AGENTS.md"), "utf-8")).toBe(
+			"# global contract\n",
+		);
+		expect(
+			fs.readFileSync(
+				path.join(globalAgentDir, "extensions", "AGENTS.md"),
+				"utf-8",
+			),
+		).toBe("# nested local contract\n");
+	});
+
+	it("does not delete target-only AGENTS.md during pull and push sync", () => {
+		const { localPiDir, globalAgentDir } = setupRoots(
+			"pi-sync-agents-md-target-only-",
+		);
+
+		fs.writeFileSync(
+			path.join(localPiDir, "AGENTS.md"),
+			"# local contract\n",
+			"utf-8",
+		);
+
+		const pullResult = syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
+		expect(pullResult.deleted.length).toBe(0);
+		expect(fs.existsSync(path.join(localPiDir, "AGENTS.md"))).toBe(true);
+		expect(fs.existsSync(path.join(globalAgentDir, "AGENTS.md"))).toBe(false);
+
+		fs.writeFileSync(
+			path.join(globalAgentDir, "AGENTS.md"),
+			"# global contract\n",
+			"utf-8",
+		);
+
+		const pushResult = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+		expect(pushResult.deleted.length).toBe(0);
+		expect(fs.readFileSync(path.join(globalAgentDir, "AGENTS.md"), "utf-8")).toBe(
+			"# global contract\n",
+		);
+	});
+
+	it("does not pull managed global extension directories into local project config", () => {
 		const { localPiDir, globalAgentDir } = setupRoots(
 			"pi-sync-global-extension-dirs-",
 		);
@@ -422,6 +450,11 @@ describe("sync-pi-config", () => {
 			"export default function readBoundaryGuard() {}\n",
 			"utf-8",
 		);
+		fs.writeFileSync(
+			path.join(globalAgentDir, "extensions", "plan-mode", ".pi-managed"),
+			"",
+			"utf-8",
+		);
 
 		const result = syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
 
@@ -432,7 +465,7 @@ describe("sync-pi-config", () => {
 		expect(fs.existsSync(localCustomExtension)).toBe(true);
 	});
 
-	it("does not push local extension directories that duplicate global plugin extensions", () => {
+	it("does not push local extension directories that duplicate managed global plugin extensions", () => {
 		const { localPiDir, globalAgentDir } = setupRoots(
 			"pi-sync-global-extension-dir-push-",
 		);
@@ -471,6 +504,11 @@ describe("sync-pi-config", () => {
 			"export default function readBoundaryGuard() {}\n",
 			"utf-8",
 		);
+		fs.writeFileSync(
+			path.join(globalAgentDir, "extensions", "plan-mode", ".pi-managed"),
+			"",
+			"utf-8",
+		);
 
 		const result = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
 
@@ -485,6 +523,42 @@ describe("sync-pi-config", () => {
 				path.join(globalAgentDir, "extensions", "read-boundary-guard.ts"),
 			),
 		).toBe(true);
+	});
+
+	it("preserves local extension directories whose global counterpart lacks the .pi-managed marker", () => {
+		const { localPiDir, globalAgentDir } = setupRoots(
+			"pi-sync-unmanaged-extension-keep-",
+		);
+		const localPlanMode = path.join(
+			localPiDir,
+			"extensions",
+			"plan-mode",
+			"index.ts",
+		);
+		const globalPlanMode = path.join(
+			globalAgentDir,
+			"extensions",
+			"plan-mode",
+			"index.ts",
+		);
+
+		fs.mkdirSync(path.dirname(localPlanMode), { recursive: true });
+		fs.writeFileSync(
+			localPlanMode,
+			"export default function localPlanMode() {}\n",
+			"utf-8",
+		);
+		fs.mkdirSync(path.dirname(globalPlanMode), { recursive: true });
+		fs.writeFileSync(
+			globalPlanMode,
+			"export default function globalPlanMode() {}\n",
+			"utf-8",
+		);
+
+		const result = syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
+
+		expect(result.directoriesRemoved.length).toBe(0);
+		expect(fs.existsSync(localPlanMode)).toBe(true);
 	});
 
 	describe("copySystemMdToClaudeMd", () => {
@@ -525,9 +599,7 @@ describe("sync-pi-config", () => {
 		});
 
 		it("updates CLAUDE.md when SYSTEM.md content changes", () => {
-			const root = fs.mkdtempSync(
-				path.join(os.tmpdir(), "pi-sync-copy-update-"),
-			);
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-sync-copy-update-"));
 			tmpRoots.push(root);
 			const piDir = path.join(root, ".pi");
 			const claudeDir = path.join(root, ".claude");

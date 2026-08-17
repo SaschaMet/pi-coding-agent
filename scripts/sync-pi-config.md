@@ -20,6 +20,7 @@ All files under `.pi/` except:
 | `npm/` | Cached packages |
 | `models.json` | Local model overrides |
 | `trust.json` | Per-machine trust decisions |
+| `AGENTS.md` | Project-local work contract (top-level only; nested `AGENTS.md` files, e.g. under `extensions/`, still sync) |
 
 ## Extension Directory Pruning
 

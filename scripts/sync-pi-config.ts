@@ -13,6 +13,7 @@ const EXCLUDED_TOP_LEVEL_PATHS = new Set([
 	"npm",
 	"models.json",
 	"trust.json",
+	"AGENTS.md",
 ]);
 // Extension directories containing this marker file are considered
 // system-managed and will be pruned from local during sync.
@@ -137,8 +138,7 @@ function removePulledGlobalExtensionDirectories(
 	files: string[],
 	globalAgentDir: string,
 ): string[] {
-	const globalExtensionDirectories =
-		listExtensionDirectoryNames(globalAgentDir);
+	const globalExtensionDirectories = listExtensionDirectoryNames(globalAgentDir);
 	if (globalExtensionDirectories.size === 0) return files;
 
 	return files.filter((relativePath) => {
@@ -305,8 +305,7 @@ function pruneLocalExtensionDirectoriesThatExistGlobally(
 	localPiDir: string,
 	globalAgentDir: string,
 ): string[] {
-	const globalExtensionDirectories =
-		listExtensionDirectoryNames(globalAgentDir);
+	const globalExtensionDirectories = listExtensionDirectoryNames(globalAgentDir);
 	if (globalExtensionDirectories.size === 0) return [];
 
 	const removed: string[] = [];

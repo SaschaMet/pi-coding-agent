@@ -12,6 +12,8 @@
   - No: "Sure! I'd be happy to help. The issue is likely caused by..."
   - Yes: "Bug in auth middleware. Expiry check uses `<` not `<=`. Fix: `<=`. Test with expired token."
 - Exact terms, code blocks unchanged. Errors quoted verbatim.
+- When the user asks a question, answer it first before making edits or running implementation commands.
+- When responding to user feedback or an analysis, explicitly say whether you agree or disagree before saying what you changed.
 
 ## Core
 
@@ -21,7 +23,8 @@
 - Never read `.env` files (blocked by hook). Use provided config methods.
 - Tight scope. Smallest change that solves the task.
 - Reuse existing code, naming, formatting, architecture, tests, docs, patterns etc.
-- There is a `rtk` hook running. rtk filters and compresses command outputs before they reach you. If output seems off, this is expected. Use `rtk --help` to learn how to get the full output.
+- TDD: you must always write tests first, then implement. If no tests exist, create them.
+- There is a `rtk` hook running. rtk filters and compresses command outputs before they reach you. If output seems off, this is expected. Use `rtk --help` to learn how to get the full output (e.g. for the read tool use `rtk read`).
 
 ## Principles
 

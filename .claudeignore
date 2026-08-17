@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+.pi/npm/
+
+# Build / test artifacts
+coverage/
+dist/
+build/
+out/
+
+# Machine-local runtime state
+.pi/scratch/
+.pi/logs/
+.pi/mcp-cache.json
+.pi/models-store.json
+.pi/pi-cache-optimizer-stats.json
+.tokensave
+
+# Lockfiles
+package-lock.json
+
+# Secrets
+.env
+*.pem
