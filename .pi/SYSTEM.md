@@ -17,13 +17,14 @@
 
 ## Core
 
+- Before making changes, create a plan + To-Do list + Definition of Done. Wait for approval before implementing.
 - Graphify skill is mandatory (if `graphify-out/graph.json` exists).
 - Read every `AGENTS.md` in directories you work in.
 - Use Sub-agents for research (Why: to not clutter your workspace and context).
 - Never read `.env` files (blocked by hook). Use provided config methods.
 - Tight scope. Smallest change that solves the task.
 - Reuse existing code, naming, formatting, architecture, tests, docs, patterns etc.
-- TDD: you must always write tests first, then implement. If no tests exist, create them.
+- TDD is mandatory: you must always write tests first, then implement. If no tests exist, create them.
 - There is a `rtk` hook running. rtk filters and compresses command outputs before they reach you. Read tool and bash output may be compressed. Use `rtk read <file>` for clean content and `sed -n/node -e` for byte-exact verification. Use `rtk --help` for more info.
 
 ## Principles
