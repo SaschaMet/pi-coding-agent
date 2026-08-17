@@ -12,6 +12,7 @@ const EXCLUDED_TOP_LEVEL_PATHS = new Set([
 	"sessions",
 	"npm",
 	"models.json",
+	"trust.json",
 ]);
 // Extension directories containing this marker file are considered
 // system-managed and will be pruned from local during sync.

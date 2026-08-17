@@ -19,6 +19,7 @@ All files under `.pi/` except:
 | `sessions/` | Ephemeral state |
 | `npm/` | Cached packages |
 | `models.json` | Local model overrides |
+| `trust.json` | Per-machine trust decisions |
 
 ## Extension Directory Pruning
 

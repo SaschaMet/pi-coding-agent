@@ -284,6 +284,105 @@ describe("sync-pi-config", () => {
 		});
 	});
 
+	it("skips syncing trust.json for both pull and push", () => {
+		const { localPiDir, globalAgentDir } = setupRoots(
+			"pi-sync-trust-skip-",
+		);
+
+		writeJson(path.join(localPiDir, "trust.json"), {
+			trustedDirectories: ["/local/only/path"],
+		});
+		writeJson(path.join(globalAgentDir, "trust.json"), {
+			trustedDirectories: ["/global/only/path"],
+		});
+
+		const pullResult = syncManagedPiDirectory(
+			"pull",
+			localPiDir,
+			globalAgentDir,
+		);
+		expect(pullResult.updated.length).toBe(0);
+		expect(pullResult.deleted.length).toBe(0);
+		expect(
+			JSON.parse(
+				fs.readFileSync(path.join(localPiDir, "trust.json"), "utf-8"),
+			),
+		).toEqual({
+			trustedDirectories: ["/local/only/path"],
+		});
+		expect(
+			JSON.parse(
+				fs.readFileSync(path.join(globalAgentDir, "trust.json"), "utf-8"),
+			),
+		).toEqual({
+			trustedDirectories: ["/global/only/path"],
+		});
+
+		const pushResult = syncManagedPiDirectory(
+			"push",
+			localPiDir,
+			globalAgentDir,
+		);
+		expect(pushResult.updated.length).toBe(0);
+		expect(pushResult.deleted.length).toBe(0);
+		expect(
+			JSON.parse(
+				fs.readFileSync(path.join(localPiDir, "trust.json"), "utf-8"),
+			),
+		).toEqual({
+			trustedDirectories: ["/local/only/path"],
+		});
+		expect(
+			JSON.parse(
+				fs.readFileSync(path.join(globalAgentDir, "trust.json"), "utf-8"),
+			),
+		).toEqual({
+			trustedDirectories: ["/global/only/path"],
+		});
+	});
+
+	it("does not delete target-only trust.json during pull and push sync", () => {
+		const { localPiDir, globalAgentDir } = setupRoots(
+			"pi-sync-trust-target-only-",
+		);
+
+		writeJson(path.join(localPiDir, "trust.json"), {
+			trustedDirectories: ["/local/only/path"],
+		});
+
+		const pullResult = syncManagedPiDirectory(
+			"pull",
+			localPiDir,
+			globalAgentDir,
+		);
+		expect(pullResult.deleted.length).toBe(0);
+		expect(fs.existsSync(path.join(localPiDir, "trust.json"))).toBe(true);
+		expect(
+			fs.existsSync(path.join(globalAgentDir, "trust.json")),
+		).toBe(false);
+
+		writeJson(path.join(globalAgentDir, "trust.json"), {
+			trustedDirectories: ["/global/only/path"],
+		});
+
+		const pushResult = syncManagedPiDirectory(
+			"push",
+			localPiDir,
+			globalAgentDir,
+		);
+		expect(pushResult.deleted.length).toBe(0);
+		expect(
+			JSON.parse(
+				fs.readFileSync(
+					path.join(globalAgentDir, "trust.json"),
+					"utf-8",
+				),
+			),
+		).toEqual({
+			trustedDirectories: ["/global/only/path"],
+		});
+	});
+
 	it("does not pull global extension directories into local project config", () => {
 		const { localPiDir, globalAgentDir } = setupRoots(
 			"pi-sync-global-extension-dirs-",
