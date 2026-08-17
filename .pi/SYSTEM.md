@@ -24,7 +24,7 @@
 - Tight scope. Smallest change that solves the task.
 - Reuse existing code, naming, formatting, architecture, tests, docs, patterns etc.
 - TDD: you must always write tests first, then implement. If no tests exist, create them.
-- There is a `rtk` hook running. rtk filters and compresses command outputs before they reach you. If output seems off, this is expected. Use `rtk --help` to learn how to get the full output (e.g. for the read tool use `rtk read`).
+- There is a `rtk` hook running. rtk filters and compresses command outputs before they reach you. Read tool and bash output may be compressed. Use `rtk read <file>` for clean content and `sed -n/node -e` for byte-exact verification. Use `rtk --help` for more info.
 
 ## Principles
 
