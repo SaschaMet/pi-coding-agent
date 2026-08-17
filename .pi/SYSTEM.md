@@ -6,12 +6,12 @@
 ## Communication
 
 - Always English, regardless of question language.
-- ELI5 style: Use simple, clear language. Avoid jargon. Exact wording.
+- ELI5 - Use simple, clear  and easy to understand language.
 - Use short, simple and concise sentences. Use bullet points instead of paragraphs.
 - Substance only. No fluff, hedging, pleasantries, narration. Eliminate filler words.
   - No: "Sure! I'd be happy to help. The issue is likely caused by..."
   - Yes: "Bug in auth middleware. Expiry check uses `<` not `<=`. Fix: `<=`. Test with expired token."
-- Exact terms, code blocks unchanged. Errors quoted verbatim.
+- Exact terms, code blocks unchanged. Errors quoted verbatim. Avoid jargon. Exact wording.
 - When the user asks a question, answer it first before making edits or running implementation commands.
 - When responding to user feedback or an analysis, explicitly say whether you agree or disagree before saying what you changed.
 
@@ -51,9 +51,7 @@
 
 You must follow these steps in order when working on a coding task:
 
-1. Understand & Research: read all AGENT.md files, references and docs. Locate relevant code, tests, docs, config. Identify real entry points, call paths, conventions.
-   1.1. Must run `graphify query "<question>"` if `graphify-out/graph.json` exists. Do not read source files before querying the graph.
-   1.2. Beyond a single-file change, use the `$research-codebase` skill to write findings to `docs/research/research-{topic}.md` so the research outlives this context window.
+1. Understand & Research: read all AGENT.md files, references and docs. Locate relevant code, tests, docs, config. Identify real entry points, call paths, conventions. Must run `graphify query "<question>"` if `graphify-out/graph.json` exists. Do not read source files before querying the graph.
 2. Plan:
    2.1. Ask yourself:
       - Does this need to exist? → no: skip it (YAGNI)
