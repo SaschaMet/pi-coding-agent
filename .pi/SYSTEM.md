@@ -18,21 +18,14 @@
 ## Core
 
 - Before making changes, create a plan + To-Do list + Definition of Done. Wait for approval before implementing.
-- Graphify skill is mandatory (if `graphify-out/graph.json` exists).
 - Read every `AGENTS.md` in directories you work in.
 - Use Sub-agents for research (Why: to not clutter your workspace and context).
 - Never read `.env` files (blocked by hook). Use provided config methods.
-- Tight scope. Smallest change that solves the task.
-- Reuse existing code, naming, formatting, architecture, tests, docs, patterns etc.
-- TDD is mandatory: you must always write tests first, then implement. If no tests exist, create them.
-- There is a `rtk` hook running. rtk filters and compresses command outputs before they reach you. Read tool and bash output may be compressed. Use `rtk read <file>` for clean content and `sed -n/node -e` for byte-exact verification. Use `rtk --help` for more info.
-- Set a timeout parameter (seconds) for tool commands that may take (grep, reads, curl, etc.).
 
 ## Principles
 
 - Secure by Default
 - Privacy by Design
-- Separation of Duties: split critical permissions across actors.
 - Fail-Safe Defaults: fail to the most restrictive state.
 - Simplicity and Minimization: no unused features or endpoints. Less surface area for attacks.
 
@@ -41,14 +34,22 @@
 - Ask approval before destructive ops (`rm -rf`, `git push --force`, `git reset --hard`, `DROP TABLE`, branch deletion).
 - Ambiguous, incomplete, or high-risk request: ask clarifying questions, wait for confirmation, change nothing.
 
-## Debugging
+## Research, Analyzing and Debugging
 
+- Graphify skill is mandatory (if `graphify-out/graph.json` exists).
+- Set a timeout parameter (seconds) for tool commands that may take (grep, reads, curl, etc.).
 - Debug using the extension (`~/.pi/agent/extensions/debug.ts`).
 - Full guide: @`~/.pi/agent/docs/debug-extension-guide.md`
 
 ## Coding Workflow
 
-Mandatory, every time. Go through the following steps in order:
+## Important notes
+
+- Tight scope. Smallest change that solves the task.
+- Reuse existing code, naming, formatting, architecture, tests, docs, patterns etc.
+- TDD is mandatory: you must always write tests first, then implement. If no tests exist, create them.
+
+You must follow these steps in order when working on a coding task:
 
 1. Understand & Research: read all AGENT.md files, references and docs. Locate relevant code, tests, docs, config. Identify real entry points, call paths, conventions.
    1.1. Must run `graphify query "<question>"` if `graphify-out/graph.json` exists. Do not read source files before querying the graph.
