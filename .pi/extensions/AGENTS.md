@@ -15,8 +15,9 @@ PI extensions that enforce quality and safety at the tool layer: session-end qua
 - `subagent-delegation-policy.ts` — parse explicit delegation requests and route to the right subagent.
 - `rtk.ts` — thin delegating extension that rewrites bash to `rtk` for token savings (rewrite logic lives in the `rtk` Rust registry, not here).
 - `tools.ts` — `/tools` command to enable/disable tools interactively.
+- `context-analyzer.ts` — `/context` command: context-usage overview + breakdown (system prompt, messages by role, tools by source) with scrollable skills/tools/files lists. Local re-implementation of the audited `pi-context-analyzer@0.1.1` (pure logic in `lib/context-analyzer.ts`; TUI + registration here).
 - `debug.ts` — debugging extension.
-- `lib/` — shared helpers (`extension-helpers`, `gate-checks`, `spec-scope`, `trust-loader`).
+- `lib/` — shared helpers (`extension-helpers`, `gate-checks`, `spec-scope`, `trust-loader`, `context-analyzer` core).
 
 ## Local Contracts
 
@@ -34,7 +35,7 @@ PI extensions that enforce quality and safety at the tool layer: session-end qua
 
 ## Verification
 
-- `npm test` — per-guard suites (gates, read/write-boundary-guard, spec-scope, trust-loader, subagent-delegation-policy).
+- `npm test` — per-guard suites (gates, read/write-boundary-guard, spec-scope, trust-loader, subagent-delegation-policy, context-analyzer).
 - `npm run smoke` — confirms extensions load without errors.
 
 ## Child DOX Index

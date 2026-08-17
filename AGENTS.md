@@ -45,3 +45,8 @@ Durable rules, distilled from `.pi/SYSTEM.md` (the single origin — read it for
 - [.pi/AGENTS.md](.pi/AGENTS.md) — project-local PI config (settings, skills, agents, extensions)
 - [scripts/AGENTS.md](scripts/AGENTS.md) — dev utilities (config sync, smoke, headroom)
 - [test/AGENTS.md](test/AGENTS.md) — test conventions (vitest + fake-PI harness)
+
+## Documentation
+
+- GitHub: https://github.com/earendil-works/pi
+- Official Docs: https://pi.dev/docs/latest
