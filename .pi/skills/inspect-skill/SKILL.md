@@ -15,7 +15,7 @@ SkillSpector helps you answer: "Is this skill safe to install?"
 1. Check for updates with `uv tool update skillspector`.
 2. Must use a sub-agent for analysis (read only).
 3. Run `skillspector scan <path> --no-llm` on a local skill directory, a single `SKILL.md` file, a Git repository, or a zip file.
-4. Run the scan with an LLM (see LLM Analysis section below).
+4. Run the scan with an LLM.
 5. Review the report and follow the recommendations to fix any issues.
 
 ## Usage
@@ -53,28 +53,6 @@ skillspector scan ./my-skill/ --format markdown --output report.md
 ### SARIF output - for CI/CD integration and IDE tooling
 
 skillspector scan ./my-skill/ --format sarif --output report.sarif
-
-## LLM Analysis
-
-For the best results, configure an OpenAI-compatible LLM endpoint for semantic analysis.
-
-```bash
-export SKILLSPECTOR_PROVIDER=openai
-export OPENAI_BASE_URL=http://localhost:1331/v1
-export SKILLSPECTOR_MODEL=Ornith-1.0-35B-4bit
-skillspector scan [...]
-```
-
-or for bigger / more complex skills, use a larger model:
-
-```bash
-# Local Claude CLI — no API key; uses your existing `claude auth login` session
-# Requires: claude CLI installed and authenticated (claude auth login)
-export SKILLSPECTOR_PROVIDER=claude_cli
-# Uses the local Claude CLI runtime fallback unless SKILLSPECTOR_MODEL is set.
-export SKILLSPECTOR_MODEL=claude-sonnet-5 # or whatever model is the latest sonnet
-skillspector scan ./my-skill/
-```
 
 ## Full Documentation
 
