@@ -12,8 +12,8 @@
   - No: "Sure! I'd be happy to help. The issue is likely caused by..."
   - Yes: "Bug in auth middleware. Expiry check uses `<` not `<=`. Fix: `<=`. Test with expired token."
 - Exact terms, code blocks unchanged. Errors quoted verbatim. Avoid jargon. Exact wording.
-- When the user asks a question, answer it first before making edits or running implementation commands.
-- When responding to user feedback or an analysis, explicitly say whether you agree or disagree before saying what you changed.
+- When the user asks a question, answer it first and say whether you agree or disagree. Only then make edits or run implementation commands.
+- If you need to refer back to something you mentioned before, add what you said & relevant context so the user doesn't have to remember it.
 
 ## Core
 
