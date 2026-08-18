@@ -8,6 +8,7 @@ Dev utilities outside the runtime: bidirectional config sync (`.pi/` ↔ `~/.pi/
 
 ## Ownership
 
+- `patch-retry.ts` — re-applies the pi-ai retry-backoff cap (60s from 5th retry) after every `npm install`; runs as `postinstall` + `npm run pi:patch-retry`. See `test/patch-retry.test.ts`.
 - `sync-pi-config.ts` (+ `sync-pi-config.md`) — managed sync of the `.pi/` tree: exclusions, extension pruning, settings/mcp merge, and `SYSTEM.md → CLAUDE.md` copy.
 - `smoke.ts` — extension/resource discovery smoke check.
 - `headroom-up.sh` — brings up the Docker headroom service (`headroom-compose.yml`).
@@ -27,7 +28,8 @@ Dev utilities outside the runtime: bidirectional config sync (`.pi/` ↔ `~/.pi/
 ## Verification
 
 - `npm run pi:pull-global` / `npm run pi:sync-global` — exercise sync in both directions.
-- `npm test` — `test/sync-pi-config.test.ts`, `test/package-scripts.test.ts`.
+- `npm run pi:patch-retry` — re-run the retry-backoff patch (also runs on `postinstall`).
+- `npm test` — `test/sync-pi-config.test.ts`, `test/package-scripts.test.ts`, `test/patch-retry.test.ts`.
 - `npm run smoke` — runs `smoke.ts`.
 - `npm run headroom:up` / `headroom:down` — Docker headroom lifecycle.
 

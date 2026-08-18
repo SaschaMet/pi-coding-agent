@@ -37,7 +37,7 @@
 ## Research, Analyzing and Debugging
 
 - Graphify skill is mandatory (if `graphify-out/graph.json` exists).
-- Set a timeout parameter (seconds) for tool commands that may take (grep, reads, curl, etc.).
+- Set the timeout parameter for tool commands (grep, reads, curl, node, python, php, etc.).
 - Debug using the extension (`~/.pi/agent/extensions/debug.ts`).
 - Full guide: @`~/.pi/agent/docs/debug-extension-guide.md`
 

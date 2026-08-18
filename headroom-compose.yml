@@ -43,6 +43,16 @@ services:
       # interfaces by default, which combined with ALLOW_REMOTE would expose /v1/compress
       # to the whole LAN, not just this machine.
       - "127.0.0.1:8788:8787"
+    volumes:
+      # Read-only transcript mounts so `headroom audit-reads` / `inspect` can size real
+      # compression opportunities and diagnose corruption from actual session history,
+      # instead of guessing at defaults. Container resolves its own $HOME as /root (confirmed
+      # via `headroom audit-reads` erroring "/root/.claude/projects does not exist" before
+      # this mount existed), so both are mounted under /root to match audit-reads' default
+      # path resolution. Claude Code transcripts + pi coding-agent transcripts (jsonl
+      # sessions under ~/.pi/agent/sessions) — both route through this same proxy.
+      - "${HOME}/.claude/projects:/root/.claude/projects:ro"
+      - "${HOME}/.pi/agent/sessions:/root/.pi/agent/sessions:ro"
     environment:
       HEADROOM_HOST: "0.0.0.0"
       HEADROOM_TELEMETRY: "off"
@@ -79,4 +89,19 @@ services:
     # Image moved orgs: the repo transferred from chopratejas/headroom to headroomlabs-ai/headroom
     # on 2026-06-29 (after v0.28.0). GHCR did not redirect the old package, so
     # ghcr.io/chopratejas/headroom:latest is frozen at v0.27.0 forever — do not revert this.
-    command: ["--mode", "token", "--no-cache"]
+    # --lossless: format-native lossless compaction for tool outputs (dedup identical/subset
+    #   reads, strip line-number scaffolding, collapse stale post-edit reads) instead of the
+    #   lossy token-mode rewriting that was silently dropping keywords (if/set/endif/and/=)
+    #   from Twig file reads in the shopware repo. Chosen over a blanket
+    #   --protect-tool-results Read after `headroom audit-reads` on 717 real sessions showed
+    #   Read is 47.4% of all tool-output bytes, and ~37% of that is safely-compressible
+    #   duplicate/scaffolding (stale-after-edit 20.6%, line-number scaffolding 7.5%, identical
+    #   repeat 5.8%, subset containment 3.4%) rather than genuine prose/code content — blanket
+    #   protection gave up that whole slice of legitimate savings, not just the risky part.
+    #   No CCR retrieval marker is emitted in this mode, so no MCP retrieve tool is needed.
+    # --log-file / --log-messages: persist pre/post-compression snapshots so `headroom inspect`
+    #   can show real before/after diffs, and `headroom perf` can analyze real traffic. Path is
+    #   inside the image's existing /home/nonroot/.headroom volume so it survives container
+    #   recreation. --log-messages may log sensitive request/response content to this file —
+    #   acceptable here since it's a local-only bind mount, not shipped anywhere.
+    command: ["--mode", "token", "--no-cache", "--lossless", "--log-file", "/home/nonroot/.headroom/proxy.log", "--log-messages"]
