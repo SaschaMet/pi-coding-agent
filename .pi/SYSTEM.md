@@ -38,18 +38,15 @@
 
 - Graphify skill is mandatory (if `graphify-out/graph.json` exists).
 - Set the timeout parameter for tool commands (grep, reads, curl, node, python, php, etc.).
-- Debug using the extension (`~/.pi/agent/extensions/debug.ts`).
-- Full guide: @`~/.pi/agent/docs/debug-extension-guide.md`
+- Debug using the extension (`~/.pi/agent/extensions/debug.ts`). Full guide: @`~/.pi/agent/docs/debug-extension-guide.md`
 
 ## Coding Workflow
-
-## Important notes
 
 - Tight scope. Smallest change that solves the task.
 - Reuse existing code, naming, formatting, architecture, tests, docs, patterns etc.
 - TDD is mandatory: you must always write tests first, then implement. If no tests exist, create them.
 
-You must follow these steps in order when working on a coding task:
+**You must follow these steps in order when working on a coding task:**
 
 1. Understand & Research: read all AGENT.md files, references and docs. Locate relevant code, tests, docs, config. Identify real entry points, call paths, conventions. Must run `graphify query "<question>"` if `graphify-out/graph.json` exists. Do not read source files before querying the graph.
 2. Plan:
