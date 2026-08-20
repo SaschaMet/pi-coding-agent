@@ -5,7 +5,7 @@ description: Canonical severity rubric for code review findings — floors, comp
 
 # Severity Rubric
 
-Load this whenever you assign a severity to a finding, and again in the merge step when you reconcile severities across passes. It is the single source of truth for severity; specialist passes set an initial severity from the floors below, the parent session applies the merge-step rules.
+Read by the reviewer (it assigns severity) and by the parent (it applies the floors at assembly and produces the verdict). Single source of truth for severity.
 
 ## Base Levels
 
@@ -26,13 +26,13 @@ These are minimums. A finding may be rated higher when its impact warrants it, n
 - Findings on symbols with high blast radius (wide call-site count, or exported/public API) weight upward when the diff also changes that symbol's signature or behavior.
 - Security severities come from the triage rubric in `references/security-verification.md`, set by the verification wave and not by the discovery agent's first guess. Drop `unconfirmed` findings below 0.5 confidence; demote borderline ones to LOW.
 
-## Compounding Findings (merge step only)
+## Compounding Findings
 
 When the most likely fix for finding A would activate or worsen finding B, raise B's severity to reflect the combined failure scenario and state the causal chain in B's evidence field.
 
 Limits, all of which must hold:
 
-- Apply this only in the parent session's merge step, over the union of all pass outputs. A specialist subagent sees only its own category and cannot judge it.
+- The **reviewer** applies this, over the union of its own findings across all three categories — it holds the code context the judgement needs. The parent does not redo it and does not undo it.
 - At most one level per named causal link — LOW to MEDIUM, or MEDIUM to HIGH. Never two levels in one step.
 - No transitive chaining. If A escalates B, B may not then escalate C on the strength of that same chain.
 - Escalation only. This rule never lowers a severity.

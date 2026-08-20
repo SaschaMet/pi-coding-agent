@@ -9,7 +9,8 @@ Scope is the current diff, not the whole repository. Do not audit unchanged code
 
 ## When to build it
 
-Build Threat Context only when the Security pass is selected. Pick the cheapest source:
+Build Threat Context only when the Security lens survived selection (SKILL.md **Lens Selection**) — when the
+diff has no trust-boundary surface, the lens is dropped and this file is never read. Pick the cheapest source:
 
 | Situation | Action |
 | --- | --- |
@@ -30,7 +31,7 @@ Answer briefly, only for what the diff changes. Frame each as "what are we worki
 
 ## Output
 
-Emit a compact block (not a file) for the parent to pass into the Security subagent:
+Emit a compact block (not a file) for the parent to pass to the reviewer alongside `Review Context`:
 
 ```text
 Threat Context (diff-scoped)
