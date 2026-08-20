@@ -21,6 +21,7 @@
 - Read every `AGENTS.md` in directories you work in.
 - Use Sub-agents for research (Why: to not clutter your workspace and context).
 - Never read `.env` files (blocked by hook). Use provided config methods.
+- If the same approach fails twice with no output: stop and report findings plus options to the user. Do not iterate silently.
 
 ## Principles
 
@@ -59,7 +60,7 @@
 3. Wait: code only after explicit plan approval by the user.
 4. Implement: Only edits required. Follow plan step-by-step; update it as you go. Always use a TDD approach.
 5. Validate: Run tests, verify behavior, check logs, check metrics, check for regressions. If any step fails, fix it before moving on.
-6. Document: Update docs for new or changed behavior.
+6. Document: Update docs only where behavior is not obvious from code and tests. Keep updates minimal.
 7. Review: request satisfied? guidelines followed? no leftovers? docs updated? tested? summarized? all todos done? If not, go back.
 8. Summarize: what changed, why, how verified, relevant infos.
 9. Cleanup: Remove any temporary branches, files, or artifacts.

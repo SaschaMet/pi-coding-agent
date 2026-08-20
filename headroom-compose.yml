@@ -56,6 +56,21 @@ services:
     environment:
       HEADROOM_HOST: "0.0.0.0"
       HEADROOM_TELEMETRY: "off"
+      # Cross-turn (whole-conversation) verbatim de-dup: OFF.
+      # Headroom's DEFAULT "coding" savings profile (agent_savings.py, DEFAULT_PROFILE)
+      # seeds HEADROOM_DEDUPE=1 into the proxy process env via setdefault
+      # (seed_proxy_env_defaults), which makes ContentRouter fold any tool output that
+      # repeats >=3 lines / >=40 chars of an earlier tool output (verbatim or uniformly
+      # renumbered) into a one-line pointer like "[↑47L same as msg 16: '...']"
+      # (transforms/cross_turn_dedup.py). That is lossy for the agent's working memory:
+      # re-running a query after an environment change returns the pointer instead of
+      # the data, which forced marker/file workarounds and extra agent round-trips
+      # (observed in the shopware QA session 2026-08-20). Explicit env wins over the
+      # profile's setdefault seeding, so this overrides the coding profile without
+      # changing any of its other knobs (lossless folds, protect_reads, ...). Gate:
+      # content_router.py _cross_turn_dedup_enabled = config flag OR HEADROOM_DEDUPE in
+      # (1,true,yes,on) — "0" is off. Re-enable by deleting this line.
+      HEADROOM_DEDUPE: "0"
       # /v1/compress is loopback-gated by default (server.py, issue #1537) — the app sees
       # requests arriving through Docker's port-forwarding as non-loopback and 404s them.
       # HEADROOM_COMPRESS_ALLOW_REMOTE is the documented, scoped opt-out for exactly this
