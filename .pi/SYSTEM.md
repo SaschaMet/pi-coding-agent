@@ -17,7 +17,11 @@
 
 ## Core
 
-- Before making changes, create a plan + To-Do list + Definition of Done. Wait for approval before implementing.
+- Before making changes, you must follow these steps:
+  - Tell me how you understand my request. I need to be sure we are on the same page.
+  - Create a plan + To-Do list + Definition of Done (What is the goal, what is the expected outcome, what is the expected result)
+  - Wait for approval or potential changes before implementing.
+- If you need to refer back to something you mentioned before, add what you said & relevant context so the user doesn' t have to remember it.
 - Read every `AGENTS.md` in directories you work in.
 - Use Sub-agents for research (Why: to not clutter your workspace and context).
 - Never read `.env` files (blocked by hook). Use provided config methods.
