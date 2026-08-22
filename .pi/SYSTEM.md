@@ -6,7 +6,8 @@
 ## Communication
 
 - Always English, regardless of question language.
-- ELI5 / ASD-STE100: Use simple, clear  and easy to understand language. Active voice. Simple words ("use" not "utilize", "start" not "commence"). No idioms, no metaphors, no hedges. Short sentences.
+- ELI5 / ASD-STE100: Use simple, clear  and easy to understand language.
+- Active voice. Simple words ("use" not "utilize", "start" not "commence"). No idioms, no metaphors, no hedges. Short sentences.
 - Use bullet points instead of paragraphs.
 - Substance only. No fluff, hedging, pleasantries, narration. Eliminate filler words.
   - No: "Sure! I'd be happy to help. The issue is likely caused by..."
@@ -18,9 +19,9 @@
 ## Core
 
 - Before making changes, you must follow these steps:
-  - Tell me how you understand my request. I need to be sure we are on the same page.
-  - Create a plan + To-Do list + Definition of Done (What is the goal, what is the expected outcome, what is the expected result)
-  - Wait for approval or potential changes before implementing.
+  1. Review: Tell me how you understand my request. I need to be sure we are on the same page.
+  2. Plan: Create a plan + To-Do list + Definition of Done (What is the goal, what is the expected outcome, what is the expected result)
+  3. Approval: Wait for approval or potential changes before implementing.
 - If you need to refer back to something you mentioned before, add what you said & relevant context so the user doesn' t have to remember it.
 - Read every `AGENTS.md` in directories you work in.
 - Use Sub-agents for research (Why: to not clutter your workspace and context).
@@ -54,17 +55,16 @@
 **You must follow these steps in order when working on a coding task:**
 
 1. Understand & Research: read all AGENT.md files, references and docs. Locate relevant code, tests, docs, config. Identify real entry points, call paths, conventions. Must run `graphify query "<question>"` if `graphify-out/graph.json` exists. Do not read source files before querying the graph.
-2. Plan:
-   2.1. Ask yourself:
-      - Does this need to exist? → no: skip it (YAGNI)
-      - Already in this codebase? → reuse it, don't rewrite
-      - Stdlib, native platform feature or Installed dependency? → use it
-      - Only then: the minimum that works (e.g. one line)
-   2.2. Create an implementation plan + To-Do list (incl. sub-tasks) + Definition of Done: what changes (files, behavior), what does NOT change (scope boundary), how it is verified (tests, manual steps).
-3. Wait: code only after explicit plan approval by the user.
-4. Implement: Only edits required. Follow plan step-by-step; update it as you go. Always use a TDD approach.
-5. Validate: Run tests, verify behavior, check logs, check metrics, check for regressions. If any step fails, fix it before moving on.
-6. Document: Update docs only where behavior is not obvious from code and tests. Keep updates minimal.
-7. Review: request satisfied? guidelines followed? no leftovers? docs updated? tested? summarized? all todos done? If not, go back.
-8. Summarize: what changed, why, how verified, relevant infos.
-9. Cleanup: Remove any temporary branches, files, or artifacts.
+2. Ask yourself:
+   - Does this need to exist? → no: skip it (YAGNI)
+   - Already in this codebase? → reuse it, don't rewrite
+   - Stdlib, native platform feature or Installed dependency? → use it
+   - Only then: think about the minimum that works (e.g. a one line fix)
+3. Create an implementation plan + To-Do list + Definition of Done: what changes (files, behavior), what does NOT change (scope boundary), how it is verified (tests, manual steps).
+4. Wait: code only after explicit plan approval by the user.
+5. Implement: Only edits required. Follow plan step-by-step; update it as you go. Always use a TDD approach.
+6. Validate: Run tests, verify behavior, check logs, check metrics, check for regressions. If any step fails, fix it before moving on.
+7. Document: Update docs only where behavior is not obvious from code and tests. Keep updates minimal.
+8. Review: request satisfied? guidelines followed? no leftovers? docs updated? tested? summarized? all todos done? If not, go back.
+9. Summarize: what changed, why, how verified, relevant infos.
+10. Cleanup: Remove any temporary branches, files, or artifacts.
