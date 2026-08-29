@@ -6,6 +6,7 @@ node_modules
 .claude
 coverage
 docs/plans/**
+test/.fixtures/
 .DS_Store
 .tokensave
 .pi/mcp-cache.json

@@ -1,7 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import { DefaultResourceLoader, getAgentDir, SettingsManager, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import {
+    DefaultResourceLoader,
+    getAgentDir,
+    SettingsManager,
+    type ExtensionAPI,
+} from "@earendil-works/pi-coding-agent";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 
 const REQUIRED_EXTENSIONS = [
@@ -39,7 +44,8 @@ function createFakePi(): ExtensionAPI {
         registerCommand: noop as ExtensionAPI["registerCommand"],
         registerShortcut: noop as ExtensionAPI["registerShortcut"],
         registerFlag: noop as ExtensionAPI["registerFlag"],
-        registerMessageRenderer: noop as ExtensionAPI["registerMessageRenderer"],
+        registerMessageRenderer:
+            noop as ExtensionAPI["registerMessageRenderer"],
         sendMessage: noop as ExtensionAPI["sendMessage"],
         sendUserMessage: noop as ExtensionAPI["sendUserMessage"],
         appendEntry: noop as ExtensionAPI["appendEntry"],
@@ -47,24 +53,33 @@ function createFakePi(): ExtensionAPI {
         getSessionName: (() => undefined) as ExtensionAPI["getSessionName"],
         setLabel: noop as ExtensionAPI["setLabel"],
         getCommands: (() => []) as ExtensionAPI["getCommands"],
-        exec: (async () => ({ stdout: "", stderr: "", code: 0, killed: false })) as ExtensionAPI["exec"],
-        getActiveTools: (() => tools.map((tool) => tool.name)) as ExtensionAPI["getActiveTools"],
+        exec: (async () => ({
+            stdout: "",
+            stderr: "",
+            code: 0,
+            killed: false,
+        })) as ExtensionAPI["exec"],
+        getActiveTools: (() =>
+            tools.map((tool) => tool.name)) as ExtensionAPI["getActiveTools"],
         getAllTools: (() =>
             tools.map((tool) => ({
                 name: tool.name,
                 description: "",
                 parameters: {},
-            }))) as unknown as ExtensionAPI["getAllTools"],
+            }))) as unknown as ExtensionAPI["getAllTools"], // SAFETY: smoke stub — tools carry only the fields this script reads
+
         setActiveTools: noop as ExtensionAPI["setActiveTools"],
         setModel: (async () => true) as ExtensionAPI["setModel"],
         setThinkingLevel: noop as ExtensionAPI["setThinkingLevel"],
-        getThinkingLevel: (() => "medium" as ThinkingLevel) as ExtensionAPI["getThinkingLevel"],
+        getThinkingLevel: (() =>
+            "medium" as ThinkingLevel) as ExtensionAPI["getThinkingLevel"],
         getFlag: (() => undefined) as ExtensionAPI["getFlag"],
         events: { on: noop, off: noop, emit: noop },
         registerProvider: noop as ExtensionAPI["registerProvider"],
         unregisterProvider: noop as ExtensionAPI["unregisterProvider"],
     };
 
+    // SAFETY: smoke stub — implements every member of ExtensionAPI used by the loaded extensions
     return fakePi as unknown as ExtensionAPI;
 }
 
@@ -77,7 +92,8 @@ async function main(): Promise<void> {
         }
     }
 
-    const extensionsDir = path.join(cwd, ".pi", "extensions"); const extensionFiles = listExtensionFiles(extensionsDir);
+    const extensionsDir = path.join(cwd, ".pi", "extensions");
+    const extensionFiles = listExtensionFiles(extensionsDir);
     const fakePi = createFakePi();
 
     for (const extensionFile of extensionFiles) {
@@ -92,17 +108,36 @@ async function main(): Promise<void> {
 
     const agentDir = getAgentDir();
     const settingsManager = SettingsManager.create(cwd);
-    const loader = new DefaultResourceLoader({ cwd, agentDir, settingsManager });
+    const loader = new DefaultResourceLoader({
+        cwd,
+        agentDir,
+        settingsManager,
+    });
     await loader.reload();
 
-    const settingsPath = path.join(cwd, ".pi", "settings.json");
-    const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8")) as { packages?: string[] };
-    if (!settings.packages?.includes("npm:@tintinweb/pi-subagents")) {
-        throw new Error("Missing required package: npm:@tintinweb/pi-subagents");
+    // Verify the required package is actually installed in the project-local npm root
+    // (the real runtime state), so the local .pi/settings.json does not need to mirror
+    // the global settings' package list.
+    const requiredPackageDir = path.join(
+        cwd,
+        ".pi",
+        "npm",
+        "node_modules",
+        "@tintinweb",
+        "pi-subagents",
+    );
+    if (!fs.existsSync(requiredPackageDir)) {
+        throw new Error(
+            "Missing required package: npm:@tintinweb/pi-subagents is not installed under .pi/npm/node_modules.",
+        );
     }
 
     const skills = loader.getSkills().skills;
-    const codexSkills = skills.filter((skill) => skill.filePath.includes(`${path.sep}.codex${path.sep}skills${path.sep}`));
+    const codexSkills = skills.filter((skill) =>
+        skill.filePath.includes(
+            `${path.sep}.codex${path.sep}skills${path.sep}`,
+        ),
+    );
 
     console.log(`Smoke check passed.`);
     console.log(`Extensions loaded: ${extensionFiles.length}`);
@@ -111,6 +146,8 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-    console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+    console.error(
+        error instanceof Error ? (error.stack ?? error.message) : String(error),
+    );
     process.exit(1);
 });

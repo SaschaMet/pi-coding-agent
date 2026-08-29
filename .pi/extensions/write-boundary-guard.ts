@@ -11,12 +11,15 @@ import type {
 import {
     getToolPath,
     isOutsideWorkingDirectory,
+    isWithinTempDir,
     readLastCustomEntry,
     toRepoRelative,
 } from "./lib/extension-helpers.ts";
 import { matchesAny, parseScopeSection } from "./lib/spec-scope.ts";
 
-const WRITE_BOUNDARY_GUARD_REGISTERED = Symbol.for("pi.extensions.write-boundary-guard.registered");
+const WRITE_BOUNDARY_GUARD_REGISTERED = Symbol.for(
+    "pi.extensions.write-boundary-guard.registered",
+);
 const SCOPE_STATE_TYPE = "write-scope";
 
 const GUARDED_TOOLS = new Set(["write", "edit"]);
@@ -25,7 +28,11 @@ const GUARDED_TOOLS = new Set(["write", "edit"]);
 const SPEC_PATH_PATTERN = /(^|\/)docs\/specs\/spec-[^/]+\.md$/;
 
 /** Planning artifacts the agent must always be able to maintain while armed. */
-const ALWAYS_WRITABLE_PREFIXES = ["docs/specs/", "docs/research/", "docs/plans/"];
+const ALWAYS_WRITABLE_PREFIXES = [
+    "docs/specs/",
+    "docs/research/",
+    "docs/plans/",
+];
 
 type Scope = {
     specPath: string;
@@ -61,7 +68,8 @@ function parseSpecScope(specRelativePath: string, cwd: string): ParseResult {
     }
 
     const parsed = parseScopeSection(specText);
-    if ("error" in parsed) return { error: `${parsed.error} in '${specRelativePath}'` };
+    if ("error" in parsed)
+        return { error: `${parsed.error} in '${specRelativePath}'` };
 
     return {
         scope: {
@@ -89,11 +97,18 @@ export default function writeBoundaryGuardExtension(pi: ExtensionAPI): void {
      * scope entry must disarm rather than inherit the previous branch's boundary.
      */
     const applyPersistedScope = (ctx: ExtensionContext) => {
-        const entry = readLastCustomEntry<{ scope?: Scope | null }>(ctx, SCOPE_STATE_TYPE);
+        const entry = readLastCustomEntry<{ scope?: Scope | null }>(
+            ctx,
+            SCOPE_STATE_TYPE,
+        );
         getState(pi).scope = entry?.data?.scope ?? null;
     };
 
-    const armFromSpec = (specPath: string, cwd: string, origin: "command" | "auto"): void => {
+    const armFromSpec = (
+        specPath: string,
+        cwd: string,
+        origin: "command" | "auto",
+    ): void => {
         const state = getState(pi);
         const parsed = parseSpecScope(specPath, cwd);
 
@@ -118,7 +133,9 @@ export default function writeBoundaryGuardExtension(pi: ExtensionAPI): void {
             [
                 `[SCOPE] Write scope armed from \`${parsed.scope.specPath}\`${origin === "auto" ? " (auto)" : ""}.`,
                 `Modify: ${parsed.scope.modify.join(", ")}`,
-                parsed.scope.forbid.length > 0 ? `Forbid: ${parsed.scope.forbid.join(", ")}` : "Forbid: (none)",
+                parsed.scope.forbid.length > 0
+                    ? `Forbid: ${parsed.scope.forbid.join(", ")}`
+                    : "Forbid: (none)",
                 "Writes outside this scope are blocked. /scope off to disarm.",
             ].join("\n"),
         );
@@ -133,11 +150,13 @@ export default function writeBoundaryGuardExtension(pi: ExtensionAPI): void {
 
     // Auto-arm once a spec write actually lands, because a skill cannot type `/scope`.
     pi.on("tool_result", async (event: ToolResultEvent, ctx) => {
-        if (!GUARDED_TOOLS.has(event.toolName) || event.isError) return undefined;
+        if (!GUARDED_TOOLS.has(event.toolName) || event.isError)
+            return undefined;
 
         const targetPath = getToolPath(event.input);
         if (!targetPath) return undefined;
-        if (!SPEC_PATH_PATTERN.test(toRepoRelative(targetPath, ctx.cwd))) return undefined;
+        if (!SPEC_PATH_PATTERN.test(toRepoRelative(targetPath, ctx.cwd)))
+            return undefined;
 
         // Re-arming from a spec the agent just authored would let the work in flight
         // rewrite its own boundary. Replacing an armed scope stays a human action.
@@ -153,43 +172,60 @@ export default function writeBoundaryGuardExtension(pi: ExtensionAPI): void {
         return undefined;
     });
 
-    pi.on("tool_call", async (event: ToolCallEvent, ctx): Promise<ToolCallEventResult | undefined> => {
-        if (!GUARDED_TOOLS.has(event.toolName)) return undefined;
+    pi.on(
+        "tool_call",
+        async (
+            event: ToolCallEvent,
+            ctx,
+        ): Promise<ToolCallEventResult | undefined> => {
+            if (!GUARDED_TOOLS.has(event.toolName)) return undefined;
 
-        const state = getState(pi);
-        const scope = state.scope;
-        if (!scope) return undefined;
+            const state = getState(pi);
+            const scope = state.scope;
+            if (!scope) return undefined;
 
-        const targetPath = getToolPath(event.input as Record<string, unknown>);
-        if (!targetPath) {
-            return {
-                block: true,
-                reason: `Blocked ${event.toolName}: missing path argument, cannot check it against the armed scope in '${scope.specPath}'.`,
-            };
-        }
+            const targetPath = getToolPath(
+                event.input as Record<string, unknown>,
+            );
+            if (!targetPath) {
+                return {
+                    block: true,
+                    reason: `Blocked ${event.toolName}: missing path argument, cannot check it against the armed scope in '${scope.specPath}'.`,
+                };
+            }
 
-        const relativePath = toRepoRelative(targetPath, ctx.cwd);
+            const relativePath = toRepoRelative(targetPath, ctx.cwd);
 
-        const reason = describeViolation(scope, targetPath, relativePath, ctx.cwd);
-        if (!reason) return undefined;
+            const reason = describeViolation(
+                scope,
+                targetPath,
+                relativePath,
+                ctx.cwd,
+            );
+            if (!reason) return undefined;
 
-        if (!ctx.hasUI) {
-            return { block: true, reason: `${reason} (no UI for approval)` };
-        }
+            if (!ctx.hasUI) {
+                return {
+                    block: true,
+                    reason: `${reason} (no UI for approval)`,
+                };
+            }
 
-        const choice = await ctx.ui.select(
-            `Allow ${event.toolName} outside the armed spec scope?\n\n${reason}`,
-            ["Yes", "No"],
-        );
-        if (choice !== "Yes") {
-            return { block: true, reason: `${reason} Blocked by user.` };
-        }
+            const choice = await ctx.ui.select(
+                `Allow ${event.toolName} outside the armed spec scope?\n\n${reason}`,
+                ["Yes", "No"],
+            );
+            if (choice !== "Yes") {
+                return { block: true, reason: `${reason} Blocked by user.` };
+            }
 
-        return undefined;
-    });
+            return undefined;
+        },
+    );
 
     pi.registerCommand("scope", {
-        description: "Arm write boundaries from a spec's Scope section (<spec-path>|off; no argument reports status)",
+        description:
+            "Arm write boundaries from a spec's Scope section (<spec-path>|off; no argument reports status)",
         handler: async (args: string, ctx: ExtensionCommandContext) => {
             const state = getState(pi);
             const requested = args.trim();
@@ -197,7 +233,9 @@ export default function writeBoundaryGuardExtension(pi: ExtensionAPI): void {
             if (requested.toLowerCase() === "off") {
                 state.scope = null;
                 pi.appendEntry(SCOPE_STATE_TYPE, { scope: null });
-                report("[SCOPE] Write scope disarmed. Writes are unrestricted.");
+                report(
+                    "[SCOPE] Write scope disarmed. Writes are unrestricted.",
+                );
                 return;
             }
 
@@ -207,7 +245,9 @@ export default function writeBoundaryGuardExtension(pi: ExtensionAPI): void {
             }
 
             if (!state.scope) {
-                report("[SCOPE] No write scope armed. Usage: /scope <spec-path> | /scope off");
+                report(
+                    "[SCOPE] No write scope armed. Usage: /scope <spec-path> | /scope off",
+                );
                 return;
             }
 
@@ -225,8 +265,11 @@ export default function writeBoundaryGuardExtension(pi: ExtensionAPI): void {
 }
 
 /**
- * Why this write is not allowed, or `undefined` when it is. Order matters: containment and
- * `Forbid` are decided before any allowance, so no allowlist can override a denial.
+ * Why this write is not allowed, or `undefined` when it is. The system temp directory is
+ * exempt: scratch space is outside the spec's jurisdiction, and the check runs on the
+ * resolved path, so a tmp path that symlinks out of the temp directory still resolves
+ * outside it and stays blocked. Order otherwise matters: containment and `Forbid` are
+ * decided before any allowance, so no allowlist can override a denial.
  */
 function describeViolation(
     scope: Scope,
@@ -234,6 +277,8 @@ function describeViolation(
     relativePath: string,
     cwd: string,
 ): string | undefined {
+    if (isWithinTempDir(targetPath, cwd)) return undefined;
+
     if (isOutsideWorkingDirectory(targetPath, cwd)) {
         return `Path '${targetPath}' resolves outside the working directory, so the scope of spec '${scope.specPath}' cannot cover it.`;
     }
@@ -243,7 +288,12 @@ function describeViolation(
     }
 
     if (relativePath === scope.specPath) return undefined;
-    if (ALWAYS_WRITABLE_PREFIXES.some((prefix) => relativePath.startsWith(prefix))) return undefined;
+    if (
+        ALWAYS_WRITABLE_PREFIXES.some((prefix) =>
+            relativePath.startsWith(prefix),
+        )
+    )
+        return undefined;
     if (matchesAny(relativePath, scope.modify)) return undefined;
 
     return `Path '${relativePath}' is outside the modify scope of spec '${scope.specPath}' (${scope.modify.join(", ")}).`;

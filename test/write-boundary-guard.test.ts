@@ -65,18 +65,27 @@ async function toolResult(
 ) {
     for (const handler of pi.handlers.get("tool_result") ?? []) {
         await handler(
-            { toolName: options.toolName ?? "write", input, isError: options.isError ?? false },
+            {
+                toolName: options.toolName ?? "write",
+                input,
+                isError: options.isError ?? false,
+            },
             makeCtx(),
         );
     }
 }
 
-async function arm(pi: ReturnType<typeof createFakePi>, specRelativePath: string) {
+async function arm(
+    pi: ReturnType<typeof createFakePi>,
+    specRelativePath: string,
+) {
     await pi.commands.get("scope")!.handler(specRelativePath, makeCtx());
 }
 
 function messages(pi: ReturnType<typeof createFakePi>): string {
-    return pi.sentMessages.map((sent: any) => String(sent.message?.content ?? "")).join("\n");
+    return pi.sentMessages
+        .map((sent: any) => String(sent.message?.content ?? ""))
+        .join("\n");
 }
 
 function armedGuard(spec: string = SPEC_BODY) {
@@ -108,22 +117,30 @@ describe("write boundary guard extension", () => {
         const pi = createFakePi();
         writeBoundaryGuard(pi as any);
 
-        expect(await toolCall(pi, "write", { path: "anywhere/at/all.ts" })).toBeUndefined();
+        expect(
+            await toolCall(pi, "write", { path: "anywhere/at/all.ts" }),
+        ).toBeUndefined();
     });
 
     it("allows a write inside the spec modify scope", async () => {
         const pi = armedGuard();
         await arm(pi, "docs/specs/spec-demo.md");
 
-        expect(await toolCall(pi, "write", { path: "src/nested/thing.ts" })).toBeUndefined();
-        expect(await toolCall(pi, "edit", { path: "package.json" })).toBeUndefined();
+        expect(
+            await toolCall(pi, "write", { path: "src/nested/thing.ts" }),
+        ).toBeUndefined();
+        expect(
+            await toolCall(pi, "edit", { path: "package.json" }),
+        ).toBeUndefined();
     });
 
     it("blocks a write outside the spec modify scope", async () => {
         const pi = armedGuard();
         await arm(pi, "docs/specs/spec-demo.md");
 
-        const result = await toolCall(pi, "edit", { path: "scripts/deploy.sh" });
+        const result = await toolCall(pi, "edit", {
+            path: "scripts/deploy.sh",
+        });
         expect(result?.block).toBe(true);
         expect(result?.reason).toContain("scripts/deploy.sh");
         expect(result?.reason).toContain("spec-demo.md");
@@ -134,8 +151,15 @@ describe("write boundary guard extension", () => {
         await arm(pi, "docs/specs/spec-demo.md");
 
         for (const key of ["path", "file_path", "filePath"]) {
-            expect(await toolCall(pi, "write", { [key]: "src/thing.ts" }), key).toBeUndefined();
-            expect((await toolCall(pi, "write", { [key]: "scripts/deploy.sh" }))?.block, key).toBe(true);
+            expect(
+                await toolCall(pi, "write", { [key]: "src/thing.ts" }),
+                key,
+            ).toBeUndefined();
+            expect(
+                (await toolCall(pi, "write", { [key]: "scripts/deploy.sh" }))
+                    ?.block,
+                key,
+            ).toBe(true);
         }
     });
 
@@ -143,14 +167,20 @@ describe("write boundary guard extension", () => {
         const pi = armedGuard();
         await arm(pi, "docs/specs/spec-demo.md");
 
-        expect(await toolCall(pi, "write", { path: path.join(tmpDir, "src/thing.ts") })).toBeUndefined();
+        expect(
+            await toolCall(pi, "write", {
+                path: path.join(tmpDir, "src/thing.ts"),
+            }),
+        ).toBeUndefined();
     });
 
     it("blocks a target that resolves outside the working directory", async () => {
         const pi = armedGuard(SPEC_BODY.replace("`src/**`", "`**/*.ts`"));
         await arm(pi, "docs/specs/spec-demo.md");
 
-        const result = await toolCall(pi, "write", { path: "../outside/config.ts" });
+        const result = await toolCall(pi, "write", {
+            path: "../outside/config.ts",
+        });
         expect(result?.block).toBe(true);
         expect(result?.reason).toContain("outside the working directory");
     });
@@ -159,7 +189,10 @@ describe("write boundary guard extension", () => {
         const pi = armedGuard();
         writeFixture("forbidden/secret.ts", "// real file\n");
         fs.mkdirSync(path.join(tmpDir, "src"), { recursive: true });
-        fs.symlinkSync(path.join(tmpDir, "forbidden/secret.ts"), path.join(tmpDir, "src/link.ts"));
+        fs.symlinkSync(
+            path.join(tmpDir, "forbidden/secret.ts"),
+            path.join(tmpDir, "src/link.ts"),
+        );
         await arm(pi, "docs/specs/spec-demo.md");
 
         const result = await toolCall(pi, "write", { path: "src/link.ts" });
@@ -177,10 +210,14 @@ describe("write boundary guard extension", () => {
     });
 
     it("lets forbid override the always-writable planning prefixes", async () => {
-        const pi = armedGuard(SPEC_BODY.replace("`src/secrets.ts`", "`docs/plans/**`"));
+        const pi = armedGuard(
+            SPEC_BODY.replace("`src/secrets.ts`", "`docs/plans/**`"),
+        );
         await arm(pi, "docs/specs/spec-demo.md");
 
-        const result = await toolCall(pi, "write", { path: "docs/plans/plan-other.md" });
+        const result = await toolCall(pi, "write", {
+            path: "docs/plans/plan-other.md",
+        });
         expect(result?.block).toBe(true);
         expect(result?.reason).toMatch(/forbid/i);
     });
@@ -189,16 +226,26 @@ describe("write boundary guard extension", () => {
         const pi = armedGuard();
         await arm(pi, "docs/specs/spec-demo.md");
 
-        expect(await toolCall(pi, "edit", { path: "docs/specs/spec-demo.md" })).toBeUndefined();
-        expect(await toolCall(pi, "write", { path: "docs/research/research-demo.md" })).toBeUndefined();
-        expect(await toolCall(pi, "write", { path: "docs/plans/plan-demo.md" })).toBeUndefined();
+        expect(
+            await toolCall(pi, "edit", { path: "docs/specs/spec-demo.md" }),
+        ).toBeUndefined();
+        expect(
+            await toolCall(pi, "write", {
+                path: "docs/research/research-demo.md",
+            }),
+        ).toBeUndefined();
+        expect(
+            await toolCall(pi, "write", { path: "docs/plans/plan-demo.md" }),
+        ).toBeUndefined();
     });
 
     it("leaves read-only tools alone", async () => {
         const pi = armedGuard();
         await arm(pi, "docs/specs/spec-demo.md");
 
-        expect(await toolCall(pi, "read", { path: "scripts/deploy.sh" })).toBeUndefined();
+        expect(
+            await toolCall(pi, "read", { path: "scripts/deploy.sh" }),
+        ).toBeUndefined();
         expect(await toolCall(pi, "grep", { path: "scripts" })).toBeUndefined();
     });
 
@@ -210,7 +257,9 @@ describe("write boundary guard extension", () => {
         await toolResult(pi, { path: "docs/specs/spec-auto.md" });
 
         expect(messages(pi)).toContain("spec-auto.md");
-        const result = await toolCall(pi, "write", { path: "scripts/deploy.sh" });
+        const result = await toolCall(pi, "write", {
+            path: "scripts/deploy.sh",
+        });
         expect(result?.block).toBe(true);
     });
 
@@ -219,9 +268,15 @@ describe("write boundary guard extension", () => {
         writeBoundaryGuard(pi as any);
         writeFixture("docs/specs/spec-auto.md", SPEC_BODY);
 
-        await toolResult(pi, { path: "docs/specs/spec-auto.md" }, { isError: true });
+        await toolResult(
+            pi,
+            { path: "docs/specs/spec-auto.md" },
+            { isError: true },
+        );
 
-        expect(await toolCall(pi, "write", { path: "scripts/deploy.sh" })).toBeUndefined();
+        expect(
+            await toolCall(pi, "write", { path: "scripts/deploy.sh" }),
+        ).toBeUndefined();
     });
 
     it("does not let a spec written while armed replace the active scope", async () => {
@@ -235,18 +290,25 @@ describe("write boundary guard extension", () => {
         await toolResult(pi, { path: "docs/specs/spec-wide.md" });
 
         expect(messages(pi)).toMatch(/already armed/i);
-        expect((await toolCall(pi, "write", { path: "scripts/deploy.sh" }))?.block).toBe(true);
+        expect(
+            (await toolCall(pi, "write", { path: "scripts/deploy.sh" }))?.block,
+        ).toBe(true);
     });
 
     it("refuses to arm when the spec has no Scope section", async () => {
         const pi = createFakePi();
         writeBoundaryGuard(pi as any);
-        writeFixture("docs/specs/spec-bad.md", "# Spec: Bad\n\n## 1. Intent\nNo scope here.\n");
+        writeFixture(
+            "docs/specs/spec-bad.md",
+            "# Spec: Bad\n\n## 1. Intent\nNo scope here.\n",
+        );
 
         await arm(pi, "docs/specs/spec-bad.md");
 
         expect(messages(pi)).toMatch(/not armed|could not/i);
-        expect(await toolCall(pi, "write", { path: "scripts/deploy.sh" })).toBeUndefined();
+        expect(
+            await toolCall(pi, "write", { path: "scripts/deploy.sh" }),
+        ).toBeUndefined();
     });
 
     it("refuses to arm when the modify list is only placeholders", async () => {
@@ -260,7 +322,9 @@ describe("write boundary guard extension", () => {
         await arm(pi, "docs/specs/spec-placeholder.md");
 
         expect(messages(pi)).toMatch(/not armed|could not/i);
-        expect(await toolCall(pi, "write", { path: "scripts/deploy.sh" })).toBeUndefined();
+        expect(
+            await toolCall(pi, "write", { path: "scripts/deploy.sh" }),
+        ).toBeUndefined();
     });
 
     it("keeps the active scope armed when a later spec fails to parse", async () => {
@@ -271,19 +335,27 @@ describe("write boundary guard extension", () => {
             "# Spec\n\n## 2. Scope\n\n**Modify:**\n- `path/to/file`\n\n## 3. Next\n",
         );
 
-        await pi.commands.get("scope")!.handler("docs/specs/spec-skeleton.md", makeCtx());
+        await pi.commands
+            .get("scope")!
+            .handler("docs/specs/spec-skeleton.md", makeCtx());
 
         expect(messages(pi)).toMatch(/stays armed/i);
-        expect((await toolCall(pi, "write", { path: "scripts/deploy.sh" }))?.block).toBe(true);
+        expect(
+            (await toolCall(pi, "write", { path: "scripts/deploy.sh" }))?.block,
+        ).toBe(true);
     });
 
     it("keeps the active scope armed when /scope names a nonexistent spec", async () => {
         const pi = armedGuard();
         await arm(pi, "docs/specs/spec-demo.md");
 
-        await pi.commands.get("scope")!.handler("docs/specs/spec-typo.md", makeCtx());
+        await pi.commands
+            .get("scope")!
+            .handler("docs/specs/spec-typo.md", makeCtx());
 
-        expect((await toolCall(pi, "write", { path: "scripts/deploy.sh" }))?.block).toBe(true);
+        expect(
+            (await toolCall(pi, "write", { path: "scripts/deploy.sh" }))?.block,
+        ).toBe(true);
     });
 
     it("asks for approval when a UI is available and honours yes", async () => {
@@ -322,11 +394,15 @@ describe("write boundary guard extension", () => {
     it("disarms on /scope off", async () => {
         const pi = armedGuard();
         await arm(pi, "docs/specs/spec-demo.md");
-        expect((await toolCall(pi, "write", { path: "scripts/deploy.sh" }))?.block).toBe(true);
+        expect(
+            (await toolCall(pi, "write", { path: "scripts/deploy.sh" }))?.block,
+        ).toBe(true);
 
         await pi.commands.get("scope")!.handler("off", makeCtx());
 
-        expect(await toolCall(pi, "write", { path: "scripts/deploy.sh" })).toBeUndefined();
+        expect(
+            await toolCall(pi, "write", { path: "scripts/deploy.sh" }),
+        ).toBeUndefined();
     });
 
     it("restores the persisted scope when the branch carries one", async () => {
@@ -334,10 +410,15 @@ describe("write boundary guard extension", () => {
         await arm(pi, "docs/specs/spec-demo.md");
 
         for (const handler of pi.handlers.get("session_tree") ?? []) {
-            await handler({}, makeCtx({ sessionManager: { getBranch: () => pi.entries } }));
+            await handler(
+                {},
+                makeCtx({ sessionManager: { getBranch: () => pi.entries } }),
+            );
         }
 
-        expect((await toolCall(pi, "write", { path: "scripts/deploy.sh" }))?.block).toBe(true);
+        expect(
+            (await toolCall(pi, "write", { path: "scripts/deploy.sh" }))?.block,
+        ).toBe(true);
     });
 
     it("disarms when the branch carries no scope entry", async () => {
@@ -345,10 +426,15 @@ describe("write boundary guard extension", () => {
         await arm(pi, "docs/specs/spec-demo.md");
 
         for (const handler of pi.handlers.get("session_tree") ?? []) {
-            await handler({}, makeCtx({ sessionManager: { getBranch: () => [] } }));
+            await handler(
+                {},
+                makeCtx({ sessionManager: { getBranch: () => [] } }),
+            );
         }
 
-        expect(await toolCall(pi, "write", { path: "scripts/deploy.sh" })).toBeUndefined();
+        expect(
+            await toolCall(pi, "write", { path: "scripts/deploy.sh" }),
+        ).toBeUndefined();
     });
 
     it("reports the active scope when /scope is called without an argument", async () => {
@@ -368,5 +454,142 @@ describe("write boundary guard extension", () => {
 
         const result = await toolCall(pi, "write", {});
         expect(result?.block).toBe(true);
+    });
+});
+
+describe("tmp directory exemption", () => {
+    // The exemption only makes sense for a working directory outside the system tmp
+    // directory, so this block uses a fixture cwd under the repo (not os.tmpdir()).
+    let fixturesBase: string;
+    let repoCwd: string;
+
+    const repoCtx = () => makeCtx({ cwd: repoCwd });
+
+    const armedGuardInRepo = () => {
+        const pi = createFakePi();
+        writeBoundaryGuard(pi as any);
+        return pi;
+    };
+
+    const armInRepo = async (pi: ReturnType<typeof createFakePi>) => {
+        await pi.commands
+            .get("scope")!
+            .handler("docs/specs/spec-demo.md", repoCtx());
+    };
+
+    beforeEach(() => {
+        const fixturesDir = path.join(process.cwd(), "test", ".fixtures");
+        fs.mkdirSync(fixturesDir, { recursive: true });
+        fixturesBase = fs.mkdtempSync(
+            path.join(fixturesDir, "pi-write-guard-"),
+        );
+        repoCwd = path.join(fixturesBase, "repo");
+        fs.mkdirSync(path.join(repoCwd, "docs/specs"), { recursive: true });
+        fs.writeFileSync(
+            path.join(repoCwd, "docs/specs/spec-demo.md"),
+            SPEC_BODY,
+        );
+    });
+
+    afterEach(() => {
+        fs.rmSync(fixturesBase, { recursive: true, force: true });
+    });
+
+    it("allows a write to the tmp directory without approval while armed", async () => {
+        const pi = armedGuardInRepo();
+        await armInRepo(pi);
+
+        const result = await toolCall(
+            pi,
+            "write",
+            { path: path.join(os.tmpdir(), "pi-scratch", "scratch.ts") },
+            repoCtx(),
+        );
+
+        expect(result).toBeUndefined();
+    });
+
+    it("does not prompt the user for a tmp write when a UI is available", async () => {
+        const pi = armedGuardInRepo();
+        await armInRepo(pi);
+
+        const ui = createFakeUi();
+        ui.select = vi.fn(async () => "Yes");
+        const result = await toolCall(
+            pi,
+            "write",
+            { path: path.join(os.tmpdir(), "scratch.ts") },
+            makeCtx({ cwd: repoCwd, hasUI: true, ui }),
+        );
+
+        expect(result).toBeUndefined();
+        expect(ui.select).not.toHaveBeenCalled();
+    });
+
+    it("allows an edit to a tmp file while armed", async () => {
+        const pi = armedGuardInRepo();
+        await armInRepo(pi);
+
+        const result = await toolCall(
+            pi,
+            "edit",
+            { path: path.join(os.tmpdir(), "pi-scratch", "scratch.ts") },
+            repoCtx(),
+        );
+
+        expect(result).toBeUndefined();
+    });
+
+    it("blocks a path that escapes the tmp directory via ..", async () => {
+        const pi = armedGuardInRepo();
+        await armInRepo(pi);
+
+        const result = await toolCall(
+            pi,
+            "write",
+            { path: path.join(os.tmpdir(), "..", "outside-tmp.ts") },
+            repoCtx(),
+        );
+
+        expect(result?.block).toBe(true);
+    });
+
+    it("blocks a symlink inside the tmp directory whose real target leaves it", async () => {
+        const pi = armedGuardInRepo();
+        await armInRepo(pi);
+
+        const realTarget = path.join(fixturesBase, "real-target.ts");
+        fs.writeFileSync(realTarget, "// real file\n");
+        const link = path.join(
+            os.tmpdir(),
+            `pi-write-guard-scratch-link-${process.pid}.ts`,
+        );
+        fs.symlinkSync(realTarget, link);
+
+        try {
+            const result = await toolCall(
+                pi,
+                "write",
+                { path: link },
+                repoCtx(),
+            );
+            expect(result?.block).toBe(true);
+        } finally {
+            fs.rmSync(link, { force: true });
+        }
+    });
+
+    it("keeps blocking sibling tmp writes when the working directory is inside the tmp directory", async () => {
+        // The default fixture cwd (tmpDir) is inside os.tmpdir(): the exemption must stay
+        // inactive there, so a sibling of the cwd is still outside the working directory.
+        const pi = armedGuard();
+        await arm(pi, "docs/specs/spec-demo.md");
+
+        const result = await toolCall(pi, "write", {
+            path: path.join(os.tmpdir(), "pi-sibling-scratch.ts"),
+        });
+
+        expect(result?.block).toBe(true);
+        expect(result?.reason).toContain("outside the working directory");
     });
 });

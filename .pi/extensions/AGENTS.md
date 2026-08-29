@@ -10,7 +10,7 @@ PI extensions that enforce quality and safety at the tool layer: session-end qua
 
 - `gates.ts` — session-end quality gates: require change-disclosure + verification-ran before completion.
 - `read-boundary-guard.ts` — block reads outside the working directory.
-- `write-boundary-guard.ts` — block writes outside allowed boundaries (spec-scope aware).
+- `write-boundary-guard.ts` — block writes outside allowed boundaries (spec-scope aware; system tmpdir exempt while the working directory is outside it).
 - `model-whitelist.ts` — restrict which models may be selected.
 - `subagent-delegation-policy.ts` — parse explicit delegation requests and route to the right subagent.
 - `rtk.ts` — thin delegating extension that rewrites bash to `rtk` for token savings (rewrite logic lives in the `rtk` Rust registry, not here).

@@ -74,7 +74,6 @@ Notes:
 - Sync mirrors managed files under `.pi/` (including `.pi/SYSTEM.md`) and removes stale managed files in the target.
 - `settings.json` is mirrored, except `settings.packages` which is merged (union) to preserve target-only installed `npm:` packages during sync.
 - It intentionally excludes personal/runtime data like `auth.json`, `sessions/`, `npm/`, `models.json`, and `.DS_Store`.
-- Secrets can be centralized via `envService` in `settings.json` (e.g. `"envFile": "${PI_CODER_REPO}/.env"`).
 - This launcher is optional and mainly useful for local parity-stack development.
 
 ## Syncing Skills to Other Agents
@@ -174,12 +173,6 @@ From the cloned repo root:
 npm run pi:pull-global
 ```
 
-1. Point envService at this repository's `.env` file:
-
-```bash
-export PI_CODER_REPO="$(pwd)"
-```
-
 1. Optional legacy step: push this repo's `.pi/` stack to global PI only if you explicitly want to overwrite global state:
 
 ```bash
@@ -192,7 +185,6 @@ Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agen
 
 - [`src/main.ts`](src/main.ts): embedded PI runtime entrypoint (`createAgentSession` + `InteractiveMode`)
 - `.pi/settings.json`: project-level PI settings and skills path integration
-- `.pi/agent.config.json`: local bridge config contract
 - `.pi/extensions/`: custom extensions
 - `.pi/agents/`: project-local `@tintinweb/pi-subagents` role definitions
 - `.pi/prompts/`: workflow prompt templates
