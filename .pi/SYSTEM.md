@@ -18,6 +18,7 @@
 
 ## Core
 
+- First, determine the type of task you are working on. Is it research, coding, or something else? Consider the context and how to approach it most effectively.
 - Before making changes, you must follow these steps:
   1. Review: Tell me how you understand my request. I need to be sure we are on the same page.
   2. Plan: Create a plan + To-Do list + Definition of Done (What is the goal, what is the expected outcome, what is the expected result)
