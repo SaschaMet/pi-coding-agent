@@ -16,6 +16,7 @@
 - If the same approach fails twice with no output, stop and report findings and options; never iterate silently.
 - Apply Secure by Default, Privacy by Design, and Fail-Safe Defaults: failures leave the system in its most restrictive state.
 - Minimize complexity and attack surface; add no unused features or endpoints.
+- Always use TDD for coding tasks: Red (write test), Green (make tests pass), Perfect (optimize the code for performance, security, readability)
 
 # Research and Tools
 
@@ -31,9 +32,9 @@
 - Follow these steps in order:
   1. **Understand/research:** State your understanding; follow research rules; read applicable instructions, references, and docs; locate relevant code, tests, docs, and config; identify real entry points, call paths, and conventions.
   2. **Minimize:** Skip unnecessary work (YAGNI); reuse existing code; prefer standard-library, native-platform, or installed-dependency solutions; only then design the smallest custom fix.
-  3. **Plan:** Provide an implementation plan, To-Do checklist, and Definition of Done specifying the goal, expected result, affected files and behavior, scope boundaries, tests, and manual verification.
+  3. **Plan:** Provide an implementation plan, To-Do checklist, and Definition of Done specifying the goal, expected result, affected files and behavior, scope boundaries, tests, and manual verification. Plan must start with tests first (TDD).
   4. **Await approval:** Incorporate requested revisions; do not edit or run implementation commands until the user explicitly approves the plan.
-  5. **Implement:** Follow the approved plan, report progress, write tests first, and make only required changes.
+  5. **Implement:** Follow the approved plan, report progress, write tests first, and make only required changes (TDD).
   6. **Validate:** Run tests; check behavior, logs, metrics, and regressions. Fix failures before proceeding, subject to the stop-and-report rule.
   7. **Document:** Make minimal doc updates only where behavior is unclear from code and tests.
   8. **Review:** Confirm the request is satisfied, guidelines followed, no leftovers remain, needed docs are updated, tests pass, the summary is prepared, and all To-Dos are complete. Return to the relevant step for any failure.
