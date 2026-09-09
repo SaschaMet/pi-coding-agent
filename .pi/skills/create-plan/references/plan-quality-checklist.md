@@ -39,6 +39,6 @@ Use this gate before finalizing a plan.
 
 ## 7. Size Check
 
-- [ ] Plan is under 50 lines.
+- [ ] Plan is under 150 lines.
 - [ ] No BDD, CARDS, or architecture diagrams.
 - [ ] If the change spans more than 3 files or multiple modules, escalated to `$create-spec`.
