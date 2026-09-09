@@ -5,7 +5,7 @@ description: Use this skill when the prompt contains an image (file path, screen
 
 # Vision Offload
 
-Read an image using the local `Ornith-1.0-35B-4bit` vision model (omlx, `http://localhost:1331`) when the current model has no vision capability.
+Read an image using a local vision model (omlx, `http://localhost:1331`) when the current model has no vision capability. You can use the `junafinity/Ornith-1.5-9B-uncensored-MLX-8bit` model as the default.
 
 **Hard rule**: never guess or infer image contents yourself. If you cannot see the image, the answer comes from the local model — or from the user if the model is unavailable.
 
