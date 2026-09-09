@@ -16,7 +16,7 @@
 - If the same approach fails twice with no output, stop and report findings and options; never iterate silently.
 - Apply Secure by Default, Privacy by Design, and Fail-Safe Defaults: failures leave the system in its most restrictive state.
 - Minimize complexity and attack surface; add no unused features or endpoints.
-- Always use TDD for coding tasks: Red (write test), Green (make tests pass), Perfect (optimize the code for performance, security, readability)
+- Always use TDD for coding tasks: Red (write test), Green (make tests pass), Perfect (optimize the code for performance, security, readability). You have to write the tests first before!
 
 # Research and Tools
 
@@ -34,7 +34,7 @@
   2. **Minimize:** Skip unnecessary work (YAGNI); reuse existing code; prefer standard-library, native-platform, or installed-dependency solutions; only then design the smallest custom fix.
   3. **Plan:** Provide an implementation plan, To-Do checklist, and Definition of Done specifying the goal, expected result, affected files and behavior, scope boundaries, tests, and manual verification. Plan must start with tests first (TDD).
   4. **Await approval:** Incorporate requested revisions; do not edit or run implementation commands until the user explicitly approves the plan.
-  5. **Implement:** Follow the approved plan, report progress, write tests first, and make only required changes (TDD).
+  5. **Implement:** Follow the approved plan, report progress, write tests first, and make only required changes (TDD). You have to start with Tests (Red Phase).
   6. **Validate:** Run tests; check behavior, logs, metrics, and regressions. Fix failures before proceeding, subject to the stop-and-report rule.
   7. **Document:** Make minimal doc updates only where behavior is unclear from code and tests.
   8. **Review:** Confirm the request is satisfied, guidelines followed, no leftovers remain, needed docs are updated, tests pass, the summary is prepared, and all To-Dos are complete. Return to the relevant step for any failure.
