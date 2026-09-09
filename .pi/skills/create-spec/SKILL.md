@@ -77,8 +77,6 @@ Use [references/spec-template.md](references/spec-template.md) as the output tem
 13. **Open Questions / Deferred Decisions**: unresolved decisions separated from requirements.
 14. **Handoff**: implementation, verification, and escalation notes.
 
-Important: Use a sub-agent for writing the spec to not clutter the context window. The sub-agent should be given the spec template and the research context, and should produce a draft spec for review.
-
 ### Execution steps must be vertical slices
 
 Every execution step must be independently runnable and demoable. A step that cannot be verified until a later step lands is not a step.
