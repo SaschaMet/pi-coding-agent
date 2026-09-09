@@ -1,6 +1,6 @@
 ---
 name: wizard
-description: Use when the user must perform a multi-step procedure and wants to go through it step by step: a plan, checklist, setup, migration, or cutover — provisioning infrastructure, setting up credentials or CI secrets, walking an unfamiliar third-party dashboard, or a one-off state change. Walk them one step at a time with context, exact actions, progress tracking, and confirmation gates. Generate a bash wizard script (template.sh) only when the procedure is long and mechanical or the user wants a repeatable artifact; default to walking through it in the conversation. Don't invoke for steps the agent can perform itself.
+description: Use when the user must perform a multi-step procedure and wants to go through it step by step. Be it a plan, checklist, setup, migration, or cutover — provisioning infrastructure, setting up credentials or CI secrets, walking an unfamiliar third-party dashboard, or a one-off state change. Walk them one step at a time with context, exact actions, progress tracking, and confirmation gates. Generate a bash wizard script (template.sh) only when the procedure is long and mechanical or the user wants a repeatable artifact; default to walking through it in the conversation. Don't invoke for steps the agent can perform itself.
 ---
 
 # Wizard
@@ -14,13 +14,13 @@ Two delivery modes:
 
 ## Choosing the mode
 
-| Signal | Mode |
-| --- | --- |
+| Signal                                                                        | Mode           |
+| ----------------------------------------------------------------------------- | -------------- |
 | Plan, checklist, or any procedure the user wants to go through with the agent | conversational |
-| Few steps, conditional branches, or discussion along the way | conversational |
-| Long, linear, mechanical procedure (many URL opens, many captured values) | script |
-| User wants a repeatable artifact (commit to repo, onboarding for teammates) | script |
-| User will run it without the agent present | script |
+| Few steps, conditional branches, or discussion along the way                  | conversational |
+| Long, linear, mechanical procedure (many URL opens, many captured values)     | script         |
+| User wants a repeatable artifact (commit to repo, onboarding for teammates)   | script         |
+| User will run it without the agent present                                    | script         |
 
 Default: conversational.
 
