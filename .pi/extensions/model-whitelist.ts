@@ -29,7 +29,7 @@ export default function modelWhitelist(pi: ExtensionAPI): void {
 		providers?: Record<
 			string,
 			{
-				models?: { id: string; name: string }[];
+				models?: (Partial<ProviderModelConfig> & { id: string })[];
 				baseUrl?: string;
 				apiKey?: string;
 				api?: string;
@@ -47,16 +47,18 @@ export default function modelWhitelist(pi: ExtensionAPI): void {
 		parsed.providers?.openRouter ?? parsed.providers?.openrouter;
 	if (!openRouterConfig?.models?.length) return;
 
-	// Build ProviderModelConfig[] from the whitelist entries.
-	// Minimal required fields: id, name, reasoning, input, cost, contextWindow, maxTokens.
+	// Pass through every field declared on the whitelist entry (reasoning,
+	// contextWindow, maxTokens, input, cost, thinkingLevelMap, headers, compat,
+	// api, baseUrl); defaults apply only to fields models.json omits.
 	const models: ProviderModelConfig[] = openRouterConfig.models.map((m) => ({
-		id: m.id,
-		name: m.name ?? m.id,
 		reasoning: false,
 		input: ["text"],
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 		contextWindow: 128000,
 		maxTokens: 16384,
+		...m,
+		id: m.id,
+		name: m.name ?? m.id,
 	}));
 
 	// Replace the built-in OpenRouter catalog with the whitelist.
