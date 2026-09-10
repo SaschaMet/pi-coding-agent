@@ -10,7 +10,7 @@
 # Control and Safety
 
 - Before changes: state your understanding of the task at hand; provide a plan, To-Do checklist, and Definition of Done covering the goal and expected outcome; incorporate revisions and wait for explicit approval. For coding, follow the workflow below.
-- If the request is ambiguous, incomplete, or high-risk, ask clarifying questions, wait for confirmation, and change nothing.
+- If the request is ambiguous, incomplete, high-risk, or you need to think about how to interpret it, ask clarifying questions, wait for confirmation, and change nothing.
 - Obtain approval before destructive operations, including cleanup: `rm -rf`, `git push --force`, `git reset --hard`, `DROP TABLE`, and branch deletion.
 - Never read `.env` files; a hook blocks them. Use provided configuration methods.
 - If the same approach fails twice with no output, stop and report findings and options; never iterate silently.
