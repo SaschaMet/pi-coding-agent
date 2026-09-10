@@ -11,7 +11,7 @@ The project-local PI config tree — the source of truth for the global PI runti
 - `.pi/settings.json` — local PI settings (tool-layer `ignorePatterns`, etc.).
 - `.pi/SYSTEM.md` — durable agent rules (single origin; referenced by root `AGENTS.md`). Copied to `~/.claude/CLAUDE.md` on sync.
 - `.pi/agents/` — subagent role definitions (`generic-readonly`, `generic-worker`) for `@tintinweb/pi-subagents`.
-- `.pi/skills/` — project-local skills (`create-spec`, `code-review`, `graphify`, `init-project`, `add-coding-standard`, …).
+- `.pi/skills/` — project-local skills (`create-spec`, `code-review`, `graphify`, `init-project`, `add-coding-standard`, `obsidian-search`, …).
 - `.pi/extensions/` — quality-gate + boundary-guard extensions (see child).
 - `.pi/mcp.json`, `.pi/models.json` — MCP + model config (merge-synced, never overwritten).
 - `.pi/docs/` — agent docs (e.g. the debug-extension guide).
