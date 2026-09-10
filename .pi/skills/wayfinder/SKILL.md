@@ -28,7 +28,7 @@ Before either mode, read [references/tracker.md](references/tracker.md) — you 
 
 User invokes with a loose idea.
 
-1. **Check for an existing map.** Scan for open `wayfinder` maps (see the tracker reference). If one matches this idea, switch to *Work through the map* — do not chart a second.
+1. **Check for an existing map.** Scan for open `wayfinder` maps (see the tracker reference). If one matches this idea, switch to _Work through the map_ — do not chart a second.
 2. **Name the destination.** Run a grilling session per `../grill-me/SKILL.md` to pin down what this map is finding its way to. The destination fixes the scope, so it is settled first. Done when the destination fits in two lines and the user has agreed to it.
 3. **Map the frontier.** Grill again, **breadth-first**: fan out across the whole space rather than deep on one thread, surfacing the open decisions and the first steps takeable now. **If this surfaces no fog** — the way is already clear, the journey small enough for one session — stop and tell the user they don't need a map.
 4. **Create the map** with Destination and Notes filled in, Decisions-so-far empty, the fog sketched into Not yet specified. Record the tracker choice on one line in `## Notes` (`Tracker: local` or `Tracker: github`).
@@ -41,7 +41,7 @@ User invokes with a loose idea.
 User invokes with a map. A ticket is optional — without one, you pick the next decision, not the user.
 
 1. Load the **map** — the low-res view, not every ticket body.
-2. **Is the map done?** If the frontier is empty *and* Not yet specified is empty, the way is clear. Stop and hand off to `../create-spec/SKILL.md`, which collapses Decisions-so-far into a buildable plan. **Never implement from the map** — going straight to code skips that collapse and throws the linked detail away.
+2. **Is the map done?** If the frontier is empty _and_ Not yet specified is empty, the way is clear. Stop and hand off to `../create-spec/SKILL.md`, which collapses Decisions-so-far into a buildable plan. **Never implement from the map** — going straight to code skips that collapse and throws the linked detail away.
 3. Choose the ticket. If the user named one, use it. Otherwise take the first frontier ticket in order. **Claim it before any other work**, so concurrent sessions skip it.
 4. Resolve it — **zoom as needed**: fetch the full body of any related or closed ticket on demand; invoke the skills `## Notes` names. If in doubt, grill (`../grill-me/SKILL.md`).
 5. Record the resolution: post the answer, close the ticket, append a one-line context pointer to Decisions-so-far.
@@ -101,24 +101,24 @@ The answer is not part of the body; it is recorded on resolution. Assets created
 
 ## Ticket Types
 
-Every ticket is either **HITL** — human in the loop, worked *with* a human who speaks for themselves — or **AFK**, driven by the agent alone. A HITL ticket only resolves through that live exchange; the agent never stands in for the human's side of it. A grilling agent that answers its own questions has broken this.
+Every ticket is either **HITL** — human in the loop, worked _with_ a human who speaks for themselves — or **AFK**, driven by the agent alone. A HITL ticket only resolves through that live exchange; the agent never stands in for the human's side of it. A grilling agent that answers its own questions has broken this.
 
-| Type | Mode | Resolve with | Use when |
-| --- | --- | --- | --- |
-| `research` | AFK | A read-only subagent per `../subagent-orchestrator/SKILL.md`, using the `generic-readonly` agent. Write findings to `.pi/wayfinder/<effort>/research/<slug>.md` and link them from the ticket. | Knowledge outside the working directory is needed — docs, third-party APIs, prior art. |
-| `prototype` | HITL | `../prototype/SKILL.md`. Link the prototype as an asset. | "How should it look" or "how should it behave" is the question, and running something beats arguing on paper. |
-| `grilling` | HITL | `../grill-me/SKILL.md`. **Two overrides apply**: its 0–7 question budget and its summary exit do not — a grilling ticket runs until the decision is settled. Keep its Language Discipline and `CONTEXT.md` maintenance on; that is the domain-modeling half of the work. | The default case. |
-| `task` | either | Do the work, or hand the human a precise checklist. Record what was done plus any facts later tickets depend on (credential locations, new URLs, row counts). | Manual work gates a *decision* — signing up for a service so its API can be judged, provisioning access, moving data so its shape can be seen. |
+| Type        | Mode   | Resolve with                                                                                                                                                                                                                                                             | Use when                                                                                                                                       |
+| ----------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `research`  | AFK    | A read-only subagent per `../subagent-orchestrator/SKILL.md`, using the `generic-readonly` agent. Write findings to `.pi/wayfinder/<effort>/research/<slug>.md` and link them from the ticket.                                                                           | Knowledge outside the working directory is needed — docs, third-party APIs, prior art.                                                         |
+| `prototype` | HITL   | `../skill-libraryprototype/SKILL.md`. Link the prototype as an asset.                                                                                                                                                                                                    | "How should it look" or "how should it behave" is the question, and running something beats arguing on paper.                                  |
+| `grilling`  | HITL   | `../grill-me/SKILL.md`. **Two overrides apply**: its 0–7 question budget and its summary exit do not — a grilling ticket runs until the decision is settled. Keep its Language Discipline and `CONTEXT.md` maintenance on; that is the domain-modeling half of the work. | The default case.                                                                                                                              |
+| `task`      | either | Do the work, or hand the human a precise checklist. Record what was done plus any facts later tickets depend on (credential locations, new URLs, row counts).                                                                                                            | Manual work gates a _decision_ — signing up for a service so its API can be judged, provisioning access, moving data so its shape can be seen. |
 
-`task` is the one type that *does* rather than decides, and it earns its place by unblocking a decision, not by delivering the destination.
+`task` is the one type that _does_ rather than decides, and it earns its place by unblocking a decision, not by delivering the destination.
 
 ## Fog of war
 
-The map is *deliberately* incomplete: don't chart what you can't yet see. Beyond the live tickets lies the **fog of war** — decisions you can tell are coming but can't pin down, because they hang on questions still open. Resolving a ticket clears the fog ahead of it, graduating whatever's now specifiable into fresh tickets, one at a time, until the way is clear and no tickets remain.
+The map is _deliberately_ incomplete: don't chart what you can't yet see. Beyond the live tickets lies the **fog of war** — decisions you can tell are coming but can't pin down, because they hang on questions still open. Resolving a ticket clears the fog ahead of it, graduating whatever's now specifiable into fresh tickets, one at a time, until the way is clear and no tickets remain.
 
 `## Not yet specified` is where that dim view is written down: the suspected question, the area to revisit. Everything there is in scope, just not sharp enough to ticket. It doubles as a signpost for collaborators reading where the effort is headed.
 
-**Fog or ticket?** The test is whether you can state the question precisely now — *not* whether you can answer it now.
+**Fog or ticket?** The test is whether you can state the question precisely now — _not_ whether you can answer it now.
 
 - **Ticket** when the question is already sharp, even if blocked and unactionable.
 - **Not yet specified** when you can't yet phrase it that sharply. Don't pre-slice the fog into ticket-sized pieces: one patch may graduate into several tickets, or none.
@@ -127,6 +127,6 @@ Not yet specified excludes what's already decided, what's already a live ticket,
 
 ## Out of scope
 
-Fog only ever gathers *toward* the destination. The destination fixes the scope, so work beyond it is **out of scope** — it isn't fog and doesn't belong in Not yet specified. Scope, not sharpness, lands it there. Out-of-scope work never graduates; it returns only if the destination is redrawn, and then as a fresh effort, not a resumption.
+Fog only ever gathers _toward_ the destination. The destination fixes the scope, so work beyond it is **out of scope** — it isn't fog and doesn't belong in Not yet specified. Scope, not sharpness, lands it there. Out-of-scope work never graduates; it returns only if the destination is redrawn, and then as a fresh effort, not a resumption.
 
 When a ticket turns out to sit past the destination — mis-scoped while charting, or exposed by a resolution — **close it** (a closed ticket is unambiguously off the frontier) and leave one line in `## Out of scope`: the gist plus why, linking the closed ticket. It stays out of Decisions-so-far, which records the route actually walked; a scope boundary isn't a step on it.

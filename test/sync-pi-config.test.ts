@@ -411,6 +411,219 @@ describe("sync-pi-config", () => {
 		);
 	});
 
+	it("syncs skill-library files during pull, including nested AGENTS.md", () => {
+		const { localPiDir, globalAgentDir } = setupRoots(
+			"pi-sync-skill-library-pull-",
+		);
+
+		const skillDir = path.join(globalAgentDir, "skill-library", "refactoring-ui");
+		fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
+		fs.writeFileSync(
+			path.join(globalAgentDir, "skill-library", "AGENTS.md"),
+			"# library index\n",
+			"utf-8",
+		);
+		fs.writeFileSync(
+			path.join(skillDir, "SKILL.md"),
+			"---\nname: refactoring-ui\n---\n",
+			"utf-8",
+		);
+		fs.writeFileSync(
+			path.join(skillDir, "references", "spacing.md"),
+			"# spacing\n",
+			"utf-8",
+		);
+
+		const result = syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
+
+		expect(result.updated).toEqual([
+			"skill-library/AGENTS.md",
+			"skill-library/refactoring-ui/SKILL.md",
+			"skill-library/refactoring-ui/references/spacing.md",
+		]);
+		expect(
+			fs.readFileSync(
+				path.join(localPiDir, "skill-library", "AGENTS.md"),
+				"utf-8",
+			),
+		).toBe("# library index\n");
+		expect(
+			fs.readFileSync(
+				path.join(localPiDir, "skill-library", "refactoring-ui", "SKILL.md"),
+				"utf-8",
+			),
+		).toBe("---\nname: refactoring-ui\n---\n");
+		expect(
+			fs.readFileSync(
+				path.join(
+					localPiDir,
+					"skill-library",
+					"refactoring-ui",
+					"references",
+					"spacing.md",
+				),
+				"utf-8",
+			),
+		).toBe("# spacing\n");
+	});
+
+	it("syncs skill-library files during push", () => {
+		const { localPiDir, globalAgentDir } = setupRoots(
+			"pi-sync-skill-library-push-",
+		);
+
+		const skillDir = path.join(localPiDir, "skill-library", "mom-test");
+		fs.mkdirSync(skillDir, { recursive: true });
+		fs.writeFileSync(
+			path.join(localPiDir, "skill-library", "AGENTS.md"),
+			"# local library index\n",
+			"utf-8",
+		);
+		fs.writeFileSync(
+			path.join(skillDir, "SKILL.md"),
+			"---\nname: mom-test\n---\n",
+			"utf-8",
+		);
+
+		const result = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+
+		expect(result.updated).toEqual([
+			"skill-library/AGENTS.md",
+			"skill-library/mom-test/SKILL.md",
+		]);
+		expect(
+			fs.readFileSync(
+				path.join(globalAgentDir, "skill-library", "AGENTS.md"),
+				"utf-8",
+			),
+		).toBe("# local library index\n");
+		expect(
+			fs.readFileSync(
+				path.join(globalAgentDir, "skill-library", "mom-test", "SKILL.md"),
+				"utf-8",
+			),
+		).toBe("---\nname: mom-test\n---\n");
+	});
+
+	it("mirrors skill-library deletions in both pull and push", () => {
+		const { localPiDir, globalAgentDir } = setupRoots(
+			"pi-sync-skill-library-mirror-",
+		);
+
+		const localSkill = path.join(localPiDir, "skill-library", "local-only-skill");
+		fs.mkdirSync(localSkill, { recursive: true });
+		fs.writeFileSync(path.join(localSkill, "SKILL.md"), "local only\n", "utf-8");
+
+		const pullResult = syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
+		expect(pullResult.deleted).toEqual([
+			"skill-library/local-only-skill/SKILL.md",
+		]);
+		expect(fs.existsSync(path.join(localSkill, "SKILL.md"))).toBe(false);
+
+		const globalSkill = path.join(
+			globalAgentDir,
+			"skill-library",
+			"global-only-skill",
+		);
+		fs.mkdirSync(globalSkill, { recursive: true });
+		fs.writeFileSync(
+			path.join(globalSkill, "SKILL.md"),
+			"global only\n",
+			"utf-8",
+		);
+
+		const pushResult = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+		expect(pushResult.deleted).toEqual([
+			"skill-library/global-only-skill/SKILL.md",
+		]);
+		expect(fs.existsSync(path.join(globalSkill, "SKILL.md"))).toBe(false);
+	});
+
+	it("skips syncing global runtime cache files for both pull and push", () => {
+		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-cache-skip-");
+
+		const cachePaths = [
+			"mcp-cache.json",
+			"models-store.json",
+			"pi-cache-optimizer-stats.d/stats.json",
+		];
+
+		for (const relativePath of cachePaths) {
+			fs.mkdirSync(path.dirname(path.join(localPiDir, relativePath)), {
+				recursive: true,
+			});
+			fs.mkdirSync(path.dirname(path.join(globalAgentDir, relativePath)), {
+				recursive: true,
+			});
+			fs.writeFileSync(
+				path.join(localPiDir, relativePath),
+				"local cache\n",
+				"utf-8",
+			);
+			fs.writeFileSync(
+				path.join(globalAgentDir, relativePath),
+				"global cache\n",
+				"utf-8",
+			);
+		}
+
+		const pullResult = syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
+		expect(pullResult.updated.length).toBe(0);
+		expect(pullResult.deleted.length).toBe(0);
+
+		const pushResult = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+		expect(pushResult.updated.length).toBe(0);
+		expect(pushResult.deleted.length).toBe(0);
+
+		for (const relativePath of cachePaths) {
+			expect(fs.readFileSync(path.join(localPiDir, relativePath), "utf-8")).toBe(
+				"local cache\n",
+			);
+			expect(
+				fs.readFileSync(path.join(globalAgentDir, relativePath), "utf-8"),
+			).toBe("global cache\n");
+		}
+	});
+
+	it("does not delete target-only global runtime cache files during push", () => {
+		const { localPiDir, globalAgentDir } = setupRoots(
+			"pi-sync-cache-target-only-",
+		);
+
+		fs.writeFileSync(
+			path.join(globalAgentDir, "mcp-cache.json"),
+			"{}\n",
+			"utf-8",
+		);
+		fs.writeFileSync(
+			path.join(globalAgentDir, "models-store.json"),
+			"{}\n",
+			"utf-8",
+		);
+		fs.mkdirSync(path.join(globalAgentDir, "pi-cache-optimizer-stats.d"), {
+			recursive: true,
+		});
+		fs.writeFileSync(
+			path.join(globalAgentDir, "pi-cache-optimizer-stats.d", "stats.json"),
+			"{}\n",
+			"utf-8",
+		);
+		fs.writeFileSync(path.join(localPiDir, "settings.json"), "{}\n", "utf-8");
+
+		const result = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+
+		expect(result.deleted).toEqual([]);
+		expect(fs.existsSync(path.join(globalAgentDir, "mcp-cache.json"))).toBe(true);
+		expect(fs.existsSync(path.join(globalAgentDir, "models-store.json"))).toBe(
+			true,
+		);
+		expect(
+			fs.existsSync(
+				path.join(globalAgentDir, "pi-cache-optimizer-stats.d", "stats.json"),
+			),
+		).toBe(true);
+	});
+
 	it("does not pull managed global extension directories into local project config", () => {
 		const { localPiDir, globalAgentDir } = setupRoots(
 			"pi-sync-global-extension-dirs-",
