@@ -22,7 +22,7 @@ Intake answers, date started, project specifics.
 | 5 | storybrand-messaging | pending | POSITIONING.md, EXPERIMENTS.md | |
 | 6 | high-perf-browser | pending | METRICS.md, WEBSITE.md, EXPERIMENTS.md | |
 | 7 | made-to-stick | pending | POSITIONING.md, EXPERIMENTS.md | |
-| 8 | design-everyday-things | pending | DESIGN.md, EXPERIMENTS.md | |
+| 8 | ux-heuristics (Norman refs) | pending | DESIGN.md, EXPERIMENTS.md | |
 Statuses: pending · in-progress · awaiting-evidence · done · deferred: <reason> · skipped: <reason>
 
 ## Key Decisions

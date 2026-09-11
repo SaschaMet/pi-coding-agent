@@ -1,178 +1,45 @@
-# Persuasive Copywriting for CRO
+# Copy for CRO — what this skill owns, and what it does not
 
-Evidence-based copywriting principles. Write as much as it takes to communicate your entire sales message—but not one word more.
+Copy *craft* is owned elsewhere in this library and is not restated here:
 
-## Headlines
+- **Comprehension and memory** — specificity over vagueness, concrete over abstract, benefits over features, don't bury the lead, beating the Curse of Knowledge: `made-to-stick`.
+- **Page order, the protagonist, and section-by-section structure** — the 7-beat sequence, the one-liner, the wireframe, one clear message per asset: `storybrand-messaging`.
+- **Persuasion principles and their ethics** — authority, social proof, scarcity, reciprocity: `influence-psychology`.
 
-The headline's job: Get visitors to read the next line.
+Those three own the rules. Reaching for a fourth copy of them here is how the library ended up
+teaching "specific numbers beat round numbers" four times.
 
-### Headline Formulas That Work
+## What CRO adds that copy skills do not
 
-**Problem-agitate-solve**:
-"Tired of [problem]? [Solution] lets you [benefit]."
+**Copy is a hypothesis with a pre-committed metric.** Every rewrite enters `docs/EXPERIMENTS.md`
+before it ships, and the rules in `SKILL.md` govern it:
 
-**Specificity wins**:
-Bad: "Improve your conversion rate"
-Good: "How we increased conversions by 363%"
+- **The 10x screen applies to copy too.** A headline rewrite that changes the offer is worth testing. A word swap is a meek tweak — it will not reach significance, and running it burns the traffic a real test needed.
+- **Sample size before you start.** Baseline rate, minimum detectable effect, 80% power, 95% significance. Decide the duration up front.
+- **No peeking.** Do not stop early on a winner, do not rerun until you like the answer, do not bury an inconclusive result.
+- **Test order: offer → headline → proof → CTA copy → layout.** Test the things that change the argument before the things that change its wording.
 
-**News angle**:
-"[X] facts about [topic] you were never told"
+## CTA copy — the one copy surface CRO owns
 
-**How-to**:
-"How to [achieve result] without [common pain]"
+The CTA is where copy and conversion goal meet, so it lives here rather than with the copy skills.
 
-**Question**:
-"What's stopping your website from converting?"
+- **One conversion goal per page, one primary CTA.** Competing CTAs split intent and make the test unreadable.
+- **Label the outcome, not the mechanism.** "Get my quote" over "Submit". The label should complete the sentence "I want to…".
+- **First person converts better than second in most tests** ("Start my trial" over "Start your trial") — but this is a testable claim, not a law; it fails often enough to be worth checking on your own traffic.
+- **Reduce the perceived cost right at the button.** "No credit card required" under the CTA does more than the same words in the hero.
+- **Placement:** above the fold, again at each decision point, and at the bottom. A long page with one CTA at the top is a page that asks once.
+- **Do not test button color or size before you have tested the offer, the headline, and the proof.** It is the canonical example of a meek tweak, and `SKILL.md` names it as not worth testing.
 
-### Headline Testing Priority
+## Objection-handling copy
 
-1. Value proposition clarity
-2. Specific numbers/results
-3. Audience targeting
-4. Urgency/timeliness
-5. Emotional hook
+This is the CRO-specific move the copy skills do not have: writing against a *researched* objection
+list rather than an imagined one. See the O/CO table in `SKILL.md` — every objection gets a
+counter-objection placed at its point of friction, sourced from the customer's own words in research,
+never invented.
 
-## Body Copy Principles
+The **CO-Only pattern** for objections too sensitive to name out loud:
 
-### Length
-Write as much as it takes to:
-- Communicate the complete sales message
-- Address all major objections
-- Provide sufficient proof
+- Bad: "Worried you're too lazy to learn a language?"
+- Good: "Let the audio do the work for you."
 
-Long copy works when visitors are:
-- Unfamiliar with product category
-- Making a high-commitment decision
-- Comparing alternatives
-
-Short copy works when:
-- Brand is well-known
-- Product is simple/commoditized
-- Visitors are already convinced
-
-### Structure
-
-**Lead with benefits, not features**
-Feature: "256GB storage"
-Benefit: "Never delete another photo"
-
-**Use specific numbers**
-Weak: "Thousands of customers"
-Strong: "47,832 businesses trust us"
-
-**Write for scanners**
-- Subheadings that tell the story alone
-- Bold key phrases
-- Bullet points for multiple items
-- Short paragraphs (2-4 sentences)
-
-### Voice
-
-**Clarity over cleverness**
-No reader is too sophisticated for simple sentences.
-
-**Active voice**
-Bad: "Your conversion rate will be improved"
-Good: "We'll improve your conversion rate"
-
-**"You" focus**
-Count "you" vs. "we" in your copy. Visitors care about themselves.
-
-**Circle adjectives and adverbs**
-Replace vague modifiers with specific facts:
-Bad: "incredibly fast delivery"
-Good: "delivery in 2 hours or less"
-
-## Proof Elements
-
-### Hierarchy of proof (strongest to weakest)
-
-1. **Specific results with context**
-   "Increased revenue by $2.4M in 6 months"
-
-2. **Named testimonials with photos**
-   Real people, real companies, specific outcomes
-
-3. **Case studies**
-   Problem → Solution → Results format
-
-4. **Statistics and data**
-   Industry benchmarks, research findings
-
-5. **Logos and badges**
-   Client logos, media mentions, certifications
-
-6. **Generic testimonials**
-   Unnamed quotes (weakest form)
-
-### Testimonial Best Practices
-
-**Include specifics**:
-Bad: "Great product!"
-Good: "Increased our conversion rate from 2.1% to 4.7% in 3 weeks"
-
-**Address objections**:
-Choose testimonials that counter specific fears
-
-**Match the audience**:
-B2B visitors want testimonials from similar companies/roles
-
-**Use photos**:
-Real photos > stock photos > no photos
-
-## Calls-to-Action
-
-### CTA Copy
-
-**Benefit-oriented**:
-Bad: "Submit"
-Good: "Get my free report"
-
-**Reduce perceived commitment**:
-"Start free trial" vs. "Sign up"
-"See pricing" vs. "Buy now"
-
-**Match button to promise**:
-If page promises "10 ways to improve X", CTA should be:
-"Show me the 10 ways" not "Learn more"
-
-### CTA Placement
-
-- Above the fold (for aware visitors)
-- After each major section
-- At moment of peak interest
-- Sticky/floating for long pages
-
-### CTA Testing Ideas
-
-1. Benefit vs. action language
-2. Commitment level (free vs. buy)
-3. Urgency elements
-4. Size and color (test AFTER copy)
-5. Number of CTAs per page
-
-## Common Copywriting Mistakes
-
-1. **Features without benefits**
-   Always answer "So what?"
-
-2. **Vague claims**
-   "Best in class" → "Rated #1 by [source]"
-
-3. **Talking about yourself**
-   Reframe everything around the visitor
-
-4. **Burying the lead**
-   Put most important information first
-
-5. **Assuming knowledge**
-   Explain industry jargon
-
-6. **Missing objections**
-   Address hesitations head-on
-
-7. **Weak proof**
-   Generic testimonials, no specifics
-
-8. **Unclear next step**
-   Always make the action obvious
+State the counter without stating the objection.

@@ -99,6 +99,8 @@ Before Step 1, check whether `graphify-out/graph.json` exists at the target repo
 | --- | --- |
 | Multiple package managers exist | Preserve the manager used by lockfiles and current scripts; ask only if evidence conflicts. |
 | Existing tool partly satisfies the standard | Extend it instead of replacing it. |
+| Repo already has a DOX-shaped `AGENTS.md` — six sections (Purpose, Ownership, Local Contracts, Work Guidance, Verification, Child DOX Index) | **Do not apply `templates/AGENTS.md`.** Write the standard reference into the existing `## Work Guidance` section and leave the DOX shape intact. The flat template and the DOX tree are incompatible conventions; applying both to one file leaves the repo with two competing instruction formats and a broken Child DOX Index. `init-project` owns that topology. |
+| Repo has a `docs/DESIGN-SYSTEM.md` (written by `design-foundation`) | Reference it from `AGENTS.md` alongside the engineering standard, so agents discover the design contract the same way they discover the code contract. Do not restate its contents. |
 | No duplicate-code detector exists | Add jscpd/cpd in warning mode for Baseline or legacy repos; make it blocking for Standard/Hardened only after establishing a repo-specific threshold. |
 | No profile specified | Use Baseline for small tools/libraries, Standard for production apps/services, and ask before Hardened. |
 | Monorepo with mixed stacks | Apply shared policy at root and stack-specific tooling per package. |

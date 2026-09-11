@@ -107,6 +107,17 @@ See: [references/evaluating-typefaces.md](references/evaluating-typefaces.md) wh
 - **Check the family** — confirm needed weights, italics, and styles exist before committing
 - **Safe starting points** — body serif: Georgia, Source Serif Pro, Charter; body sans: system fonts, Source Sans Pro, Inter, IBM Plex Sans
 
+**Scope caveat on the recommendations below.** "Safe" here means legible, well-hinted, and widely
+available — the right bar for product UI, documentation, and data-dense surfaces. It is the wrong bar
+for a marketing page, where the same faces read as a default nobody chose: **Inter, Roboto, and Open
+Sans are banned outright by the `taste-skill` family**, along with `Fraunces` and `Instrument Serif`
+as display defaults. So:
+
+- **Product UI, dashboards, docs, internal tools** → the recommendations in this skill stand as written.
+- **Landing pages, portfolios, marketing, editorial** → use this skill for the *method* (evaluating a typeface, deriving a scale, loading it correctly, licensing it) and take the face itself from `taste-skill`, which bans the safe list on purpose.
+
+The method in this skill is universal. The specific font names are scoped.
+
 **Product applications:**
 
 | Context | Application | Example |
@@ -142,7 +153,7 @@ See: [references/evaluating-typefaces.md](references/evaluating-typefaces.md) wh
 
 | Context | Application | Example |
 |---------|------------|---------|
-| Editorial site | Serif headlines + sans body | Playfair Display + Source Sans Pro |
+| Editorial site | Serif headlines + sans body | Playfair Display + Source Sans Pro — **but on a marketing or portfolio site, `taste-skill` treats "creative brief → reach for a serif" as its most-tested AI tell.** Use a serif there because the brand calls for one, not because the page is called editorial |
 | Documentation | Monospace code + sans prose from one family | IBM Plex Mono + IBM Plex Sans |
 | Minimal brand | Single family with weight variation | Inter at varying weights and sizes |
 

@@ -52,6 +52,7 @@ The artifact's root virtue is **predictability**: the agent taking the same _pro
 7. Validate:
    - use `references/testing.md` for trigger tests, validation loops, and skill output evaluation
    - revise based on failures, not assumptions
+   - **before installing any third-party skill, security-scan it.** Run `skillspector scan <path> --no-llm` (local directory, a single `SKILL.md`, a Git URL, or a zip), then again with an LLM, and do the analysis in a read-only sub-agent. `--format json|markdown|sarif --output <file>` for machine-readable reports; `uv tool update skillspector` first. Agent skills execute with implicit trust and almost no vetting — NVIDIA's research found 26.1% contain vulnerabilities and 5.2% show likely malicious intent. Docs: <https://github.com/nvidia/skillspector>. This applies to skills you are auditing on someone's behalf, not to ones you authored in this repo.
 
 Every workflow step ends on a **completion criterion**: a condition the agent can check to tell done from not-done. Where a step's output matters, make the criterion _exhaustive_ ("every reference linked from `SKILL.md` resolved", not "update references") so a vague goal invites premature completion. Never start the next step before the current criterion is met.
 

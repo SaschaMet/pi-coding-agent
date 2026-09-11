@@ -397,9 +397,21 @@ Return to customers:
 - "Is it doing what you expected?"
 - "What surprised you?"
 - "What's still frustrating?"
-- "Would you hire it again?"
+- "Since you started using it, what have you stopped doing?" *(reveals what it actually replaced)*
 
 ### Closing
 
-- "If you could change one thing, what would it be?"
-- "What would make this perfect for your situation?"
+- "What happened the last time it let you down?"
+- "Who else have you told about it, and what did you say?"
+
+**Two questions were removed from this guide because they break this skill's own rule.** `SKILL.md`
+requires asking only about past events and never naming a benefit or a solution — and "Would you hire
+it again?" and "If you could change one thing?" are both hypothetical, the second also asking the
+subject to design for you. People answer them fluently and the answers do not predict behavior.
+`mom-test` owns this discipline: the bad-data taxonomy (compliments, fluff, ideas), the question
+tiers, and the commitment ladder. Read it before running any interview from this guide.
+
+The legitimate difference from `mom-test`: this guide interviews **recent purchasers about a
+transaction that already happened**, so naming the product is unavoidable and fine. `mom-test`
+interviews people about an idea that does not exist yet, where naming it contaminates everything. Past
+tense is the rule in both.

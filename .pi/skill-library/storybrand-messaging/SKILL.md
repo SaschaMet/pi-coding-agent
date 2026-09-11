@@ -230,7 +230,7 @@ See: [references/multi-channel-consistency.md](references/multi-channel-consiste
 |---------|-------------|-----|
 | Being the hero | Competes with customer | Position as guide |
 | Multiple messages | Confuses people | One clear message per asset |
-| Clever > clear | People don't decode messaging | Choose clarity always |
+| Clever > clear | People don't decode messaging | Choose clarity on any surface the reader arrived at deliberately — hero, pricing, CTA, onboarding. `made-to-stick`'s Unexpected trait wins on ads, subject lines, and cold traffic, where attention is the binding constraint and a clear message nobody opens communicates nothing. The full split is in that skill's "When surprise loses to clarity" table. |
 | Feature-focused | Customers buy transformation | Lead with outcomes |
 | No clear CTA | No direction = no action | Ask for the sale |
 | No stakes | No urgency = no motivation | Paint failure picture |

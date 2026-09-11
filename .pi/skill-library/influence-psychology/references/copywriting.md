@@ -202,49 +202,19 @@ Structure each section around a primary influence principle:
 5. **Offer** (Reciprocity + Scarcity): Pricing with value anchor, generous framing, guarantee, genuine scarcity element
 6. **Final CTA** (Commitment + Unity): Commitment-framed action, unity message, FAQ for objection handling
 
-## Email Sequence Using Influence Principles
+## Email sequences
 
-### 7-Day Onboarding Sequence
+Owned by `storybrand-messaging`, which carries the full sequences — onboarding, nurture,
+re-engagement, launch — section by section with subject lines and body structure. Apply the
+principles in this skill to that structure rather than keeping a second, thinner copy here.
 
-| Day | Subject Line | Primary Principle | Content Focus |
-|-----|-------------|------------------|---------------|
-| 0 | "Welcome to [product], [Name]" | Liking + Unity | Warm welcome, tribe introduction |
-| 1 | "Here's something to get you started" | Reciprocity | Free resource, template, or guide |
-| 2 | "Quick question: what's your biggest [goal]?" | Commitment | Get them to articulate their goal |
-| 3 | "How [similar company] achieved [result]" | Social Proof | Case study with specific metrics |
-| 4 | "[X] things most [role] get wrong about [topic]" | Authority | Expert insights, research-backed |
-| 5 | "You're ahead of [X]% of new users" | Social Proof + Commitment | Progress report, reinforce commitment |
-| 6 | "[Offer] available until [date]" | Scarcity + Reciprocity | Time-limited upgrade offer |
+## Testing influence copy
 
-### Re-Engagement Sequence
+Owned by `cro-methodology`, and its rules constrain what is worth testing at all:
 
-| Email | Subject Line | Primary Principle | Goal |
-|-------|-------------|------------------|------|
-| 1 | "We miss you (and so does your data)" | Liking + Commitment | Remind of sunk investment |
-| 2 | "While you were away, [X] teams joined" | Social Proof | Show momentum they're missing |
-| 3 | "A gift for coming back" | Reciprocity | Offer incentive to return |
-| 4 | "Last chance: your [data/progress] expires [date]" | Scarcity + Commitment | Create genuine urgency |
-
-## A/B Testing Copy for Influence Effectiveness
-
-### What to Test
-
-| Test | Variable A | Variable B | What You Learn |
-|------|-----------|-----------|---------------|
-| **Headline principle** | Social proof headline | Authority headline | Which principle resonates with your audience |
-| **CTA framing** | "Start free trial" | "Join 10,000 teams" | Does social proof or reciprocity drive more clicks |
-| **Testimonial type** | Expert quote | Peer testimonial | Which authority type converts |
-| **Scarcity presence** | No urgency | "Limited spots available" | Does scarcity improve or hurt conversion |
-| **Unity language** | "Your tool" (standard) | "Built for [identity]" | Does identity messaging improve engagement |
-| **Number specificity** | "Thousands of users" | "2,347 teams" | Do specific numbers outperform round ones |
-
-### Testing Best Practices
-
-1. **Isolate one principle per test**: Don't change reciprocity AND social proof simultaneously
-2. **Test the principle, not just the words**: "Join 10,000 others" vs. "Rated #1 by experts" tests social proof vs. authority
-3. **Segment results**: Different audience segments may respond to different principles
-4. **Run long enough**: Influence-based copy differences can be subtle; need statistical significance
-5. **Measure downstream**: A headline that gets more clicks but fewer conversions may be triggering the wrong principle; track CTR, conversion rate, time on page, and bounce rate together
+- **Sample size before you start**, then no peeking and no early stop on a peeked winner.
+- **The 10x screen:** if a change could not plausibly 10x the result, it is a meek tweak and will not reach significance. Swapping "thousands of users" for "2,347 teams" is the canonical example — it reads as a persuasion improvement and is not a testable one.
+- **What *is* worth testing:** whole-principle swaps, where the argument changes. A social-proof headline against an authority headline tests two different claims. Isolate one principle per test, segment the results, and measure downstream — a headline that lifts clicks and drops conversions triggered the wrong principle.
 
 ## Copy Audit Checklist
 

@@ -1,6 +1,6 @@
 ---
 name: improve-website
-description: 'Guided journey from a live website that underperforms to a prioritized, evidence-backed backlog of conversion, usability, message, and speed fixes - each shipped as a testable experiment. Orchestrates eight skills phase by phase - cro-methodology, ux-heuristics, refactoring-ui, web-typography, storybrand-messaging, high-perf-browser, made-to-stick, design-everyday-things - asking the user questions at every decision point and recording results in the project docs/ folder (WEBSITE.md, DESIGN.md, IMPROVE-WEBSITE-PLAN.md) so the journey resumes across sessions. Use when the user wants to fix a landing page that isn''t converting, diagnose why visitors leave, audit for clarity and usability, or says ''the homepage feels off but a redesign didn''t help''. No site yet, create-website; converts but needs traffic, grow-website; if the friction is in a product app, not the marketing site, improve-app; if one specific flow leaks, conversion-optimization. For one framework in isolation, invoke that skill directly.'
+description: 'Guided journey from a live website that underperforms to a prioritized, evidence-backed backlog of conversion, usability, message, and speed fixes - each shipped as a testable experiment. Orchestrates eight skills phase by phase - cro-methodology, ux-heuristics, refactoring-ui, web-typography, storybrand-messaging, high-perf-browser, made-to-stick, and ux-heuristics'' Norman references - asking the user questions at every decision point and recording results in the project docs/ folder so the journey resumes across sessions. Use when the user wants to know WHY a page underperforms: it isn''t converting, visitors leave, or ''the homepage feels off but a redesign didn''t help''. If they instead want the visual fixed now - ''looks generic'', ''make it expensive'', ''build this screenshot'' - that is design-taste, not this. For one framework in isolation, invoke that skill directly.'
 license: MIT
 metadata:
   author: wondelai
@@ -34,7 +34,7 @@ constituent skills carry the method — invoke them rather than improvising thei
 | 5 | storybrand-messaging | Does a stranger grasp the offer in five seconds? | Extends docs/POSITIONING.md, docs/EXPERIMENTS.md |
 | 6 | high-perf-browser | Does the page arrive before patience runs out? | Extends docs/METRICS.md, docs/WEBSITE.md, docs/EXPERIMENTS.md |
 | 7 | made-to-stick | Is the idea memorable enough to survive to the decision? | Extends docs/POSITIONING.md, docs/EXPERIMENTS.md |
-| 8 | design-everyday-things | Do the visitors who act ever get stuck? | Extends docs/DESIGN.md, docs/EXPERIMENTS.md |
+| 8 | ux-heuristics (Norman references) | Do the visitors who act ever get stuck? | Extends docs/DESIGN.md, docs/EXPERIMENTS.md |
 
 ## Operating Rules
 
@@ -45,7 +45,17 @@ constituent skills carry the method — invoke them rather than improvising thei
 5. **In-phase decisions.** Ask every question under "Decide with the user" — with concrete options and your recommendation. Record the choice in the tracker's Key Decisions. A decision made silently is a defect.
 6. **Phase exit.** Present the draft artifact content for sign-off before writing. On approval: write or extend the docs/ files, update the tracker (status, Key Decisions, Next Actions). Done when the files are written and the phase row shows `done`.
 7. **Artifact discipline.** Read before writing; create a file only if missing, otherwise extend — add or update your sections, preserve everyone else's. Files are UPPERCASE in `docs/`. Every recommendation lands as a checkbox or a table row with owner and priority. See [references/artifact-templates.md](references/artifact-templates.md) when creating a docs/ file for the first time — create it from the full skeleton (all section headings), then fill the sections your phase names.
-8. **Diagnose before redesigning.** No visual or copy change ships before the Phase 1 diagnosis produces evidence for it, and every change lands in EXPERIMENTS.md with a pre-committed metric. A fix with no Phase 1 finding behind it goes back to Phase 1; a bold change with no test attached stays in the backlog until it has one.
+8. **Not every "this page is bad" request belongs here.** This skill answers *why visitors don't
+   convert* and produces evidence-backed documents; `design-taste` answers *what it should look like*
+   and produces code. Route by what the user is asking for:
+   - "Traffic but nobody signs up", "why do they leave", "audit for clarity" → **here**. Phase 1 is the gate.
+   - "It looks generic / cheap / dated", "make it look expensive", "build this from a screenshot" → **`design-taste`**, directly. Do not open a CRO journey for a visual request; the user did not ask for a backlog.
+   - Both, in order: run this journey, then hand the ranked visual findings to `design-taste` to implement. That is the chain, and it only runs in that direction.
+
+   A visual request routed here produces a tracker and seven phases the user never wanted. A
+   conversion problem routed to `design-taste` produces a prettier page with the same unaddressed
+   objections — which is mistake #1 below.
+9. **Diagnose before redesigning.** No visual or copy change ships before the Phase 1 diagnosis produces evidence for it, and every change lands in EXPERIMENTS.md with a pre-committed metric. A fix with no Phase 1 finding behind it goes back to Phase 1; a bold change with no test attached stays in the backlog until it has one.
 
 ## Intake
 
@@ -132,7 +142,10 @@ grayscale hierarchy pass, spacing-scale corrections, a systematic palette, and e
 **Decide with the user:** Fix within the current design system or introduce new tokens? Confirm color
 work waits until the grayscale layout reads.
 
-**Artifact:** Extend docs/DESIGN.md `## Tokens` (spacing scale · palette shades · shadows) and `## Components`
+**Artifact:** Tokens live in `docs/DESIGN-SYSTEM.md`, owned by `design-foundation` — extend that file's
+token sections (spacing scale, palette, shadows) rather than starting a second token store here, and if
+it does not exist yet, run `design-foundation` to create it. Record *findings and direction* in
+docs/DESIGN.md `## Components`
 (component | decision | status); append fixes to docs/EXPERIMENTS.md `## Experiment Backlog`. Update the tracker.
 
 **Done when:** the layout reads in grayscale, the spacing scale is applied, one primary CTA dominates,
@@ -152,7 +165,9 @@ corrected CSS with a fluid clamp() scale and a font-loading plan.
 **Decide with the user:** Keep the current typefaces or repair the pairing? Confirm the font-loading
 budget (<200KB) that Phase 6 will verify.
 
-**Artifact:** Extend docs/DESIGN.md `## Typography` (typefaces · scale · measure · line height · loading
+**Artifact:** The chosen typefaces and the type scale are tokens — record them in
+`docs/DESIGN-SYSTEM.md`. Keep the *reasoning and the audit findings* in docs/DESIGN.md `## Typography`
+(measure · line height · loading
 strategy); append fixes to docs/EXPERIMENTS.md `## Experiment Backlog`. Update the tracker.
 
 **Done when:** body size, measure, and line height meet targets on the key templates, the scale is
@@ -220,7 +235,7 @@ copy tests to docs/EXPERIMENTS.md `## Experiment Backlog`. Update the tracker.
 **Done when:** each key message has a SUCCESs score and a concrete rewrite, the Commander's Intent is
 named, and the key statistic is human-scale.
 
-### Phase 8 — Design out the errors (design-everyday-things)
+### Phase 8 — Design out the errors (ux-heuristics, Norman references)
 
 **Purpose:** Protect the visitors who decided to act — make the wrong action impossible, not just warned against.
 
@@ -229,7 +244,9 @@ do this?") with clear signifiers (pressable buttons, editable fields) and constr
 free text, Submit disabled until valid); Evaluation ("what happened?") with feedback within 0.1s. Fix
 slips with undo and separated destructive actions; error messages say what went wrong and how to fix, no blame.
 
-**Invoke:** Use the `design-everyday-things` skill with the conversion-critical flows (signup, checkout, account
+**Invoke:** Use the `ux-heuristics` skill and read its `references/norman-*.md` files - the affordance and
+signifier taxonomy, the two gulfs, the Seven Stages walkthrough, and `norman-human-error.md` - with the
+conversion-critical flows (signup, checkout, account
 setup). Ask for weak signifiers, where constraints make errors impossible, feedback gaps, and message rewrites.
 
 **Decide with the user:** Where should a constraint replace an error message? Where should undo replace
@@ -260,7 +277,7 @@ Optional phases follow the same operating rules — load and use each listed ski
 | Testing meek tweaks (button colors, font nudges) too small to ever reach significance. | Use ICE scoring to pick bold changes; ask "could this 10x results?" before you test it (cro-methodology). |
 | Adding color before the grayscale layout works. | Grayscale first, color last; if the page fails desaturated, no palette saves it (refactoring-ui). |
 | Optimizing speed in a vacuum, ahead of the clarity work. | Sequence speed after clarity (Phase 6); exception — triage a fast LCP fix if the page barely renders (high-perf-browser). |
-| Treating "user error" as the user's fault and adding more warnings. | Prevent errors with constraints and forgive them with undo, not dialogs (design-everyday-things). |
+| Treating "user error" as the user's fault and adding more warnings. | Prevent errors with constraints and forgive them with undo, not dialogs (ux-heuristics, `references/norman-human-error.md`). |
 | Confusing clarity with stickiness — a clear message can be instantly forgotten. | Run both Phase 5 and Phase 7; StoryBrand makes you understood, Made to Stick makes you remembered. |
 
 ## Completing the Journey

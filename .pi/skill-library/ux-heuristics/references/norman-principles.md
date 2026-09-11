@@ -1,13 +1,10 @@
----
-name: design-everyday-things
-description: 'Apply foundational design principles: affordances, signifiers, constraints, feedback, and conceptual models. Use when the user mentions "why is this confusing", "affordance", "error prevention", "discoverability", "human-centered design", "mental model", "mapping", "seven stages of action", "users keep making mistakes", "this is unintuitive", or "people cant figure out how to use it". Also trigger when reducing product complexity or feature creep. Covers the gulfs of execution and evaluation. For usability scoring, see ux-heuristics. For iOS-specific patterns, see ios-hig-design.'
-license: MIT
-metadata:
-  author: wondelai
-  version: "1.4.0"
----
 
-# Design of Everyday Things Framework
+# Norman's Design of Everyday Things — principles and vocabulary
+
+Absorbed into `ux-heuristics` on 2026-09-11 (previously the standalone `design-everyday-things`
+skill). Source: wondelai/skills, MIT. Nielsen's heuristics were derived from these principles, so
+the actionable rules live in `SKILL.md`; what lives here is the **vocabulary and the walkthrough** —
+affordances, signifiers, mappings, the two gulfs, and the Seven Stages of Action.
 
 Foundational design principles for creating products that are intuitive, discoverable, and understandable. The "bible of UX" — applicable to physical products, software, and any human-designed system.
 
@@ -47,7 +44,7 @@ USER                                    PRODUCT
 
 **Design goal:** Make both gulfs as narrow as possible — action and understanding should be immediate.
 
-See: [references/two-gulfs.md](references/two-gulfs.md) for gulf analysis exercises.
+See: [references/two-gulfs.md](norman-two-gulfs.md) for gulf analysis exercises.
 
 ## Seven Fundamental Design Principles
 
@@ -83,7 +80,7 @@ See: [references/two-gulfs.md](references/two-gulfs.md) for gulf analysis exerci
 
 **Common failures:** flat design erasing perceived affordances (button or label?), too-small touch targets, interactive and decorative elements that look identical.
 
-See: [references/affordances.md](references/affordances.md) for affordance design patterns.
+See: [references/affordances.md](norman-affordances.md) for affordance design patterns.
 
 ### 3. Signifiers
 
@@ -105,7 +102,7 @@ See: [references/affordances.md](references/affordances.md) for affordance desig
 
 **Design rule:** When in doubt, add a signifier — better to over-communicate than leave users guessing.
 
-See: [references/signifiers.md](references/signifiers.md) when deciding which signifier to add to an unclear control.
+See: [references/signifiers.md](norman-signifiers.md) when deciding which signifier to add to an unclear control.
 
 ### 4. Mappings
 
@@ -126,7 +123,7 @@ See: [references/signifiers.md](references/signifiers.md) when deciding which si
 | **Cultural** | Follows conventions | Red = stop/danger, green = go/safe |
 | **Sequential** | Follows natural order | Steps 1, 2, 3 left to right (or top to bottom) |
 
-See: [references/mappings.md](references/mappings.md) for mapping analysis exercises.
+See: [references/mappings.md](norman-mappings.md) for mapping analysis exercises.
 
 ### 5. Constraints
 
@@ -149,7 +146,7 @@ See: [references/mappings.md](references/mappings.md) for mapping analysis exerc
 
 **Design rule:** Every constraint you add is one less error the user can make — make wrong actions impossible rather than punishing them.
 
-See: [references/constraints.md](references/constraints.md) for constraint design patterns.
+See: [references/constraints.md](norman-constraints.md) for constraint design patterns.
 
 ### 6. Feedback
 
@@ -174,7 +171,7 @@ See: [references/constraints.md](references/constraints.md) for constraint desig
 
 **Common failures:** no feedback (did my click register?), delayed feedback (feels broken), unclear feedback, alert overload.
 
-See: [references/feedback.md](references/feedback.md) when an action gives no clear result and you need the right feedback type and timing.
+See: [references/feedback.md](norman-feedback.md) when an action gives no clear result and you need the right feedback type and timing.
 
 ### 7. Conceptual Models
 
@@ -192,7 +189,7 @@ See: [references/feedback.md](references/feedback.md) when an action gives no cl
 
 **Build correct models with:** familiar metaphors (desktop, trash), visible system state, clear feedback, consistent behavior, progressive disclosure.
 
-See: [references/conceptual-models.md](references/conceptual-models.md) when the user's model diverges from how the product works. For fully worked teardowns (door handles, thermostats, digital products), see [references/case-studies.md](references/case-studies.md).
+See: [references/conceptual-models.md](norman-conceptual-models.md) when the user's model diverges from how the product works. For fully worked teardowns (door handles, thermostats, digital products), see [references/case-studies.md](norman-case-studies.md).
 
 ## Human Error
 
@@ -229,7 +226,7 @@ See: [references/conceptual-models.md](references/conceptual-models.md) when the
 - [ ] Preserves user's work
 - [ ] Provides alternative path
 
-See: [references/human-error.md](references/human-error.md) for error prevention patterns.
+See: [references/human-error.md](norman-human-error.md) for error prevention patterns.
 
 ## The Seven Stages of Action
 
@@ -249,7 +246,7 @@ See: [references/human-error.md](references/human-error.md) for error prevention
 
 **Design implications:** support stages 1-3 with signifiers, mappings, and constraints; stage 4 with good affordances; stages 5-7 with feedback and visible state. Walk any interaction through each stage to find where users get stuck.
 
-See: [references/seven-stages.md](references/seven-stages.md) for stage-by-stage analysis.
+See: [references/seven-stages.md](norman-seven-stages.md) for stage-by-stage analysis.
 
 ## Human-Centered Design (HCD) Process
 

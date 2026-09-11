@@ -21,6 +21,8 @@ A systematic approach to web performance grounded in how browsers, protocols, an
 
 **Goal: 10/10.** Score by how many of the eight Quick Diagnostic rows pass, weighted toward the field metrics: **9-10** = all eight pass (the four field-metric rows in the green plus content-hashing, HTTP/2+, minimized render-blocking, and compression); **5-6** = the four field-metric rows pass but one or more transport/caching/compression rows fail; **<=3** = any field-metric row is in the red. Always report the score, which diagnostic rows failed, and the specific fix for each.
 
+**When this runs as a phase of `improve-website`, the score is an input, not the ranking.** That skill ranks every fix by ICE in `docs/EXPERIMENTS.md` and ships it as a pre-committed experiment; report the score and the failed rows, then let the fixes take their place in that backlog rather than presenting the score as a competing priority order. Standalone, the score is the whole verdict.
+
 ## The High Performance Browser Networking Framework
 
 Six domains for building fast, resilient web applications:

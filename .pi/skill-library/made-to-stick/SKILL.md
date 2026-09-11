@@ -74,6 +74,25 @@ See [references/simple.md](references/simple.md) when you can't reduce a message
 
 **Anti-pattern:** Gimmicky surprise without substance.
 
+#### When surprise loses to clarity
+
+This trait puts this skill in direct conflict with two others, and the conflict is real, not a matter
+of emphasis. `storybrand-messaging` says "choose clarity always" and gates on whether a stranger
+grasps the offer in five seconds; `cro-methodology` takes the same side. A curiosity-gap headline —
+"Everything you know about X is wrong" — scores well here and fails both of those.
+
+Resolve it by **where the reader is, not by which skill you loaded**:
+
+| Surface | Winner | Why |
+|---|---|---|
+| Ads, subject lines, social posts, cold traffic, the opening line of a pitch | **Surprise.** Use Mystery and Challenge. | Attention is the binding constraint. A perfectly clear message nobody opens communicates nothing. |
+| Hero section, pricing page, CTA, onboarding, anything a reader arrived at on purpose | **Clarity.** Say the offer plainly. | Intent is already there. A curiosity gap in front of someone ready to buy adds a step between them and the purchase. |
+| Docs, error messages, settings, legal, anything load-bearing | **Clarity, absolutely.** | Surprise in an error message is a bug. |
+
+The Curse of Knowledge section below still applies on every surface: the *reason* to be clear is that
+you already know the answer and cannot feel what it is like not to. That is not in tension with
+surprise — it is what makes a surprise land instead of confuse.
+
 See [references/unexpected.md](references/unexpected.md) when a message reads as predictable—it has techniques for finding the counterintuitive angle and engineering curiosity gaps.
 
 ### 3. Concrete

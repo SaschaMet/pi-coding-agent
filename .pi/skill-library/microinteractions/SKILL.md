@@ -1,6 +1,6 @@
 ---
 name: microinteractions
-description: 'Design the small details -- triggers, rules, feedback, loops and modes -- that separate good products from great ones. Use when the user mentions "microinteraction", "button feedback", "loading state", "toggle design", "animation detail", "state transitions", "input feedback", "the interface feels dead", "make the UI feel responsive", or "add polish to interactions". Also trigger when designing form-validation responses, progress indicators, confirmation dialogs, or any element where the user expects immediate feedback. Covers trigger design, state rules, feedback mechanisms, and progressive loops. For overall UI polish, see refactoring-ui. For affordance design, see design-everyday-things.'
+description: 'Design the small details -- triggers, rules, feedback, loops and modes -- that separate good products from great ones. Use when the user mentions "microinteraction", "button feedback", "loading state", "toggle design", "animation detail", "state transitions", "input feedback", "the interface feels dead", "make the UI feel responsive", or "add polish to interactions". Also trigger when designing form-validation responses, progress indicators, confirmation dialogs, or any element where the user expects immediate feedback. Covers trigger design, state rules, feedback mechanisms, and progressive loops. For product-UI visual polish, see refactoring-ui. For affordance and signifier design, see ux-heuristics.'
 license: MIT
 metadata:
   author: wondelai
@@ -128,6 +128,8 @@ See: [references/loops-modes.md](references/loops-modes.md) for long loops, mode
 ### 5. Signature Moments
 
 **Core concept:** A signature moment is a microinteraction so distinctive it becomes part of the product's identity -- the Facebook Like, slide-to-unlock, Slack's loading messages. Every product should have one or two; not every interaction should be one.
+
+**Scope note:** `top-design` owns the signature moment at *page* scale -- "design the signature moment first, not the header; what will people screenshot" -- as a composition decision for marketing and portfolio sites. This section owns it at *control* scale: how a single interaction becomes identity-bearing through its trigger, rules, and feedback. If the question is "what is the one thing people will remember about this page", that is `top-design`. If it is "how do I build this one control so it feels like ours", it is here.
 
 **Why it works:** Signature moments create emotional memory and make products feel crafted rather than assembled. They are what users demonstrate first when describing your product to others.
 

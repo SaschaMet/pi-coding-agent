@@ -180,35 +180,20 @@ Focus on recordings from:
 3. Note what competitors claim as strengths
 4. Identify gaps in their approach
 
-## Customer Interview Guide
+## Customer Interviews
 
-### Who to Interview
+Interviewing is owned by two other skills, and doing it badly produces research that is worse than
+none — it produces confident wrong answers that then aim every experiment.
 
-- Recent buyers (why they bought)
-- Recent non-buyers (why they didn't)
-- Long-term customers (what keeps them)
-- Churned customers (why they left)
+- **How to interview without contaminating the answer** — `mom-test`: talk about their life not your idea, ask about specifics in the past, never about hypotheticals or feature wishes, and treat compliments as data loss. It also carries the commitment ladder (time, reputation, money) for telling real interest from politeness.
+- **What to ask a recent buyer** — `jobs-to-be-done`: the purchase timeline, the four forces that pushed and pulled them, what they switched away from, and what they nearly bought instead.
 
-### Key Questions
+**Who to interview**, which is the CRO-specific part: recent buyers (why they bought), recent
+non-buyers (why they didn't), long-term customers (what keeps them), churned customers (why they
+left). All four segments, or the objection list is biased toward people who already said yes.
 
-**Pre-purchase**:
-- "What triggered you to look for a solution?"
-- "What alternatives did you consider?"
-- "What almost stopped you from buying?"
-- "What convinced you to choose us?"
-
-**Post-purchase**:
-- "What result have you achieved?"
-- "What's been harder than expected?"
-- "What would you tell a friend about us?"
-
-### Interview Tips
-
-1. Let them talk (don't lead)
-2. Ask "why" repeatedly (5 Whys)
-3. Get specific examples
-4. Record for quotes (with permission)
-5. Look for patterns across interviews
+**What CRO does with the output:** every objection becomes a row in the O/CO table in `SKILL.md`,
+phrased in the customer's own words. An objection you wrote yourself is not research.
 
 ## Research Prioritization
 

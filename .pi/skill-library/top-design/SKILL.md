@@ -1,6 +1,6 @@
 ---
 name: top-design
-description: 'Create award-winning, immersive web experiences at the level of Awwwards-featured agencies. Use when the user mentions "Awwwards quality", "make my site stunning", "scroll animations", "parallax storytelling", "cinematic web design", "portfolio site", or "brand experience". Also trigger when elevating a standard landing page into a memorable digital experience. Covers dramatic typography, purposeful motion, scroll-based composition, and performance-optimized animation. For foundational UI, see refactoring-ui. For type selection, see web-typography.'
+description: 'Create award-winning, immersive web experiences at the level of Awwwards-featured agencies. Use when the user mentions "Awwwards quality", "make my site stunning", "scroll animations", "parallax storytelling", "cinematic web design", "portfolio site", or "brand experience". Also the owner of the "expensive / premium / agency / Apple-like" aesthetic direction: when a design-taste run needs that overlay, it loads this skill. Also trigger when elevating a standard landing page into a memorable digital experience. Covers dramatic typography, purposeful motion, scroll-based composition, premium component architecture, and performance-optimized animation. For product UI (dashboards, forms, tables), see refactoring-ui. For type selection and loading, see web-typography.'
 license: MIT
 metadata:
   author: wondelai
@@ -206,11 +206,50 @@ See [references/technical-stack.md](references/technical-stack.md) when choosing
 - Every link and card has a considered hover state -- scale, overlay, or meaningful transform
 - Focus states are visible AND beautiful -- on-brand indicators that keyboard users can clearly see
 - Loading, empty, 404, and error states are designed, helpful moments
-- Micro-typography is correct -- smart quotes, en/em dashes, no orphans on headlines, `text-wrap: balance` on key text
+- Micro-typography is correct -- smart quotes, no orphans on headlines, `text-wrap: balance` on key text. **Dashes: `taste-skill` bans the em-dash and en-dash characters outright in user-visible output, and that ban wins whenever `taste-skill` is driving** — a single `—` fails its pre-flight check. When this skill drives a standalone build, correct dash usage is fine; when it runs as the "expensive / Awwwards" overlay inside a `design-taste` run, restructure the sentence or use a colon instead.
 
 **Ethical boundary:** Focus states must meet keyboard-visibility requirements even when styled on-brand, and error/empty/404 states must be genuinely helpful, not just decorative.
 
 See [references/animation-patterns.md](references/animation-patterns.md) for copy-pasteable magnetic-button, cursor, and `::selection`/hover micro-interaction code.
+
+### 8. Premium Component Architecture
+
+**Core concept:** The pillars above decide how a page feels. This one decides how a single component is
+physically constructed. Premium components are *nested enclosures*, not flat rectangles — machined
+hardware rather than boxes.
+
+**Why it works:** Depth read at component scale is what separates an expensive interface from a
+well-spaced one. A card sitting flatly on a background is the default; a card sitting in a tray is a
+decision.
+
+**The Double-Bezel (nested enclosure).** Never place a premium card, image, or container flatly on the
+background.
+- **Outer shell:** a wrapper with a subtle background (`bg-black/5` or `bg-white/5`), a hairline border (`ring-1 ring-black/5` or `border border-white/10`), tight padding (`p-1.5` or `p-2`), and a large radius (`rounded-[2rem]`).
+- **Inner core:** its own background, its own inner highlight (`shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]`), and a **mathematically concentric** radius — `rounded-[calc(2rem-0.375rem)]`, outer radius minus the padding. Concentric curves are the tell that someone did the math.
+
+**Button-in-Button trailing icon.** A button's arrow never sits naked beside the label. Nest it in its
+own circular wrapper (`w-8 h-8 rounded-full bg-black/5 dark:bg-white/10 flex items-center
+justify-center`), flush with the button's right inner padding. Primary buttons are `rounded-full` with
+generous padding (`px-6 py-3`).
+
+**Fluid Island nav.** Closed: a floating glass pill detached from the top (`mt-6 mx-auto w-max
+rounded-full`) — not an edge-to-edge bar glued to the viewport. The hamburger **morphs**: its lines
+rotate and translate into a true 'X' (`rotate-45` / `-rotate-45`, absolutely positioned) rather than
+disappearing. Open: a screen-filling overlay with heavy glass (`backdrop-blur-3xl bg-black/80`), and
+the links inside slide up out of an invisible box (`translate-y-12 opacity-0` → `translate-y-0
+opacity-100`) on a stagger (`delay-100`, `delay-150`, `delay-200`).
+
+**Vibe archetypes — pick exactly one per page**, then hold it. Mixing two is how a page stops reading
+as art-directed:
+1. **Ethereal Glass** (SaaS / AI / tech) — deepest OLED near-black (`#050505`), radial mesh gradients as faint glowing orbs, near-black cards with `backdrop-blur-2xl` and `white/10` hairlines, wide geometric grotesk type.
+2. **Editorial Luxury** (lifestyle / real estate / agency) — warm creams (`#FDFBF7`), muted sage or deep espresso, high-contrast variable serif at massive heading sizes, CSS film-grain overlay at `opacity-[0.03]`.
+3. **Soft Structuralism** (consumer / health / portfolio) — silver-grey or white grounds, massive bold grotesk type, floating components with very soft, highly diffused ambient shadows.
+
+**Eyebrow tags.** A microscopic pill above major headings (`rounded-full px-3 py-1 text-[10px]
+uppercase tracking-[0.2em] font-medium`) — sparingly; one per section at most.
+
+**Motion for these components** obeys Pillar 3: custom cubic-beziers only
+(`duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]`), never `ease`, `linear`, or `ease-in-out`.
 
 ## Design Process
 

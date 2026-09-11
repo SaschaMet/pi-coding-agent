@@ -148,6 +148,23 @@ Help should be searchable, task-focused ("How to..." not technical reference), a
 
 See: [references/nielsen-heuristics.md](references/nielsen-heuristics.md) when auditing against a specific heuristic — it expands each of the 10 into good-implementation / common-violation / severity tables with copy patterns and ethical boundaries.
 
+### Norman's vocabulary — when a heuristic finding needs a *why*
+
+Nielsen's ten were derived from Norman's principles, so the rules above already carry most of the
+method. What Norman adds is the diagnostic language for explaining *why* something confuses people,
+and a walkthrough for finding it.
+
+Reach for it when a finding is hard to name — "users keep missing this control", "they don't know it
+worked", "the wrong thing happens and they blame themselves":
+
+- [references/norman-principles.md](references/norman-principles.md) — the framework overview: the two gulfs, the seven principles, the Seven Stages of Action, the HCD loop. Start here.
+- [references/norman-affordances.md](references/norman-affordances.md) and [references/norman-signifiers.md](references/norman-signifiers.md) — the taxonomy that separates what an element *can* do from what it *advertises*: real, perceived, hidden, false, and anti-affordances. This is the precise language for "nobody realized it was clickable."
+- [references/norman-two-gulfs.md](references/norman-two-gulfs.md) — Execution ("how do I do this?") vs Evaluation ("did it work?"). Most severity-3 findings are one gulf or the other.
+- [references/norman-seven-stages.md](references/norman-seven-stages.md) — a stage-by-stage walkthrough with an audit worksheet, for when you need to locate exactly where a flow breaks down.
+- [references/norman-mappings.md](references/norman-mappings.md), [references/norman-constraints.md](references/norman-constraints.md), [references/norman-feedback.md](references/norman-feedback.md), [references/norman-conceptual-models.md](references/norman-conceptual-models.md) — the individual principles in depth.
+- [references/norman-human-error.md](references/norman-human-error.md) — the slip/mistake split behind heuristic 5, expanded into prevention tables. Norman's rule: design the error out, do not warn about it, and never blame the user.
+- [references/norman-case-studies.md](references/norman-case-studies.md) — eight worked examples (the Norman door, thermostat models, stovetop mappings, cockpit mode errors), useful for explaining a finding to a stakeholder.
+
 ## Severity Rating Scale
 
 Rate each issue found in an audit:

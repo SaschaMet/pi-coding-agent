@@ -62,43 +62,15 @@ If you don't have an asset, plan to acquire it:
 
 ## Psychological Triggers
 
-### Scarcity (Use Ethically)
-- Limited time offers (genuine deadlines)
-- Limited quantity
-- Exclusive access
-- Seasonal availability
+Owned by `influence-psychology`, not restated here. It covers Reciprocity, Commitment/Consistency,
+Social Proof, Authority, Liking, Scarcity, and Unity in depth — with the ethics gate this skill
+cannot provide: a transparency test, a reversibility test, a vulnerable-population check, and the
+FTC/GDPR/DSA exposure that fake scarcity actually creates.
 
-**Warning**: Fake scarcity destroys trust. Only use real limitations.
-
-### Social Proof
-- "Join 50,000+ marketers"
-- Real-time activity ("John from NYC just signed up")
-- Testimonials at decision points
-- Expert endorsements
-
-### Authority
-- Expert positioning
-- Media logos
-- Certifications visible
-- Specific credentials
-
-### Reciprocity
-- Free valuable content upfront
-- Free tools/calculators
-- Generous trial periods
-- Helpful support
-
-### Commitment/Consistency
-- Micro-commitments (email before credit card)
-- Progress indicators
-- "You're almost there" messaging
-- Previous choices displayed
-
-### Loss Aversion
-- Cost of inaction
-- "What you're missing"
-- Comparison with competitors' customers
-- Before/after contrast
+What matters here is the CRO constraint on using them: **a persuasion tactic is a hypothesis, not a
+fix.** It enters `docs/EXPERIMENTS.md` with a pre-committed metric like any other change, and it is
+subject to the 10x screen in `SKILL.md` — swapping "thousands of customers" for "2,347 customers" is
+a meek tweak that will not reach significance, however well it scores as persuasion.
 
 ## The "Proof Sandwich"
 

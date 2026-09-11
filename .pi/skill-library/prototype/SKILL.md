@@ -25,6 +25,21 @@ The two branches produce very different artifacts — getting this wrong wastes 
 5. **Surface the state.** After every action (logic) or variant switch (UI), print or render the full relevant state so the user sees what changed.
 6. **Capture it when done.** Fold the validated decision into the real code. Keep the prototype itself as a primary source on a throwaway branch, out of main, with a pointer to that branch from wherever the decision is recorded. Capture the verdict and the question it settled alongside it. Main keeps only the validated decision.
 
+## Two things to say out loud
+
+**This skill suspends a standing TDD rule, deliberately.** Many setups — including a global
+"always write the test first" instruction — mandate tests before implementation. A prototype is the
+documented exception: it exists to be deleted, and a test on code with a lifespan of one afternoon
+costs more than it proves. Say that you are suspending it and why, rather than appearing to have
+forgotten. The rule returns the moment the decision is folded into real code (rule 6), which is
+ordinary production work and gets ordinary tests.
+
+**The UI branch still builds in the project's stack.** Variants inherit the existing component
+library, tokens, and styling system — read `docs/DESIGN-SYSTEM.md` if it exists. A prototype is
+throwaway in its *lifespan*, not in its *stack*: variants built in a styling system the project does
+not use answer a question nobody asked. If the project has no stack at all, that is a finding worth
+reporting, not a licence to pick one here.
+
 ## Anti-patterns
 
 - **Adding tests.** A prototype that needs tests is no longer a prototype.

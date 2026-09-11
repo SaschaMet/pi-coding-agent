@@ -26,13 +26,13 @@ The library holds skills that are valuable but rarely needed. They are not auto-
 
 ## Matching rules
 
-| Situation | Action |
-|---|---|
-| The user named a skill, and it is in the index | Use it. No question needed. |
-| The user described a need, and one skill clearly fits | Name it, state why, proceed. |
-| Several skills plausibly fit | List them with one line each, recommend one, ask. Do not silently pick. |
-| Nothing in the index fits | Say so plainly. Answer from general knowledge if you can, and label it as such. Never present improvised advice as a library skill. |
-| The user named something absent from the index | Say it is not installed. Show the closest index entries. Do not substitute one skill for another without saying so. |
+| Situation                                             | Action                                                                                                                              |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| The user named a skill, and it is in the index        | Use it. No question needed.                                                                                                         |
+| The user described a need, and one skill clearly fits | Name it, state why, proceed.                                                                                                        |
+| Several skills plausibly fit                          | List them with one line each, recommend one, ask. Do not silently pick.                                                             |
+| Nothing in the index fits                             | Say so plainly. Answer from general knowledge if you can, and label it as such. Never present improvised advice as a library skill. |
+| The user named something absent from the index        | Say it is not installed. Show the closest index entries. Do not substitute one skill for another without saying so.                 |
 
 ## Metaskills
 
@@ -51,12 +51,12 @@ Some library skills orchestrate others — `improve-website` runs twelve of them
 
 ## Failure modes
 
-| Condition | Response |
-|---|---|
-| `~/.pi/agent/skill-library/` missing | Report the exact path as missing. Stop. Do not recreate it. |
-| `AGENTS.md` missing but skill folders present | List the folder names as a provisional index, say the index file is missing, and suggest rebuilding it. |
-| Named skill's `SKILL.md` missing or unreadable | Report the exact path. Stop. Do not run the skill from its name alone. |
-| A reference file named by `SKILL.md` does not exist | Report the dangling link, continue with the rest of the skill, and note what was unavailable. |
+| Condition                                           | Response                                                                                                |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `~/.pi/agent/skill-library/` missing                | Report the exact path as missing. Stop. Do not recreate it.                                             |
+| `AGENTS.md` missing but skill folders present       | List the folder names as a provisional index, say the index file is missing, and suggest rebuilding it. |
+| Named skill's `SKILL.md` missing or unreadable      | Report the exact path. Stop. Do not run the skill from its name alone.                                  |
+| A reference file named by `SKILL.md` does not exist | Report the dangling link, continue with the rest of the skill, and note what was unavailable.           |
 
 ## Managing the library
 

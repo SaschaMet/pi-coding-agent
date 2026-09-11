@@ -1,6 +1,6 @@
 ---
 name: refactoring-ui
-description: 'Audit and fix visual hierarchy, spacing, color, and depth in web UIs. Use when the user mentions "my UI looks off" (or amateur/unprofessional), "fix the design", "Tailwind styling", "color palette", "visual hierarchy", "design system", "spacing scale", or "component styling". Also trigger when building consistent design tokens, creating dark mode themes, improving data-visualization clarity, or polishing UI details before launch. Covers grayscale-first workflow, constrained design scales, shadows, and component styling. For typeface selection, see web-typography. For usability audits, see ux-heuristics.'
+description: 'Audit and fix visual hierarchy, spacing, color, and depth in PRODUCT and APP UI - dashboards, data tables, forms, settings, admin panels, and the signed-in surfaces of a web app. Use when the user mentions "my UI looks off" (or amateur/unprofessional), "fix the design", "Tailwind styling", "color palette", "visual hierarchy", "design system", "spacing scale", or "component styling" for those surfaces. Also trigger when building consistent design tokens, creating dark mode themes, improving data-visualization clarity, or polishing UI details before launch. Covers grayscale-first workflow, constrained design scales, shadows, and component styling. Do NOT use for marketing pages, landing pages, or portfolios - the taste-skill family owns those and bans several patterns recommended here. For typeface selection, see web-typography. For usability audits, see ux-heuristics.'
 license: MIT
 metadata:
   author: wondelai
@@ -10,6 +10,27 @@ metadata:
 # Refactoring UI Design System
 
 A practical, opinionated approach to UI design. Apply these principles when generating frontend code, reviewing designs, or advising on visual improvements.
+
+## Scope — product UI, not marketing pages
+
+**This skill owns the signed-in surfaces:** dashboards, data tables, forms, settings, admin panels,
+internal tools. That scope is deliberate and it is the one place in this library where these values
+are correct. The `taste-skill` family owns landing pages, portfolios, marketing and product *marketing*
+pages, and editorial sites — and it bans several patterns recommended below, on purpose.
+
+Six values here are **product-UI values that fail a marketing page's review**:
+
+| Rule below | Correct for product UI because | On a marketing page |
+|---|---|---|
+| `shadow-md` / `lg` / `xl` elevation scale | Elevation communicates real stacking — a dropdown *is* above the page | Banned family-wide; use ultra-diffuse shadows at < 0.05 opacity or none |
+| Section padding 48-64px | Dense surfaces where vertical space is scarce and scanning matters | Far too tight — marketing sections run `py-24` to `py-48` (96-192px) |
+| Centered heroes | Fine for empty states and single-action confirmations | An AI tell; marketing heroes are asymmetric |
+| `grid grid-cols-3 gap-6` | A legitimate layout for cards of equal weight in an app | "The most generic AI layout" — banned for feature rows |
+| `border-gray-200` 1px borders on white cards | The standard app card, readable and cheap | The canonical generic card; group with `border-t`, `divide-y`, or space instead |
+| `text-gray-900` / `600` / `400` on white | Predictable, accessible, consistent across a large app | Marketing pages avoid pure white and pure black grounds |
+
+So: if the surface is behind a login, use these values as written. If it is a page trying to sell
+something, stop and use `taste-skill` instead — do not translate these values onto it.
 
 ## Core Principle
 
