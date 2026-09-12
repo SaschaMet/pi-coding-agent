@@ -17,6 +17,14 @@
 # - One proxy serves ALL providers (it compresses message content, not provider calls),
 #   so OAuth subscriptions (github-copilot, openai-codex) are covered too.
 # - Set the extension's autoStart=false when using Docker (it manages this container, not pip).
+#   CRITICAL: the noheadroom extension's autoStart DEFAULTS TO true — if /health fails while
+#   this container is down, it spawns a NATIVE `headroom proxy` on 8788 (detached, orphaned to
+#   launchd, survives across sessions) that then blocks this container's port forever
+#   ("address already in use") and silently serves sessions on headroom's default settings
+#   (dedup ON, no --lossless). Prevent it BEFORE the first PI session:
+#     mkdir -p ~/.pi/agent/headroom && printf '{\n  "autoStart": false\n}\n' > ~/.pi/agent/headroom/settings.json
+#   Full writeup + detection commands: noheadroom.README.md section 4 (duplicate native proxy)
+#   and section 5 (running a native proxy with the same features instead of Docker).
 # - Container listens on 8787 (the image default) internally; only the host-side publish
 #   is remapped to 8788. Do NOT set HEADROOM_PORT to change the internal bind port — the
 #   image's baked-in HEALTHCHECK hardcodes `curl http://127.0.0.1:8787/readyz`, so bumping
@@ -26,13 +34,18 @@
 
 services:
   headroom:
-    # :main tracks the unreleased default branch, not a tagged version — chosen deliberately
-    # to get HEADROOM_COMPRESS_ALLOW_REMOTE (merged 2026-07-21, commit 1329ed7, PR #2458),
-    # which isn't in any tagged release yet (confirmed absent from v0.32.0). Trade-off:
-    # :main can carry other in-progress/untagged changes and moves without a changelog entry
-    # to review — re-pin to a tagged release once one ships this fix, and re-verify the
-    # command/entrypoint/env assumptions below still hold when you do.
-    image: ghcr.io/headroomlabs-ai/headroom:main
+    # Pinned to a tagged release. This was previously :main, tracked deliberately to get
+    # HEADROOM_COMPRESS_ALLOW_REMOTE (merged 2026-07-21, commit 1329ed7, PR #2458), which
+    # wasn't in any tagged release then (confirmed absent from v0.32.0). That feature has
+    # since shipped in tagged releases — verified present at v0.37.0 (headroom/proxy/server.py),
+    # so per the note above we re-pin to a tag instead of tracking the moving :main branch.
+    # Re-verified against v0.37.0 (2026-08-27) that the command/entrypoint/env assumptions
+    # below still hold: entrypoint `headroom proxy`, baked-in HEALTHCHECK on 8787/readyz,
+    # nonroot /home/nonroot/.headroom volume, and every env var + CLI flag still exists.
+    # NOTE: v0.37.0 made /v1/compress session-aware (sidecar mode) + added a /v1/usage relay
+    # — confirm the noheadroom extension round-trip still works after this bump.
+    # Docker tag drops the `v` that the GitHub release tag carries: release v0.37.0 == image 0.37.0.
+    image: ghcr.io/headroomlabs-ai/headroom:0.37.0
     container_name: headroom
     restart: unless-stopped
     ports:
@@ -80,8 +93,8 @@ services:
       # every loopback-gated route in the proxy (admin/runtime-env, settings write, CCR
       # retrieve, etc.), not just this one, and silently stops working on the next bump.
       #
-      # Live as of :main (see image comment above) — was a no-op under the previous :latest
-      # pin (v0.32.0), which predates this feature. Note the CCR retrieve family
+      # Live as of v0.37.0 (and :main since 2026-07-21) — was a no-op under the previous
+      # :latest pin (v0.32.0), which predates this feature. Note the CCR retrieve family
       # (/v1/retrieve*) has NO such override, ever, by design — that gap can't be fixed by
       # env var regardless of version, :main included.
       HEADROOM_COMPRESS_ALLOW_REMOTE: "1"

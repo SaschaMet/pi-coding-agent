@@ -44,6 +44,7 @@ During a session, you see repeated UI warnings:
 Headroom in `token` mode compresses the *entire* payload it's given (including user prompts and assistant prose in the request body). The `noheadroom` PI extension, however, is designed to only apply changes back to `toolResult` messages, to preserve PI's native text fidelity elsewhere (`bridge.js`: `applyTo = source.role === "toolResult" ? "toolResult" : null`).
 
 If Headroom's changes only touched non-`toolResult` content (or produced a result that didn't reduce the estimated token count), the extension discards the response and reports one of two benign, expected outcomes:
+
 - `no-applicable-message-changed` — zero `toolResult` messages had any text actually change
 - `no-estimated-token-savings` — a `toolResult` changed, but the estimated token delta was zero
 
@@ -69,6 +70,7 @@ Content from earlier in a session (or, per Headroom's own changelog, potentially
 
 **Cause:**
 Headroom's CCR (Compress-Cache-Retrieve) architecture has two distinct retrieval paths:
+
 1. **Explicit** — the model calls the `headroom_retrieve` MCP tool with a hash from a prior compression. Agent-initiated, on demand. This is the only path documented on Headroom's public docs site.
 2. **Proactive expansion** — a `ContextTracker` feature, **default enabled**, that scores relevance between a new query and previously-compressed content and, above a threshold (default 0.3, capped at 2 expansions/query), automatically reinjects the *full original cached content* into the message stream — with no tool call, and no clear signal to the model that the content is replayed history rather than a fresh instruction. Confirmed via `docker exec headroom headroom proxy --help` and Headroom's architecture docs; not mentioned anywhere in the public configuration docs, which describe CCR as purely on-demand.
 
@@ -82,3 +84,90 @@ environment:
 ```
 
 Verified: the container starts healthy with this set (`docker exec headroom env | grep ccr` confirms it's applied), and `/health` still reports `"ready":true`. This does **not** disable CCR retrieval outright — `headroom_retrieve` remains available as an explicit, agent-initiated MCP tool call. It only removes the automatic, unrequested reinjection path. The tradeoff: if you ever want Headroom to proactively resurface relevant compressed context on its own (rather than only when explicitly asked), that convenience is now off — treated as an acceptable cost given the mechanism has no verified safeguard against replaying instruction-shaped content.
+
+## 4. Duplicate native proxy silently takes over port 8788 (`autoStart` default)
+
+**Symptom:**
+
+- `docker compose -f headroom-compose.yml up -d` fails with `Error response from daemon: ports are not available: ... 127.0.0.1:8788: bind: address already in use`.
+- `lsof -nP -iTCP:8788 -sTCP:LISTEN` shows a `Python` process owned by you — not `com.docker`/`docker-proxy`.
+- `~/.headroom/logs/proxy.log` exists and is being written (that's the NATIVE proxy's log; the Docker container logs inside the container instead).
+- Version mismatch: `docker exec headroom headroom --version` reports one version, but the process actually serving 8788 is a different (usually older) one.
+- Your sessions keep getting compressed "as if nothing happened" — by the wrong proxy, with the wrong config.
+
+**Cause:**
+The noheadroom extension's `autoStart` **defaults to `true`** (`dist/config.js`). When the extension's `/health` check against `baseUrl` fails (e.g. the Docker container is down or not started yet), `ensureProxy` (`dist/index.js`) spawns a **native** proxy:
+
+```
+headroom proxy --host 127.0.0.1 --port 8788 --mode token --no-cache
+```
+
+via `spawn(..., { detached: true, stdio: "ignore" })` + `child.unref()` (`dist/proxy-manager.js`). Two consequences:
+
+1. The process is **orphaned to launchd (PPID 1)** and survives across PI sessions — it keeps holding 8788 long after the session that spawned it is gone.
+2. It runs with **headroom defaults**: no `--lossless`, cross-turn dedup **ON**, CCR proactive expansion **ON**, no `--log-file`. It silently serves your sessions with a different (arguably less safe) config than the one in `headroom-compose.yml`.
+
+Once it holds 8788, the Docker container can never publish that port again — every later `up -d` fails with "address already in use", and `headroom-up.sh`'s fast path (`/health` answers) reports success even though the *wrong* proxy is answering.
+
+**Fix (applied 2026-09-12; repeat on any machine that hit this):**
+
+1. Tell the extension to stop spawning a native proxy. Its config lives in a **dedicated file** — `~/.pi/agent/headroom/settings.json`, NOT the PI `settings.json`:
+
+   ```bash
+   mkdir -p ~/.pi/agent/headroom
+   printf '{\n  "autoStart": false\n}\n' > ~/.pi/agent/headroom/settings.json
+   ```
+
+2. Kill the orphaned native proxy:
+
+   ```bash
+   pgrep -fl "headroom proxy"   # find it
+   pkill -f  "headroom proxy"   # stop it
+   ```
+
+3. Bring the Docker container up: `docker compose -f headroom-compose.yml up -d`
+
+**Which proxy is actually serving? Verify before trusting the setup:**
+
+| Check | Native | Docker |
+|---|---|---|
+| `lsof -nP -iTCP:8788 -sTCP:LISTEN` | `Python <pid> <you>` | `com.docker ...` |
+| `pgrep -fl "headroom proxy"` | shows the process | nothing |
+| Log being written | `~/.headroom/logs/proxy.log` | `docker exec headroom tail /home/nonroot/.headroom/proxy.log` |
+| Version | `~/.local/bin/headroom --version` (pipx) | `docker exec headroom headroom --version` |
+
+**Fresh-machine rule:** write `autoStart: false` (step 1) **before** relying on the Docker proxy. Otherwise the first PI session that starts with the container down spawns a native proxy that locks 8788.
+
+## 5. Running without Docker: native proxy with the same features
+
+**What the proxy does.** The noheadroom extension intercepts PI's context before each model call, POSTs the conversation messages to the proxy's `/v1/compress`, and substitutes the compressed versions of the `toolResult` messages back into the context before PI sends them to the model (user/assistant text is left untouched — `dist/bridge.js` only applies changes to `toolResult`). The proxy does **not** call an LLM: it is pure local token compression (lossless compaction, dedup, scaffolding stripping). Net effect: fewer input tokens per turn. **The extension only works if a proxy is actually running** at its `baseUrl` (default `http://127.0.0.1:8788`).
+
+**No proxy running.** If nothing answers `/health` and `autoStart` is `false`, the extension notifies `Headroom proxy unavailable. Compression disabled until /headroom health succeeds` and PI continues **uncompressed** — no error, just no savings.
+
+**Feature parity with the Docker setup.** The Docker compose file adds `--lossless --log-file ... --log-messages` plus `HEADROOM_DEDUPE=0` and `HEADROOM_NO_CCR_PROACTIVE_EXPANSION=1`. The extension's own spawn command is fixed (`proxy --host 127.0.0.1 --port 8788 --mode token --no-cache`) and does not include those. But every one of them has an **env-var equivalent** (verified in `headroom/cli/proxy.py` at v0.37.0), and the extension spawns with the PI process's environment (`env: {...process.env, HEADROOM_TELEMETRY: off}`) — so the auto-started native proxy can be brought to full parity by exporting:
+
+| Docker compose setting | Native env var |
+|---|---|
+| `--lossless` | `HEADROOM_LOSSLESS=1` |
+| `--log-file /home/nonroot/.headroom/proxy.log` | `HEADROOM_LOG_FILE=$HOME/.headroom/proxy-log.jsonl` (pick a name distinct from the native proxy's own operational log at `~/.headroom/logs/proxy.log`) |
+| `--log-messages` | `HEADROOM_LOG_MESSAGES=1` |
+| `HEADROOM_DEDUPE=0` | `HEADROOM_DEDUPE=0` |
+| `HEADROOM_NO_CCR_PROACTIVE_EXPANSION=1` | `HEADROOM_NO_CCR_PROACTIVE_EXPANSION=1` |
+| `HEADROOM_TELEMETRY=off` | already set by the extension at spawn |
+| `HEADROOM_COMPRESS_ALLOW_REMOTE=1` | **not needed** — a native proxy is a genuine loopback, so the loopback guard passes |
+| `HEADROOM_HOST=0.0.0.0` | **not needed** — the extension passes `--host 127.0.0.1` |
+
+**Making the env vars stick.** The orphaned proxy only inherits the environment of the process that spawned it (your PI session):
+
+- PI from a **terminal**: export the vars in your shell profile (`~/.zshrc`).
+- PI from **VS Code / a GUI**: the app inherits launchd's environment, so use `launchctl setenv HEADROOM_LOSSLESS 1` (etc.). `launchctl setenv` does not survive reboots — put the calls in a LaunchAgent or runbook if they must persist.
+
+**Native proxy lifecycle.**
+
+- Start: automatic (extension `autoStart=true`, the default) — or manually: `headroom proxy --host 127.0.0.1 --port 8788 --mode token --no-cache`
+- Stop: `pkill -f "headroom proxy"`
+- Update: `pipx upgrade headroom-ai` (the binary is a pipx install at `~/.local/bin/headroom`), then restart the process
+- Logs/state: `~/.headroom/logs/proxy.log`, `~/.headroom/ccr_store.db`
+- Alternative: the extension's `command` setting (default `"headroom"`, file key in `~/.pi/agent/headroom/settings.json`) can point at a wrapper binary that injects the flags — but the extension probes `<command> --help` before spawning, so the wrapper must handle that too. Env vars are the cleaner path.
+
+**Pick one mode — Docker (this repo's setup) or native (this section), not both.** They fight over 8788; see §4 for how that failure looks.
