@@ -71,7 +71,6 @@ Two cross-family boundaries worth stating once:
 - **`improve-website` vs `design-taste`.** The first asks *why* visitors don't convert and produces documents; the second asks *what it should look like* and produces code. They chain in that order when both apply, never the reverse. Both files now carry this paragraph, because `AGENTS.md` is not in context when either is named directly.
 - **`refactoring-ui` vs `taste-skill`.** Behind a login, `refactoring-ui`. Trying to sell something, `taste-skill`. Their values genuinely conflict — shadows, spacing, centered heroes, `grid-cols-3` — and that is a scope boundary, not a bug.
 
-
 ### Website improvement
 
 Source: <https://github.com/wondelai/skills>, MIT, copied 2026-09-10 from the repository **root** directories.
@@ -141,6 +140,14 @@ Source: agent-skill ecosystem, copied 2026-09-10.
 | Skill       | What it does                                                                                    |
 | ----------- | ----------------------------------------------------------------------------------------------- |
 | `prototype` | Throwaway code that answers a design, state-model, or UI question faster than arguing on paper. |
+
+### Architecture diagrams
+
+Source: [tt-a1i/archify](https://github.com/tt-a1i/archify) (MIT) — partial copy (65 files: SKILL.md, bin/, scripts/, renderers/, schemas/, examples/, references/, assets/, migrations/, recipes/, delta/, LICENSE, THIRD_PARTY_NOTICES.md) at commit `a07fa1d5b2a10cbea110c5a2be2817397a301cdc` (2026-09-13). Security-reviewed 2026-09-14 (report: `docs/security/archify-skill-security-review.md`). Excluded: `examples/*.html`, `scripts/check-update.mjs`, `scripts/update-contract.mjs`, `skill-release.json`, `scripts/generate-*.mjs`, `brand-marks/`, `package.json`/lockfile (zero runtime npm deps — all imports are `node:` builtins or relative).
+
+| Skill     | What it does                                                                                                                              |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `archify` | Render validated architecture, workflow, sequence, data-flow, and lifecycle diagrams as self-contained interactive HTML (inline SVG, dark/light themes, PNG/JPEG/WebP/SVG/WebM export). Accepts plain language or pasted Mermaid. |
 
 ### Frontend design taste
 

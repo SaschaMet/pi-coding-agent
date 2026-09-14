@@ -29,6 +29,7 @@ Durable rules, distilled from `.pi/SYSTEM.md` (the single origin — read it for
 - Coding workflow: follow the 9-step workflow in `.pi/SYSTEM.md`. No code before the plan is explicitly approved.
 - Coding standard: the `npm` scripts are the quality gate — `npm run typecheck`, `npm test`, `npm run smoke`. No separate standard doc exists yet; use the `add-coding-standard` skill to install one if desired.
 - Quality gates: `.pi/extensions/gates.ts` enforces change-disclosure + verification-ran before completion; `read-boundary-guard.ts` / `write-boundary-guard.ts` enforce path boundaries. Respect these guards; do not work around them.
+- Skill location: third-party skills belong in the **project-local** `.pi/skill-library/` (source of truth), never directly in the global `~/.pi/agent/skill-library/`. The global directory is a synced copy managed by `scripts/sync-pi-config.ts` (`push` = project→global, `pull` = global→project). Add the skill to the project, then run `npm run pi:sync-global` to propagate.
 - Debugging: use the extension in `.pi/extensions/debug.ts`; full guide in `.pi/docs/debug-extension-guide.md`.
 
 ## Verification
@@ -48,5 +49,5 @@ Durable rules, distilled from `.pi/SYSTEM.md` (the single origin — read it for
 
 ## Documentation
 
-- GitHub: https://github.com/earendil-works/pi
-- Official Docs: https://pi.dev/docs/latest
+- GitHub: <https://github.com/earendil-works/pi>
+- Official Docs: <https://pi.dev/docs/latest>
