@@ -24,8 +24,9 @@ const SCOPE_STATE_TYPE = "write-scope";
 
 const GUARDED_TOOLS = new Set(["write", "edit"]);
 
-/** Spec files that arm the guard when written. */
-const SPEC_PATH_PATTERN = /(^|\/)docs\/specs\/spec-[^/]+\.md$/;
+/** Planning artifacts (spec or plan files) that arm the guard when written. */
+const PLANNING_PATH_PATTERN =
+    /(^|\/)(docs\/specs\/spec-|docs\/plans\/plan-)[^/]+\.md$/;
 
 /** Planning artifacts the agent must always be able to maintain while armed. */
 const ALWAYS_WRITABLE_PREFIXES = [
@@ -148,22 +149,23 @@ export default function writeBoundaryGuardExtension(pi: ExtensionAPI): void {
         applyPersistedScope(ctx);
     });
 
-    // Auto-arm once a spec write actually lands, because a skill cannot type `/scope`.
+    // Auto-arm once a spec or plan write actually lands, because a skill cannot type `/scope`.
     pi.on("tool_result", async (event: ToolResultEvent, ctx) => {
         if (!GUARDED_TOOLS.has(event.toolName) || event.isError)
             return undefined;
 
         const targetPath = getToolPath(event.input);
         if (!targetPath) return undefined;
-        if (!SPEC_PATH_PATTERN.test(toRepoRelative(targetPath, ctx.cwd)))
+        if (!PLANNING_PATH_PATTERN.test(toRepoRelative(targetPath, ctx.cwd)))
             return undefined;
 
-        // Re-arming from a spec the agent just authored would let the work in flight
-        // rewrite its own boundary. Replacing an armed scope stays a human action.
+        // Re-arming from a planning artifact the agent just authored would let the work
+        // in flight rewrite its own boundary. Replacing an armed scope stays a human
+        // action.
         const state = getState(pi);
         if (state.scope) {
             report(
-                `[SCOPE] '${targetPath}' looks like a spec, but the scope from \`${state.scope.specPath}\` is already armed and was left in place. Run /scope off first to switch.`,
+                `[SCOPE] '${targetPath}' looks like a spec or plan, but the scope from \`${state.scope.specPath}\` is already armed and was left in place. Run /scope off first to switch.`,
             );
             return undefined;
         }

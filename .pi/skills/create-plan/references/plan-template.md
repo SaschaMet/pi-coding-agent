@@ -4,6 +4,14 @@
 > Status: Draft | Approved
 > Graphify: queried | not available
 
+## Grill Status
+
+> Ready for implementation only when the latest row shows `done <date>` or `overridden <date>: <reason>`. A grill-step override is recorded here; a file-skip override (no document exists) is recorded in the session summary. Until the latest row is done or overridden, implementation is blocked.
+
+| # | Status |
+|---|--------|
+| 1 | Not run |
+
 ## 1. What & Why
 
 One-liner: what changes and why.

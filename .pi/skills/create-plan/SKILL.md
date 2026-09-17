@@ -38,6 +38,8 @@ Use [references/plan-template.md](references/plan-template.md) as the output tem
 
 ### Mandatory sections
 
+- **Grill Status table** (before section 1): the grill-completion readiness gate — initial row `Not run`; the grill-me session writes `done <date>` only after the user's explicit confirmation; a document whose latest row is not `done <date>` or `overridden <date>: <reason>` is not ready for implementation.
+
 1. **What & Why**: one-liner.
 2. **Scope**: modify, forbid, out of scope.
 3. **Changes**: checklist of file-level changes.
@@ -67,6 +69,7 @@ If a check fails, fix the plan instead of adding narrative explanation.
 1. Write the plan to `docs/plans/plan-{task-name}.md`.
 2. Keep implementation out of scope. Do not write implementation code.
 3. Include a one-line handoff: which files to change and which tests to run.
+4. If the Grill Status table's latest row is not `done <date>` or `overridden <date>: <reason>`, the handoff must state: "Implementation is blocked until the grill-me session records a done row (or a recorded override) in the Grill Status table."
 
 ## Gotchas
 
@@ -80,6 +83,7 @@ If a check fails, fix the plan instead of adding narrative explanation.
 - Never skip graphify. Always query before drafting.
 - Never ship a plan without explicit scope boundaries.
 - Never leave criteria unverifiable.
+- Never allow implementation to start while the Grill Status table's latest row is not `done <date>` or `overridden <date>: <reason>`.
 - Keep the plan concise; point to graphify paths instead of copying broad background.
 - Do not include broad codebase overviews that an implementation agent can rediscover.
 

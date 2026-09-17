@@ -6,6 +6,8 @@ node_modules
 .claude
 coverage
 docs/plans/**
+docs/specs/**
+docs/research/**
 test/.fixtures/
 .DS_Store
 .tokensave

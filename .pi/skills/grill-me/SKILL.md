@@ -130,9 +130,13 @@ Closing well under budget needs a one-line reason. "Eight questions; the plan is
 
 Do not act on the plan until they confirm. Writing code or a spec at this point is a failed session, regardless of how complete the understanding looks to you.
 
+**Record the confirmation in the document.** When the target is a spec or plan file that carries a Grill Status table, set its latest row to `done <date>` — only after the user's explicit confirmation. Never mark `done` before it, and the implementing agent never writes `done` either. If the user explicitly overrides the grill requirement instead of confirming, record `overridden <date>: <reason>` in the document's Grill Status table; if the override skips the document itself, record date + reason in the session summary.
+
 ## Step 7 — Summary
 
 Read [references/summary-template.md](references/summary-template.md) and write the summary in that structure: questions asked, answers given, default changes, risks accepted, open issues, next steps.
+
+**Present the plan before the next steps.** Before the summary's Recommended Next Steps, present the target document's Execution Steps and Definition of Done so the user can approve or revise on the spot — without re-reading the document or looking anything up.
 
 **Done when**: every question has its answer and round recorded, every unresolved risk appears under Risks Accepted or Open Issues, and every next step is a concrete action.
 

@@ -17,6 +17,14 @@ of lists — changes what the guard allows, with no compile error. Change the pa
 
 > Implementation Guard: If `Open Questions / Deferred Decisions` contains any unanswered item, implementation is blocked. Any AI coding agent must stop, ask the user to answer those items, and wait before changing code, config, migrations, tests, or docs.
 
+## Grill Status
+
+> Ready for implementation only when the latest row shows `done <date>` or `overridden <date>: <reason>`. A grill-step override is recorded here; a file-skip override (no document exists) is recorded in the session summary. Until the latest row is done or overridden, implementation is blocked.
+
+| # | Status |
+|---|--------|
+| 1 | Not run |
+
 ## 1. Intent
 One paragraph for what changes and why now.
 

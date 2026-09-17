@@ -29,14 +29,19 @@
 
 - Make the smallest effective change. Reuse existing code, naming, formatting, architecture, tests, documentation, and patterns.
 - TDD is mandatory: write tests before implementation; create tests if none exist.
+- Code and config changes are spec-file-based: no code or behavior-affecting config change without a spec or plan file, a completed grill-me session recorded in its Grill Status table, and explicit user approval of the file. Docs-only changes are exempt. This is the default for all such changes, including one-line fixes; a human may override it only by explicit instruction — a grill-step override is recorded in the document's Grill Status table, a file-skip override in the session summary (date + reason).
+- The grill-me session may run in the same or a fresh session; a fresh session is preferred so the griller does not inherit the spec author's assumptions.
+- A spec or plan whose latest Grill Status row is not `done <date>` or `overridden <date>: <reason>` is not ready for implementation.
 - Follow these steps in order:
   1. **Understand/research:** State your understanding; follow research rules; read applicable instructions, references, and docs; locate relevant code, tests, docs, and config; identify real entry points, call paths, and conventions.
   2. **Minimize:** Skip unnecessary work (YAGNI); reuse existing code; prefer standard-library, native-platform, or installed-dependency solutions; only then design the smallest custom fix.
-  3. **Plan:** Provide an implementation plan, To-Do checklist, and Definition of Done specifying the goal, expected result, affected files and behavior, scope boundaries, tests, and manual verification. Plan must start with tests first (TDD).
-  4. **Await approval:** Incorporate requested revisions; do not edit or run implementation commands until the user explicitly approves the plan.
-  5. **Implement:** Follow the approved plan, report progress, write tests first, and make only required changes (TDD). You have to start with Tests (Red Phase).
-  6. **Validate:** Run tests; check behavior, logs, metrics, and regressions. Fix failures before proceeding, subject to the stop-and-report rule.
-  7. **Document:** Make minimal doc updates only where behavior is unclear from code and tests.
-  8. **Review:** Confirm the request is satisfied, guidelines followed, no leftovers remain, needed docs are updated, tests pass, the summary is prepared, and all To-Dos are complete. Return to the relevant step for any failure.
-  9. **Summarize:** State what changed, why, verification results, and other relevant information.
-  10. **Cleanup:** Remove temporary branches, files, and artifacts, obtaining approval for destructive operations.
+  3. **Spec/plan:** Produce the plan as a file: `$create-spec` for Medium+ changes (`docs/specs/spec-*.md`), `$create-plan` for small 1-3 file changes and config-or-smaller changes (`docs/plans/plan-*.md`). The file is the contract: scope, criteria, verification, and a Grill Status table in its initial Not-run state. No implementation before the file exists.
+  4. **Grill:** Run `$grill-me` against the spec or plan file (fresh session preferred). The session must reach its confirmation gate and set the file's latest Grill Status row to `done <date>`. Fold grill findings back into the file. If the grill session changed the document's Scope section, tell the user to re-arm: `/scope off` then `/scope <path>` (the guard refuses self re-arm by design).
+  5. **Present for approval:** Present the file's Execution Steps and Definition of Done so the user can approve or revise on the spot, without re-reading or looking anything up.
+  6. **Await approval:** Incorporate requested revisions; do not edit or run implementation commands until the user explicitly approves the grilled file. Approval requires a latest Grill Status row of `done <date>` or `overridden <date>: <reason>`.
+  7. **Implement:** Implement only against the approved file: scope from its Modify/Forbid lists, tests first (TDD). The write-boundary guard enforces scope per session (auto-arms on spec or plan write in the current session; in a new session, arm with `/scope <path>` before implementing). Any scope change: stop, update the file, re-grill, re-approve.
+  8. **Validate:** Run tests; check behavior, logs, metrics, and regressions. Fix failures before proceeding, subject to the stop-and-report rule.
+  9. **Document:** Make minimal doc updates only where behavior is unclear from code and tests.
+  10. **Review:** Confirm the request is satisfied, guidelines followed, no leftovers remain, needed docs are updated, tests pass, the summary is prepared, and all To-Dos are complete. Return to the relevant step for any failure.
+  11. **Summarize:** State what changed, why, verification results, and other relevant information.
+  12. **Cleanup:** Remove temporary branches, files, and artifacts, obtaining approval for destructive operations.

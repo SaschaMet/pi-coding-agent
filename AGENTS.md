@@ -22,11 +22,11 @@ Durable rules, distilled from `.pi/SYSTEM.md` (the single origin — read it for
 - Safety: ask approval before destructive ops (`rm -rf`, `git push --force`, `git reset --hard`, `DROP TABLE`, branch deletion). Ambiguous/incomplete/high-risk request → ask first, change nothing.
 - Core: tight scope (smallest change that solves it), reuse before creating (YAGNI), never read `.env` files directly, graphify query is mandatory when `graphify-out/graph.json` exists.
 - Principles: Secure by Default, Privacy by Design, Separation of Duties, Fail-Safe Defaults (fail to the most restrictive state), Simplicity/Minimization.
-- Coding workflow (mandatory, every time): understand/research → plan (To-Do + Definition of Done) → wait for explicit plan approval → implement (TDD, minimal edits) → validate → document → review → summarize → cleanup.
+- Coding workflow (mandatory, every time): understand/research → spec/plan file (grill-me session, Grill Status table) → present plan + DoD → wait for explicit approval → implement (TDD, minimal edits) → validate → document → review → summarize → cleanup.
 
 ## Work Guidance
 
-- Coding workflow: follow the 9-step workflow in `.pi/SYSTEM.md`. No code before the plan is explicitly approved.
+- Coding workflow: follow the 12-step spec-gated workflow in `.pi/SYSTEM.md`. No code before the spec or plan file is grilled and explicitly approved.
 - Coding standard: the `npm` scripts are the quality gate — `npm run typecheck`, `npm test`, `npm run smoke`. No separate standard doc exists yet; use the `add-coding-standard` skill to install one if desired.
 - Quality gates: `.pi/extensions/gates.ts` enforces change-disclosure + verification-ran before completion; `read-boundary-guard.ts` / `write-boundary-guard.ts` enforce path boundaries. Respect these guards; do not work around them.
 - Skill location: third-party skills belong in the **project-local** `.pi/skill-library/` (source of truth), never directly in the global `~/.pi/agent/skill-library/`. The global directory is a synced copy managed by `scripts/sync-pi-config.ts` (`push` = project→global, `pull` = global→project). Add the skill to the project, then run `npm run pi:sync-global` to propagate.

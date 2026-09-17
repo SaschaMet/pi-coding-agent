@@ -2,6 +2,11 @@
 
 Use this gate before finalizing a spec.
 
+## Grill Status
+
+- [ ] A Grill Status table exists between the document header and the first numbered section.
+- [ ] The latest row is `done <date>` or `overridden <date>: <reason>`; otherwise the document is not ready for implementation and the handoff must mark it blocked.
+
 ## 1. Intent
 
 - [ ] Intent states both what changes and why.

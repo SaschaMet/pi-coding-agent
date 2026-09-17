@@ -58,6 +58,8 @@ Use [references/spec-template.md](references/spec-template.md) as the output tem
 
 ### Mandatory sections
 
+- **Grill Status table** (before section 1): the grill-completion readiness gate — initial row `Not run`; the grill-me session writes `done <date>` only after the user's explicit confirmation; a document whose latest row is not `done <date>` or `overridden <date>: <reason>` is not ready for implementation.
+
 1. **Intent**: what and why.
 2. **Scope**:
    - `modify`: files/services allowed to change.
@@ -118,6 +120,7 @@ If a check fails, fix the spec instead of adding narrative explanation.
 2. Keep implementation out of scope. Do not write implementation code from this skill.
 3. Include a concise handoff for coding and verification agents.
 4. If open questions remain, the handoff must state: "Implementation is blocked until the Open Questions / Deferred Decisions section is answered by the user."
+5. If the Grill Status table's latest row is not `done <date>` or `overridden <date>: <reason>`, the handoff must state: "Implementation is blocked until the grill-me session records a done row (or a recorded override) in the Grill Status table."
 
 ## Size guidance
 
@@ -139,6 +142,7 @@ Front-loading alignment is the trade: an hour of design turns a six-hour review 
 - Never ship a spec without explicit scope boundaries.
 - Never leave criteria unverifiable.
 - Never allow implementation to start while any open question or deferred decision remains unanswered.
+- Never allow implementation to start while the Grill Status table's latest row is not `done <date>` or `overridden <date>: <reason>`.
 - Never omit rollback for high-risk or one-way changes.
 - Always include a consolidated manual verification checklist.
 - Keep the spec concise; point to existing docs or graphify-backed paths instead of copying broad background.

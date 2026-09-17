@@ -28,6 +28,38 @@ const SPEC_BODY = `# Spec: Demo
 - [ ] AC1
 `;
 
+const PLAN_BODY = `# Plan: Demo
+
+## 2. Scope
+
+**Modify:**
+- \`src/**\`
+
+**Forbid:**
+- \`src/secrets.ts\`
+
+## 3. Next
+`;
+
+const PLAN_WITH_GRILL_TABLE = `# Plan: Demo
+
+## Grill Status
+
+| # | Status |
+|---|--------|
+| 1 | Not run |
+
+## 2. Scope
+
+**Modify:**
+- \`src/**\`
+
+**Forbid:**
+- \`src/secrets.ts\`
+
+## 3. Next
+`;
+
 function writeFixture(relativePath: string, contents: string): string {
     const absolute = path.join(tmpDir, relativePath);
     fs.mkdirSync(path.dirname(absolute), { recursive: true });
@@ -293,6 +325,66 @@ describe("write boundary guard extension", () => {
         expect(
             (await toolCall(pi, "write", { path: "scripts/deploy.sh" }))?.block,
         ).toBe(true);
+    });
+
+    it("auto-arms from a successful write to a plan file", async () => {
+        const pi = createFakePi();
+        writeBoundaryGuard(pi as any);
+        writeFixture("docs/plans/plan-auto.md", PLAN_BODY);
+
+        await toolResult(pi, { path: "docs/plans/plan-auto.md" });
+
+        expect(messages(pi)).toContain("plan-auto.md");
+        const result = await toolCall(pi, "write", {
+            path: "scripts/deploy.sh",
+        });
+        expect(result?.block).toBe(true);
+    });
+
+    it("does not auto-arm from a failed plan write", async () => {
+        const pi = createFakePi();
+        writeBoundaryGuard(pi as any);
+        writeFixture("docs/plans/plan-auto.md", PLAN_BODY);
+
+        await toolResult(
+            pi,
+            { path: "docs/plans/plan-auto.md" },
+            { isError: true },
+        );
+
+        expect(
+            await toolCall(pi, "write", { path: "scripts/deploy.sh" }),
+        ).toBeUndefined();
+    });
+
+    it("does not let a plan written while armed replace the active scope", async () => {
+        const pi = armedGuard();
+        await arm(pi, "docs/specs/spec-demo.md");
+        writeFixture(
+            "docs/plans/plan-wide.md",
+            "# Plan\n\n## 2. Scope\n\n**Modify:**\n- `**`\n\n## 3. Next\n",
+        );
+
+        await toolResult(pi, { path: "docs/plans/plan-wide.md" });
+
+        expect(messages(pi)).toMatch(/already armed/i);
+        expect(
+            (await toolCall(pi, "write", { path: "scripts/deploy.sh" }))?.block,
+        ).toBe(true);
+    });
+
+    it("auto-arms from a plan file that carries a Grill Status table above its Scope section", async () => {
+        const pi = createFakePi();
+        writeBoundaryGuard(pi as any);
+        writeFixture("docs/plans/plan-grill.md", PLAN_WITH_GRILL_TABLE);
+
+        await toolResult(pi, { path: "docs/plans/plan-grill.md" });
+
+        expect(messages(pi)).toContain("plan-grill.md");
+        const result = await toolCall(pi, "write", {
+            path: "scripts/deploy.sh",
+        });
+        expect(result?.block).toBe(true);
     });
 
     it("refuses to arm when the spec has no Scope section", async () => {
