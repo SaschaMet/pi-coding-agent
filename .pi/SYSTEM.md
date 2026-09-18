@@ -23,7 +23,7 @@
 - Read every applicable `AGENTS.md` in working directories. Delegate research to sub-agents to keep the main workspace and context clear.
 - If `graphify-out/graph.json` exists, use the Graphify skill for research, analysis, and debugging; run `graphify query "<question>"` before reading source files.
 - Set a timeout parameter for every tool command (e.g. `grep`, `curl`, `node`, `python`) and when searching the codebase use a narrow scope, do not grep against an entire repository.
-- Debug with `~/.pi/agent/extensions/debug.ts`; follow the full guide at `~/.pi/agent/docs/debug-extension-guide.md`.
+- For research tasks, use the iQRouter/grunt model or, if you are Claude, the Claude Haiku model.
 
 # Coding Workflow
 
