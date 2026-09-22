@@ -5,6 +5,8 @@ description: Use this skill when the user asks to grill, pressure-test, or chall
 
 Interview the user relentlessly about this plan until you reach a shared understanding. You are the last gate before this goes to production.
 
+**Who answers.** The human answers every question. You ask; you never answer your own questions — not even provisionally, not even when the answer seems obvious. A session where you filled in answers is not a grill session, no matter how thorough the questions were: it can only be recorded as `overridden <date>: agent self-answered` in the target document's Grill Status table, never as `done`. If no human is present (worker or fleet pane), the session stops at the questions and waits — the user watches the panes and answers there.
+
 Model the plan as a **design tree**: every decision branches into the decisions that hang off it. Work the tree in **rounds**. The **frontier** is every decision whose prerequisites are already settled — the questions you can ask _now_ without guessing at answers you have not heard yet. Ask the whole frontier in one round, then wait. Each round of answers pushes the frontier outward.
 
 Spend the session on high-impact uncertainty, and spend it fully: about 20 questions over four to six rounds is a normal grilling, not an exhaustive one. Every question must earn its place — but a session ending after three questions has almost always stopped researching, not run out of risk.
@@ -57,6 +59,25 @@ Runs in parallel throughout the session, not as a discrete step.
 - **Challenge against the glossary**: a term conflicting with `CONTEXT.md` gets called out immediately, before continuing. "Your glossary defines 'cancellation' as X, but you seem to mean Y — which is it?"
 - **Sharpen fuzzy language**: propose a precise canonical term. "You're saying 'account' — do you mean the Customer or the User?" Never accept "it depends" as a resolution.
 
+### Your own vocabulary stays internal
+
+The terms this skill uses to think are not terms the user has agreed to. They are precise for you and opaque to them, which is the worst combination in a question. **Never send one to the user.** Say the thing instead.
+
+| Internal term            | Say instead                                                  |
+| ------------------------ | ------------------------------------------------------------ |
+| frontier                 | the decisions I can ask about now                              |
+| node                     | decision, or question                                          |
+| design tree / graph      | how these decisions depend on each other                       |
+| tier                     | (drop the word; the `[Critical]` / `[High]` tags stay)         |
+| blast radius             | what breaks if this is wrong                                   |
+| one-way door             | hard to undo once shipped                                      |
+| default change           | a change I will make without asking                            |
+| simplification ladder    | checking whether this needs to exist at all                    |
+| CARDS                    | name the actual constraint — "who owns this rule", and so on   |
+| vertical slice           | a step you can run and see working on its own                  |
+
+The same rule covers acronyms the plan introduced and terms you coined during research. Domain terms the user already uses are exempt — those are their words, and `CONTEXT.md` governs them.
+
 ## Step 4 — Build the Decision Graph
 
 Turn the surviving decision-forcing risks into a graph before asking anything.
@@ -73,13 +94,45 @@ The frontier is your judgement, not a computed graph. When an answer turns out t
 
 Ask the whole frontier. Wait for the answers. Recompute the frontier. Repeat.
 
-**Read [references/question-format.md](references/question-format.md) before the first round.** It owns the three-part explanation, the option and recommendation specs with worked examples, the ask-back protocol, the structured-tool field mapping, the chat fallback template, and the questioning techniques.
+**Read [references/question-format.md](references/question-format.md) before the first round.** It owns the four-part explanation, the option and recommendation specs with worked examples, the ask-back protocol, the structured-tool field mapping, the chat fallback template, and the questioning techniques.
+
+### The opening brief
+
+**Send this before the first question. Never bundle it with round 1.** You have just spent four silent steps building a model of the plan; the user has not seen any of it. Questions that arrive before this brief land on someone who does not yet know which plan you read or what you think is at stake.
+
+Written to the eli5 rules — see [../eli5/SKILL.md](../eli5/SKILL.md), sections _Style rules_ and _Hard bans_.
+
+```
+**Before we start**
+
+- What this plan does: <one sentence>
+- Why it is being done: <one sentence>
+- What breaks if it is wrong: <one sentence, the blast radius in user terms>
+- What I checked: <files or systems, one line>
+
+Expect about <N> questions over <N> rounds. Answer as far as you can; "I don't know" is a real answer.
+```
+
+Four lines, one sentence each. If the plan cannot be stated in four lines, that is a finding — say the scope is too big before asking anything else.
+
+### The round header
+
+**Every round opens with three lines, including round 1.** Without them the user cannot tell how far in they are or what their last answers changed.
+
+```
+**Round <n> of about <total>** — <count> questions, <used>/~20 asked so far.
+Settled last round: <one line, or "nothing yet — this is the first round">.
+This round decides: <one line, the theme of the questions below>.
+```
+
+Reopening a branch is named here, not buried in the question: "Reopening _<node title>_ — your answer on X changed it."
 
 ### Rules
 
 - **One round at a time, the full frontier in it.** Never drip-feed a frontier across rounds, and never ask a node whose prerequisite is still open.
 - Number the questions within a round. Order by tier: `[Critical]` first, highest impact within the tier first, then `[High]`, then `[Medium]` — Medium only once no Critical or High node is open.
-- **Every question carries an ELI5 explanation in three named parts** — what this is, why it matters, what you need to know to choose. The user must be able to decide from it alone, without re-reading the plan or opening a file. Format-independent: tool path and chat path equally.
+- **Every question carries an ELI5 explanation in four named parts** — what the plan says now, what this is, why it matters, what you need to know to choose. The first part is the anchor: without it the user must find the question's subject in the document themselves. The user must be able to decide from the four parts alone, without re-reading the plan or opening a file. Format-independent: tool path and chat path equally.
+- **The explanation obeys the eli5 rules** — [../eli5/SKILL.md](../eli5/SKILL.md), sections _Style rules_ and _Hard bans_. One idea per sentence, 20 words maximum, active voice, no metaphors, no hedges, every term defined once in a short clause. An explanation that is merely well-organized still fails if its sentences are long or its nouns are unexplained.
 - **The explanation is about the decision, never about you.** Do not narrate your process, justify why you are asking, or account for what you did or did not notice earlier. Strip every sentence whose subject is you or the grilling.
 - **Every option earns its own description**: what it does, what it costs, what it rules out. If two options read the same, you have not finished writing them.
 - **Every question carries your recommended answer**: the option, why it beats _the specific runner-up_, and when it would be the wrong call.
@@ -92,15 +145,23 @@ Ask the whole frontier. Wait for the answers. Recompute the frontier. Repeat.
 - **Facts are your job, decisions are the user's.** Dispatch a sub-agent for environment facts rather than asking the user something you could look up. Do not block on it: only the nodes downstream wait.
 - Stop asking when the graph is genuinely empty, not when the plan starts to feel safe. Before declaring the frontier empty, spend one pass hunting nodes you never drew — the failure paths the plan omits, the operational story after it ships, the areas you read but never questioned. If the graph is empty at Step 4, skip questioning entirely.
 
-**Round self-check — run before sending any round, tool path or chat path.** Every question has:
+**Round send gate — run before sending any round, tool path or chat path.** This is a gate, not a reminder: a round failing any line is not sent, it is fixed. Never send an incomplete round with an apology attached.
 
-1. a tier — `[Critical]`, `[High]`, or `[Medium]`,
-2. an ELI5 explanation with all three parts, and not one sentence whose subject is you or the grilling,
-3. explicit named options, each with its own description of what it does, costs, and rules out,
-4. an ask-back option, last,
-5. a recommendation naming the winning option, the runner-up it beats, and when it would be wrong.
+The round has:
 
-Any one missing means the round is not ready to send. Fix it before the call, not after the user asks. If you catch yourself trimming any of these to keep the round short, you are optimising the wrong thing — rounds are budgeted, words are not.
+1. the three-line round header above the questions.
+
+Every question in it has:
+
+2. a tier — `[Critical]`, `[High]`, or `[Medium]`,
+3. an ELI5 explanation with all four parts, obeying the eli5 rules, and not one sentence whose subject is you or the grilling,
+4. explicit named options, each with its own description of what it does, costs, and rules out,
+5. an ask-back option, last,
+6. a recommendation naming the winning option, the runner-up it beats, and when it would be wrong.
+
+Line 6 has no exceptions. A question you cannot recommend an answer to is a question you have not researched — go back to Step 1 for that node rather than handing the user an unweighted menu. "It depends on your priorities" is not a recommendation; name the priority you assumed and recommend under it.
+
+If you catch yourself trimming any of these to keep the round short, you are optimising the wrong thing — rounds are budgeted, words are not.
 
 ### Escalation Protocol
 
@@ -122,7 +183,7 @@ Escalation happens _between_ rounds. Process the whole batch of answers, then de
 
 ## Step 6 — Confirmation Gate
 
-An empty frontier ends the _questioning_, not the session. State that the frontier is empty, say how many questions you asked against the ~20 budget, and ask the user to confirm you have reached a shared understanding. If they reopen anything, that branch becomes the next round — go back to Step 4.
+An empty frontier ends the _questioning_, not the session. Say that no open decisions are left — in those words, not as "the frontier is empty" — say how many questions you asked against the ~20 budget, and ask the user to confirm you have reached a shared understanding. If they reopen anything, that branch becomes the next round — go back to Step 4.
 
 Closing well under budget needs a one-line reason. "Eight questions; the plan is small and localized" is fine; "it seemed sufficient" is not. That line is the user's cue to push back if the session was shallower than the plan deserved.
 

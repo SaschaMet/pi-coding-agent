@@ -7,6 +7,14 @@ Use this gate before finalizing a spec.
 - [ ] A Grill Status table exists between the document header and the first numbered section.
 - [ ] The latest row is `done <date>` or `overridden <date>: <reason>`; otherwise the document is not ready for implementation and the handoff must mark it blocked.
 
+## In Plain Words
+
+- [ ] The section exists, between the Grill Status table and section 1.
+- [ ] Four lines: what we are doing, why, what could break, how we will know it worked.
+- [ ] One sentence per line, 20 words maximum, active voice.
+- [ ] No jargon, no acronym that this document defines later, no internal vocabulary.
+- [ ] A reader who opens only this section knows whether to approve the spec.
+
 ## 1. Intent
 
 - [ ] Intent states both what changes and why.
@@ -81,4 +89,5 @@ Use this gate before finalizing a spec.
 - [ ] Implementation steps identify exact file targets.
 - [ ] Verifier can validate without hidden assumptions.
 - [ ] Open questions are isolated from approved requirements.
+- [ ] Every open question carries a recommended answer and the consequence of choosing otherwise.
 - [ ] If open questions or deferred decisions remain, the spec explicitly blocks implementation and tells AI coding agents to stop and prompt the user for answers before making changes.

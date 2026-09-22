@@ -687,6 +687,11 @@ graphify query "<question>"
 
 Before traversal, expand the question against the graph's own vocabulary so a wording mismatch does not collapse the answer to noise. If the `graphify query` CLI is unavailable, fall back to an inline NetworkX traversal of `graphify-out/graph.json`. Answer using only what the graph output contains, and quote `source_location` when citing a specific fact. For that vocab-expansion step, the BFS/DFS traversal modes, the `--budget` cap, the NetworkX fallback, `save-result` feedback, and the `/graphify path` and `/graphify explain` flows, see `references/query.md`.
 
+### Query discipline
+
+- **A stale graph lies silently.** The graph does not know files added, renamed, or moved since the last build — query answers on the changed area miss the new code or point to old locations. After a large diff, run `graphify <repo-root> --update` (incremental; re-extracts only new/changed files) before trusting query answers on the changed area, or read the changed files directly.
+- **Narrow noisy queries.** Broad questions return truncated node lists — the CLI prints `TRUNCATED` with suggestions. Take the suggestions on the spot (`--budget` cap, `context_filter=['call']`, a narrower question) instead of re-reading full output; a noisy answer among mostly-irrelevant nodes is a query-shape problem, not a graph problem.
+
 ---
 
 ## For /graphify add and --watch

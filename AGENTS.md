@@ -21,6 +21,7 @@ Durable rules, distilled from `.pi/SYSTEM.md` (the single origin — read it for
 - Communication: always English, ELI5, short concise bullets, no fluff/hedging, exact terms.
 - Safety: ask approval before destructive ops (`rm -rf`, `git push --force`, `git reset --hard`, `DROP TABLE`, branch deletion). Ambiguous/incomplete/high-risk request → ask first, change nothing.
 - Core: tight scope (smallest change that solves it), reuse before creating (YAGNI), never read `.env` files directly, graphify query is mandatory when `graphify-out/graph.json` exists.
+- Comments: minimal, context only (why, not what); the code should mostly be enough. Never reference other files or tickets.
 - Principles: Secure by Default, Privacy by Design, Separation of Duties, Fail-Safe Defaults (fail to the most restrictive state), Simplicity/Minimization.
 - Coding workflow (mandatory, every time): understand/research → spec/plan file (grill-me session, Grill Status table) → present plan + DoD → wait for explicit approval → implement (TDD, minimal edits) → validate → document → review → summarize → cleanup.
 

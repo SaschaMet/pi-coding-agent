@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { isShadowedProjectCopy } from "./lib/extension-helpers.ts";
 
 const DELEGATION_POLICY_REGISTERED = Symbol.for("pi.extensions.subagent-delegation-policy.registered");
 
@@ -22,6 +23,7 @@ function normalizeExplicitDelegation(text: string): string | null {
 }
 
 export default function subagentDelegationPolicy(pi: ExtensionAPI): void {
+    if (isShadowedProjectCopy(import.meta.url)) return;
     const guardPi = pi as ExtensionAPI & Record<PropertyKey, unknown>;
     if (guardPi[DELEGATION_POLICY_REGISTERED]) return;
     guardPi[DELEGATION_POLICY_REGISTERED] = true;
@@ -50,6 +52,7 @@ export default function subagentDelegationPolicy(pi: ExtensionAPI): void {
                     "- Skill execution requests stay in the current session unless the user explicitly asks for delegation.",
                     "- Do not delegate implementation or edits by default. Inspect and edit the current project/repository directly for normal coding tasks.",
                     "- Subagents must inherit the parent model unless the user explicitly requested another model or the invoked skill specifies one.",
+                    "- Research and look-up subagents are the exception: use the research model from `.pi/SYSTEM.md` or the user's explicit instruction (e.g. iQRouter/grunt, or Claude Haiku when running as Claude). If neither specifies one, fall back to the current model.",
                     "- When delegation is explicitly requested, use `generic-readonly` for research/planning/summarization tasks.",
                     "- When delegation is explicitly requested, use `generic-worker` or built-in `general-purpose` for implementation or file-modifying tasks.",
                     "- External-doc or web research task: keep it in-session unless the user explicitly asks for subagents.",

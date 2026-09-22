@@ -29,6 +29,7 @@ import type {
 	ExtensionCommandContext,
 } from "@earendil-works/pi-coding-agent";
 import { estimateTokens } from "@earendil-works/pi-coding-agent";
+import { isShadowedProjectCopy } from "./lib/extension-helpers.ts";
 import {
 	Container,
 	matchesKey,
@@ -257,6 +258,7 @@ const contextCommand =
 /* ------------------------------------------------------------------ */
 
 export default function (pi: ExtensionAPI) {
+	if (isShadowedProjectCopy(import.meta.url)) return;
 	pi.registerCommand("context", {
 		description:
 			"Show context usage: overview + breakdown, or lists (skills/tools/files)",

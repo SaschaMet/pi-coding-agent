@@ -39,6 +39,7 @@ Use [references/plan-template.md](references/plan-template.md) as the output tem
 ### Mandatory sections
 
 - **Grill Status table** (before section 1): the grill-completion readiness gate — initial row `Not run`; the grill-me session writes `done <date>` only after the user's explicit confirmation; a document whose latest row is not `done <date>` or `overridden <date>: <reason>` is not ready for implementation.
+- **In Plain Words** (after Grill Status, before section 1): four lines, one sentence each — what we are doing, why, what could break, how we will know it worked. Written to the eli5 rules ([../eli5/SKILL.md](../eli5/SKILL.md), sections _Style rules_ and _Hard bans_): 20 words per sentence, no jargon. This is the part the user reads to approve the plan. It does not count toward the line limit below.
 
 1. **What & Why**: one-liner.
 2. **Scope**: modify, forbid, out of scope.
@@ -57,6 +58,7 @@ Keep it under 50 lines. No BDD, no CARDS, no architecture diagrams.
 - No vague criteria (`fast`, `better`, `clean`).
 - If the change is irreversible, note the rollback path.
 - Cite graphify findings when they affect scope or risk.
+- **Any decision left to the user carries a recommended answer** and what changes if they pick otherwise. A plan that hands back open choices without a recommendation has moved the work back to the user instead of doing it.
 
 ## Step 4 - Run the quality gate
 
@@ -73,6 +75,7 @@ If a check fails, fix the plan instead of adding narrative explanation.
 
 ## Gotchas
 
+- Criterion IDs (`AC1`), finding IDs, and the document's own path stay in the document. Tell implementers not to copy them into code comments or test names: the document is not committed, so those references would point to nothing.
 - Update an existing plan/spec in place when one exists; do not create a duplicate.
 - If the change grows beyond 3 files or touches multiple modules, stop and use `$create-spec`.
 - Graphify is mandatory — never skip it. A plan without context is a guess.

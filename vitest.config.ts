@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["test/**/*.test.ts"],
+    setupFiles: ["./test/setup/isolate-agent-dir.ts"],
     isolate: true,
     restoreMocks: true,
     clearMocks: true,

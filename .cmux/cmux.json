@@ -1,0 +1,41 @@
+{
+  "commands": [
+    {
+      "name": "pi Team",
+      "keywords": ["team", "fleet", "workers"],
+      "workspace": {
+        "name": "pi-team",
+        "cwd": ".",
+        "layout": {
+          "direction": "horizontal",
+          "split": 0.5,
+          "children": [
+            {
+              "pane": {
+                "surfaces": [
+                  {
+                    "type": "terminal",
+                    "name": "worker-1",
+                    "command": "npm run agent -- --new-session --model iqRouter/grunt:high",
+                    "focus": true
+                  }
+                ]
+              }
+            },
+            {
+              "pane": {
+                "surfaces": [
+                  {
+                    "type": "terminal",
+                    "name": "worker-2",
+                    "command": "npm run agent -- --new-session --model iqRouter/grunt:high"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

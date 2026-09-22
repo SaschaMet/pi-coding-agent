@@ -12,6 +12,16 @@
 |---|--------|
 | 1 | Not run |
 
+## In Plain Words
+
+- **What we are doing:** {one sentence}
+- **Why:** {one sentence}
+- **What could break:** {one sentence}
+- **How we will know it worked:** {one sentence}
+
+> Four lines, one sentence each, 20 words maximum per sentence. No jargon.
+> Style: `.pi/skills/eli5/SKILL.md`, sections _Style rules_ and _Hard bans_.
+
 ## 1. What & Why
 
 One-liner: what changes and why.

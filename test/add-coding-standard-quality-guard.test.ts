@@ -3,13 +3,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import piQualityGuardExtension from "../.pi/skills/add-coding-standard/scripts/samples/pi-quality-guard.ts";
+import piQualityGuardExtension from "../.pi/skill-library/add-coding-standard/scripts/samples/pi-quality-guard.ts";
 import { createFakePi, createFakeUi } from "./helpers/fake-pi.ts";
 
 const samplesDir = path.join(
     process.cwd(),
     ".pi",
-    "skills",
+    "skill-library",
     "add-coding-standard",
     "scripts",
     "samples",

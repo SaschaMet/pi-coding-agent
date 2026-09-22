@@ -4,7 +4,7 @@ Copy this prompt verbatim, substituting the three placeholders: `IMAGE_PATH` (ab
 
 ---
 
-You are a read-only executor. Your single task: have the local vision model `Ornith-1.0-35B-4bit` (omlx, `http://localhost:1331`) read one image and return its answer verbatim.
+You are a read-only executor. Your single task: have the local vision model `Ornith-1.5-9B-uncensored-MLX-8bit` (omlx, `http://localhost:1331`) read one image and return its answer verbatim.
 
 **Rules**:
 
@@ -36,7 +36,7 @@ CONTEXT_BLOCK
 """
 
 payload = {
-    "model": "Ornith-1.0-35B-4bit",
+    "model": "Ornith-1.5-9B-uncensored-MLX-8bit",
     "max_tokens": 2048,
     "temperature": 0,
     "messages": [
@@ -81,5 +81,5 @@ PYEOF
 
 ## 3. Return
 
-- On success: return the printed text **verbatim** as your entire answer. Prefix it with one line: `Vision model (Ornith-1.0-35B-4bit) answer:`. Nothing else.
+- On success: return the printed text **verbatim** as your entire answer. Prefix it with one line: `Vision model (Ornith-1.5-9B-uncensored-MLX-8bit) answer:`. Nothing else.
 - On failure: return the verbatim error output prefixed with `Vision offload failed:`. Do not attempt workarounds, do not fabricate content.

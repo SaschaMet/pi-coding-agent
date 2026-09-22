@@ -11,6 +11,7 @@ import type {
 import {
     getToolPath,
     isOutsideWorkingDirectory,
+    isShadowedProjectCopy,
     isWithinTempDir,
     readLastCustomEntry,
     toRepoRelative,
@@ -82,6 +83,7 @@ function parseSpecScope(specRelativePath: string, cwd: string): ParseResult {
 }
 
 export default function writeBoundaryGuardExtension(pi: ExtensionAPI): void {
+    if (isShadowedProjectCopy(import.meta.url)) return;
     const guardPi = pi as ExtensionAPI & Record<PropertyKey, unknown>;
     if (guardPi[WRITE_BOUNDARY_GUARD_REGISTERED]) return;
     guardPi[WRITE_BOUNDARY_GUARD_REGISTERED] = true;

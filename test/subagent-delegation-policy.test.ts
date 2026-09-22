@@ -17,6 +17,11 @@ describe("subagent delegation policy extension", () => {
         expect(result?.message?.content).toContain("must call `Agent`");
         expect(result?.message?.content).toContain("Retrieve background results with `get_subagent_result`");
         expect(result?.message?.content).toContain("Subagents must inherit the parent model");
+        expect(result?.message?.content).toContain(
+            "Research and look-up subagents are the exception",
+        );
+        expect(result?.message?.content).toContain(".pi/SYSTEM.md");
+        expect(result?.message?.content).toContain("fall back to the current model");
         expect(result?.message?.content).toContain("Repository reconnaissance that feeds a research artifact");
         expect(result?.message?.content).toContain("Do not delegate implementation or edits by default");
         expect(result?.message?.content).toContain("A skill may direct delegation for drafting a document");

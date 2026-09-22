@@ -20,6 +20,7 @@ export interface RegisteredShortcut {
 }
 
 import { vi } from "vitest";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 export interface FakePi {
   tools: Map<string, RegisteredTool>;
@@ -109,6 +110,11 @@ export function createFakePi(): FakePi & Record<string, any> {
       notifications.push({ message, level });
     },
   };
+}
+
+// SAFETY: createFakePi() implements the ExtensionAPI surface the extensions under test call; this is the single cast point tests use instead of scattering `pi as any`.
+export function asExtensionAPI(fake: FakePi & Record<string, any>): ExtensionAPI {
+  return fake as unknown as ExtensionAPI;
 }
 
 export function createFakeUi() {

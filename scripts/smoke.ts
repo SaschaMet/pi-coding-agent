@@ -8,6 +8,7 @@ import {
     type ExtensionAPI,
 } from "@earendil-works/pi-coding-agent";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
+import { checkExtensionCompat, compareExtensionTrees } from "./check-extension-compat.ts";
 
 const REQUIRED_EXTENSIONS = [
     ".pi/extensions/read-boundary-guard.ts",
@@ -37,7 +38,8 @@ function createFakePi(): ExtensionAPI {
     const tools: Array<{ name: string }> = [];
 
     const fakePi = {
-        on: noop as ExtensionAPI["on"],
+        // SAFETY: 0.87 SDK overloads `on` per event; the fake is a universal noop handler
+        on: noop as unknown as ExtensionAPI["on"],
         registerTool: ((tool: { name: string }) => {
             tools.push({ name: tool.name });
         }) as ExtensionAPI["registerTool"],
@@ -61,12 +63,13 @@ function createFakePi(): ExtensionAPI {
         })) as ExtensionAPI["exec"],
         getActiveTools: (() =>
             tools.map((tool) => tool.name)) as ExtensionAPI["getActiveTools"],
+        // SAFETY: smoke stub — tools carry only the fields this script reads
         getAllTools: (() =>
             tools.map((tool) => ({
                 name: tool.name,
                 description: "",
                 parameters: {},
-            }))) as unknown as ExtensionAPI["getAllTools"], // SAFETY: smoke stub — tools carry only the fields this script reads
+            }))) as unknown as ExtensionAPI["getAllTools"],
 
         setActiveTools: noop as ExtensionAPI["setActiveTools"],
         setModel: (async () => true) as ExtensionAPI["setModel"],
@@ -133,6 +136,66 @@ async function main(): Promise<void> {
     }
 
     const skills = loader.getSkills().skills;
+
+    // A5 drift guard: every extension/package declaring a peer dependency on the
+    // pi host must be compatible with the installed SDK version. Host-range only.
+    // The SDK's exports map hides ./package.json, so read it from the install path directly.
+    const hostPkgPath = path.join(
+        cwd,
+        "node_modules",
+        "@earendil-works",
+        "pi-coding-agent",
+        "package.json",
+    );
+    let hostPackage: { version: string };
+    try {
+        // SAFETY: own install tree's package.json — always present when the SDK is imported
+        hostPackage = JSON.parse(fs.readFileSync(hostPkgPath, "utf8")) as {
+            version: string;
+        };
+    } catch (error) {
+        throw new Error(
+            `Cannot read installed pi SDK version from ${hostPkgPath}: ${(error as Error).message}`,
+        );
+    }
+    const violations = checkExtensionCompat({
+        dirs: [
+            path.join(agentDir, "npm", "node_modules"),
+            path.join(agentDir, "extensions"),
+            path.join(cwd, ".pi", "extensions"),
+            path.join(cwd, ".pi", "npm", "node_modules"),
+        ],
+        installedVersion: hostPackage.version,
+    });
+    if (violations.length > 0) {
+        for (const v of violations) {
+            console.error(
+                `Extension compat violation: ${v.name} at ${v.location} requires @earendil-works/pi-coding-agent ${v.range}, installed ${v.installedVersion}`,
+            );
+        }
+        throw new Error(
+            `${violations.length} extension(s) incompatible with pi SDK ${hostPackage.version} — align the SDK or update the extension(s).`,
+        );
+    }
+
+    // Extension-copy drift guard: the project tree is the source of truth and the
+    // global tree a synced copy. pi loads both, and the global copy stays inert
+    // only while it matches the project twin — drift reactivates stale handlers.
+    const drift = compareExtensionTrees(
+        path.join(cwd, ".pi", "extensions"),
+        path.join(agentDir, "extensions"),
+    );
+    if (drift.length > 0) {
+        for (const d of drift) {
+            console.error(
+                `Extension copy drift: ${d.path} ${d.status === "differ" ? "differs from" : "is missing in"} the global copy at ${path.join(agentDir, "extensions")}`,
+            );
+        }
+        throw new Error(
+            `${drift.length} extension file(s) out of sync with the global copy — run npm run pi:sync-global.`,
+        );
+    }
+
     const codexSkills = skills.filter((skill) =>
         skill.filePath.includes(
             `${path.sep}.codex${path.sep}skills${path.sep}`,

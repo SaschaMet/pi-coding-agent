@@ -22,6 +22,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { BorderedLoader } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
+import { isShadowedProjectCopy } from "./lib/extension-helpers.ts";
 
 // State for tracking debug session
 let debugOriginId: string | undefined;
@@ -319,6 +320,7 @@ If the bug wasn't fully resolved, note:
 - Suggested next steps`;
 
 export default function debugExtension(pi: ExtensionAPI) {
+	if (isShadowedProjectCopy(import.meta.url)) return;
 	// Restore debug state on session events
 	pi.on("session_start", (_event, ctx) => applyDebugState(ctx));
 	pi.on("session_tree", (_event, ctx) => applyDebugState(ctx));

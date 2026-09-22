@@ -5,6 +5,7 @@ import type {
 	ProviderModelConfig,
 } from "@earendil-works/pi-coding-agent";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
+import { isShadowedProjectCopy } from "./lib/extension-helpers.ts";
 
 const MODEL_WHITELIST_REGISTERED = Symbol.for(
 	"pi.extensions.model-whitelist.registered",
@@ -19,6 +20,7 @@ const MODEL_WHITELIST_REGISTERED = Symbol.for(
  * Requires /reload to pick up models.json changes.
  */
 export default function modelWhitelist(pi: ExtensionAPI): void {
+	if (isShadowedProjectCopy(import.meta.url)) return;
 	const guardPi = pi as ExtensionAPI & Record<PropertyKey, unknown>;
 	if (guardPi[MODEL_WHITELIST_REGISTERED]) return;
 	guardPi[MODEL_WHITELIST_REGISTERED] = true;

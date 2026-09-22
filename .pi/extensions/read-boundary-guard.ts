@@ -8,7 +8,10 @@ import type {
 import {
 	firstNonEmptyString,
 	isOutsideWorkingDirectory,
+	isShadowedProjectCopy,
 	isWithinRoot,
+	isWithinTempDir,
+	isWithinTempReportsDir,
 	resolveInputPath,
 	resolvePathWithRealAncestor,
 } from "./lib/extension-helpers.ts";
@@ -53,6 +56,7 @@ function resolveGlobalPiReadOnlyRoot(): string {
 }
 
 export default function readBoundaryGuardExtension(pi: ExtensionAPI): void {
+	if (isShadowedProjectCopy(import.meta.url)) return;
 	const guardPi = pi as ExtensionAPI & Record<PropertyKey, unknown>;
 	if (guardPi[READ_BOUNDARY_GUARD_REGISTERED]) return;
 	guardPi[READ_BOUNDARY_GUARD_REGISTERED] = true;
@@ -91,6 +95,22 @@ export default function readBoundaryGuardExtension(pi: ExtensionAPI): void {
 			}
 
 			if (!isOutsideWorkingDirectory(inputPath, currentCwd)) return undefined;
+
+			// The system temp directory is exempt for read-only tools: scratch space is
+			// outside the working directory by design, and the check runs on the resolved
+			// path, so a tmp path that symlinks out of the temp directory stays blocked.
+			// Mutating tools keep the approval prompt (fail-safe), except inside
+			// <temp root>/pi-reports/, where agents are told to write their reports.
+			if (
+				READ_ONLY_TOOLS.has(event.toolName) &&
+				isWithinTempDir(inputPath, currentCwd)
+			)
+				return undefined;
+			if (
+				MUTATING_TOOLS.has(event.toolName) &&
+				isWithinTempReportsDir(inputPath, currentCwd)
+			)
+				return undefined;
 
 			// Check .pi/trust.json for whitelisted directories
 			const trustedDirs = loadTrustedDirectories(currentCwd);

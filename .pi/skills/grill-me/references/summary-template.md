@@ -10,6 +10,11 @@ Use the compact variant only for genuinely small sessions of 0-3 questions:
 ```markdown
 # Grilling Summary: {Design/Plan Title}
 
+## What We Decided, In Plain Words
+- The plan now does: ...
+- The biggest thing that changed: ...
+- Safe to implement: yes/no, and what blocks it.
+
 ## Questions Asked
 - [Round N] [Tier] Question -> Answer / decision.
 
@@ -36,6 +41,14 @@ Otherwise use the full table format:
 
 > Date: {date}
 > Scope: {one-line description of what was reviewed}
+
+## What We Decided, In Plain Words
+
+- **The plan now does:** <one sentence>
+- **The biggest thing that changed:** <one sentence>
+- **What we chose not to do:** <one sentence>
+- **What is still open:** <one sentence, or "nothing">
+- **Safe to implement:** <yes / no, and what blocks it>
 
 ## Questions Asked
 
@@ -89,6 +102,10 @@ One line: what this session added, what it removed. If it only added, say so.
 
 ## Guidelines
 
+- **What We Decided, In Plain Words**: written to the eli5 rules — [../../eli5/SKILL.md](../../eli5/SKILL.md),
+  sections _Style rules_ and _Hard bans_. One sentence per line, 20 words maximum, no internal vocabulary.
+  It is the only part of the summary a reader can act on without reading tables, so it comes first and it
+  is never skipped. The tables are the audit trail; this block is the answer.
 - **Questions Asked**: List only the questions that were truly necessary, in the round they were asked.
   `SKILL.md` owns the budget — about 20 questions across four to six rounds.
 - **Answers Given**: Map answers directly to the questions. Do not add unrelated commentary.

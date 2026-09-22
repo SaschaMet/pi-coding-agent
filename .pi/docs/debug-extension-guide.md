@@ -4,6 +4,15 @@
 
 A systematic debugging extension is available at `.pi/extensions/debug.ts`. It enforces disciplined debugging: **find root cause before fixing**.
 
+## Pitfall: a slash command that "starts AI generation"
+
+If typing a `/command` sends a model turn instead of running a command, the command name was not found. pi's dispatch (`agent-session.js: _tryExecuteExtensionCommand`) treats an unknown `/command` as an ordinary prompt — there is no "unknown command" error.
+
+Check, in order:
+
+1. Is the command actually registered by a loaded extension? (An extension that failed to load registers nothing.)
+2. Duplicate command names: when two extensions register the same name, pi's registry renames them `<name>:1` and `<name>:2` — the plain `/name` no longer matches anything. This is the signature symptom of the same extension being loaded twice (project copy + global copy): every `/command` of the duplicated extension breaks, and approval dialogs appear twice (once per copy). The global copy always runs; the project copy stands down at load time when the same file exists under the global agent's `extensions/` directory (see `isShadowedProjectCopy` in `.pi/extensions/lib/extension-helpers.ts`) — so a project edit only takes effect after `npm run pi:sync-global`. If a duplicate still loads, re-sync and restart the session — loaded copies keep running until then.
+
 ## Commands
 
 | Command | Purpose |

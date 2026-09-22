@@ -4,9 +4,11 @@ import type {
     MessageEndEvent,
     ToolResultEvent,
 } from "@earendil-works/pi-coding-agent";
-import { readLastCustomEntry } from "./lib/extension-helpers.ts";
+import { isShadowedProjectCopy, readLastCustomEntry } from "./lib/extension-helpers.ts";
+import { extractBashMutations, type BashMutation } from "./lib/bash-mutations.ts";
 import {
     buildCorrection,
+    checkBashMutationsDisclosed,
     checkChangesDisclosed,
     checkVerificationRan,
     checkWrittenArtifacts,
@@ -21,6 +23,7 @@ type GatesState = {
     enabled: boolean;
     baseline: Set<string> | null;
     toolCalls: RecordedToolCall[];
+    bashMutations: BashMutation[];
     assistantText: string;
     consecutiveCorrections: number;
     workTreeChecked: boolean;
@@ -34,6 +37,7 @@ function defaultState(): GatesState {
         enabled: true,
         baseline: null,
         toolCalls: [],
+        bashMutations: [],
         assistantText: "",
         consecutiveCorrections: 0,
         workTreeChecked: false,
@@ -103,6 +107,7 @@ async function gitChangedPaths(
 }
 
 export default function gatesExtension(pi: ExtensionAPI): void {
+    if (isShadowedProjectCopy(import.meta.url)) return;
     const guardPi = pi as ExtensionAPI & Record<PropertyKey, unknown>;
     if (guardPi[GATES_REGISTERED]) return;
     guardPi[GATES_REGISTERED] = true;
@@ -134,6 +139,7 @@ export default function gatesExtension(pi: ExtensionAPI): void {
     pi.on("agent_start", async (_event, ctx) => {
         const state = getState(pi);
         state.toolCalls = [];
+        state.bashMutations = [];
         state.assistantText = "";
         state.baseline = null;
         if (!state.enabled) return;
@@ -150,6 +156,12 @@ export default function gatesExtension(pi: ExtensionAPI): void {
             input: event.input,
             isError: event.isError,
         });
+        if (!event.isError && event.toolName === "bash") {
+            const command = event.input.command ?? event.input.cmd;
+            if (typeof command === "string") {
+                state.bashMutations.push(...extractBashMutations(command));
+            }
+        }
         return undefined;
     });
 
@@ -173,6 +185,7 @@ export default function gatesExtension(pi: ExtensionAPI): void {
                 ? []
                 : checkChangesDisclosed(state.baseline, current, state.assistantText)),
             ...checkWrittenArtifacts(state.toolCalls, ctx.cwd),
+            ...checkBashMutationsDisclosed(state.bashMutations, state.assistantText),
             ...checkVerificationRan(state.toolCalls, state.assistantText),
         ];
 

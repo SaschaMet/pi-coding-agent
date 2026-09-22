@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type {
    ExtensionContext,
    SessionEntry,
@@ -106,15 +107,91 @@ export function isOutsideWorkingDirectory(
 }
 
 /**
- * Whether the resolved target sits inside the system temp directory (`os.tmpdir()`),
- * which honors `TMPDIR` on POSIX. The exemption is inactive when the working directory
- * is itself inside the temp directory: nearby paths are then indistinguishable from
- * scratch space, so guards keep their normal behavior (fail-safe).
+ * `true` disarms this project copy; the global copy acts. Project edits take
+ * effect after `npm run pi:sync-global`.
+ *
+ * pi loads project and global extensions side by side, so both copies would
+ * register live handlers. The project copy stands down because project files
+ * load only in trusted projects, while the global copy always loads: project
+ * content can never disarm a guard. Stateless and cwd-free on purpose: a
+ * process-wide marker or a working-directory read would leak into in-process
+ * subagent sessions and disarm their guards. An unresolvable URL, a module
+ * outside any `.pi/extensions/` directory, or a missing global twin → `false`.
+ */
+export function isShadowedProjectCopy(ownModuleUrl: string): boolean {
+   let ownPath: string;
+   try {
+      ownPath = fileURLToPath(ownModuleUrl);
+   } catch {
+      return false;
+   }
+
+   const agentDir =
+      process.env.PI_CODING_AGENT_DIR?.trim() ||
+      path.join(os.homedir(), ".pi", "agent");
+   const globalExtensionsRoot = path.join(
+      path.resolve(agentDir),
+      "extensions",
+   );
+   if (isWithinRoot(ownPath, globalExtensionsRoot)) return false;
+
+   const segments = ownPath.split(path.sep);
+   const markerIndex = segments.findIndex(
+      (segment, index) =>
+         segment === ".pi" && segments[index + 1] === "extensions",
+   );
+   if (markerIndex === -1) return false;
+
+   const relativeSegments = segments.slice(markerIndex + 2);
+   if (relativeSegments.length === 0) return false;
+
+   return fs.existsSync(
+      path.join(globalExtensionsRoot, ...relativeSegments),
+   );
+}
+
+/**
+ * The system temp root: the resolved `os.tmpdir()` only, never the shared `/tmp`
+ * or `/var/tmp`. Resolved once at import: `TMPDIR` is stable for a process lifetime.
+ */
+const SYSTEM_TEMP_ROOTS: readonly string[] = [
+   resolvePathWithRealAncestor(os.tmpdir()),
+];
+
+export function systemTempRoots(): string[] {
+   return [...SYSTEM_TEMP_ROOTS];
+}
+
+/**
+ * Whether the resolved target sits inside the system temp root (`os.tmpdir()`,
+ * resolved through real ancestors so symlinks cannot smuggle a path in). The
+ * exemption is inactive when the working directory is itself inside the temp
+ * root: nearby paths are then indistinguishable from scratch space, so guards
+ * keep their normal behavior (fail-safe).
  */
 export function isWithinTempDir(inputPath: string, cwd: string): boolean {
-   const tmpRoot = resolvePathWithRealAncestor(os.tmpdir());
-   if (isWithinRoot(resolvePathWithRealAncestor(cwd), tmpRoot)) return false;
-   return isWithinRoot(resolveInputPath(inputPath, cwd), tmpRoot);
+   const tmpRoots = systemTempRoots();
+   const resolvedCwd = resolvePathWithRealAncestor(cwd);
+   if (tmpRoots.some((root) => isWithinRoot(resolvedCwd, root))) return false;
+   const resolvedInput = resolveInputPath(inputPath, cwd);
+   return tmpRoots.some((root) => isWithinRoot(resolvedInput, root));
+}
+
+/** Folder under the temp root where agents write their reports. */
+const TEMP_REPORTS_DIRNAME = "pi-reports";
+
+/**
+ * Whether the resolved target sits inside `<temp root>/pi-reports`, the one temp
+ * folder where mutating tools may write without approval. Same fail-safe rules
+ * as `isWithinTempDir`: real-ancestor resolution (a symlink out of the folder
+ * stays blocked) and inactive when the working directory is inside the temp root.
+ */
+export function isWithinTempReportsDir(inputPath: string, cwd: string): boolean {
+   if (!isWithinTempDir(inputPath, cwd)) return false;
+   const resolvedInput = resolveInputPath(inputPath, cwd);
+   return systemTempRoots().some((root) =>
+      isWithinRoot(resolvedInput, path.join(root, TEMP_REPORTS_DIRNAME)),
+   );
 }
 
 /**

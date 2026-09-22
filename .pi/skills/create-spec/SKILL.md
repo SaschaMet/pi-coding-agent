@@ -46,6 +46,7 @@ See `../grill-me/SKILL.md` for how to pressure-test for missing risks and assump
 
 ## Gotchas
 
+- Criterion IDs (`AC1`), finding IDs, and the document's own path stay in the document. Tell implementers not to copy them into code comments or test names: the document is not committed, so those references would point to nothing.
 - Update an existing relevant spec/plan in place when one exists; do not create a duplicate.
 - A spec is not a codebase tour. Use graphify to find relevant relationships when useful, then cite only the specific paths, contracts, or boundaries the implementer needs.
 - If a requirement cannot be verified, rewrite it before finalizing.
@@ -59,6 +60,7 @@ Use [references/spec-template.md](references/spec-template.md) as the output tem
 ### Mandatory sections
 
 - **Grill Status table** (before section 1): the grill-completion readiness gate — initial row `Not run`; the grill-me session writes `done <date>` only after the user's explicit confirmation; a document whose latest row is not `done <date>` or `overridden <date>: <reason>` is not ready for implementation.
+- **In Plain Words** (after Grill Status, before section 1): four lines, one sentence each — what we are doing, why, what could break, how we will know it worked. Written to the eli5 rules ([../eli5/SKILL.md](../eli5/SKILL.md), sections _Style rules_ and _Hard bans_): 20 words per sentence, no jargon, no acronym the spec introduces later. This is the part the user reads to approve the spec; sections 1-14 are the part the implementer reads to build it. Required at every size, including Small.
 
 1. **Intent**: what and why.
 2. **Scope**:
@@ -104,6 +106,7 @@ Reviewing 100-200 lines per slice is cheaper than fixing 2000 lines afterwards.
 - Add escalation triggers for sensitive changes.
 - Encode CARDS constraints as verifiable implementation guardrails when the change touches architecture or domain logic.
 - If uncertainty remains, capture it in `Open Questions / Deferred Decisions`.
+- **Every open question carries a recommended answer**: the option you would take, and what happens if the user picks otherwise. An open question without one forces the user to decide from scratch, which is the work the spec was supposed to have done. With one, they can approve the whole list by accepting the defaults. State the recommendation even when you are unsure — name the assumption it rests on instead of withholding it.
 - When `Open Questions / Deferred Decisions` is non-empty, write a visible implementation guard that says implementation must stop and prompt the user for answers before any code, config, migration, or test changes begin.
 
 ## Step 4 - Run the quality gate

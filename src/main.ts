@@ -6,14 +6,21 @@ import {
     createAgentSessionServices,
     getAgentDir,
     InteractiveMode,
+    resolveCliModel,
     type SessionContext,
     SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import type { SessionEstablishedEvent } from "./session-established-event.ts";
+import { parseSessionMode, parseSessionModel, toSessionModelOptions } from "./session-mode.ts";
 
 async function main(): Promise<void> {
     const cwd = process.cwd();
-    const sessionManager = SessionManager.continueRecent(cwd);
+    const sessionMode = parseSessionMode(process.argv);
+    const cliModel = parseSessionModel(process.argv);
+    const sessionManager =
+        sessionMode === "in-memory"
+            ? SessionManager.inMemory(cwd)
+            : SessionManager.continueRecent(cwd);
     const sessionFile = sessionManager.getSessionFile();
     const didLoadExistingSessionFile = sessionFile !== undefined && existsSync(sessionFile);
 
@@ -25,10 +32,32 @@ async function main(): Promise<void> {
                 agentDir,
             });
 
+            // Per-worker model passthrough (--model <ref>[:<level>] [--provider]),
+            // thinking level included. Unknown refs fall back to the default model
+            // with a warning (Fail-Safe).
+            let modelOptions: Pick<
+                Parameters<typeof createAgentSessionFromServices>[0],
+                "model" | "thinkingLevel"
+            > = {};
+            if (cliModel !== undefined) {
+                const resolved = resolveCliModel({
+                    cliProvider: cliModel.provider,
+                    cliModel: cliModel.model,
+                    modelRuntime: services.modelRuntime,
+                });
+                modelOptions = toSessionModelOptions(resolved);
+                if (resolved.error !== undefined) {
+                    console.error(`[model-flag] ${resolved.error} — falling back to the default model.`);
+                } else if (resolved.warning !== undefined) {
+                    console.error(`[model-flag] ${resolved.warning}`);
+                }
+            }
+
             const created = await createAgentSessionFromServices({
                 services,
                 sessionManager: runtimeSessionManager,
                 sessionStartEvent,
+                ...modelOptions,
             });
 
             const session = created.session;

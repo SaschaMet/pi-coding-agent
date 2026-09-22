@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import gatesExtension from "../.pi/extensions/gates.ts";
-import { createFakePi } from "./helpers/fake-pi.ts";
+import { asExtensionAPI, createFakePi } from "./helpers/fake-pi.ts";
 
 type GitScript = { isWorkTree?: boolean; status: string[] };
 
@@ -151,6 +151,17 @@ describe("gates extension", () => {
         await runAgent(pi, { assistantText: "Updated `src/env.ts` to read the new key." });
 
         expect(corrections(pi)).toHaveLength(0);
+    });
+
+    it("phrases the disclosure correction without suggesting a revert", async () => {
+        const pi = withGit(createFakePi(), { status: ["", " M src/env.ts\n"] });
+        gatesExtension(asExtensionAPI(pi));
+
+        await runAgent(pi, { assistantText: "Done." });
+
+        const [correction] = corrections(pi);
+        expect(correction).toContain("Disclose every change.");
+        expect(correction).not.toContain("revert");
     });
 
     it("ignores files that were already dirty before the run", async () => {
@@ -426,5 +437,104 @@ describe("gates extension", () => {
         const status = pi.sentMessages.map((sent: any) => String(sent.message?.content ?? "")).join("\n");
         expect(status).toMatch(/gates are on/i);
         expect(status).toContain("changes_disclosed");
+    });
+});
+
+// extractBashMutations unit tests live in test/bash-mutations.test.ts.
+
+describe("gates bash-mutation checks", () => {
+    it("flags a bash-mutated file that the final message does not name", async () => {
+        const pi = withGit(createFakePi(), { status: ["", ""] });
+        gatesExtension(asExtensionAPI(pi));
+
+        await runAgent(pi, {
+            toolResults: [{ toolName: "bash", input: { command: "mv a.ts b.ts" } }],
+            assistantText: "Done.",
+        });
+
+        const [correction] = corrections(pi);
+        expect(correction).toContain("bash_mutations_disclosed");
+        expect(correction).toContain("a.ts");
+        expect(correction).toContain("b.ts");
+    });
+
+    it("accepts a bash mutation disclosed by name", async () => {
+        const pi = withGit(createFakePi(), { status: ["", ""] });
+        gatesExtension(asExtensionAPI(pi));
+
+        await runAgent(pi, {
+            toolResults: [{ toolName: "bash", input: { command: "mv a.ts b.ts" } }],
+            assistantText: "Moved `a.ts` to `b.ts`.",
+        });
+
+        expect(corrections(pi)).toHaveLength(0);
+    });
+
+    it("flags an external bash-mutated path that git cannot see", async () => {
+        const pi = withGit(createFakePi(), { status: ["", ""] });
+        gatesExtension(asExtensionAPI(pi));
+
+        await runAgent(pi, {
+            toolResults: [
+                { toolName: "bash", input: { command: "mv report.md /Users/backup/report-backup.md" } },
+            ],
+            assistantText: "Done.",
+        });
+
+        const [correction] = corrections(pi);
+        expect(correction).toContain("/Users/backup/report-backup.md");
+    });
+
+    it("still requires disclosure after a chained bash command, with no existence check", async () => {
+        const pi = withGit(createFakePi(), { status: ["", ""] });
+        gatesExtension(asExtensionAPI(pi));
+
+        await runAgent(pi, {
+            toolResults: [{ toolName: "bash", input: { command: "cd build && mkdir out" } }],
+            assistantText: "Done.",
+        });
+
+        const [correction] = corrections(pi);
+        expect(correction).toContain("bash_mutations_disclosed");
+        expect(correction).toContain("out");
+        expect(correction).not.toContain("artifacts_exist");
+    });
+
+    it("phrases the bash disclosure correction without suggesting a revert", async () => {
+        const pi = withGit(createFakePi(), { status: ["", ""] });
+        gatesExtension(asExtensionAPI(pi));
+
+        await runAgent(pi, {
+            toolResults: [{ toolName: "bash", input: { command: "mv a.ts b.ts" } }],
+            assistantText: "Done.",
+        });
+
+        const [correction] = corrections(pi);
+        expect(correction).toContain("Name every file a shell command changed.");
+        expect(correction).not.toContain("revert");
+    });
+
+    it("ignores exempt bash targets and accepts verification claims backed by them", async () => {
+        const pi = withGit(createFakePi(), { status: ["", ""] });
+        gatesExtension(asExtensionAPI(pi));
+
+        await runAgent(pi, {
+            toolResults: [{ toolName: "bash", input: { command: "npm test > /dev/null 2>&1" } }],
+            assistantText: "All tests pass.",
+        });
+
+        expect(corrections(pi)).toHaveLength(0);
+    });
+
+    it("does not require existence for rm and mv sources", async () => {
+        const pi = withGit(createFakePi(), { status: ["", ""] });
+        gatesExtension(asExtensionAPI(pi));
+
+        await runAgent(pi, {
+            toolResults: [{ toolName: "bash", input: { command: "rm notes.md" } }],
+            assistantText: "Removed `notes.md`.",
+        });
+
+        expect(corrections(pi)).toHaveLength(0);
     });
 });

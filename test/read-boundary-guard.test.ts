@@ -5,6 +5,17 @@ import { describe, expect, it } from "vitest";
 import readBoundaryGuardExtension from "../.pi/extensions/read-boundary-guard.ts";
 import { createFakePi } from "./helpers/fake-pi.ts";
 
+/**
+ * Mirrors `resolveGlobalPiReadOnlyRoot` in `read-boundary-guard.ts`: when
+ * `PI_CODING_AGENT_DIR` is set, the guard's read-only root IS that directory;
+ * only the unset fallback nests under `~/.pi`. Fixtures below must agree with
+ * whatever agent dir is active for the test run, real or isolated.
+ */
+function globalAgentDirForTest(): string {
+	const configured = process.env.PI_CODING_AGENT_DIR?.trim();
+	return configured || path.join(os.homedir(), ".pi", "agent");
+}
+
 describe("read boundary guard", () => {
 	it("registers guard only once", () => {
 		const pi = createFakePi();
@@ -157,7 +168,7 @@ describe("read boundary guard", () => {
 			{
 				toolName: "read",
 				input: {
-					path: path.join(os.homedir(), ".pi", "agent", "skills", "SKILL.md"),
+					path: path.join(globalAgentDirForTest(), "skills", "SKILL.md"),
 				},
 			},
 			{ hasUI: false, cwd: tmp },
@@ -178,7 +189,7 @@ describe("read boundary guard", () => {
 			{
 				toolName: "write",
 				input: {
-					path: path.join(os.homedir(), ".pi", "agent", "settings.json"),
+					path: path.join(globalAgentDirForTest(), "settings.json"),
 					content: "x",
 				},
 			},
@@ -191,7 +202,7 @@ describe("read boundary guard", () => {
 			{
 				toolName: "edit",
 				input: {
-					path: path.join(os.homedir(), ".pi", "agent", "settings.json"),
+					path: path.join(globalAgentDirForTest(), "settings.json"),
 				},
 			},
 			{ hasUI: false, cwd: tmp },
@@ -414,11 +425,14 @@ describe("read boundary guard", () => {
 		const tmp = fs.mkdtempSync(
 			path.join(os.tmpdir(), "pi-read-boundary-trust-pi-"),
 		);
-		const homeDir = os.homedir();
+		// Trust an ancestor of the global agent dir (not the agent dir itself) —
+		// the same "trust is broader than the readonly root" shape as trusting
+		// the whole home directory that contains `~/.pi/agent`.
+		const trustedAncestor = path.dirname(globalAgentDirForTest());
 		fs.mkdirSync(path.join(tmp, ".pi"), { recursive: true });
 		fs.writeFileSync(
 			path.join(tmp, ".pi", "trust.json"),
-			JSON.stringify({ trustedDirectories: [homeDir] }),
+			JSON.stringify({ trustedDirectories: [trustedAncestor] }),
 		);
 
 		const pi = createFakePi();
@@ -429,7 +443,7 @@ describe("read boundary guard", () => {
 			{
 				toolName: "write",
 				input: {
-					path: path.join(homeDir, ".pi", "agent", "settings.json"),
+					path: path.join(globalAgentDirForTest(), "settings.json"),
 					content: "x",
 				},
 			},

@@ -73,7 +73,7 @@ function ensureDir(dirPath: string): void {
 	fs.mkdirSync(dirPath, { recursive: true });
 }
 
-function isManagedRelativePath(relativePath: string): boolean {
+export function isManagedRelativePath(relativePath: string): boolean {
 	const normalized = relativePath.split(path.sep).join("/");
 	if (!normalized) return false;
 	if (path.posix.basename(normalized) === ".DS_Store") return false;

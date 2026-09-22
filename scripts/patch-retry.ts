@@ -22,7 +22,7 @@ import process from "node:process";
 import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
-export type PatchStatus = "missing" | "skipped" | "patched" | "unexpected";
+export type PatchStatus = "missing" | "skipped" | "patched" | "upstream" | "unexpected";
 
 const RETRY_REL = path.join("dist", "utils", "retry.js");
 const OLD_LINE =
@@ -34,6 +34,15 @@ const PATCH_LEAD = [
 export const PATCHED_MARKER =
 	"Math.min(policy.baseDelayMs * 2 ** (attempt - 1), 60_000)";
 
+// pi-ai 0.87+ caps retry delay natively via `retryDelayMs`, to the same 60s our
+// 0.82 patch added by hand — so on this shape there is nothing to patch. Both
+// substrings are required: the constant alone could belong to an unrelated
+// 60_000, and the `??` fallback alone could belong to a differently-capped
+// build.
+const UPSTREAM_CAP_CONSTANT = "DEFAULT_MAX_AGENT_RETRY_DELAY_MS = 60_000";
+const UPSTREAM_CAP_FALLBACK =
+	"policy.maxAgentDelayMs ?? DEFAULT_MAX_AGENT_RETRY_DELAY_MS";
+
 /** Patch a single pi-ai `retry.js` file. Idempotent; never corrupts unknown content. */
 export function patchRetryFile(retryJsPath: string): PatchStatus {
 	if (!fs.existsSync(retryJsPath)) return "missing";
@@ -42,6 +51,9 @@ export function patchRetryFile(retryJsPath: string): PatchStatus {
 	if (content.includes(OLD_LINE)) {
 		fs.writeFileSync(retryJsPath, content.replace(OLD_LINE, PATCH_LEAD), "utf8");
 		return "patched";
+	}
+	if (content.includes(UPSTREAM_CAP_CONSTANT) && content.includes(UPSTREAM_CAP_FALLBACK)) {
+		return "upstream";
 	}
 	return "unexpected";
 }
@@ -122,6 +134,10 @@ function main(): void {
 			console.log(`[patch-retry] patched  ${file}`);
 		} else if (status === "skipped") {
 			console.log(`[patch-retry] already  ${file}`);
+		} else if (status === "upstream") {
+			console.log(
+				`[patch-retry] upstream caps retry delay at 60s natively, no patch needed: ${file}`,
+			);
 		} else if (status === "unexpected") {
 			unexpected = true;
 			console.error(

@@ -12,6 +12,7 @@
 import type { ExtensionAPI, ExtensionContext, ToolInfo } from "@earendil-works/pi-coding-agent";
 import { getSettingsListTheme } from "@earendil-works/pi-coding-agent";
 import { Container, type SettingItem, SettingsList } from "@earendil-works/pi-tui";
+import { isShadowedProjectCopy } from "./lib/extension-helpers.ts";
 
 // State persisted to session
 interface ToolsState {
@@ -19,6 +20,7 @@ interface ToolsState {
 }
 
 export default function toolsExtension(pi: ExtensionAPI) {
+	if (isShadowedProjectCopy(import.meta.url)) return;
 	// Track enabled tools
 	let enabledTools: Set<string> = new Set();
 	let allTools: ToolInfo[] = [];
@@ -140,7 +142,8 @@ export default function toolsExtension(pi: ExtensionAPI) {
 	});
 
 	// Restore state after forking.
-	// Runtime emits this event, but some ExtensionAPI typings may not include it yet.
+	// SAFETY: runtime supports "session_fork" although the ExtensionAPI typings do not
+	// include it yet — the widened cast types the event as unknown until they do.
 	(pi.on as unknown as (event: string, handler: (event: unknown, ctx: ExtensionContext) => Promise<void>) => void)(
 		"session_fork",
 		async (_event, ctx) => {

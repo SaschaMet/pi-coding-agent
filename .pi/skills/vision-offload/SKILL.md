@@ -1,6 +1,6 @@
 ---
 name: vision-offload
-description: Use this skill when the prompt contains an image (file path, screenshot, pasted media) and the current model cannot read images (no vision capability). Delegate image reading to a local vision model (Ornith-1.0-35B-4bit via omlx on port 1331) through a read-only subagent. Do not use when the current model has vision, or when no image is involved.
+description: Use this skill when the prompt contains an image (file path, screenshot, pasted media) and the current model cannot read images (no vision capability). Delegate image reading to a local vision model (Ornith-1.5-9B-uncensored-MLX-8bit via omlx on port 1331) through a read-only subagent. Do not use when the current model has vision, or when no image is involved.
 ---
 
 # Vision Offload
@@ -42,5 +42,5 @@ Extract from the current conversation a compact context block for the vision mod
 If any step fails (image missing, subagent error, API down, non-200, timeout, empty answer):
 
 1. Report the verbatim error to the user.
-2. For connection errors on port 1331, tell the user omlx appears to be down and ask them to start it (e.g. `omlx serve Ornith-1.0-35B-4bit --port 1331`).
+2. For connection errors on port 1331, tell the user omlx appears to be down and ask them to start it (e.g. `omlx serve Ornith-1.5-9B-uncensored-MLX-8bit --port 1331`).
 3. **Never fabricate image contents.** Say you could not read the image and offer: retry once omlx is running, or have the user describe the image.

@@ -25,6 +25,16 @@ of lists — changes what the guard allows, with no compile error. Change the pa
 |---|--------|
 | 1 | Not run |
 
+## In Plain Words
+
+- **What we are doing:** {one sentence}
+- **Why:** {one sentence}
+- **What could break:** {one sentence}
+- **How we will know it worked:** {one sentence}
+
+> Four lines, one sentence each, 20 words maximum per sentence. No jargon, no acronym defined later in
+> this document. Style: `.pi/skills/eli5/SKILL.md`, sections _Style rules_ and _Hard bans_.
+
 ## 1. Intent
 One paragraph for what changes and why now.
 
@@ -221,7 +231,11 @@ Legend: ✏️ Modified  ➕ New  ➖ Removed  ⚠️ Breaking
 
 If this section has any unanswered item, implementation must not start.
 
-- [ ] ...
+Every item carries a recommendation, so the list can be approved by accepting the defaults.
+
+- [ ] **{the question}**
+      _Recommended:_ {the answer you would take, and the assumption it rests on}
+      _If you choose otherwise:_ {what changes in scope, risk, or effort}
 
 ## 14. Handoff
 
