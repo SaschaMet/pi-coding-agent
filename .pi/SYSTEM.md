@@ -26,6 +26,7 @@
 - If `graphify-out/graph.json` exists, run `graphify query "<question>"` (Graphify skill) before reading source files.
 - Set a timeout on every tool command (`grep`, `curl`, `node`, `python`, …).
 - Search a narrow scope. Never grep the whole repository.
+- Verify every input, be it a `$grill-me` session, a spec or plan or a prompt. Only start working once you have manually confirmed that it is correct.
 
 # Coding Workflow
 
