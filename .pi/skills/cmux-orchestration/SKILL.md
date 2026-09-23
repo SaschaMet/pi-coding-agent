@@ -1,6 +1,6 @@
 ---
 name: cmux-orchestration
-description: Use this skill when driving the cmux terminal app via its CLI — booting agent fleets, dynamically composing panes (workers, Logs, Browser, Research) for a task, broadcasting tasks to agent surfaces, reading their screens, reacting to cmux events, or tearing workspaces down. Covers the multi-agent orchestration loop on top of this repo's roster in `.cmux/cmux.json`. Do not use for plain shell work inside the current terminal, or for editing global cmux/Ghostty config. Invoke the skill when the user says `run in cmux` or `run cmux` or `spawn an agent team` (also the common typo `spwan and agent team`).
+description: Use this skill when driving the cmux terminal app via its CLI — booting agent fleets, dynamically composing panes (workers, Logs, Browser, Research) for a task, broadcasting tasks to agent surfaces, reading their screens, reacting to cmux events, or tearing workspaces down. Covers the multi-agent orchestration loop on top of this repo's roster in `.cmux/cmux.json`. Do not use for plain shell work inside the current terminal, or for editing global cmux/Ghostty config. Invoke the skill when the user says `run in cmux` or `run cmux` or `spawn / use an agent team`, use sub-agents or just use agents.
 ---
 
 # cmux Orchestration
@@ -19,7 +19,7 @@ Refs are short handles: `workspace:9`, `pane:2`, `surface:3`. UUIDs accepted via
 ## The 4-Verb Loop
 
 ```bash
-cmux send --surface surface:3 "claude"      # type text (does NOT press Enter)
+cmux send --surface surface:3 "pi"        # type text (does NOT press Enter)
 cmux send-key --surface surface:3 enter     # submit
 cmux read-screen --surface surface:3 --scrollback --lines 200   # read output
 cmux close-surface --surface surface:3      # stop / tear down one agent
@@ -38,6 +38,8 @@ cmux read-screen --surface "$W" --scrollback --lines 60 | grep -oE '[A-Za-z0-9._
 Compare against the requested model. On mismatch: report it, do not silently accept — the user decides whether to respawn on the requested model (see the respawn rule under Dynamic workers).
 
 ## Boot the Team (this repo's roster)
+
+**Model default: every new pane/agent boots on `iqRouter/grunt:high` unless the user names another model.**
 
 **Default: spawn in the caller workspace — no new window, no tab switch.** Fill a 2-column grid by anchored splits, alternating direction per worker (staircase: `right`, `down`, `right`, `down`, …), each anchored at the previous worker's surface — verified geometry: never more than 2 panes side by side; the 3rd pane lands on a new row.
 
@@ -126,7 +128,7 @@ Run it in the background. On exit 2, show the prompt to the user at once and let
 
 Check the order afterwards in the worker's transcript: its first `Edit`/`Write` of the slice must hit a test file. Report any violation to the user.
 
-**Rules reach every agent:** Claude Code workers load `~/.claude/CLAUDE.md` (the synced copy of `.pi/SYSTEM.md`) on their own. Their subagents may not: `Explore` subagents do not load CLAUDE.md (verified: 0 rule hits in their transcripts), while `general-purpose` subagents do. Put this in every worker task prompt: "Use `general-purpose` subagents for any subagent work. If you use `Explore` or another type, paste the TDD, `$TMPDIR`, and command-timeout rules from `.pi/SYSTEM.md` into its prompt." Pi workers load `.pi/SYSTEM.md` through the repo; start their task prompt with "Read `.pi/SYSTEM.md` and follow it" anyway, so the rules are fresh in context.
+**Rules reach every agent:** pi workers spawn subagents through pi, so the `subagent-rules-injection` extension injects `.pi/SYSTEM.md` into every subagent session at start (append-mode subagents already inherit it via the parent prompt). Put this in every worker task prompt: "Use `general-purpose` subagents for any subagent work." Pi workers load `.pi/SYSTEM.md` through the repo; start their task prompt with "Read `.pi/SYSTEM.md` and follow it" anyway, so the rules are fresh in context. Non-pi workers (e.g. `claude`) are not covered: they rely on their own context files, and their subagents may not load them.
 
 **Dashboard:** `cmux set-status build "running" --workspace "$WS" --color "#ff9500"` · `cmux set-progress 0.4 --label "Building"` · `cmux log --workspace "$WS" --level info -- "msg"` · `cmux top --format tsv` (per-surface CPU/mem) · `cmux notify --title .. --body ..` for desktop alerts.
 
@@ -158,9 +160,9 @@ Composition is a per-task decision. State it at boot and at every dynamic spawn 
 | Research for your own context                                 | in-process subagent; report the result in this conversation (conversation counts as visible)                                           |
 | Mixed                                                         | minimal set that covers verification                                                                                                   |
 
-**Dynamic workers:** to exceed the roster's 2, join the existing workspace: `cmux new-split --workspace "$WS" right --surface <ref>`. A split surface is a **bare shell** (layout `command` does not auto-run) — first send the worker boot command (`npm run agent -- --new-session --model <model>`), wait for it to come up, then send the task. Workers always run with `--new-session` (prevents resuming your session) and default to `iqRouter/grunt:high` unless the task names another model. If a worker's model backend errors (e.g. 503 busy), respawn it on a known-working model (e.g. `claude/sonnet`) and tell the user. Every Claude Code worker boots with `--permission-mode auto`. Never boot one in a mode that prompts per command (`default`, `manual`, `acceptEdits`): the user would have to approve each prompt by hand in the worker pane. Every Claude Code worker also boots with the env var `CLAUDE_CODE_SUBAGENT_MODEL=haiku`: a subagent spawned without an explicit `model` otherwise inherits the worker's model (verified: a Sonnet worker ran all its research subagents on Sonnet despite the Haiku rule in CLAUDE.md).
+**Dynamic workers:** to exceed the roster's 2, join the existing workspace: `cmux new-split --workspace "$WS" right --surface <ref>`. A split surface is a **bare shell** (layout `command` does not auto-run) — first send the worker boot command (`npm run agent -- --new-session --model iqRouter/grunt:high`), wait for it to come up, then send the task. Workers always run with `--new-session` (prevents resuming your session) and default to `iqRouter/grunt:high` unless the task names another model. If a worker's model backend errors (e.g. 503 busy), report it and ask the user which model to respawn on — do not pick a fallback yourself.
 
-**Host model defaults:** pi → workers/researchers on `iqRouter/grunt` (per `.pi/SYSTEM.md`). Claude Code → workers `CLAUDE_CODE_SUBAGENT_MODEL=haiku claude --model sonnet --permission-mode auto`, researchers `claude --model haiku --permission-mode auto`.
+**Host model defaults:** all workers and researchers boot on `iqRouter/grunt:high` (per `.pi/SYSTEM.md`). Any other model only on explicit user request.
 
 **Creation recipes (additive only, never steal focus):**
 

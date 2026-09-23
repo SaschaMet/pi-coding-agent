@@ -156,12 +156,12 @@ To add another agent, append one more `_pisync_link_skills` line pointing at tha
 
 ### Behaviour summary
 
-| Scenario | Result |
-|---|---|
-| Skill added to `~/.pi/agent/skills/` | Symlink created in all target directories |
-| Skill updated in `~/.pi/agent/skills/` | Symlink already correct, no-op |
+| Scenario                                 | Result                                               |
+| ---------------------------------------- | ---------------------------------------------------- |
+| Skill added to `~/.pi/agent/skills/`     | Symlink created in all target directories            |
+| Skill updated in `~/.pi/agent/skills/`   | Symlink already correct, no-op                       |
 | Skill deleted from `~/.pi/agent/skills/` | Dangling symlink removed from all target directories |
-| Skill exists only in a target directory | Untouched — `pisync` never removes non-PI skills |
+| Skill exists only in a target directory  | Untouched — `pisync` never removes non-PI skills     |
 
 ## Sync and Sharing Workflow
 
@@ -267,3 +267,15 @@ Subagent extension docs:
 
 - Prefer in-session work for normal repository inspection and edits.
 - Use background `Agent` calls only when the user explicitly requests independent subagents and tasks are low-overlap.
+
+## Setting the Default Model
+
+Add to ~/.pi/agent/settings.json:
+
+```json
+{
+    "defaultProvider": "iqRouter",
+    "defaultModel": "grunt",
+    "defaultThinkingLevel": "high"
+}
+```
