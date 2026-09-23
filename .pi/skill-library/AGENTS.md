@@ -17,7 +17,7 @@ Manual, on-demand skill store. Skills here are **not** auto-discovered and cost 
 | Description in every session's context | yes                      | no             |
 | Invoked by                             | the agent, automatically | you, by name   |
 
-The whole point: the 24 skills here add **zero** tokens to a session that does not use them. Move a skill to `../skills/` only when you want it triggered without asking.
+The whole point: the 26 skills here add **zero** tokens to a session that does not use them. Move a skill to `../skills/` only when you want it triggered without asking.
 
 ## How an agent uses a skill from here
 
@@ -64,6 +64,7 @@ its rules — that discipline is what keeps two skills from contradicting each o
 | Repo instruction topology (DOX tree) | `init-project` |
 | Executable engineering standards, hooks, CI | `add-coding-standard` |
 | Deliberately disposable code | `prototype` |
+| Multi-session planning of foggy efforts as decision-ticket maps | `wayfinder` |
 | Complete, untruncated output | `output-skill` |
 
 Two cross-family boundaries worth stating once:
@@ -140,6 +141,14 @@ Source: agent-skill ecosystem, copied 2026-09-10.
 | Skill       | What it does                                                                                    |
 | ----------- | ----------------------------------------------------------------------------------------------- |
 | `prototype` | Throwaway code that answers a design, state-model, or UI question faster than arguing on paper. |
+
+### Planning
+
+Source: project-local `.pi/skills/`, moved to the library 2026-09-23.
+
+| Skill       | What it does                                                                                                                      |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `wayfinder` | Charts an effort too big for one session as a map of decision tickets, resolves them one per session, hands off to `create-spec`. |
 
 ### Architecture diagrams
 
