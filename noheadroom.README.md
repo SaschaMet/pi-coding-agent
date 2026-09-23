@@ -144,7 +144,7 @@ Once it holds 8788, the Docker container can never publish that port again — e
 
 **No proxy running.** If nothing answers `/health` and `autoStart` is `false`, the extension notifies `Headroom proxy unavailable. Compression disabled until /headroom health succeeds` and PI continues **uncompressed** — no error, just no savings.
 
-**Feature parity with the Docker setup.** The Docker compose file adds `--lossless --log-file ... --log-messages` plus `HEADROOM_DEDUPE=0` and `HEADROOM_NO_CCR_PROACTIVE_EXPANSION=1`. The extension's own spawn command is fixed (`proxy --host 127.0.0.1 --port 8788 --mode token --no-cache`) and does not include those. But every one of them has an **env-var equivalent** (verified in `headroom/cli/proxy.py` at v0.37.0), and the extension spawns with the PI process's environment (`env: {...process.env, HEADROOM_TELEMETRY: off}`) — so the auto-started native proxy can be brought to full parity by exporting:
+**Feature parity with the Docker setup.** The Docker compose file adds `--lossless --log-file ... --log-messages` plus `HEADROOM_DEDUPE=0` and `HEADROOM_NO_CCR_PROACTIVE_EXPANSION=1`. The extension's own spawn command is fixed (`proxy --host 127.0.0.1 --port 8788 --mode token --no-cache`) and does not include those. But every one of them has an **env-var equivalent** (verified at v0.38.0), and the extension spawns with the PI process's environment (`env: {...process.env, HEADROOM_TELEMETRY: off}`) — so the auto-started native proxy can be brought to full parity by exporting:
 
 | Docker compose setting | Native env var |
 |---|---|
