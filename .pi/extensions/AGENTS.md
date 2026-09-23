@@ -16,6 +16,7 @@ PI extensions that enforce quality and safety at the tool layer: session-end qua
 - `rtk.ts` — thin delegating extension that rewrites bash to `rtk` for token savings (rewrite logic lives in the `rtk` Rust registry, not here).
 - `tools.ts` — `/tools` command to enable/disable tools interactively.
 - `context-analyzer.ts` — `/context` command: context-usage overview + breakdown (system prompt, messages by role, tools by source) with scrollable skills/tools/files lists. Local re-implementation of the audited `pi-context-analyzer@0.1.1` (pure logic in `lib/context-analyzer.ts`; TUI + registration here).
+- `notify.ts` — desktop notification on `agent_end` via OSC 777 (terminal-native, no dependencies). TUI-mode guard keeps subagent sessions silent. Local rebuild of the audited `mitsuhiko/agent-stuff` `notify.ts`.
 - `debug.ts` — debugging extension.
 - `lib/` — shared helpers (`extension-helpers`, `gate-checks`, `spec-scope`, `trust-loader`, `context-analyzer` core).
 
