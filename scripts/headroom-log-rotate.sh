@@ -9,7 +9,7 @@
 #   scripts/headroom-log-rotate.sh          # rotate inside the running headroom container (cron default)
 #   scripts/headroom-log-rotate.sh DIR      # rotate files directly in DIR (tests)
 #
-# Weekly cron: 0 3 * * 0 (Sunday 03:00)
+# Weekly cron: 0 12 * * 1 (Monday 12:00 — host is reliably on then)
 #
 set -uo pipefail
 
