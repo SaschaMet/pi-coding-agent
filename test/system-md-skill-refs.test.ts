@@ -46,3 +46,14 @@ describe("SUBAGENT.md", () => {
 
     it.each(subagentSkillNames)("$%s resolves to a project skill with a matching name", expectProjectSkill);
 });
+
+describe("temp write rules", () => {
+    it("SYSTEM.md names the reports folder as the only temp write target", () => {
+        expect(systemMd).toContain("`$TMPDIR/pi-reports/`");
+        expect(systemMd).not.toContain("exempt only `$TMPDIR`");
+    });
+
+    it("SUBAGENT.md names the reports folder for scratch and report files", () => {
+        expect(subagentMd).toContain("`$TMPDIR/pi-reports/`");
+    });
+});

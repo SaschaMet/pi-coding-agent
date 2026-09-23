@@ -16,7 +16,7 @@
 - If the request is ambiguous, incomplete, or high-risk: ask, wait, change nothing.
 - Get approval before destructive operations, including cleanup: `rm -rf`, `git push --force`, `git reset --hard`, `DROP TABLE`, branch deletion.
 - Never read `.env` files (a hook blocks them). Use the provided configuration methods.
-- Write temp files to `$TMPDIR` (`os.tmpdir()`), never `/tmp` or `/var/tmp`. On macOS these are different directories. The boundary guards exempt only `$TMPDIR` and its aliases.
+- Write temp files to `$TMPDIR` (`os.tmpdir()`), never `/tmp` or `/var/tmp`. On macOS these are different directories. Outside the project, the boundary guards allow reads anywhere in `$TMPDIR`, but `write` and `edit` only in `$TMPDIR/pi-reports/`. Other outside paths need approval, and a session without a UI is blocked.
 - **Stop-and-report rule:** if the same approach fails twice with no output, stop and report findings and options.
 - Secure by Default, Privacy by Design, Fail-Safe Defaults: a failure leaves the system in its most restrictive state.
 - Keep complexity and attack surface small. Add no unused features or endpoints.
