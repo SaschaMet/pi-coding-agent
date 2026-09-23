@@ -75,10 +75,19 @@ Each roster surface auto-runs its `command` on open — the layout is the boot s
 
 ## Orchestration Recipes
 
+**Worker messages:** every task message starts with `You are a cmux worker.` Workers are full pi sessions without an `<active_agent>` tag. That opening line makes them read `.pi/SUBAGENT.md` (approval comes from the task, no further delegation, when to stop).
+
+**Time signal:** workers pace their work to an elapsed-time budget. At fleet boot, set the start time and a budget of about 1.5× your estimate in seconds. Leave `BUDGET` unset when you cannot estimate. Append `$(ts)` to the end of every task, Green-dispatch, and steer message. Keep it on the same line: a newline in `cmux send` acts as Enter. The brackets keep workers from reading the tag as part of a trailing command such as `cmux wait-for -S <token>`.
+
+```bash
+T0=$(date +%s); BUDGET=1200   # BUDGET is advisory; workers stop on correctness, not the clock
+ts() { local e=$(( $(date +%s) - T0 )); if [ -n "${BUDGET:-}" ]; then echo "[time: ${e}s elapsed of ${BUDGET}s budget]"; else echo "[time: ${e}s elapsed]"; fi; }
+```
+
 **Broadcast (fan-out):**
 
 ```bash
-for S in $S1 $S2; do cmux send --surface "$S" "$TASK"; cmux send-key --surface "$S" enter; done
+for S in $S1 $S2; do cmux send --surface "$S" "You are a cmux worker. $TASK $(ts)"; cmux send-key --surface "$S" enter; done
 ```
 
 **Read to decide:** make agents print a machine-greppable sentinel instead of parsing prose.
@@ -124,7 +133,7 @@ Run it in the background. On exit 2, show the prompt to the user at once and let
 
 1. **Red dispatch:** the worker writes or changes tests only — no source edits — runs them, writes the exact test command and its failing output to `$TMPDIR/pi-reports/<task>.red.md`, prints `RED_READY`, and signals `cmux wait-for -S <task>-red`.
 2. **Orchestrator check:** wait on `<task>-red`, then rerun the command from the red report yourself. Proceed only when it fails for the reason the task names (missing behavior, not a syntax or import error). Otherwise send the worker back to step 1.
-3. **Green dispatch:** send "implement until `<command>` is green, then refactor; do not weaken the tests", with the normal report and rendezvous.
+3. **Green dispatch:** send "implement until `<command>` is green, then refactor; do not weaken the tests", with the normal report, rendezvous, and `$(ts)` suffix.
 
 Check the order afterwards in the worker's transcript: its first `Edit`/`Write` of the slice must hit a test file. Report any violation to the user.
 
