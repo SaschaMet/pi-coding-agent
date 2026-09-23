@@ -17,6 +17,7 @@ PI extensions that enforce quality and safety at the tool layer: session-end qua
 - `tools.ts` — `/tools` command to enable/disable tools interactively.
 - `context-analyzer.ts` — `/context` command: context-usage overview + breakdown (system prompt, messages by role, tools by source) with scrollable skills/tools/files lists. Local re-implementation of the audited `pi-context-analyzer@0.1.1` (pure logic in `lib/context-analyzer.ts`; TUI + registration here).
 - `notify.ts` — desktop notification on `agent_end` via OSC 777 (terminal-native, no dependencies). TUI-mode guard keeps subagent sessions silent. Local rebuild of the audited `mitsuhiko/agent-stuff` `notify.ts`.
+- `cmux-status.ts` — per-pane "running" badge in the cmux sidebar while the top-level agent loop is active: `agent_start` sets a status pill, `agent_end` clears it, via the `cmux` CLI through `pi.exec` (fire-and-forget, silent no-op outside cmux). Per-pane key `pi-<CMUX_SURFACE_ID>` (shared `pi` fallback) avoids cross-pane races. TUI-mode guard keeps subagent sessions silent. Stale badge after a crash: `cmux clear-status pi-<surface-id>`.
 - `debug.ts` — debugging extension.
 - `lib/` — shared helpers (`extension-helpers`, `gate-checks`, `spec-scope`, `trust-loader`, `context-analyzer` core).
 
