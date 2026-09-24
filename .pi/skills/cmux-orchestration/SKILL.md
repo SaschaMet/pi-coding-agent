@@ -71,7 +71,7 @@ cmux tree --all --json    # ground truth: every workspace/pane/surface with refs
 cmux workspace-action --action set-color --workspace "$WS" --color Blue
 ```
 
-Each roster surface auto-runs its `command` on open — the layout is the boot script. To boot agents other than the roster (e.g. `claude`, `codex`, `gemini`, `pi`): create a workspace, then `cmux new-split right --surface <ref>` (returns the new surface ref) and `cmux send` the agent CLI name into each surface.
+Each roster surface auto-runs its `command` on open — the layout is the boot script. To boot agents other than the roster (e.g. `claude`, `codex`, `gemini`, `pi`): create a workspace, then `cmux new-split right --surface <ref>` (returns the new surface ref) and `cmux send` the agent CLI name into each surface. Boot Claude Code workers as `claude --permission-mode auto`: a bare `claude` starts in manual mode and asks before every shell command, so the worker stalls on its first command and never signals. Never use `bypassPermissions`: auto mode still stops risky actions, so keep the prompt watcher running.
 
 ## Orchestration Recipes
 
