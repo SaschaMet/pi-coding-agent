@@ -37,7 +37,9 @@ cmux read-screen --surface "$W" --scrollback --lines 60 | grep -oE '[A-Za-z0-9._
 
 Compare against the requested model. On mismatch: report it, do not silently accept — the user decides whether to respawn on the requested model (see the respawn rule under Dynamic workers).
 
-## Boot the Team (this repo's roster)
+## Boot the Team
+
+**Worker boot command: `pi --no-session --model iqRouter/grunt:high`.** It works in any repo. `--no-session` keeps the worker's session unsaved, so it cannot resume the orchestrator's session. `npm run agent` and `--new-session` exist only in the pi-coding-agent repo: elsewhere npm fails with `ENOENT` and `pi` rejects `--new-session`.
 
 **Model default: every new pane/agent boots on `iqRouter/grunt:high` unless the user names another model.**
 
@@ -49,13 +51,13 @@ LAST="${CMUX_SURFACE_ID:-$(cmux identify --json | jq -r .caller.surface_ref)}"  
 W1=$(cmux new-split --workspace "$WS" right --surface "$LAST" --json | jq -r .surface_ref)
 W2=$(cmux new-split --workspace "$WS" down  --surface "$W1"  --json | jq -r .surface_ref)
 # worker N: alternate right/down, anchored at W_(N-1)
-cmux send --workspace "$WS" --surface "$W1" "npm run agent -- --new-session --model iqRouter/grunt:high"
+cmux send --workspace "$WS" --surface "$W1" "pi --no-session --model iqRouter/grunt:high"
 cmux send-key --workspace "$WS" --surface "$W1" enter   # boot first: split surfaces are bare shells
 ```
 
 Helper panes (Logs/Browser) join the same grid with `new-pane --workspace "$WS" …` when the task calls for them. Cleanup (user-approved, never automatic) closes worker/helper surfaces with explicit `--workspace "$WS"` — the caller's own pane and unrelated surfaces stay untouched.
 
-**Alternative: dedicated workspace** (when the user asks for a separate tab or the fleet is large): `.cmux/cmux.json` is the single roster source (`commands[]` → named workspace layout, currently `pi Team`: 2 panes each running `npm run agent`). After editing it: `cmux config doctor` (validate, no socket needed) then `cmux reload-config`.
+**Alternative: dedicated workspace** (when the user asks for a separate tab or the fleet is large). Use this recipe only when `.cmux/cmux.json` exists in the current directory (`test -f .cmux/cmux.json`). Otherwise use the split recipe above. `.cmux/cmux.json` is the single roster source (`commands[]` → named workspace layout, currently `pi Team`: 2 panes each running `npm run agent`). After editing it: `cmux config doctor` (validate, no socket needed) then `cmux reload-config`.
 
 ```bash
 # 1. extract the layout from the roster and boot it (workspace create has NO --json flag)
@@ -162,14 +164,14 @@ Composition is a per-task decision. State it at boot and at every dynamic spawn 
 
 | Task                                                          | Panes                                                                                                                                  |
 | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Code/feature work                                             | roster workers (`.cmux/cmux.json` pool)                                                                                                |
+| Code/feature work                                             | workers (`.cmux/cmux.json` roster when present, else split workers)                                                                     |
 | Backend with a stream worth watching (dev server, long build) | workers + Logs pane (judgment: only if output is worth watching live)                                                                  |
 | Frontend change                                               | workers; Browser pane **only on user request** (`new-pane --type browser --url`, then `browser reload` / `browser snapshot` to verify) |
 | Research the user should watch                                | Research worker in a pane (fleet worker — live output by construction)                                                                 |
 | Research for your own context                                 | in-process subagent; report the result in this conversation (conversation counts as visible)                                           |
 | Mixed                                                         | minimal set that covers verification                                                                                                   |
 
-**Dynamic workers:** to exceed the roster's 2, join the existing workspace: `cmux new-split --workspace "$WS" right --surface <ref>`. A split surface is a **bare shell** (layout `command` does not auto-run) — first send the worker boot command (`npm run agent -- --new-session --model iqRouter/grunt:high`), wait for it to come up, then send the task. Workers always run with `--new-session` (prevents resuming your session) and default to `iqRouter/grunt:high` unless the task names another model. If a worker's model backend errors (e.g. 503 busy), report it and ask the user which model to respawn on — do not pick a fallback yourself.
+**Dynamic workers:** to exceed the roster's 2, join the existing workspace: `cmux new-split --workspace "$WS" right --surface <ref>`. A split surface is a **bare shell** (layout `command` does not auto-run) — first send the worker boot command (`pi --no-session --model iqRouter/grunt:high`), wait for it to come up, then send the task. Workers always run with `--no-session` (prevents resuming your session) and default to `iqRouter/grunt:high` unless the task names another model. If a worker's model backend errors (e.g. 503 busy), report it and ask the user which model to respawn on — do not pick a fallback yourself.
 
 **Host model defaults:** all workers and researchers boot on `iqRouter/grunt:high` (per `.pi/SYSTEM.md`). Any other model only on explicit user request.
 
@@ -190,7 +192,7 @@ Reuse the existing right-hand helper pane (add a surface) before creating more p
 ## Gotchas
 
 - **Refs are captured, not guessed.** Create first, then read refs from `tree --all --json` (complete) or `identify --json` (caller). `list-pane-surfaces --workspace` covers a single pane only (verified).
-- **Workers must not resume the orchestrator's session.** A worker whose command boots pi in the same project cwd continues the most recent session — i.e. the live orchestrator conversation (verified: cross-talk + concurrent writes). Launch workers with an isolated session (fresh cwd or an explicit new-session flag) before broadcasting.
+- **Workers must not resume the orchestrator's session.** A worker whose command boots pi in the same project cwd continues the most recent session — i.e. the live orchestrator conversation (verified: cross-talk + concurrent writes). Launch workers with an isolated session before broadcasting: `pi --no-session`, or `npm run agent -- --new-session` inside the pi-coding-agent repo.
 - **`CMUX_QUIET=1`** silences legacy-alias notices for clean scripting (verified: output unchanged, exit 0). Prefer modern verb forms anyway: `workspace create`/`workspace list`/`workspace close` over the legacy `new-workspace`/`list-workspaces`/`close-workspace` aliases.
 - **Never overwrite a working agent login** with `--env-file` placeholder keys; scope credential injection to agents that actually need it.
 - **Socket access:** default `socketControlMode` is `cmuxOnly` — this skill's verbs work when pi runs _inside_ a cmux pane. If `cmux ping` fails, check `cmux capabilities --json`; do not raise socket mode without explicit user approval.
