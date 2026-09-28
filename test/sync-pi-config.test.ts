@@ -336,6 +336,131 @@ describe("sync-pi-config", () => {
 		});
 	});
 
+	it("skips syncing mcp-project-approvals.json for both pull and push", () => {
+		const { localPiDir, globalAgentDir } = setupRoots(
+			"pi-sync-mcp-approvals-skip-",
+		);
+
+		const localApprovals = {
+			version: 1,
+			approvals: [
+				{
+					projectRoot: "/local/only/root",
+					serverName: "MCP_LOCAL",
+					definitionHash: "local-hash",
+					approvedAt: "2026-01-01T00:00:00.000Z",
+				},
+			],
+		};
+		const globalApprovals = {
+			version: 1,
+			approvals: [
+				{
+					projectRoot: "/global/only/root",
+					serverName: "MCP_GLOBAL",
+					definitionHash: "global-hash",
+					approvedAt: "2026-01-01T00:00:00.000Z",
+				},
+			],
+		};
+
+		writeJson(path.join(localPiDir, "mcp-project-approvals.json"), localApprovals);
+		writeJson(
+			path.join(globalAgentDir, "mcp-project-approvals.json"),
+			globalApprovals,
+		);
+
+		const pullResult = syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
+		expect(pullResult.updated.length).toBe(0);
+		expect(pullResult.deleted.length).toBe(0);
+		expect(
+			JSON.parse(
+				fs.readFileSync(
+					path.join(localPiDir, "mcp-project-approvals.json"),
+					"utf-8",
+				),
+			),
+		).toEqual(localApprovals);
+		expect(
+			JSON.parse(
+				fs.readFileSync(
+					path.join(globalAgentDir, "mcp-project-approvals.json"),
+					"utf-8",
+				),
+			),
+		).toEqual(globalApprovals);
+
+		const pushResult = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+		expect(pushResult.updated.length).toBe(0);
+		expect(pushResult.deleted.length).toBe(0);
+		expect(
+			JSON.parse(
+				fs.readFileSync(
+					path.join(localPiDir, "mcp-project-approvals.json"),
+					"utf-8",
+				),
+			),
+		).toEqual(localApprovals);
+		expect(
+			JSON.parse(
+				fs.readFileSync(
+					path.join(globalAgentDir, "mcp-project-approvals.json"),
+					"utf-8",
+				),
+			),
+		).toEqual(globalApprovals);
+	});
+
+	it("does not delete target-only mcp-project-approvals.json during pull and push sync", () => {
+		const { localPiDir, globalAgentDir } = setupRoots(
+			"pi-sync-mcp-approvals-target-only-",
+		);
+
+		const globalApprovals = {
+			version: 1,
+			approvals: [
+				{
+					projectRoot: "/global/only/root",
+					serverName: "MCP_GLOBAL",
+					definitionHash: "global-hash",
+					approvedAt: "2026-01-01T00:00:00.000Z",
+				},
+			],
+		};
+		writeJson(
+			path.join(globalAgentDir, "mcp-project-approvals.json"),
+			globalApprovals,
+		);
+
+		const pullResult = syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
+		expect(pullResult.deleted.length).toBe(0);
+		expect(
+			fs.existsSync(path.join(localPiDir, "mcp-project-approvals.json")),
+		).toBe(false);
+		expect(
+			JSON.parse(
+				fs.readFileSync(
+					path.join(globalAgentDir, "mcp-project-approvals.json"),
+					"utf-8",
+				),
+			),
+		).toEqual(globalApprovals);
+
+		const pushResult = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+		expect(pushResult.deleted.length).toBe(0);
+		expect(
+			fs.existsSync(path.join(localPiDir, "mcp-project-approvals.json")),
+		).toBe(false);
+		expect(
+			JSON.parse(
+				fs.readFileSync(
+					path.join(globalAgentDir, "mcp-project-approvals.json"),
+					"utf-8",
+				),
+			),
+		).toEqual(globalApprovals);
+	});
+
 	it("skips syncing top-level AGENTS.md for both pull and push", () => {
 		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-agents-md-skip-");
 

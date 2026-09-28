@@ -77,7 +77,7 @@ Each roster surface auto-runs its `command` on open — the layout is the boot s
 
 ## Orchestration Recipes
 
-**Worker messages:** every task message starts with `You are a cmux worker.` Workers are full pi sessions without an `<active_agent>` tag. That opening line makes them read `.pi/SUBAGENT.md` (approval comes from the task, no further delegation, when to stop).
+**Worker messages:** every task message starts with `You are a cmux worker.` Workers are full pi sessions without an `<active_agent>` tag. That opening line makes them read the subagent rules — `.pi/SUBAGENT.md` if it exists, otherwise `~/.pi/agent/SUBAGENT.md` (approval comes from the task, no further delegation, when to stop).
 
 **Time signal:** workers pace their work to an elapsed-time budget. At fleet boot, set the start time and a budget of about 1.5× your estimate in seconds. Leave `BUDGET` unset when you cannot estimate. Append `$(ts)` to the end of every task, Green-dispatch, and steer message. Keep it on the same line: a newline in `cmux send` acts as Enter. The brackets keep workers from reading the tag as part of a trailing command such as `cmux wait-for -S <token>`.
 
@@ -139,7 +139,7 @@ Run it in the background. On exit 2, show the prompt to the user at once and let
 
 Check the order afterwards in the worker's transcript: its first `Edit`/`Write` of the slice must hit a test file. Report any violation to the user.
 
-**Rules reach every agent:** pi workers spawn subagents through pi, so the `subagent-rules-injection` extension injects `.pi/SYSTEM.md` into every subagent session at start (append-mode subagents already inherit it via the parent prompt). Put this in every worker task prompt: "Use `general-purpose` subagents for any subagent work." Pi workers load `.pi/SYSTEM.md` through the repo; start their task prompt with "Read `.pi/SYSTEM.md` and follow it" anyway, so the rules are fresh in context. Non-pi workers (e.g. `claude`) are not covered: they rely on their own context files, and their subagents may not load them.
+**Rules reach every agent:** pi workers spawn subagents through pi, so the `subagent-rules-injection` extension injects `.pi/SYSTEM.md` into every subagent session at start (append-mode subagents already inherit it via the parent prompt). Put this in every worker task prompt: "Use `general-purpose` subagents for any subagent work." Pi workers boot with the durable rules already in their system prompt (project `.pi/SYSTEM.md` if present, else global `~/.pi/agent/SYSTEM.md`) and the repo-root `AGENTS.md` if present — never instruct them to read a repo-local rules file that may not exist. Start their task prompt with the bootstrap instead: "Your system prompt already contains the durable rules (SYSTEM.md) and, if present, this repo's AGENTS.md — follow them. Read the subagent rules: `.pi/SUBAGENT.md` if it exists, otherwise `~/.pi/agent/SUBAGENT.md`." Non-pi workers (e.g. `claude`) are not covered: they rely on their own context files, and their subagents may not load them.
 
 **Dashboard:** `cmux set-status build "running" --workspace "$WS" --color "#ff9500"` · `cmux set-progress 0.4 --label "Building"` · `cmux log --workspace "$WS" --level info -- "msg"` · `cmux top --format tsv` (per-surface CPU/mem) · `cmux notify --title .. --body ..` for desktop alerts.
 
