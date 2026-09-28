@@ -7,6 +7,14 @@ Use this gate before finalizing a spec.
 - [ ] A Grill Status table exists between the document header and the first numbered section.
 - [ ] The latest row is `done <date>` or `overridden <date>: <reason>`; otherwise the document is not ready for implementation and the handoff must mark it blocked.
 
+## Living-Document Sections
+
+- [ ] `## Metadata` sits between the title block and Grill Status, with only `Created`, `Commits`, and `Back refs`.
+- [ ] Every Execution Step has a `Validate:` list of `[ ]` items with concrete commands.
+- [ ] `## Amendments` and `## AI-Notes` exist, in that order, after Handoff; AI-Notes is the last section.
+- [ ] Each of these sections keeps its rules blockquote from the template.
+- [ ] No new heading contains the word `Scope`.
+
 ## In Plain Words
 
 - [ ] The section exists, between the Grill Status table and section 1.
@@ -32,62 +40,49 @@ Use this gate before finalizing a spec.
 - [ ] Every criterion is objectively verifiable.
 - [ ] No vague words without thresholds (`fast`, `better`, `secure`).
 - [ ] Negative assertions are included when needed (`must not expose ...`).
-
-## 4. BDD Coverage
-
-- [ ] Each acceptance criterion has at least one `Given / When / Then` scenario.
+- [ ] Each behavioral criterion is written once as `Given / When / Then`; static checks stay one line.
 - [ ] Edge cases and error paths are covered.
 
-## 5. Verification Mapping
+## 4. Verification Mapping
 
-- [ ] Each criterion maps to an automated or manual check.
+- [ ] Each criterion maps to an automated check in a step, or to the Manual Verification Checklist.
 - [ ] Commands/inputs and expected outputs are concrete.
-- [ ] Regression checks for existing behavior are included.
+- [ ] Existing tests that guard current behavior are run in a step.
 
-## 5.1 Slice Integrity
+## 4.1 Slice Integrity
 
 - [ ] Each execution step is independently runnable and demoable.
 - [ ] No step depends on a later step to be verifiable.
 - [ ] Steps are not ordered by stack layer (all migrations, then all services, then API, then UI).
 - [ ] The first step produces something observable end-to-end, even against mock data.
 
-## 6. Invariants and Compliance
+## 5. Invariants and Compliance
 
 - [ ] Org invariants are listed or referenced.
 - [ ] Domain contracts are listed.
 - [ ] Security/compliance requirements are explicit where relevant.
 - [ ] Invalid states are named with enforcement points.
+- [ ] A `CARDS` line exists only where it adds a constraint (unclear ownership, dependency direction, a local change path, domain integrity, or a separation boundary).
 
-## 7. CARDS Architecture Contract
-
-- [ ] Clarity: names, terms, and responsibilities are unambiguous.
-- [ ] Alignment: dependency direction and owner modules are explicit.
-- [ ] Resilience: likely follow-up changes have a local change path.
-- [ ] Domain Integrity: invariants and invalid states are enforced by design.
-- [ ] Separation: domain policy, orchestration, IO, presentation, and formatting boundaries are explicit.
-
-## 8. Architecture Impact (Medium+)
+## 6. Architecture Impact (Medium+)
 
 - [ ] Data flow diagram shows before/after states.
 - [ ] Changed flows are itemized with impact notes.
 - [ ] Blast radius identifies direct and transitive dependents.
 - [ ] New dependencies are listed with fallback behavior.
-- [ ] Layer impact table shows which layers change and risk per layer.
-- [ ] Stack view visualizes changes across layers (Medium+).
-- [ ] Unchanged layers are explicitly called out.
 - [ ] Visuals use mermaid, ASCII, or tables (renderable formats).
 - [ ] Section omitted for Small specs.
 
-## 9. Risk Controls
+## 7. Risk Controls
 
 - [ ] One-way doors are marked.
 - [ ] Rollback path is documented for risky changes.
 - [ ] Escalation triggers are defined for sensitive modifications.
 
-## 10. Handoff Clarity
+## 8. Handoff Clarity
 
 - [ ] Implementation steps identify exact file targets.
 - [ ] Verifier can validate without hidden assumptions.
 - [ ] Open questions are isolated from approved requirements.
 - [ ] Every open question carries a recommended answer and the consequence of choosing otherwise.
-- [ ] If open questions or deferred decisions remain, the spec explicitly blocks implementation and tells AI coding agents to stop and prompt the user for answers before making changes.
+- [ ] The gate block below the title exists exactly once, and the Handoff says `Blocked: see gate`.

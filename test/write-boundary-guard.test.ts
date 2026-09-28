@@ -549,6 +549,187 @@ describe("write boundary guard extension", () => {
     });
 });
 
+describe("writes to the armed spec", () => {
+    const SPEC = "docs/specs/spec-demo.md";
+    const NOTE =
+        "\n## AI-Notes\n\n### 2026-09-25T08:00:00Z · pi · s-1 · worker · gotcha\n**Modify:**\n- `scripts/**`\n";
+    const WIDER = SPEC_BODY.replace("- `package.json`\n", "- `package.json`\n- `scripts/**`\n");
+    const NARROWER = SPEC_BODY.replace("- `src/secrets.ts`\n", "- `src/secrets.ts`\n- `src/env.ts`\n");
+    const SCOPE_SECTION = SPEC_BODY.slice(SPEC_BODY.indexOf("## 2. Scope"), SPEC_BODY.indexOf("## 3."));
+
+    async function armed() {
+        const pi = armedGuard();
+        await arm(pi, SPEC);
+        return pi;
+    }
+
+    function yesUi(answer = "Yes") {
+        const select = vi.fn(async (_prompt: string, _options: string[]) => answer);
+        return { ...createFakeUi(), select };
+    }
+
+    /** Lands a write the guard allowed, the way the tool would. */
+    async function land(pi: ReturnType<typeof createFakePi>, content: string) {
+        writeFixture(SPEC, content);
+        await toolResult(pi, { path: SPEC, content });
+    }
+
+    async function deployBlocked(pi: ReturnType<typeof createFakePi>) {
+        return (await toolCall(pi, "write", { path: "scripts/deploy.sh" }))?.block === true;
+    }
+
+    it("lets a note append through silently, even when the note holds Scope-like text", async () => {
+        const pi = await armed();
+        const sent = pi.sentMessages.length;
+
+        expect(await toolCall(pi, "write", { path: SPEC, content: SPEC_BODY + NOTE })).toBeUndefined();
+        await land(pi, SPEC_BODY + NOTE);
+
+        expect(pi.sentMessages.length).toBe(sent);
+        expect(await deployBlocked(pi)).toBe(true);
+    });
+
+    it("lets an edit that keeps the lists through silently, in any order", async () => {
+        const pi = await armed();
+        const sent = pi.sentMessages.length;
+        const edits = [
+            { oldText: "- `src/**`\n- `package.json`\n", newText: "- `package.json`\n- `src/**`\n" },
+            { oldText: "- [ ] AC1\n", newText: "- [x] AC1\n" },
+        ];
+
+        expect(await toolCall(pi, "edit", { path: SPEC, edits })).toBeUndefined();
+        await toolResult(pi, { path: SPEC, edits }, { toolName: "edit" });
+
+        expect(pi.sentMessages.length).toBe(sent);
+    });
+
+    it("blocks a widening write without a UI and keeps the scope", async () => {
+        const pi = await armed();
+
+        const result = await toolCall(pi, "write", { path: SPEC, content: WIDER });
+
+        expect(result?.block).toBe(true);
+        expect(result?.reason).toMatch(/widens/);
+        expect(await deployBlocked(pi)).toBe(true);
+    });
+
+    it("asks before a widening edit, and re-arms from the new lists on Yes", async () => {
+        const pi = await armed();
+        const ui = yesUi();
+        const edits = [{ oldText: "- `package.json`\n", newText: "- `package.json`\n- `scripts/**`\n" }];
+
+        const result = await toolCall(pi, "edit", { path: SPEC, edits }, makeCtx({ hasUI: true, ui }));
+        expect(result).toBeUndefined();
+        const prompt = String(ui.select.mock.calls[0][0]);
+        expect(prompt).toMatch(/widens/);
+        expect(prompt).toContain("src/**, package.json");
+        expect(prompt).toContain("src/**, package.json, scripts/**");
+
+        writeFixture(SPEC, WIDER);
+        await toolResult(pi, { path: SPEC, edits }, { toolName: "edit" });
+
+        expect(messages(pi)).toMatch(/widens[\s\S]*re-grill/i);
+        expect(await deployBlocked(pi)).toBe(false);
+        expect(pi.entries.at(-1)?.data?.scope?.modify).toEqual(["src/**", "package.json", "scripts/**"]);
+    });
+
+    it("labels removing a Forbid entry as widening", async () => {
+        const pi = await armed();
+        const ui = yesUi("No");
+        const content = SPEC_BODY.replace("**Forbid:**\n- `src/secrets.ts`\n", "**Forbid:**\n");
+
+        const result = await toolCall(pi, "write", { path: SPEC, content }, makeCtx({ hasUI: true, ui }));
+
+        expect(String(ui.select.mock.calls[0][0])).toMatch(/widens/);
+        expect(result?.block).toBe(true);
+    });
+
+    it("re-arms a narrowing change on Yes and asks for an Amendment", async () => {
+        const pi = await armed();
+
+        const result = await toolCall(pi, "write", { path: SPEC, content: NARROWER }, makeCtx({ hasUI: true, ui: yesUi() }));
+        expect(result).toBeUndefined();
+        await land(pi, NARROWER);
+
+        expect(messages(pi)).toMatch(/narrows[\s\S]*Amendment/);
+        expect((await toolCall(pi, "write", { path: "src/env.ts" }))?.block).toBe(true);
+    });
+
+    it("keeps the scope when the user answers No", async () => {
+        const pi = await armed();
+
+        const result = await toolCall(pi, "write", { path: SPEC, content: WIDER }, makeCtx({ hasUI: true, ui: yesUi("No") }));
+
+        expect(result?.block).toBe(true);
+        expect(await deployBlocked(pi)).toBe(true);
+    });
+
+    it("keeps the scope when an approved write fails", async () => {
+        const pi = await armed();
+        await toolCall(pi, "write", { path: SPEC, content: WIDER }, makeCtx({ hasUI: true, ui: yesUi() }));
+
+        await toolResult(pi, { path: SPEC, content: WIDER }, { isError: true });
+
+        expect(await deployBlocked(pi)).toBe(true);
+    });
+
+    it("keeps the scope when the file on disk does not match the approved lists", async () => {
+        const pi = await armed();
+        await toolCall(pi, "write", { path: SPEC, content: NARROWER }, makeCtx({ hasUI: true, ui: yesUi() }));
+
+        await land(pi, WIDER);
+
+        expect(await deployBlocked(pi)).toBe(true);
+        expect(messages(pi)).toMatch(/stays armed/);
+    });
+
+    it("asks before an edit that deletes the Scope section, and keeps the old scope on Yes", async () => {
+        const pi = await armed();
+        const edits = [{ oldText: SCOPE_SECTION, newText: "" }];
+
+        expect((await toolCall(pi, "edit", { path: SPEC, edits }))?.block).toBe(true);
+
+        const ui = yesUi();
+        expect(await toolCall(pi, "edit", { path: SPEC, edits }, makeCtx({ hasUI: true, ui }))).toBeUndefined();
+        expect(String(ui.select.mock.calls[0][0])).toMatch(/stays armed/);
+        await land(pi, SPEC_BODY.replace(SCOPE_SECTION, ""));
+
+        expect(await deployBlocked(pi)).toBe(true);
+    });
+
+    it("fails closed when an edit does not match the file exactly", async () => {
+        const pi = await armed();
+
+        for (const edits of [
+            [{ oldText: "not in the file", newText: "x" }],
+            [{ oldText: "`", newText: "'" }],
+        ]) {
+            expect((await toolCall(pi, "edit", { path: SPEC, edits }))?.block).toBe(true);
+        }
+    });
+
+    it("reads the legacy single-edit input shape", async () => {
+        const pi = await armed();
+
+        const result = await toolCall(pi, "edit", {
+            path: SPEC,
+            oldText: "- `package.json`\n",
+            newText: "- `package.json`\n- `scripts/**`\n",
+        });
+
+        expect(result?.block).toBe(true);
+    });
+
+    it("still reports an already-armed scope for other planning files", async () => {
+        const pi = await armed();
+        writeFixture("docs/plans/plan-other.md", PLAN_BODY);
+
+        await toolResult(pi, { path: "docs/plans/plan-other.md" });
+
+        expect(messages(pi)).toMatch(/already armed/i);
+    });
+});
+
 describe("tmp directory exemption", () => {
     // The exemption only makes sense for a working directory outside the system tmp
     // directory, so this block uses a fixture cwd under the repo (not os.tmpdir()).

@@ -42,14 +42,21 @@ type Scope = {
     forbid: string[];
 };
 
-type GuardState = { scope: Scope | null };
+type ScopeLists = { modify: string[]; forbid: string[] };
+
+type ScopeChange = "widens" | "narrows";
+
+/** Scope edits the user approved, waiting for their write to land. */
+type PendingScope = ScopeLists & { change: ScopeChange };
+
+type GuardState = { scope: Scope | null; pending: Map<string, PendingScope> };
 
 const states = new WeakMap<object, GuardState>();
 
 function getState(pi: ExtensionAPI): GuardState {
     let state = states.get(pi as object);
     if (!state) {
-        state = { scope: null };
+        state = { scope: null, pending: new Map() };
         states.set(pi as object, state);
     }
     return state;
@@ -81,6 +88,84 @@ function parseSpecScope(specRelativePath: string, cwd: string): ParseResult {
         },
     };
 }
+
+function pendingKey(event: unknown, relativePath: string): string {
+    const id = (event as { toolCallId?: unknown }).toolCallId;
+    return `${typeof id === "string" ? id : ""}|${relativePath}`;
+}
+
+const toLF = (text: string) => text.replace(/\r\n/g, "\n");
+
+function toEdits(input: Record<string, unknown>): { oldText: string; newText: string }[] {
+    const raw = Array.isArray(input.edits)
+        ? input.edits
+        : input.edits && typeof input.edits === "object"
+          ? [input.edits]
+          : [];
+    const edits = [...raw, { oldText: input.oldText, newText: input.newText }];
+    return edits.filter(
+        (e): e is { oldText: string; newText: string } =>
+            typeof e?.oldText === "string" && typeof e?.newText === "string",
+    );
+}
+
+/**
+ * The text a write or edit would leave on disk; `null` when the input carries nothing the
+ * tool could apply. Edits match exactly, never fuzzily: a prediction that could differ
+ * from what the tool writes is reported as an error, so the caller fails closed.
+ */
+function predictContent(
+    toolName: string,
+    input: Record<string, unknown>,
+    absolutePath: string,
+): { content: string } | { error: string } | null {
+    if (toolName === "write") {
+        return typeof input.content === "string" ? { content: input.content } : null;
+    }
+    const edits = toEdits(input);
+    if (edits.length === 0) return null;
+
+    let content: string;
+    try {
+        content = toLF(fs.readFileSync(absolutePath, "utf8").replace(/^\uFEFF/, ""));
+    } catch {
+        return { error: "the file could not be read" };
+    }
+    const ranges: { start: number; end: number; text: string }[] = [];
+    for (const edit of edits) {
+        const oldText = toLF(edit.oldText);
+        const start = oldText ? content.indexOf(oldText) : -1;
+        if (start < 0 || content.indexOf(oldText, start + 1) >= 0) {
+            return { error: "an edit does not match the file exactly once" };
+        }
+        ranges.push({ start, end: start + oldText.length, text: toLF(edit.newText) });
+    }
+    ranges.sort((a, b) => a.start - b.start);
+    if (ranges.some((r, i) => i > 0 && r.start < ranges[i - 1].end)) {
+        return { error: "edits overlap" };
+    }
+    for (const r of ranges.reverse()) {
+        content = content.slice(0, r.start) + r.text + content.slice(r.end);
+    }
+    return { content };
+}
+
+/**
+ * Order-insensitive. Any new Modify entry or dropped Forbid entry widens, even a
+ * stricter-looking glob.
+ */
+function compareScope(armed: ScopeLists, next: ScopeLists): ScopeChange | "same" {
+    const sameSet = (a: string[], b: string[]) =>
+        new Set(a).size === new Set(b).size && a.every((p) => b.includes(p));
+    if (sameSet(armed.modify, next.modify) && sameSet(armed.forbid, next.forbid)) return "same";
+    const widens =
+        next.modify.some((p) => !armed.modify.includes(p)) ||
+        armed.forbid.some((p) => !next.forbid.includes(p));
+    return widens ? "widens" : "narrows";
+}
+
+const listLine = (label: string, before: string[], after: string[]) =>
+    `${label}: ${before.join(", ") || "(none)"} → ${after.join(", ") || "(none)"}`;
 
 export default function writeBoundaryGuardExtension(pi: ExtensionAPI): void {
     if (isShadowedProjectCopy(import.meta.url)) return;
@@ -151,20 +236,53 @@ export default function writeBoundaryGuardExtension(pi: ExtensionAPI): void {
         applyPersistedScope(ctx);
     });
 
+    /** Re-arms only when the file on disk holds exactly the lists the user approved. */
+    const rearmFromApproved = (scope: Scope, approved: PendingScope, cwd: string) => {
+        const state = getState(pi);
+        const parsed = parseSpecScope(scope.specPath, cwd);
+        if ("error" in parsed || compareScope(approved, parsed.scope) !== "same") {
+            report(
+                `[SCOPE] The Scope in \`${scope.specPath}\` on disk does not match the approved lists. The previous scope stays armed.`,
+            );
+            return;
+        }
+        state.scope = parsed.scope;
+        pi.appendEntry(SCOPE_STATE_TYPE, { scope: parsed.scope });
+        report(
+            [
+                approved.change === "widens"
+                    ? `[SCOPE] Scope in \`${scope.specPath}\` widens; re-armed from the new lists. Stop and re-grill before continuing.`
+                    : `[SCOPE] Scope in \`${scope.specPath}\` narrows; re-armed from the new lists. Add an Amendment.`,
+                `Modify: ${parsed.scope.modify.join(", ")}`,
+                `Forbid: ${parsed.scope.forbid.join(", ") || "(none)"}`,
+            ].join("\n"),
+        );
+    };
+
     // Auto-arm once a spec or plan write actually lands, because a skill cannot type `/scope`.
     pi.on("tool_result", async (event: ToolResultEvent, ctx) => {
-        if (!GUARDED_TOOLS.has(event.toolName) || event.isError)
-            return undefined;
+        if (!GUARDED_TOOLS.has(event.toolName)) return undefined;
 
         const targetPath = getToolPath(event.input);
         if (!targetPath) return undefined;
-        if (!PLANNING_PATH_PATTERN.test(toRepoRelative(targetPath, ctx.cwd)))
+        const relativePath = toRepoRelative(targetPath, ctx.cwd);
+        const state = getState(pi);
+        const key = pendingKey(event, relativePath);
+        const approved = state.pending.get(key);
+        state.pending.delete(key);
+
+        if (event.isError) return undefined;
+        if (!PLANNING_PATH_PATTERN.test(relativePath)) return undefined;
+
+        // Markers and notes land here on every step; only an approved Scope change speaks.
+        if (state.scope && relativePath === state.scope.specPath) {
+            if (approved) rearmFromApproved(state.scope, approved, ctx.cwd);
             return undefined;
+        }
 
         // Re-arming from a planning artifact the agent just authored would let the work
         // in flight rewrite its own boundary. Replacing an armed scope stays a human
         // action.
-        const state = getState(pi);
         if (state.scope) {
             report(
                 `[SCOPE] '${targetPath}' looks like a spec or plan, but the scope from \`${state.scope.specPath}\` is already armed and was left in place. Run /scope off first to switch.`,
@@ -206,26 +324,91 @@ export default function writeBoundaryGuardExtension(pi: ExtensionAPI): void {
                 relativePath,
                 ctx.cwd,
             );
-            if (!reason) return undefined;
+            if (reason) {
+                if (!ctx.hasUI) {
+                    return {
+                        block: true,
+                        reason: `${reason} (no UI for approval)`,
+                    };
+                }
 
-            if (!ctx.hasUI) {
-                return {
-                    block: true,
-                    reason: `${reason} (no UI for approval)`,
-                };
+                const choice = await ctx.ui.select(
+                    `Allow ${event.toolName} outside the armed spec scope?\n\n${reason}`,
+                    ["Yes", "No"],
+                );
+                if (choice !== "Yes") {
+                    return { block: true, reason: `${reason} Blocked by user.` };
+                }
             }
 
-            const choice = await ctx.ui.select(
-                `Allow ${event.toolName} outside the armed spec scope?\n\n${reason}`,
-                ["Yes", "No"],
+            if (relativePath !== scope.specPath) return undefined;
+            return checkScopeChange(
+                event,
+                ctx,
+                scope,
+                path.resolve(ctx.cwd, targetPath),
             );
+        },
+    );
+
+    /**
+     * A write to the armed spec could rewrite the boundary it is checked against, so a
+     * change to its Scope lists needs a human Yes before it lands.
+     */
+    const checkScopeChange = async (
+        event: ToolCallEvent,
+        ctx: ExtensionContext,
+        scope: Scope,
+        absolutePath: string,
+    ): Promise<ToolCallEventResult | undefined> => {
+        const predicted = predictContent(
+            event.toolName,
+            event.input as Record<string, unknown>,
+            absolutePath,
+        );
+        if (!predicted) return undefined;
+        const parsed =
+            "error" in predicted ? predicted : parseScopeSection(predicted.content);
+
+        const ask = async (reason: string, question: string, onYes?: () => void) => {
+            if (!ctx.hasUI) {
+                return { block: true, reason: `${reason} (no UI for approval)` };
+            }
+            const choice = await ctx.ui.select(`${question}\n\n${reason}`, ["Yes", "No"]);
             if (choice !== "Yes") {
                 return { block: true, reason: `${reason} Blocked by user.` };
             }
-
+            onYes?.();
             return undefined;
-        },
-    );
+        };
+
+        if ("error" in parsed) {
+            return ask(
+                `Cannot tell what this ${event.toolName} does to the Scope of the armed spec '${scope.specPath}': ${parsed.error}. The current scope stays armed.`,
+                `Allow ${event.toolName} to the armed spec?`,
+            );
+        }
+
+        const change = compareScope(scope, parsed.lists);
+        if (change === "same") return undefined;
+        return ask(
+            [
+                `This ${event.toolName} changes the Scope of the armed spec '${scope.specPath}'; it ${change} the scope.`,
+                listLine("Modify", scope.modify, parsed.lists.modify),
+                listLine("Forbid", scope.forbid, parsed.lists.forbid),
+                change === "widens"
+                    ? "Yes re-arms from the new lists; a widening change needs a re-grill before work continues."
+                    : "Yes re-arms from the new lists; record the change as an Amendment.",
+            ].join("\n"),
+            `Allow ${event.toolName} to change the armed Scope?`,
+            () => {
+                getState(pi).pending.set(
+                    pendingKey(event, scope.specPath),
+                    { ...parsed.lists, change },
+                );
+            },
+        );
+    };
 
     pi.registerCommand("scope", {
         description:

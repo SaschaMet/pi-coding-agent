@@ -7,6 +7,13 @@ Use this gate before finalizing a plan.
 - [ ] A Grill Status table exists between the document header and the first numbered section.
 - [ ] The latest row is `done <date>` or `overridden <date>: <reason>`; otherwise the document is not ready for implementation and the handoff must mark it blocked.
 
+## Living-Document Sections
+
+- [ ] `## Metadata` sits between the header and Grill Status, with only `Created`, `Commits`, and `Back refs`.
+- [ ] Every Change is a `[ ]` checklist item; the Changes section keeps the status-marker rules blockquote.
+- [ ] `## Amendments` and `## AI-Notes` exist, in that order, after Done When; AI-Notes is the last section.
+- [ ] No new heading contains the word `Scope`.
+
 ## In Plain Words
 
 - [ ] The section exists, between the Grill Status table and section 1.
@@ -56,6 +63,6 @@ Use this gate before finalizing a plan.
 
 ## 8. Size Check
 
-- [ ] Plan is under 150 lines, excluding the In Plain Words section.
+- [ ] Plan is under 150 lines, excluding the In Plain Words, Metadata, Amendments, and AI-Notes sections.
 - [ ] No BDD, CARDS, or architecture diagrams.
 - [ ] If the change spans more than 3 files or multiple modules, escalated to `$create-spec`.

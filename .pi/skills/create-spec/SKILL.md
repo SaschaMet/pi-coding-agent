@@ -1,6 +1,6 @@
 ---
 name: create-spec
-description: Use this skill when the user asks for a spec, implementation plan, design contract, acceptance criteria, or pre-coding requirements, even if they say "plan this" instead of "write a spec." Produce a repo-researched contract with scope, BDD scenarios, risks, rollback, and verification. Do not use when the user wants code now.
+description: Use this skill when the user asks for a spec, implementation plan, design contract, acceptance criteria, or pre-coding requirements, even if they say "plan this" instead of "write a spec." Produce a repo-researched contract with scope, Given/When/Then acceptance criteria, risks, rollback, and verification. Do not use when the user wants code now.
 ---
 
 # Create Spec
@@ -11,7 +11,7 @@ Produce a spec document, not implementation code. Research first, then author a 
 
 ## Step 1 - Consume or produce research
 
-Check `docs/research/` first. If a research document already answers how this part of the codebase works, **read it and do not repeat the search** — cite it in the spec's Traceability section and move to Step 2. Research is expensive; re-deriving it is waste.
+Check `docs/research/` first. If a research document already answers how this part of the codebase works, **read it and do not repeat the search** — cite it in the spec's Metadata back refs and move to Step 2. Research is expensive; re-deriving it is waste.
 
 If no such document exists: **invoke `$research-codebase` skill now**.
 
@@ -36,11 +36,7 @@ Ask only what code/docs cannot answer. Use safe defaults for decisions that do n
 Required decisions:
 
 1. Target output file (default `docs/specs/spec-{feature-name}.md`).
-2. Output mode: write/update a spec file when the user asks for a document/artifact; otherwise return the spec in chat and ask before creating files.
-3. Scope strictness (default explicit `modify` + `call` + `forbid`).
-4. Acceptance rigor (default measurable criteria with BDD cases).
-5. Verification depth (default automated checks + manual checklist).
-6. Risk posture (default include rollback and escalation triggers).
+2. Ask only what the research document left open.
 
 See `../grill-me/SKILL.md` for how to pressure-test for missing risks and assumptions. Use graphify context as input to that pressure test when repository relationships or architecture are part of the spec.
 
@@ -59,8 +55,9 @@ Use [references/spec-template.md](references/spec-template.md) as the output tem
 
 ### Mandatory sections
 
+- **Metadata** (after the title block, before Grill Status): `Created`, `Commits`, `Back refs`. Rules are in the template blockquote.
 - **Grill Status table** (before section 1): the grill-completion readiness gate — initial row `Not run`; the grill-me session writes `done <date>` only after the user's explicit confirmation; a document whose latest row is not `done <date>` or `overridden <date>: <reason>` is not ready for implementation.
-- **In Plain Words** (after Grill Status, before section 1): four lines, one sentence each — what we are doing, why, what could break, how we will know it worked. Written to the eli5 rules ([../eli5/SKILL.md](../eli5/SKILL.md), sections _Style rules_ and _Hard bans_): 20 words per sentence, no jargon, no acronym the spec introduces later. This is the part the user reads to approve the spec; sections 1-14 are the part the implementer reads to build it. Required at every size, including Small.
+- **In Plain Words** (after Grill Status, before section 1): four lines, one sentence each — what we are doing, why, what could break, how we will know it worked. Written to the eli5 rules ([../eli5/SKILL.md](../eli5/SKILL.md), sections _Style rules_ and _Hard bans_): 20 words per sentence, no jargon, no acronym the spec introduces later. This is the part the user reads to approve the spec; sections 1-11 are the part the implementer reads to build it. Required at every size, including Small.
 
 1. **Intent**: what and why.
 2. **Scope**:
@@ -68,18 +65,17 @@ Use [references/spec-template.md](references/spec-template.md) as the output tem
    - `call`: external systems allowed to be invoked.
    - `forbid`: files/areas explicitly off-limits.
    - explicit out-of-scope list.
-3. **Acceptance Criteria**: checklist items that are objectively verifiable.
-4. **BDD Scenarios**: `Given / When / Then` for each criterion.
-5. **Execution Steps**: implementation sequence and file targets, ordered as vertical slices (see below).
-6. **Invariants and Contracts**: org/domain rules that always apply.
-7. **CARDS Architecture Contract**: design constraints for clarity, alignment, resilience, domain integrity, and separation.
-8. **Architecture Impact & Data Flow Changes**: visual diagrams showing what changes, how data flows shift, blast radius, and dependency changes. Required for Medium+ specs. Omit for Small.
-9. **Verification Plan**: criterion-to-check mapping with commands/evidence.
-10. **Risks, One-Way Doors, Rollback**: failure modes and recovery.
-11. **Traceability and Audit**: source, approval, and criteria-to-evidence mapping.
-12. **Definition of Done**: traceability from intent -> criteria -> verification.
-13. **Open Questions / Deferred Decisions**: unresolved decisions separated from requirements.
-14. **Handoff**: implementation, verification, and escalation notes.
+3. **Acceptance Criteria**: objectively verifiable checklist items. Each behavioral criterion is written once as `Given / When / Then`; static checks stay one line.
+4. **Execution Steps**: implementation sequence and file targets, ordered as vertical slices (see below).
+5. **Invariants and Contracts**: org/domain rules that always apply, plus an optional `CARDS` line per point when it adds a constraint.
+6. **Architecture Impact & Data Flow Changes**: before/after data flow, and blast radius with the dependency table. Required for Medium+ specs. Omit for Small.
+7. **Manual Verification Checklist**: what a human checks; automated checks live in the steps.
+8. **Risks, One-Way Doors, Rollback**: failure modes and recovery.
+9. **Definition of Done**: traceability from intent -> criteria -> verification.
+10. **Open Questions / Deferred Decisions**: unresolved decisions separated from requirements.
+11. **Handoff**: implementation, verification, and escalation notes.
+
+Then **Amendments** and **AI-Notes**, last, with the template's rules blockquotes. Execution Steps carry status markers (`[ ]`, `[wip]`, `[x]`, `[f]`) on each step's `Validate:` list.
 
 ### Execution steps must be vertical slices
 
@@ -107,7 +103,7 @@ Reviewing 100-200 lines per slice is cheaper than fixing 2000 lines afterwards.
 - Encode CARDS constraints as verifiable implementation guardrails when the change touches architecture or domain logic.
 - If uncertainty remains, capture it in `Open Questions / Deferred Decisions`.
 - **Every open question carries a recommended answer**: the option you would take, and what happens if the user picks otherwise. An open question without one forces the user to decide from scratch, which is the work the spec was supposed to have done. With one, they can approve the whole list by accepting the defaults. State the recommendation even when you are unsure — name the assumption it rests on instead of withholding it.
-- When `Open Questions / Deferred Decisions` is non-empty, write a visible implementation guard that says implementation must stop and prompt the user for answers before any code, config, migration, or test changes begin.
+- Keep the gate block below the title. It is the only place that blocks implementation, for open questions and for an unfinished grill.
 
 ## Step 4 - Run the quality gate
 
@@ -119,11 +115,10 @@ If a check fails, fix the spec instead of adding narrative explanation.
 
 ## Step 5 - Deliver and handoff
 
-1. In file-output mode, write/update the spec file. In chat-output mode, return the complete spec in the response.
+1. Write or update the spec file.
 2. Keep implementation out of scope. Do not write implementation code from this skill.
-3. Include a concise handoff for coding and verification agents.
-4. If open questions remain, the handoff must state: "Implementation is blocked until the Open Questions / Deferred Decisions section is answered by the user."
-5. If the Grill Status table's latest row is not `done <date>` or `overridden <date>: <reason>`, the handoff must state: "Implementation is blocked until the grill-me session records a done row (or a recorded override) in the Grill Status table."
+3. Include a concise handoff for coding and verification agents. Its blocked line stays `Blocked: see gate`.
+4. Render the page: `node <plan-view-dir>/scripts/plan-view.mjs render docs/specs/spec-{feature-name}.md`, where `<plan-view-dir>` is `../plan-view` from this skill's folder. Add `--no-open` when no human watches. Give the user the printed page path.
 
 ## Size guidance
 
@@ -132,9 +127,9 @@ Size selects which design phases actually run. Do not run all of them for every 
 - **Small** — single behavior, 1-2 files, tight criteria.
   Phases: scope + criteria + verification only. No design sections. Roughly the class of work that can be one-shot with light feedback; do not over-specify it.
 - **Medium** — 2-5 files, edge cases, integration touch points.
-  Adds a **System Design** section: how services, endpoints, schemas, and stores interact. Sequence of calls and contract shapes, no implementation detail. Also adds **Architecture Impact** (data flow diagrams + blast radius + layer impact).
+  Adds **Architecture Impact**: before/after data flow and blast radius.
 - **Large** — cross-module, API/schema updates, stronger rollback plan.
-  Adds **Product Intent** (the user problem in user terms, and what success looks like) and **Program Design** (call-stack outline in pseudocode, file-tree diff, type signatures for key functions) before execution steps. Full **Architecture Impact** (all subsections: data flow, component changes, blast radius, dependency table, layer impact).
+  Same sections as Medium. Architecture Impact lists every changed flow and dependency, and rollback covers each risky step.
 - **Epic** — split into multiple specs by subsystem, each sized on its own.
 
 Front-loading alignment is the trade: an hour of design turns a six-hour review into twenty minutes. Cheap for Medium and up, waste for Small.

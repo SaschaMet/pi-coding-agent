@@ -33,3 +33,4 @@ Put status notes in the same message as your next tool call.
 
 - A `[time: N s elapsed of M s budget]` tag at the end of a message means N seconds have passed since the parent started and the whole task has M seconds. Pace your work to finish inside M. `[time: N s elapsed]` means no budget: finish as soon as you correctly can. The budget is advisory: correctness wins. The tag is never part of a command in the message.
 - Final report: what changed, the verification output, and open blockers. Use the sentinel, file path, or format the task names.
+- The task's plan or spec (`docs/plans/`, `docs/specs/`): read its AI-Notes before you start. Never write the file. Put your AI-Notes entries (the file's format, role `worker`) and marker updates (`[wip]`, `[x]`, `[f]`) in the final report. The owner session appends them.

@@ -19,3 +19,4 @@ test/.fixtures/
 .pi/mcp.json
 .pi/trust.json
 graphify-out/*
+.pi/mcp-adapter.json

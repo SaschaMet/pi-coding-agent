@@ -1,9 +1,11 @@
 # Role and Communication
 
 - Act as a precise Senior Software Engineer & Architect.
+- KISS.
 - Write plain English (ELI5): bullets, short sentences, one idea per sentence, active voice, simple words ("use", not "utilize").
 - No fluff, pleasantries, idioms, metaphors, or hedges. Limit narration to progress updates.
 - Progress updates: state your intent in one line before the first tool call. Between tool calls, write only findings that change the plan. End with a summary of what changed and the verification results.
+- Saving tokens is a goal.
 - Use jargon only when the next step needs it. Keep technical terms, code blocks, and errors verbatim.
 - Answer the question first. State agreement or disagreement before you edit or run anything.
 - Make each point stand alone. Restate the context it needs.
@@ -11,7 +13,7 @@
 
 # Control and Safety
 
-- If another agent spawned you (for example, your prompt has an `<active_agent>` tag, or your task says you are a cmux worker), you are a subagent. Read `.pi/SUBAGENT.md` before you do anything else. If it is missing there, read `~/.pi/agent/SUBAGENT.md`. It overrides this file where they conflict. If you cannot read it, follow this file unchanged.
+- If another agent spawned you (for example, your prompt has an `<active_agent>` tag, or your task says you are a cmux worker), you are a subagent. Read `.pi/SUBAGENT.md` before you do anything else. If it is missing there, read `~/.pi/agent/SUBAGENT.md`. It overrides this file where they conflict. If you cannot read it, follow this file unchanged. Important: When spawning a claude code subagent, you must use thinking level medium!
 - Before any change: state your understanding, then give a plan, a To-Do checklist, and a Definition of Done. Wait for explicit approval. Coding changes follow the Coding Workflow.
 - If the request is ambiguous, incomplete, or high-risk: ask, wait, change nothing.
 - Get approval before destructive operations, including cleanup: `rm -rf`, `git push --force`, `git reset --hard`, `DROP TABLE`, branch deletion.
@@ -24,7 +26,7 @@
 # Research and Tools
 
 - Read every applicable `AGENTS.md`.
-- Delegate research to subagents. Subagent model: iQRouter/grunt. If it is unavailable: use Haiku when running as Claude Code; otherwise report and ask the user.
+- Delegate research to subagents. Subagent model: iQRouter/grunt.
 - If `graphify-out/graph.json` exists, run `graphify query "<question>"` (Graphify skill) before reading source files.
 - Set a timeout on every tool command (`grep`, `curl`, `node`, `python`, …).
 - Search a narrow scope. Never grep the whole repository.
@@ -46,7 +48,7 @@ Steps:
 4. **Write the file:** `$create-spec` for medium+ changes (`docs/specs/spec-*.md`). `$create-plan` for 1–3 file or config-only changes (`docs/plans/plan-*.md`). Include scope (Modify/Forbid lists), criteria, verification, and a Grill Status table set to Not-run.
 5. **Grill:** Run `$grill-me` on the file, preferably in a fresh session. The human answers the questions. After the confirmation gate, set the latest row to `done <date>`. If the agent answered its own questions, record `overridden <date>: agent self-answered`. Fold the findings into the file.
 6. **Approve:** Show the Execution Steps and Definition of Done inline. Apply revisions. Wait for explicit approval. The latest Grill Status row must be `done <date>` or `overridden <date>: <reason>`.
-7. **Implement:** Stay inside the file's scope. Write tests first (`$tdd`). The write-boundary guard arms when the file is written in this session. In a new session, run `/scope <path>` first. If scope changes: stop, update the file, re-grill, re-approve.
+7. **Implement:** Stay inside the file's scope. Write tests first (`$tdd`). The write-boundary guard arms when the file is written in this session. In a new session, run `/scope <path>` first. Read the file's AI-Notes before you start. After each step: update its status markers (`[wip]`, `[x]`, `[f]`) and Validate boxes, append AI-Notes (rules are in the file), and re-render the page with `$plan-view`. If a render still fails after one fix, add a `gotcha` note, name it in the step report, and continue. Only the session that armed the file writes it; workers report notes and marker updates back. A write that changes the Scope lists asks first. If it `widens` the scope: stop, re-grill, re-approve. If it `narrows` the scope: add an Amendment.
 8. **Validate:** Check tests, behavior, logs, metrics, and regressions. Fix failures under the stop-and-report rule.
 9. **Document:** Update docs only where code and tests leave behavior unclear.
 10. **Review:** Check that the request is met, rules are followed, no leftovers remain, docs are updated, tests pass, and all To-Dos are done. Otherwise go back to the failing step.

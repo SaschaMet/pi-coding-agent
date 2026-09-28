@@ -1,6 +1,6 @@
 ---
 name: cmux-orchestration
-description: Use this skill when driving the cmux terminal app via its CLI — booting agent fleets, dynamically composing panes (workers, Logs, Browser, Research) for a task, broadcasting tasks to agent surfaces, reading their screens, reacting to cmux events, or tearing workspaces down. Covers the multi-agent orchestration loop on top of this repo's roster in `.cmux/cmux.json`. Do not use for plain shell work inside the current terminal, or for editing global cmux/Ghostty config. Invoke the skill when the user says `run in cmux` or `run cmux` or `spawn / use an agent team`, use sub-agents or just use agents.
+description: Use this skill when driving the cmux terminal app via its CLI — booting agent fleets, dynamically composing panes (workers, Logs, Browser, Research) for a task, broadcasting tasks to agent surfaces, reading their screens, reacting to cmux events, or tearing workspaces down. Covers the multi-agent orchestration loop on top of this repo's roster in `.cmux/cmux.json`. Do not use for plain shell work inside the current terminal, or for editing global cmux/Ghostty config. Invoke the skill when the user says `run in cmux` or `run cmux` or `spawn / use an agent team`, or `open a new pane`, use sub-agents or just use agents.
 ---
 
 # cmux Orchestration

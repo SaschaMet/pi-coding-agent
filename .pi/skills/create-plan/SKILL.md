@@ -38,6 +38,7 @@ Use [references/plan-template.md](references/plan-template.md) as the output tem
 
 ### Mandatory sections
 
+- **Metadata** (after the header, before Grill Status): `Created`, `Commits`, `Back refs`. Rules are in the template blockquote.
 - **Grill Status table** (before section 1): the grill-completion readiness gate — initial row `Not run`; the grill-me session writes `done <date>` only after the user's explicit confirmation; a document whose latest row is not `done <date>` or `overridden <date>: <reason>` is not ready for implementation.
 - **In Plain Words** (after Grill Status, before section 1): four lines, one sentence each — what we are doing, why, what could break, how we will know it worked. Written to the eli5 rules ([../eli5/SKILL.md](../eli5/SKILL.md), sections _Style rules_ and _Hard bans_): 20 words per sentence, no jargon. This is the part the user reads to approve the plan. It does not count toward the line limit below.
 
@@ -49,7 +50,9 @@ Use [references/plan-template.md](references/plan-template.md) as the output tem
 6. **Risks & Rollback**: failure modes and recovery.
 7. **Done When**: traceability checklist.
 
-Keep it under 50 lines. No BDD, no CARDS, no architecture diagrams.
+Then **Amendments** and **AI-Notes**, last, with the template's rules blockquotes. Changes carry status markers (`[ ]`, `[wip]`, `[x]`, `[f]`).
+
+Keep it under 50 lines, not counting In Plain Words, Metadata, Amendments, and AI-Notes. No BDD, no CARDS, no architecture diagrams.
 
 ### Plan quality requirements
 
@@ -72,6 +75,7 @@ If a check fails, fix the plan instead of adding narrative explanation.
 2. Keep implementation out of scope. Do not write implementation code.
 3. Include a one-line handoff: which files to change and which tests to run.
 4. If the Grill Status table's latest row is not `done <date>` or `overridden <date>: <reason>`, the handoff must state: "Implementation is blocked until the grill-me session records a done row (or a recorded override) in the Grill Status table."
+5. Render the page: `node <plan-view-dir>/scripts/plan-view.mjs render docs/plans/plan-{task-name}.md`, where `<plan-view-dir>` is `../plan-view` from this skill's folder. Add `--no-open` when no human watches. Give the user the printed page path.
 
 ## Gotchas
 
