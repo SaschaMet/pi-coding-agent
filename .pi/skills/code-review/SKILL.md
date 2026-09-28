@@ -12,7 +12,8 @@ One subagent reads the changed code and applies all three lenses over that singl
 subagent verifies any security finding. The lenses share files, so splitting them into separate agents would
 pay for the same reads three times and buy nothing — there is no independence claim between QA, Security, and
 Code Quality. Verification is different: its whole value is not having seen the reviewer's reasoning, so it
-stays isolated.
+stays isolated. A large diff splits by file, never by lens: 2 to 4 reviewers each apply all three lenses to
+one group of related files.
 
 ## Goal
 
@@ -32,6 +33,8 @@ handoff, budgets, model selection, prompt clauses, collect call). Then load only
   escalation, because it sees all three categories in one context.
 - `finding-explanation.md` — the reviewer reads this; the parent does not need it unless a finding comes back
   malformed.
+- `file-rules/index.md` — in Step 1, to match reviewable files to file-type rule docs. Pass only the matched
+  doc paths; the reviewer reads the docs, the parent does not.
 
 `reviewer.md` is read by the reviewer subagent, not by the parent.
 
@@ -56,6 +59,8 @@ Then drop lenses the diff cannot support, using the Step 1 capture:
 - **Config-only diff with no security-relevant key**: Code Quality alone.
 - **Test-only diff**: QA alone — the test-only classification is itself the finding to judge.
 
+One rule overrides both lists: **any secret-file finding** from Step 1 makes the Security lens run.
+
 Record every dropped lens as a one-line scope note saying why. A dropped lens is a stated decision, never a
 silent omission.
 
@@ -74,11 +79,15 @@ Before Step 1, check whether `graphify-out/graph.json` exists at the repository 
 
 Treat graphify output as context passed to the reviewer, not as a finding by itself.
 
-1. Capture review context — run `git status`, `git diff HEAD --stat`, and the context diff
-   (`git diff HEAD -U1` under 300 changed lines, `-U0` at 300 or more). Read surrounding code from the files
-   on demand only where needed to prove impact. Work the capture checklist in `references/review-context.md`
-   (change intent, test-only classification, file sizes over 250 lines, lint/typecheck bypasses,
-   trust-boundary determination). This capture happens once, here.
+1. Capture review context, in this order: `git diff HEAD --name-only` first, then
+   `git ls-files --others --exclude-standard` and `git status`; sort the names per File selection in
+   `references/review-context.md` (excluded, lockfile, secret, reviewable); then
+   `git diff HEAD --numstat -- <reviewable files>` and the context diff over the reviewable files only
+   (`git diff HEAD -U1 -- <reviewable files>` under 300 changed lines, `-U0` at 300 or more). Never run an
+   unscoped `git diff`. Read surrounding code from the files on demand only where needed to prove impact.
+   Work the capture checklist in `references/review-context.md` (change intent, test-only classification,
+   file sizes over 250 lines, lint/typecheck bypasses, trust-boundary determination, rule-doc match,
+   secret-file checks). This capture happens once, here.
 2. Select lenses per **Lens Selection** above, using the trust-boundary and classification results from
    Step 1. Note dropped lenses as scope notes.
 3. Discover project-specific quality commands from `package.json`, near-root tool config, and `README`/docs,
@@ -88,22 +97,39 @@ Treat graphify output as context passed to the reviewer, not as a finding by its
 5. When the Security lens survived selection, read `references/threat-model.md` and build a diff-scoped
    Threat Context block (from `THREAT_MODEL.md` if present, else a lightweight 4-question sketch, else a
    one-line "no new trust boundary" note).
-6. Dispatch the reviewer subagent with `Agent`, using the template in **Subagent Dispatch**. The prompt
-   carries the changed-file list, never the diff body — the reviewer runs its own scoped diff per
-   `references/dispatch.md`.
-7. Collect it with `get_subagent_result({ agent_id, wait: true })`.
-   - If subagent tooling is unavailable, blocked, or the agent never starts, stop and report the exact
-     blocker. Do not run the review in the parent session and do not invent results.
+6. Check the size, then dispatch. Use the reviewable files (N) and changed lines (L) from Step 1.
+   - **Too big** — N > 60: spawn no reviewer. Return verdict `REQUIRES_MODIFICATION`, `## Findings` with
+     `- none`, and the scope note `too big: <N> files; re-run on one of: <group key> (<count>), ...`, using
+     the group keys from **File-group split**. Parent-written secret-file findings still appear, and a HIGH
+     one makes the verdict `FAIL`.
+   - **Default** — N ≤ 15 and L ≤ 800: dispatch exactly one reviewer.
+   - **Split** — 16 ≤ N ≤ 60, or L > 800 with N ≤ 60: form groups per **File-group split** and add the
+     scope note `split: <N> files, <L> lines -> <k> groups`. If grouping yields fewer than 2 groups,
+     dispatch one reviewer and add the scope note `split not possible: <N> files, <L> lines`.
+
+   Dispatch with `Agent`, using the template in **Subagent Dispatch**. The prompt carries the
+   reviewable-file list, never the diff body and never an excluded, lockfile, or secret file — the reviewer
+   runs its own scoped diff per `references/dispatch.md`.
+7. Collect every reviewer with `get_subagent_result({ agent_id, wait: true })`.
+   - Under a split, a group reviewer that fails or never starts marks its files `skipped: reviewer failed`.
+     Keep the other groups' results. Stop with the exact blocker only when no reviewer ran.
+   - If subagent tooling is unavailable, blocked, or the single reviewer never starts, stop and report the
+     exact blocker. Do not run the review in the parent session and do not invent results.
    - If the agent stops, times out, or exhausts its budget after partial output, keep what completed, report
      it, and add a scope note naming what went unchecked. A review with an incomplete pass never returns
      `PASS`.
    - If a lens line is missing from the verdict block, the pass is incomplete — treat it as above.
-8. When the reviewer returned at least one `security` finding, dispatch the verification wave per
+   - Check the file ledger against the dispatched file list. A dispatched file the ledger omits is
+     incomplete coverage: add a scope note naming the missing file. A missing or `skipped` file means the
+     verdict cannot be `PASS`.
+8. When the reviewers returned at least one `security` finding, dispatch the verification wave per
    `references/security-verification.md`: one verifier **per file**, findings grouped, never one per finding.
    Give it only the findings and the cited file paths — never the diff, never the reviewer's reasoning. Issue
-   all verifiers in a single message so they run concurrently, then collect each with `wait: true`.
+   all verifiers in a single message so they run concurrently, then collect each with `wait: true`. Under a
+   split this is still one wave, dispatched after every group has returned.
    - Drop `unconfirmed` security findings with low confidence; demote borderline ones to LOW. Record dropped
      and demoted findings as a one-line scope note each.
+   - Secret-file findings from Step 1 never go to a verifier; they stand as written.
    - A demoted finding keeps its explanation but has its "why fix it now" re-calibrated to the new severity —
      an urgency argument written for a HIGH is wrong on a LOW.
 9. Assemble the report. **Pass finding text through verbatim.** The reviewer holds the code context and
@@ -113,8 +139,14 @@ Treat graphify output as context passed to the reviewer, not as a finding by its
      file+line.
    - Carry the reviewer's `## Optional` list through, deduped, one line each. Never promote an optional item
      into `## Findings`.
+   - Do not copy the reviewer's `## Risk Plan` into the report. It is the reviewer's working plan; its
+     unconfirmed risks already arrive as scope notes.
    - Apply the `severity.md` floors and the pre-existing-code rule. Compounding escalation already happened
      in the reviewer; do not redo it, and do not undo it.
+   - Under a split: merge the group ledgers into one `Coverage:` line over all reviewable files. Move a
+     finding filed against a file outside its reviewer's group to a scope note. Apply the blocking cap of 8
+     over the merged set; overflow goes to one-line scope notes. A group with a missing ledger or lens line
+     makes the pass incomplete.
 10. Gate each finding. Send a failing finding back to the reviewer, or record the gap as a scope note — never
     invent the missing part yourself:
     - exact changed line or nearest changed line
@@ -125,10 +157,22 @@ Treat graphify output as context passed to the reviewer, not as a finding by its
     - smallest practical recommendation
     - no generic advice, style preference, or broad rewrite unless it identifies a concrete simplification
       that removes meaningful complexity
+
+    Dropping a finding is narrower than gating it. The two mistakes are not equal: a wrong finding kept costs
+    a reader a minute; a real finding dropped is lost silently. Drop a reviewer finding only on one of two
+    grounds, and record one scope note `dropped: <title> — Ground A|B — <file:line>`:
+    - **Ground A** — the code the finding cites is absent from that file's diff.
+    - **Ground B** — one diff line literally contradicts the finding's central claim, for example it calls a
+      check missing and the diff contains that check.
+
+    Never drop a finding about concurrency, a behavior or compatibility change, a declaration/definition
+    mismatch, or a parameter that is accepted but unused: send it back or keep it. "Cannot verify", "low
+    value", and "looks fine" are not grounds. The verifier's drop and demote rules in Step 8 are separate.
 11. Produce a single verdict:
     - `FAIL` if any HIGH finding exists
-    - `REQUIRES_MODIFICATION` if only MEDIUM/LOW findings exist
-    - `PASS` if no findings and every selected lens completed
+    - `REQUIRES_MODIFICATION` if only MEDIUM/LOW findings exist, or on the too-big stop in Step 6
+    - `PASS` if no findings, every selected lens completed, the ledger shows every dispatched file
+      `reviewed`, and no `secret file not checked` scope note exists
     - Optional items never change the verdict.
 
 ## Gotchas
@@ -167,9 +211,25 @@ Agent({
   description: "unified code review pass",
   max_turns: 10,
   run_in_background: true,
-  prompt: "Run the unified review pass. Read <skill dir>/references/reviewer.md, <skill dir>/references/finding-explanation.md, and <skill dir>/references/severity.md. Budget: 10 turns and 16 tool calls of review work — those three reads and the scoped diff call do not count against the 16. Batch independent reads into one turn. Scope: the current diff only. Changed files: <file list>. Run `git diff HEAD -U1 -- <changed files>` as your first tool call; never run the unscoped git status or git diff. Lenses to apply: <selected lenses>. Inputs: <Review Context>, <Project Validation Context>, <Threat Context if Security selected>. Caps: at most 8 blocking qa+code_quality findings ranked by severity, overflow to one-line scope notes; security uncapped with full exploit paths; optional items uncapped in a grouped ## Optional list, one line each, never counted against the 8. Use the schema and output format in reviewer.md. End the verdict with one line per lens naming what you checked, even where you found nothing. Do not report on lenses that were not selected."
+  prompt: "Run the unified review pass. Read <skill dir>/references/reviewer.md, <skill dir>/references/finding-explanation.md, and <skill dir>/references/severity.md. Budget: 10 turns and 16 tool calls of review work — those three reads, the rule-doc reads, and the scoped diff call do not count against the 16. Batch independent reads into one turn. Scope: the current diff only. Changed files: <file list, each with its changed-line count from Step 1>. Rule docs: <matched rule-doc paths, or none> — read them in your first turn and apply each to its matching files. Run `git diff HEAD -U1 -- <changed files>` as your first tool call; never run the unscoped git status or git diff. Lenses to apply: <selected lenses>. Inputs: <Review Context>, <Project Validation Context>, <Threat Context if Security selected>. Caps: at most 8 blocking qa+code_quality findings ranked by severity, overflow to one-line scope notes; security uncapped with full exploit paths; optional items uncapped in a grouped ## Optional list, one line each, never counted against the 8. Use the schema and output format in reviewer.md. End the verdict with one line per lens naming what you checked, even where you found nothing, then the file ledger from reviewer.md: each changed file exactly once as `reviewed` or `skipped: <reason>`, then `coverage: <reviewed>/<total>`. Do not report on lenses that were not selected."
 })
 ```
+
+**File-group split** — only when Step 6 selects a split. The *shared prefix* is the longest folder path all
+reviewable files share (may be empty). A file's *group key* is the first folder below the shared prefix;
+files directly in the shared prefix get the key `.`.
+
+1. Group files by group key.
+2. A test, type-declaration, or doc file whose name stem matches a changed implementation file joins that
+   file's group (`test/foo.test.ts`, `src/foo.d.ts`, and `docs/foo.md` join `src/foo.ts`).
+3. Merge the smallest group into the next smallest until at most 4 groups remain.
+4. If fewer than 2 groups result, sort the files by path and cut them into `ceil(N / 15)` groups, at most
+   4. Still 1 group: Step 6's single-reviewer rule applies.
+
+Every reviewable file is in exactly one group. Spawn all group reviewers in one message, each with the
+Reviewer template above and its own 10-turn / 16-call budget. Per group, `Changed files:` lists only that
+group's files, `Rule docs:` lists only the docs matched to them, and one added line reads `Other groups'
+files (context only; never file a finding against them): <names>`. Never pass another group's diff.
 
 **Security verification** — one per file with findings, dispatched only after the reviewer returns:
 
@@ -188,6 +248,7 @@ Agent({
 ```markdown
 ## Scope Notes
 
+- Coverage: <reviewed>/<total> files reviewed; skipped: <file> (<reason>), ... (or "skipped: none")
 - [dropped lenses and why, dropped or demoted security findings, unchecked areas, assumptions]
 
 ## Findings

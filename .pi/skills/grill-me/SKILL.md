@@ -94,13 +94,13 @@ The frontier is your judgement, not a computed graph. When an answer turns out t
 
 Ask the whole frontier. Wait for the answers. Recompute the frontier. Repeat.
 
-**Read [references/question-format.md](references/question-format.md) before the first round.** It owns the four-part explanation, the option and recommendation specs with worked examples, the ask-back protocol, the structured-tool field mapping, the chat fallback template, and the questioning techniques.
+**Read [references/question-format.md](references/question-format.md) before the first round.** It owns the rules for each of the four parts, the option and recommendation specs, the ask-back protocol, and the questioning techniques. The block template and the model example live below, in _The question block_.
 
 ### The opening brief
 
 **Send this before the first question. Never bundle it with round 1.** You have just spent four silent steps building a model of the plan; the user has not seen any of it. Questions that arrive before this brief land on someone who does not yet know which plan you read or what you think is at stake.
 
-Written to the eli5 rules — see [../eli5/SKILL.md](../eli5/SKILL.md), sections _Style rules_ and _Hard bans_.
+Plain words: active voice, simple words, no jargon, no hedges.
 
 ```
 **Before we start**
@@ -120,32 +120,83 @@ Four lines, one sentence each. If the plan cannot be stated in four lines, that 
 **Every round opens with three lines, including round 1.** Without them the user cannot tell how far in they are or what their last answers changed.
 
 ```
-**Round <n> of about <total>** — <count> questions, <used>/~20 asked so far.
+**Round <n> of about <total>** — <count> questions, <used>/~<budget> asked so far.
 Settled last round: <one line, or "nothing yet — this is the first round">.
 This round decides: <one line, the theme of the questions below>.
 ```
 
+`<budget>` is the question count promised in the opening brief. `<used>` counts questions asked before this round.
+
 Reopening a branch is named here, not buried in the question: "Reopening _<node title>_ — your answer on X changed it."
+
+### The question block
+
+Every question, in every round, is this block. The user must be able to decide from the four parts alone, without re-reading the plan or opening a file.
+
+```
+❓ **Q<n>** — **[<Critical|High|Medium>] <short title>**: <the question itself, ending in a question mark>
+
+   **The plan says now** — <section or file:line, and what it currently says>
+
+   **What this is** — <the mechanism in plain language; define any term the user has not used>
+
+   **Why it matters** — <what breaks, who notices and when, which of the plan's own checks fail>
+
+   **What you need to know** — <the deciding facts, verified, with their source; unverified ones labelled>
+
+   **A)** <label> — <what it does, what it costs, what it rules out>
+
+   **B)** <label> — <same>
+
+   **C)** Ask me back / go deeper — you have a question, need more detail, or I have misread something. Nothing is decided; I answer first, then re-ask this one.
+
+➡️ **Recommended: <A or B>** — <why it beats the other named option, how it serves the plan's goal, and when it would be wrong>
+```
+
+A complete round of one question. Copy the shape, not the subject — the depth, the sourced facts, and the link to the plan's own checks are what you copy.
+
+```
+**Round 1 of 3** — 1 question, 0/~7 asked so far.
+Settled last round: nothing yet — this is the first round.
+This round decides: the reload steps that decide whether the new policy and routing labels actually reach both sites.
+
+❓ **Q1** — **[Critical] site-b never gets the new env vars into its proxy container**: The plan's deploy runbook ends both checkouts with only `docker compose restart proxy` — is that enough, or does site-b also need `docker compose up -d proxy` (recreate the container) before the restart?
+
+   **The plan says now** — Plan §5: per checkout, the user adds `ROUTER_PREFIX` and `CSP_ANALYTICS_ORIGIN` to the env file, then "Both: `docker compose restart proxy`". No `up -d` step is listed for site-b. site-a gets one indirectly through `deploy.sh`, which runs `docker compose up -d` at `scripts/deploy.sh:213`.
+
+   **What this is** — `docker compose restart` restarts the existing container as it is. It re-reads the proxy config file mounted from the host. It keeps the environment variables and routing labels (key-value tags the router reads) the container was created with. New env vars in `.env` only reach the container when compose **recreates** it (`up -d`).
+
+   **Why it matters** — On site-b the plan skips `up -d` entirely. So at the final `restart proxy`, the proxy loads the new config with `CSP_ANALYTICS_ORIGIN` **unset**. The analytics origin drops out of `script-src`/`connect-src` in the Content-Security-Policy (the header that lists which origins a page may load from), so analytics fails silently on site-b. If the placeholder is written as `https://{$CSP_ANALYTICS_ORIGIN}`, it collapses to the invalid token `https://` in the policy. The new routing labels also never take effect there — the container keeps its old labels until the next full recreate. So the plan's own "Done When" curl checks would fail or lie on site-b.
+
+   **What you need to know** — Verified on the live host: the running proxy container's config hash matches the compose file on disk, so a bare `up -d` will not recreate it either; recreation only triggers because the new committed compose file resolves **different** env and labels once the user's new vars are in `.env`. site-a is covered because `deploy.sh` runs `up -d` after the vars are added (§5 orders env edits before deploy). site-b's image stays at 0.1.74, so nothing else triggers a recreate there.
+
+   **A)** Add an explicit `docker compose up -d proxy` step for site-b before the restart — the recreated container picks up the new env and labels, and the final restart then genuinely proves the reboot case. Costs one extra runbook step per site. Rules out the silent empty-policy state.
+
+   **B)** Keep the plan as it is — accept that site-b's proxy runs on stale env until its next image deploy. Costs nothing today, but the §5 curl checks for site-b either fail or can only pass if the vars were somehow already in the container. Rules out the "Done When" guarantee for site-b.
+
+   **C)** Ask me back / go deeper — you have a question, need more detail, or I have misread something. Nothing is decided; I answer first, then re-ask this one.
+
+➡️ **Recommended: A** — B leaves site-b's policy silently missing the analytics origin and its labels stale, which is exactly the class of drift this plan exists to eliminate. A is wrong only if site-b's `.env` already held both vars before this plan — in that case `up -d` would still be the safe form, but B's failure mode would not apply.
+```
 
 ### Rules
 
 - **One round at a time, the full frontier in it.** Never drip-feed a frontier across rounds, and never ask a node whose prerequisite is still open.
 - Number the questions within a round. Order by tier: `[Critical]` first, highest impact within the tier first, then `[High]`, then `[Medium]` — Medium only once no Critical or High node is open.
-- **Every question carries an ELI5 explanation in four named parts** — what the plan says now, what this is, why it matters, what you need to know to choose. The first part is the anchor: without it the user must find the question's subject in the document themselves. The user must be able to decide from the four parts alone, without re-reading the plan or opening a file. Format-independent: tool path and chat path equally.
-- **The explanation obeys the eli5 rules** — [../eli5/SKILL.md](../eli5/SKILL.md), sections _Style rules_ and _Hard bans_. One idea per sentence, 20 words maximum, active voice, no metaphors, no hedges, every term defined once in a short clause. An explanation that is merely well-organized still fails if its sentences are long or its nouns are unexplained.
+- **Every question is one full block in chat**, in the shape of _The question block_ above. **Do not use a structured question tool, even when the harness offers one** — its dialog hides the explanation and caps the options. The user answers in chat, for example `1A 2B 3D: <note>`.
+- **Style**: active voice, simple words, one idea per sentence, no metaphors, no hedges. Use the plan's and the user's own terms; define any other term once, in a short clause. No line cap and no word cap — bold part labels and lettered options are the layout. An explanation still fails if its nouns are unexplained.
 - **The explanation is about the decision, never about you.** Do not narrate your process, justify why you are asking, or account for what you did or did not notice earlier. Strip every sentence whose subject is you or the grilling.
 - **Every option earns its own description**: what it does, what it costs, what it rules out. If two options read the same, you have not finished writing them.
 - **Every question carries your recommended answer**: the option, why it beats _the specific runner-up_, and when it would be the wrong call.
 - **Complete beats concise.** You already spent a round on this question; under-explaining it wastes the round. Cut repetition and hedging, never the facts needed to decide.
 - **Every question offers a way out that is not an answer** — an ask-back option, always last, never first. Choosing it settles nothing and is not an escalation: answer them first, repair the research if they caught you misreading, then re-ask that node alone.
-- **Use a structured question tool when the harness offers one** (`ask_user_question` or equivalent), one entry per question, recommendation as option #1. Chat fallback only when none is available. If the tool caps questions per call (commonly four), split the frontier across back-to-back calls **within the same round** — never trim the frontier to fit the cap.
 - **Ask what the plan should not contain.** At least one question per session pressures scope subtractively — what gets deleted, what defers to v2, what is built for a requirement nobody has named. On a plan that is already large, these come _before_ the additive questions, and "add a mechanism to make this safe" is the wrong answer when "remove the thing that needs protecting" is on the table.
 - **Phrase every question as an explicit choice**, so the recommendation names one of the options. Never word it so that agreeing with the recommendation means answering "no" to the question.
 - Keep questions concrete: not "what about scalability?" but "this stores session state in memory — what happens to in-flight requests during a rolling deploy?"
 - **Facts are your job, decisions are the user's.** Dispatch a sub-agent for environment facts rather than asking the user something you could look up. Do not block on it: only the nodes downstream wait.
 - Stop asking when the graph is genuinely empty, not when the plan starts to feel safe. Before declaring the frontier empty, spend one pass hunting nodes you never drew — the failure paths the plan omits, the operational story after it ships, the areas you read but never questioned. If the graph is empty at Step 4, skip questioning entirely.
 
-**Round send gate — run before sending any round, tool path or chat path.** This is a gate, not a reminder: a round failing any line is not sent, it is fixed. Never send an incomplete round with an apology attached.
+**Round send gate — run before sending any round.** This is a gate, not a reminder: a round failing any line is not sent, it is fixed. Never send an incomplete round with an apology attached.
 
 The round has:
 
@@ -154,10 +205,10 @@ The round has:
 Every question in it has:
 
 2. a tier — `[Critical]`, `[High]`, or `[Medium]`,
-3. an ELI5 explanation with all four parts, obeying the eli5 rules, and not one sentence whose subject is you or the grilling,
+3. all four explanation parts, in the style above, and not one sentence whose subject is you or the grilling — with at least one verified fact and its source in "What you need to know", and, when the plan has acceptance or "Done When" checks, the ones that would fail or give a false pass named in "Why it matters",
 4. explicit named options, each with its own description of what it does, costs, and rules out,
 5. an ask-back option, last,
-6. a recommendation naming the winning option, the runner-up it beats, and when it would be wrong.
+6. a recommendation naming the winning option, the runner-up it beats, how it serves the plan's stated goal, and when it would be wrong.
 
 Line 6 has no exceptions. A question you cannot recommend an answer to is a question you have not researched — go back to Step 1 for that node rather than handing the user an unweighted menu. "It depends on your priorities" is not a recommendation; name the priority you assumed and recommend under it.
 
@@ -207,7 +258,6 @@ Read [references/summary-template.md](references/summary-template.md) and write 
 - Answering your own decision questions breaks the skill. Look up facts; wait for decisions.
 - Alternative architectures stay out of scope — a **simpler version of the same design** never is; cutting scope is not proposing a redesign. Every risk wants a mechanism attached, and a grilling that hands back a bigger, more complex plan has failed however many risks it closed. That bias is what you correct for, not what you follow.
 - Deliver critical feedback straight. Softened findings get ignored.
-- A question with no ELI5 explanation is incomplete. A structured question tool does not exempt you from it, it only changes where the explanation goes.
 - The explanation makes stakes legible; it does not justify the question. If it reads as an account of what you missed or why you are asking now, rewrite it around what breaks.
 - A user picking the ask-back has not stalled the session — they found the question that was not clear enough. Never treat it as a non-answer to escalate past.
 - Nodes resolving to an obvious default belong in `Default Changes`. That filters _what_ you ask, never whether to continue.

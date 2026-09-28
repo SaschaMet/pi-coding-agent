@@ -47,7 +47,7 @@ Go one rung down the ladder and repeat the procedure. Do not repeat the same run
 
 The **Style rules** and **Hard bans** above are the single origin for plain language in `.pi/skills/`. Other skills link here instead of restating them. When a skill says "written to the eli5 rules", it means those two sections, and nothing else in this file.
 
-Skills that link here: `../grill-me/SKILL.md`, `../create-spec/SKILL.md`, `../create-plan/SKILL.md`.
+Skills that link here: `../grill-me/references/summary-template.md`, `../create-spec/SKILL.md`, `../create-plan/SKILL.md`.
 
 ## Example
 

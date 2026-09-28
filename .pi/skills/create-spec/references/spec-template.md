@@ -102,19 +102,19 @@ One paragraph for what changes and why now.
 
 ### 6.1 Data Flow Changes
 
+> Diagrams are archify JSON files, embedded by a line that holds only an image reference. The page renderer
+> (plan-view) draws these offline; Mermaid blocks stay plain text. File rule: `<doc>.assets/<id>.<type>.json`,
+> `<type>` one of `architecture`, `workflow`, `sequence`, `dataflow`, `lifecycle`. JSON format:
+> `node <skill-library>/archify/bin/archify.mjs guide` (`<skill-library>` is `.pi/skill-library` in this repo,
+> `~/.pi/agent/skill-library` globally). No diagram needed → use a table.
+
 **Before:**
-```mermaid
-graph LR
-  A[Existing Component A] --> B[Existing Component B]
-```
+
+![Flow before the change](spec-{feature-name}.assets/before.workflow.json)
 
 **After:**
 
-```mermaid
-graph LR
-  A[Existing Component A] --> B[Existing Component B]
-  B --> C[New Component C]
-```
+![Flow after the change](spec-{feature-name}.assets/after.workflow.json)
 
 **Changed Flows:**
 

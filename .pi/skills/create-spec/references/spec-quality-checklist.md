@@ -70,7 +70,8 @@ Use this gate before finalizing a spec.
 - [ ] Changed flows are itemized with impact notes.
 - [ ] Blast radius identifies direct and transitive dependents.
 - [ ] New dependencies are listed with fallback behavior.
-- [ ] Visuals use mermaid, ASCII, or tables (renderable formats).
+- [ ] Visuals are archify diagram references (`<doc>.assets/<id>.<type>.json`) or tables. No Mermaid blocks: the page renderer shows them as plain text.
+- [ ] `plan-view render` exits 0, so every diagram reference validated.
 - [ ] Section omitted for Small specs.
 
 ## 7. Risk Controls

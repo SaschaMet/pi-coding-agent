@@ -26,14 +26,46 @@ code_quality: 1 finding + 3 optional
 
 A missing lens line is an incomplete pass.
 
+Files fail the same way: a file you never opened looks identical to a clean file. After the lens lines, list
+every file in your prompt's changed-file list exactly once, as `reviewed` or `skipped: <reason>`, then
+`coverage: <reviewed>/<total>`. A file counts as `reviewed` only when you judged its changed lines against
+every selected lens. A file you ran out of budget for is `skipped: budget`.
+
+## File groups
+
+On a large diff the parent splits the files into groups, one reviewer per group. Your prompt then carries an
+`Other groups' files` line. Those files are context only: you may read them to prove a finding in your own
+files, but never file a finding against them. Your ledger lists only your own files.
+
 ## Budget
 
 - 10 turns and 16 tool calls of review work. Reading this reference, reading `finding-explanation.md`,
-  reading `severity.md`, and the scoped diff call do not count against the 16.
+  reading `severity.md`, reading the rule docs named in your prompt, and the scoped diff call do not count
+  against the 16.
 - Batch independent reads into one turn. Each turn re-sends the whole context; ten targeted reads in one
   turn cost a fraction of ten reads across ten turns.
 - When the budget runs out, emit the findings you have plus a scope note naming what you did not check. A
   short grounded report beats an unfinished thorough one.
+
+## Rule docs
+
+The prompt's `Rule docs:` line names the file-type rule docs matched to your files, or `none`. Read them in
+your first turn, together with the diff. Apply each doc as a checklist to the files it matches, inside the
+lens its items name. Rule-doc items meet the same Finding Bar, caps, and severity rules as any other
+candidate; they add no category, and a style-only concern still goes to `## Optional`.
+
+## Risk plan
+
+On a large file set, plan before you read. Take the changed-line counts from your file list; never estimate
+them. Write a risk plan when one file has 50 or more changed lines, or two or more files have 100 or more
+changed lines combined. Below both thresholds, write no risk plan. Above one, never skip or explain it away.
+
+- Open your output with `## Risk Plan`: at most 5 numbered risks, sorted HIGH to LOW, each
+  `[SEVERITY] location — problem — impact → planned read`. Only if no changed line carries any risk, write
+  the single line `(none)`.
+- Planned reads count against the 16 calls. Plan only reads that can confirm or refute a risk.
+- The plan is a hypothesis list, not a finding list. A risk you confirm becomes a finding with full
+  evidence. A risk you could not confirm becomes a scope note, never a finding.
 
 ## Reading discipline
 
@@ -92,6 +124,12 @@ migration path; test adequacy for changed behavior.
   when the measured score improves.
 - Flag compatibility regressions when callers, tests, docs, migrations, or public contracts show the old
   behavior is still required.
+- **Counterpart check** — when the diff changes an exported signature, a config key, or a CLI flag, locate
+  its counterparts: type or interface files, schemas, tests, and docs. Use one repo-wide grep per changed
+  symbol, within the 16 calls, and always with the include list, so dotfiles and secret files never match:
+  `grep -rn --exclude-dir=node_modules --exclude-dir=.git --include='*.ts' --include='*.tsx' --include='*.js' --include='*.jsx' --include='*.mjs' --include='*.cjs' --include='*.json' --include='*.yml' --include='*.yaml' --include='*.md' --include='*.py' --include='*.go' --include='*.rs' --include='*.java' --include='*.proto' --include='*.graphql' --include='*.sql' '<symbol>' .`
+  An unchanged counterpart that still states the old contract is a blocking `qa` finding that names both
+  files. A doc counts only when it names the changed symbol, key, or flag.
 - Check boundary values, invalid inputs, null/empty states, error paths, concurrency-sensitive paths, and
   integration/API contract compatibility when touched.
 - When the diff introduces caching meant to protect a downstream rate limit or reduce latency, trace the
@@ -189,7 +227,8 @@ expanded lint/typecheck bypasses.
   least MEDIUM. Equivalents to catch: `eslint-disable`, `biome-ignore`, `// @ts-ignore`,
   `// @ts-expect-error`, `type: ignore`, `# noqa`.
 - Naming, formatting, comment, and documentation-drift issues go in the grouped `optional` list, one line
-  each — always flagged, never counted against the blocking cap.
+  each — always flagged, never counted against the blocking cap. The one exception is a doc that names a
+  changed symbol, key, or flag and still states the old contract: that is a QA counterpart finding.
 
 ### Strict maintainability bar
 
@@ -249,6 +288,10 @@ single finding under the category that owns the fix — not two entries to be de
 ## Required output
 
 ```markdown
+## Risk Plan
+1. [HIGH] path/to/file:123 — problem — impact → planned read
+(only above the Risk plan thresholds; `(none)` when nothing carries risk)
+
 ## Scope Notes
 - [what you did not check, overflow candidates, stated assumptions]
 
@@ -271,6 +314,9 @@ PASS | FAIL | REQUIRES_MODIFICATION
 qa: <count or "none — what you checked">
 security: <count or "none — what you checked">
 code_quality: <count or "none — what you checked">
+- path/to/file: reviewed
+- path/to/other: skipped: <reason>
+coverage: <reviewed>/<total>
 ```
 
 `explanation` sits above `recommendation`. If no findings exist, output `## Findings` with `- none`. Omit

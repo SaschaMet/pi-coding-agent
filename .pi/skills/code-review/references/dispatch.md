@@ -6,7 +6,8 @@ The spawn templates stay in `SKILL.md` — fill a template and append the releva
 Two agents run per review, in two waves:
 
 1. **Reviewer** — `references/reviewer.md`. All three lenses (QA, Security discovery, Code Quality) over one
-   read of the changed code.
+   read of the changed code. Above the split trigger in SKILL.md Step 6, 2 to 4 file-group reviewers run
+   instead, all spawned in one message.
 2. **Security verification** — `references/security-verification.md`. Only when the reviewer returned at
    least one `security` finding.
 
@@ -22,7 +23,8 @@ Inlining costs the parent output tokens for every byte of diff, at roughly 5× t
 agent pays for the bytes again on its side. Having the agent fetch the diff itself is the same bytes at input
 price, once. There is no quality difference — it is the same output either way.
 
-- The spawn prompt carries the **file list**, never the diff body.
+- The spawn prompt carries the **file list**, never the diff body. `<changed files>` means the reviewable
+  files left after Step 1 file selection; excluded, lockfile, and secret files are never in it.
 - Use `-U0` instead of `-U1` only when the changed-line count exceeds 300.
 - No agent ever runs the unscoped `git status` or `git diff` — the parent already holds them.
 - The verifier never sees the diff at all, in any form: only the finding and the cited code.
@@ -32,10 +34,11 @@ price, once. There is no quality difference — it is the same output either way
 | Agent | Turns | Review tool calls |
 | --- | --- | --- |
 | Reviewer | 10 | 16 |
+| File-group reviewer (split only; N groups, at most 4) | 10 each | 16 each |
 | Security verification | 8 | 12 |
 
-Reading its own reference, `finding-explanation.md`, `severity.md` (reviewer only), and the one scoped diff
-call do not count against the tool budget. Those are mandatory overhead; counting them leaves too few usable
+Reading its own reference, `finding-explanation.md`, `severity.md` (reviewer only), the matched rule-doc
+reads (reviewer only), and the one scoped diff call do not count against the tool budget. Those are mandatory overhead; counting them leaves too few usable
 calls, and an exhausted agent forces a scope note that blocks `PASS`.
 
 Instruct every agent to **batch independent reads into one turn**. Turns, not calls, drive cost — each turn
@@ -62,7 +65,8 @@ that the review ran on the orchestrator model. Never skip a pass because a model
 ## Finding caps
 
 - **Blocking findings** (`qa` + `code_quality`): at most 8, ranked by severity. Overflow to one-line scope
-  notes.
+  notes. Under a split, each group reviewer keeps the 8, and the parent applies the 8 again over the merged
+  set.
 - **Security**: uncapped. Every candidate meeting the Finding Bar keeps its full schema and exploit path — a
   candidate compressed to a one-line note cannot be verified.
 - **Optional** (naming, formatting, comments, documentation drift): uncapped, one line each, in `## Optional`.
