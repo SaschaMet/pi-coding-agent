@@ -1,113 +1,288 @@
 # PI Coding Agent Parity Stack
 
-Git-tracked PI config/runtime parity stack for a global PI runtime (`~/.pi/agent`) that adds:
+Git-tracked PI config for the global PI runtime (`~/.pi/agent`). It adds:
 
-- Claude Code-style subagents via `@tintinweb/pi-subagents`
-- Shared skills (including `~/.codex/skills`)
+- Claude Code-style subagents (`@tintinweb/pi-subagents`)
+- Shared skills and agent roles
+- Quality-gate and boundary-guard extensions
+- A spec-gated coding workflow (see [Workflow and Guards](#workflow-and-guards))
+- A local bootstrap (`src/`) for developing the stack itself
 
-## Quick Start
+Daily use: you run the global `pi` command. This repo is the source of truth for what `pi` loads.
 
-1. Install dependencies:
+## New Machine Setup
+
+Follow the steps in order. Tested layout: macOS with `zsh`.
+
+### 1. Prerequisites
+
+Required:
+
+- Node `>=22.19.0` (check: `node -v`)
+- `npm`
+- `git`
+- Docker (runs the Headroom proxy, see step 7)
+
+Optional, but some skills and the workflow depend on them:
+
+- `graphify` CLI: used by the `graphify` skill. The `graphify query` step in the workflow needs it. `pisync` calls `graphify install --platform pi`.
+- `cmux`: used by the `cmux-orchestration` skill and `.cmux/cmux.json`.
+- `direnv`, LM Studio CLI (`lms`), oMLX CLI: only for local model providers.
+
+Without the optional tools, the matching skills fail. Everything else works.
+
+### 2. Install the PI CLI
 
 ```bash
+npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+```
+
+Check: `pi --version`. Upstream install docs: <https://pi.dev/docs/latest>.
+
+### 3. Clone and install this repo
+
+```bash
+mkdir -p ~/Projects && cd ~/Projects
+git clone <repo-url> pi-coding-agent
+cd pi-coding-agent
 npm install
 ```
 
-1. Set at least one model provider key (for PI itself), for example:
+`npm install` runs `postinstall` (`scripts/patch-retry.ts`). It patches the LLM retry backoff in the repo copy and in the global `pi` install. The patch is idempotent.
+
+### 4. Push the config into the global runtime
 
 ```bash
-export ANTHROPIC_API_KEY=...
+npm run pi:sync-global
 ```
 
-1. Run smoke checks:
+This copies `.pi/` (settings, `SYSTEM.md`, skills, agents, extensions, skill library) into `~/.pi/agent`. `pi` only loads this stack after this step.
+
+Sync never copies these files. Create them yourself:
+
+- `auth.json`, `sessions/`, `trust.json`: per-machine state
+- `models.json`: your model providers (see step 5)
+- `mcp-adapter.json`: MCP servers (see step 8)
+- the top-level `.pi/AGENTS.md`
+
+Details: [`scripts/sync-pi-config.md`](scripts/sync-pi-config.md).
+
+### 5. Add your model provider
+
+Add your provider to `~/.pi/agent/models.json`. Use the internal provider details you already have. Schema: [Providers & Models](node_modules/@earendil-works/pi-coding-agent/docs/providers.md).
+
+Shape (placeholders only):
+
+```json
+{
+  "providers": {
+    "<provider-name>": {
+      "baseUrl": "https://<host>/v1",
+      "api": "openai-responses",
+      "apiKey": "<your-key>",
+      "models": [{ "id": "<model-id>", "name": "<display name>", "reasoning": true }]
+    }
+  }
+}
+```
+
+Rules:
+
+- Never commit `models.json` or any key.
+- The synced `settings.json` sets the default to `iqRouter/grunt` with thinking `high`. If your provider name differs, change `defaultProvider` and `defaultModel` in `~/.pi/agent/settings.json`:
+
+```json
+{
+  "defaultProvider": "<provider-name>",
+  "defaultModel": "<model-id>",
+  "defaultThinkingLevel": "high"
+}
+```
+
+- Boot Claude models with thinking `medium`, not `high`. Example: `pi --model claude-bridge/claude-opus-5-5:medium`. The synced settings already set `medium` for the bridge models.
+
+### 6. Install the PI packages
+
+Sync does not install packages. Install each one:
 
 ```bash
-npm run smoke
+pi install npm:@tintinweb/pi-subagents
+pi install npm:@raquezha/noheadroom
+pi install npm:pi-mcp-adapter
+pi install npm:pi-spark
+pi install npm:@juicesharp/rpiv-ask-user-question
+pi install npm:@juicesharp/rpiv-todo
+pi install npm:pi-lens
+pi install npm:pi-cache-optimizer
+pi install npm:pi-insomnia
+pi install npm:pi-claude-bridge
 ```
 
-1. Start PI from the global runtime:
+What they do:
+
+| Package | Purpose |
+| --- | --- |
+| `@tintinweb/pi-subagents` | `Agent`, `get_subagent_result`, `steer_subagent` |
+| `@raquezha/noheadroom` | Headroom integration |
+| `pi-mcp-adapter` | MCP servers (step 8) |
+| `pi-spark` | PI helpers |
+| `@juicesharp/rpiv-ask-user-question` | Ask-the-user tool |
+| `@juicesharp/rpiv-todo` | Todo tool |
+| `pi-lens` | Code intelligence |
+| `pi-cache-optimizer` | Prompt-cache tuning |
+| `pi-insomnia` | Keeps the machine awake during runs |
+| `pi-claude-bridge` | Use Claude models through Claude Code (step 9) |
+
+### 7. Start Headroom
+
+Headroom is a local compression proxy in Docker on `127.0.0.1:8788`.
 
 ```bash
-pi
+npm run headroom:up
 ```
 
-## Commands
+Check: `curl -fsS http://127.0.0.1:8788/health`.
 
-- `npm run dev` - run local interactive agent with file watch
-- `npm run agent` - run local interactive agent
-- `npm run smoke` - extension/resource discovery smoke check
-- `npm test` - run unit/integration tests
-- `npm run pi:pull-global` - mirror global PI config/resources into this repo's `.pi/` (preferred)
-- `npm run pi:sync-global` - legacy push from repo `.pi/` into global `~/.pi/agent` (`PI_CODING_AGENT_DIR`), use only when intentionally overwriting global state
+- Headroom is an optimization. If Docker is missing, `pi` still starts and prints a warning.
+- Stop it: `npm run headroom:down`.
+- The container mounts `~/.claude/projects` and `~/.pi/agent/sessions` read-only.
 
-## Runtime Defaults
+### 8. MCP servers
 
-The default repo runtime is local-first. `npm run agent` and `npm run dev` run against the current project filesystem so repository inspection and file edits work directly.
+Set up MCP servers through the `pi-mcp-adapter` extension. No MCP config is stored in this repo.
 
-### Runtime Launching
+### 9. Claude models (optional)
 
-Default: run PI from the global runtime (plain `pi`) or the local repo runtime (`npm run agent`) for direct project access.
+Use Claude models inside PI through Claude Code:
 
-### Repo Runtime Launcher (Optional)
+1. Install Claude Code and log in: `claude` (follow the login prompt).
+2. Install the bridge: `pi install npm:pi-claude-bridge` (already in step 6).
+3. Start `pi`, run `/model`, and pick a `claude-bridge/...` model.
 
-If you start PI via shell alias/function, point it to this runtime script, not plain `pi`.
-Plain `pi` will not use this repository's extension stack automatically.
+Optional config: `~/.pi/agent/claude-bridge.json`. Docs: <https://www.npmjs.com/package/pi-claude-bridge>.
 
-For `zsh`:
+### 10. Shell setup
+
+Add to `~/.zshrc`. Set `PI_CODER_REPO` to where you cloned the repo.
 
 ```zsh
-export PI_CODER_REPO="${PI_CODER_REPO:-$HOME/Projects/pi-coding-agent}"
+export PI_CODER_REPO="$HOME/Projects/pi-coding-agent"
+export PI_TELEMETRY=0
 
+# Run the global pi binary. Refuse to start in $HOME.
 picoder() {
   if [[ "$PWD" == "$HOME" ]]; then
     echo "Refusing to start from \$HOME. cd into a project directory."
     return 1
   fi
-  node "$PI_CODER_REPO/node_modules/tsx/dist/cli.mjs" \
-    "$PI_CODER_REPO/src/main.ts" \
-    "$@"
+  local pi_bin
+  pi_bin="$(whence -p pi)" || return 1
+  "$pi_bin" "$@"
+}
+
+# Start Headroom (if needed), then PI.
+pi() {
+  "$PI_CODER_REPO/scripts/headroom-up.sh" --quiet
+  picoder "$@"
 }
 ```
 
-Notes:
+Reload: `source ~/.zshrc`.
 
-- Sync mirrors managed files under `.pi/` (including `.pi/SYSTEM.md`) and removes stale managed files in the target.
-- `settings.json` is mirrored, except `settings.packages` which is merged (union) to preserve target-only installed `npm:` packages during sync.
-- It intentionally excludes personal/runtime data like `auth.json`, `sessions/`, `npm/`, `models.json`, and `.DS_Store`.
-- This launcher is optional and mainly useful for local parity-stack development.
+The `pisync` helper is optional. See [Syncing Skills to Other Agents](#syncing-skills-to-other-agents).
+
+### 11. Verify
+
+```bash
+cd ~/Projects/pi-coding-agent
+npm run typecheck   # tsc --noEmit
+npm test            # vitest
+npm run smoke       # extension and resource discovery
+```
+
+Then start PI in a project directory (not `$HOME`):
+
+```bash
+cd ~/Projects/<some-project>
+pi
+```
+
+Expected:
+
+- PI starts with no extension load errors.
+- `/model` lists your provider's models.
+- The skills (`create-spec`, `grill-me`, `code-review`, ...) are listed.
+- `curl -fsS http://127.0.0.1:8788/health` succeeds.
+
+## Workflow and Guards
+
+PI here enforces a spec-gated workflow. Read `.pi/SYSTEM.md` and `AGENTS.md` for the full rules.
+
+- Every code change needs an approved spec or plan file first (`create-spec` or `create-plan`, then `grill-me`).
+- Write tests first (`tdd` skill).
+- After each turn, `gates.ts` checks the final message. It names every changed file, and it claims "tests pass" only if a test ran. On a violation it sends one correction. Toggle with `/gates on|off`.
+- `read-boundary-guard.ts` asks for approval when a path is outside the current directory. Without a UI, it blocks the path. Trusted directories go in `.pi/trust.json`.
+- `write-boundary-guard.ts` arms itself when a spec or plan is written, then limits writes to the spec's `Modify` list. In a new session, run `/scope <path-to-spec>`. `/scope off` disarms.
+- Files under `~/.pi` are read-only for the agent.
+
+The guards and gates only act from the global copy in `~/.pi/agent/extensions/`. Run `npm run pi:sync-global` after every change, or they are not active.
+
+PI does not block reading `.env` files. The author's Claude Code setup has a separate hook for that. A PI-only install has no such protection, so keep secrets out of files the agent can read.
+
+These are intended. Do not work around them. Full rules, decision order, and how to unblock: [`docs/reference/gates-and-guards.md`](docs/reference/gates-and-guards.md).
+
+## Commands
+
+- `npm run agent`: run the local bootstrap (`src/main.ts`) from this repo. Starts Headroom first. For developing the stack.
+- `npm run dev`: same, with file watch.
+- `npm run smoke`: extension and resource discovery check.
+- `npm run typecheck`: `tsc --noEmit`.
+- `npm test`: unit and integration tests.
+- `npm run test:coverage`: tests with coverage.
+- `npm run pi:pull-global`: copy global config into this repo's `.pi/`.
+- `npm run pi:sync-global`: copy this repo's `.pi/` into `~/.pi/agent`. Overwrites global state.
+- `npm run headroom:up` / `npm run headroom:down`: start or stop the Headroom container.
+
+Both sync commands honor `PI_CODING_AGENT_DIR` if set. Default: `~/.pi/agent`.
+
+## Keeping Config in Sync
+
+The repo `.pi/` is the source of truth. Edit there, then push:
+
+```bash
+npm run pi:sync-global
+```
+
+If you changed files directly in `~/.pi/agent`, pull first so you do not lose them:
+
+```bash
+npm run pi:pull-global
+```
+
+Push and pull mirror files: they delete files that exist only on the target side. Read [`scripts/sync-pi-config.md`](scripts/sync-pi-config.md) before you use either.
 
 ## Syncing Skills to Other Agents
 
-PI skills live in `~/.pi/agent/skills/`. You can symlink them into the skill directories of other agents (Claude Code, Codex, GitHub Copilot, etc.) so every tool picks up the same skill set without duplicating files. Symlinks mean edits in the PI skills directory are immediately reflected everywhere.
+Optional. PI skills live in `~/.pi/agent/skills/`. `pisync` links them into the skill folders of other agents (Claude Code, Codex, Copilot), so every tool uses one skill set.
 
-### One-time manual link
+`pisync` does this:
 
-```bash
-# Link a single skill into another agent's skill directory
-ln -sfn ~/.pi/agent/skills/create-spec ~/.claude/skills/create-spec
-ln -sfn ~/.pi/agent/skills/create-spec ~/.codex/skills/create-spec
-ln -sfn ~/.pi/agent/skills/create-spec ~/.copilot/skills/create-spec
-```
+1. Runs `npm run pi:sync-global`.
+2. Links each PI skill into every target folder.
+3. Removes dangling links when a PI skill is deleted.
+4. Runs `graphify install --platform pi` (needs `graphify`).
 
-### Automated sync via `pisync`
+Warning: if a target folder already has a real (non-link) folder with the same skill name, the helper runs `rm -rf` on it before it links. Back up such folders first.
 
-Add the following helper to your `~/.zshrc` (or `~/.bashrc`). Running `pisync` will:
-
-1. Push the local `.pi/` config to `~/.pi/agent` (the global PI runtime).
-2. For each skill in `~/.pi/agent/skills/`, create or update a symlink in every configured agent skill directory.
-3. Remove dangling symlinks in those directories when a PI skill has been deleted.
-
-Skills that exist only in a target directory (e.g. a Claude-only `frontend-design` skill) are never touched.
+Remove the target lines for agents you do not use.
 
 ```zsh
-# Link all skills from $1 (source) into $2 (target dir), pruning stale links
 _pisync_link_skills() {
   local pi_skills="$1"
   local dest_skills="$2"
 
   mkdir -p "$dest_skills"
 
-  # Add/update symlinks for all pi skills
   for skill_dir in "$pi_skills"/*/; do
     local skill_name="${skill_dir%/}"
     skill_name="${skill_name##*/}"
@@ -125,7 +300,6 @@ _pisync_link_skills() {
     echo "pisync: linked skill '$skill_name' -> $dest_skills"
   done
 
-  # Remove symlinks that point into pi_skills but whose source no longer exists
   while IFS= read -r target; do
     if [[ "$(readlink "$target")" == "$pi_skills/"* && ! -e "$target" ]]; then
       rm "$target"
@@ -134,9 +308,8 @@ _pisync_link_skills() {
   done < <(find "$dest_skills" -maxdepth 1 -type l)
 }
 
-# Sync local pi-coding-agent config into global ~/.pi/agent
 pisync() {
-  (cd ~/Projects/pi-coding-agent && npm run pi:sync-global)
+  (cd "$PI_CODER_REPO" && npm run pi:sync-global)
 
   local pi_skills="$HOME/.pi/agent/skills"
 
@@ -145,137 +318,60 @@ pisync() {
     return
   fi
 
-  # Add targets for any agent that supports a skills directory
   _pisync_link_skills "$pi_skills" "$HOME/.claude/skills"   # Claude Code
   _pisync_link_skills "$pi_skills" "$HOME/.codex/skills"    # OpenAI Codex
   _pisync_link_skills "$pi_skills" "$HOME/.copilot/skills"  # GitHub Copilot
+
+  graphify install --platform pi
 }
 ```
 
-To add another agent, append one more `_pisync_link_skills` line pointing at that agent's skills directory.
-
-### Behaviour summary
-
-| Scenario                                 | Result                                               |
-| ---------------------------------------- | ---------------------------------------------------- |
-| Skill added to `~/.pi/agent/skills/`     | Symlink created in all target directories            |
-| Skill updated in `~/.pi/agent/skills/`   | Symlink already correct, no-op                       |
-| Skill deleted from `~/.pi/agent/skills/` | Dangling symlink removed from all target directories |
-| Skill exists only in a target directory  | Untouched — `pisync` never removes non-PI skills     |
-
-## Sync and Sharing Workflow
-
-From the cloned repo root:
-
-1. Import existing global config into the repo copy (preferred direction):
-
-```bash
-npm run pi:pull-global
-```
-
-1. Optional legacy step: push this repo's `.pi/` stack to global PI only if you explicitly want to overwrite global state:
-
-```bash
-npm run pi:sync-global
-```
-
-Both commands honor `PI_CODING_AGENT_DIR` if set; otherwise they use `~/.pi/agent`.
+| Scenario | Result |
+| --- | --- |
+| Skill added to `~/.pi/agent/skills/` | Link created in all targets |
+| Skill already linked | No-op |
+| Skill deleted from `~/.pi/agent/skills/` | Dangling link removed from all targets |
+| Skill exists only in a target | Untouched, unless it has the same name as a PI skill |
 
 ## Runtime Layout
 
-- [`src/main.ts`](src/main.ts): embedded PI runtime entrypoint (`createAgentSession` + `InteractiveMode`)
-- `.pi/settings.json`: project-level PI settings and skills path integration
-- `.pi/extensions/`: custom extensions
-- `.pi/agents/`: project-local `@tintinweb/pi-subagents` role definitions
-- `.pi/prompts/`: workflow prompt templates
+- [`src/main.ts`](src/main.ts): local bootstrap (`createAgentSession` + `InteractiveMode`)
+- `.pi/settings.json`: PI settings
+- `.pi/SYSTEM.md`: durable agent rules
+- `.pi/extensions/`: quality gates, guards, tools
+- `.pi/agents/`: subagent role definitions
 - `.pi/skills/`: project-local skills
+- `.pi/skill-library/`: on-demand skills, loaded only when named
+- `scripts/`: sync, smoke check, Headroom helpers
+- `docs/`: architecture and reference docs
 
 ## Role Catalog
 
-- `generic-readonly`: read-only delegated subagent for research/planning/summarization
-- `generic-worker`: mutating delegated subagent for implementation/file updates
-- `gan-generator`: generator role for explicit generator/evaluator workflows
-- `gan-evaluator`: evaluator role for explicit generator/evaluator workflows
+- `generic-readonly`: read-only subagent for research, planning, summaries
+- `generic-worker`: mutating subagent for implementation and file edits
 
-## Delegation Orchestration
+## Delegation
 
-- Normal repository inspection and file edits stay in-session.
-- Use `Agent` from `@tintinweb/pi-subagents` only when the user explicitly asks for delegation.
-- Retrieve background results with `get_subagent_result`.
-- Redirect running agents with `steer_subagent`.
-- Full reference: [`.pi/skills/subagent-orchestrator/references/pi-subagents.md`](.pi/skills/subagent-orchestrator/references/pi-subagents.md).
-
-## Skill Routing
-
-- Direct skill commands are enabled and run in the current session unless the user explicitly asks for delegation.
-- Project-local skills come from `.pi/skills/`; user/global skills come from configured paths such as `~/.codex/skills`
-
-## Workflow Prompts
-
-## Implementation Workflow
-
-- See [`docs/reference/implementation-workflow.md`](docs/reference/implementation-workflow.md) for a concise implementation checklist.
+- Normal inspection and edits stay in the current session.
+- Use `Agent` from `@tintinweb/pi-subagents` only when you ask for delegation.
+- Get background results with `get_subagent_result`. Redirect a running agent with `steer_subagent`.
+- Do not pass `model` to `Agent`. Subagents inherit the orchestrator model.
+- Custom agents must live in `.pi/agents/` or `$PI_CODING_AGENT_DIR/agents/`.
 
 ## Troubleshooting
 
-- Missing model/API key:
-  - Ensure a PI model provider key exists (e.g., `ANTHROPIC_API_KEY`).
-- No Codex skills detected:
-  - Ensure `~/.codex/skills` exists and is readable.
-  - Confirm `.pi/settings.json` includes the path.
-- Subagent not running:
-  - Confirm `.pi/settings.json` includes `npm:@tintinweb/pi-subagents`.
-  - Run `pi install npm:@tintinweb/pi-subagents` if the package is not installed in the target runtime.
-  - Use `Agent({ subagent_type, prompt, description })`.
-  - Do not pass `model` and do not use agent frontmatter `model` unless the user or skill explicitly requires it; subagents should inherit the orchestrator model by default.
-  - Custom agents must be under `.pi/agents/` or `$PI_CODING_AGENT_DIR/agents/`.
-- Read/search/list outside current directory:
-  - `read`, `write`, `edit`, `grep`, `find`, and `ls` require approval when the requested path resolves outside the current working directory.
-  - Exception: paths under global PI (`~/.pi`, or `PI_CODING_AGENT_DIR` when set) are read-only; `read`/`grep`/`find`/`ls` are allowed there, `write`/`edit` are always blocked.
-  - In non-interactive mode, those outside-cwd requests are blocked.
-
-## Failure Handling Notes
-
-- Outside-cwd `read`/`write`/`edit`/`grep`/`find`/`ls` requests require explicit approval and are denied without UI.
-- Global PI directory is read-only: outside-cwd reads/list/search are allowed under `~/.pi` (or `PI_CODING_AGENT_DIR`), while writes/edits are denied.
+- `pi: command not found`: redo step 2. Check that the npm global bin folder is in `PATH`.
+- No model or provider error: check `~/.pi/agent/models.json` and that `defaultProvider` matches a provider name in it.
+- Skills or extensions missing: run `npm run pi:sync-global`, then `npm run smoke`.
+- Subagents not running: check that `@tintinweb/pi-subagents` is installed (`pi install npm:@tintinweb/pi-subagents`).
+- No Headroom warning shown but no compression: run `curl -fsS http://127.0.0.1:8788/health`, then `npm run headroom:up`.
+- "Refusing to start from $HOME": `cd` into a project directory.
+- Path approval prompts: expected. Reads and writes outside the current directory need approval. In non-interactive mode they are blocked.
 
 ## Upstream Docs
 
-The underlying [`@earendil-works/pi-coding-agent`](https://www.npmjs.com/package/@earendil-works/pi-coding-agent) package ships comprehensive docs:
-
-- [README](https://www.npmjs.com/package/@earendil-works/pi-coding-agent) — overview, quick start, CLI reference
-- [Providers & Models](node_modules/@earendil-works/pi-coding-agent/docs/providers.md)
-- [Settings](node_modules/@earendil-works/pi-coding-agent/docs/settings.md)
-- [Skills](node_modules/@earendil-works/pi-coding-agent/docs/skills.md)
-- [Extensions](node_modules/@earendil-works/pi-coding-agent/docs/extensions.md)
-- [Prompt Templates](node_modules/@earendil-works/pi-coding-agent/docs/prompt-templates.md)
-- [Sessions & Compaction](node_modules/@earendil-works/pi-coding-agent/docs/sessions.md)
-- [Keybindings](node_modules/@earendil-works/pi-coding-agent/docs/keybindings.md)
-- [Themes](node_modules/@earendil-works/pi-coding-agent/docs/themes.md)
-- [SDK](node_modules/@earendil-works/pi-coding-agent/docs/sdk.md)
-- [RPC](node_modules/@earendil-works/pi-coding-agent/docs/rpc.md)
-- [Terminal Setup](node_modules/@earendil-works/pi-coding-agent/docs/terminal-setup.md)
-- [Windows](node_modules/@earendil-works/pi-coding-agent/docs/windows.md)
-- [Development](node_modules/@earendil-works/pi-coding-agent/docs/development.md)
-
-Subagent extension docs:
-
-- [`@tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents)
-- Local reference: [`.pi/skills/subagent-orchestrator/references/pi-subagents.md`](.pi/skills/subagent-orchestrator/references/pi-subagents.md)
-
-## Token Efficiency Guidance
-
-- Prefer in-session work for normal repository inspection and edits.
-- Use background `Agent` calls only when the user explicitly requests independent subagents and tasks are low-overlap.
-
-## Setting the Default Model
-
-Add to ~/.pi/agent/settings.json:
-
-```json
-{
-    "defaultProvider": "iqRouter",
-    "defaultModel": "grunt",
-    "defaultThinkingLevel": "high"
-}
-```
+- PI: <https://pi.dev/docs/latest> and <https://github.com/earendil-works/pi>
+- Package docs (after `npm install`): [Providers & Models](node_modules/@earendil-works/pi-coding-agent/docs/providers.md), [Settings](node_modules/@earendil-works/pi-coding-agent/docs/settings.md), [Skills](node_modules/@earendil-works/pi-coding-agent/docs/skills.md), [Extensions](node_modules/@earendil-works/pi-coding-agent/docs/extensions.md), [Sessions](node_modules/@earendil-works/pi-coding-agent/docs/sessions.md), [Keybindings](node_modules/@earendil-works/pi-coding-agent/docs/keybindings.md), [Terminal Setup](node_modules/@earendil-works/pi-coding-agent/docs/terminal-setup.md)
+- Subagents: <https://github.com/tintinweb/pi-subagents>
+- Claude bridge: <https://www.npmjs.com/package/pi-claude-bridge>
+- Implementation checklist: [`docs/reference/implementation-workflow.md`](docs/reference/implementation-workflow.md)
