@@ -19,7 +19,7 @@ Review leverage runs the other way from effort: a bad line of code is one bad li
 
 State the one question this document answers, in a sentence. If the request implies several independent questions, write several documents or say which one you are answering.
 
-Default output path: `docs/research/research-{topic}.md`. Update an existing document in place when one covers the same question; do not create a near-duplicate.
+Output path: when the research serves a spec or plan, `docs/specs/<name>/research-{topic}.md` or `docs/plans/<name>/research-{topic}.md` (see **Artifact folder** in [../create-spec/SKILL.md](../create-spec/SKILL.md)). Otherwise `docs/research/research-{topic}.md`. Update an existing document in place when one covers the same question; do not create a near-duplicate.
 
 ## Step 2 - Search wide, keep little
 

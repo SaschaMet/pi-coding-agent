@@ -1,6 +1,6 @@
 ---
 name: plan-view
-description: Use this skill when a plan or spec in `docs/plans/` or `docs/specs/` should be read as a web page — "show the plan", "render the spec", "open the plan view" — and after each implementation step, so the page shows current status markers and AI-Notes. It renders the markdown to one offline HTML page next to it, with status chips, done/total counts, a Grill Status badge, an AI-Notes timeline, and archify diagrams. Do not use for research docs or any other markdown, to write or change a plan (create-plan, create-spec), or to show a code diff (visual-diff).
+description: Use this skill when a plan or spec in `docs/plans/` or `docs/specs/` (flat or in its own `<name>/` folder) should be read as a web page — "show the plan", "render the spec", "open the plan view" — and after each implementation step, so the page shows current status markers and AI-Notes. It renders the markdown to one offline HTML page next to it, with status chips, done/total counts, a Grill Status badge, an AI-Notes timeline, and archify diagrams. Do not use for research docs or any other markdown, to write or change a plan (create-plan, create-spec), or to show a code diff (visual-diff).
 ---
 
 # Plan View
@@ -16,9 +16,9 @@ Script: `node <skill-dir>/scripts/plan-view.mjs`, where `<skill-dir>` is the fol
 
 ## Render
 
-`node <skill-dir>/scripts/plan-view.mjs render <docs/plans/*.md | docs/specs/*.md> [--no-open]`
+`node <skill-dir>/scripts/plan-view.mjs render <docs/{plans,specs}/[<name>/]*.md> [--no-open]`
 
-- Run it from the repository root. Paths are checked after resolving symlinks. Only files directly in `docs/plans/` or `docs/specs/` render.
+- Run it from the repository root. Paths are checked after resolving symlinks. Only files directly in `docs/plans/` or `docs/specs/`, or one folder below them (`docs/specs/<name>/spec-<name>.md`), render.
 - The page is written as `<doc>.html` next to the `.md`. stdout is its absolute path.
 - Without `--no-open`, the page opens in the browser. Use `--no-open` when no human watches (subagents, cmux workers, CI).
 - Render again after every edit to the `.md`. The page never updates by itself. Its header shows the source sha256 and render time.
@@ -26,7 +26,7 @@ Script: `node <skill-dir>/scripts/plan-view.mjs`, where `<skill-dir>` is the fol
 Exit codes:
 
 - `0` — page written. Malformed AI-Notes entries still render, marked "unparsed", with one `warning:` line each on stderr.
-- `2` — bad arguments, an input path outside `docs/plans/` or `docs/specs/`, or invalid diagram references. stderr lists every problem. The previous page stays untouched.
+- `2` — bad arguments, an input path outside `docs/plans/` or `docs/specs/` or more than one folder deep, or invalid diagram references. stderr lists every problem. The previous page stays untouched.
 
 ## Diagrams
 

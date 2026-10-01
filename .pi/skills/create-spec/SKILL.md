@@ -11,11 +11,11 @@ Produce a spec document, not implementation code. Research first, then author a 
 
 ## Step 1 - Consume or produce research
 
-Check `docs/research/` first. If a research document already answers how this part of the codebase works, **read it and do not repeat the search** — cite it in the spec's Metadata back refs and move to Step 2. Research is expensive; re-deriving it is waste.
+Check the spec's folder (`docs/specs/<name>/research-*.md`) and `docs/research/` first. If a research document already answers how this part of the codebase works, **read it and do not repeat the search** — cite it in the spec's Metadata back refs and move to Step 2. Research is expensive; re-deriving it is waste.
 
-If no such document exists: **invoke `$research-codebase` skill now**.
+If no such document exists: **invoke `$research-codebase` skill now**, with output path `docs/specs/<name>/research-{topic}.md`.
 
-**MANDATORY GATE**: Do not proceed to Step 2 until `docs/research/research-{topic}.md` exists and is reviewed. This applies to ALL specs, including small single-file changes. Direct inspection alone is insufficient.
+**MANDATORY GATE**: Do not proceed to Step 2 until the research document exists and is reviewed. This applies to ALL specs, including small single-file changes. Direct inspection alone is insufficient.
 
 If `graphify-out/graph.json` exists at the repository root, query graphify first for architecture, ownership boundaries, dependency paths, prior-art nodes, and cross-file relationships relevant to the spec. If no graph exists and the requested spec is architecture-heavy, cross-module, or unclear from direct file inspection, run `graphify <repo-root> --mode deep --no-viz` before drafting. Do not run graphify for small single-file specs where normal inspection is enough.
 
@@ -35,7 +35,7 @@ Ask only what code/docs cannot answer. Use safe defaults for decisions that do n
 
 Required decisions:
 
-1. Target output file (default `docs/specs/spec-{feature-name}.md`).
+1. Target output file (default `docs/specs/<name>/spec-<name>.md`, see **Artifact folder**).
 2. Ask only what the research document left open.
 
 See `../grill-me/SKILL.md` for how to pressure-test for missing risks and assumptions. Use graphify context as input to that pressure test when repository relationships or architecture are part of the spec.
@@ -118,7 +118,26 @@ If a check fails, fix the spec instead of adding narrative explanation.
 1. Write or update the spec file.
 2. Keep implementation out of scope. Do not write implementation code from this skill.
 3. Include a concise handoff for coding and verification agents. Its blocked line stays `Blocked: see gate`.
-4. Render the page: `node <plan-view-dir>/scripts/plan-view.mjs render docs/specs/spec-{feature-name}.md`, where `<plan-view-dir>` is `../plan-view` from this skill's folder. Add `--no-open` when no human watches. Give the user the printed page path.
+4. Render the page: `node <plan-view-dir>/scripts/plan-view.mjs render docs/specs/<name>/spec-<name>.md`, where `<plan-view-dir>` is `../plan-view` from this skill's folder. Add `--no-open` when no human watches. Give the user the printed page path.
+
+## Artifact folder
+
+Each spec or plan owns one folder: `docs/specs/<name>/` or `docs/plans/<name>/`. `<name>` is kebab-case and is the same in the folder and the main file. Every file made for that document goes into its folder:
+
+| Artifact | File in the folder |
+| --- | --- |
+| Main spec / plan | `spec-<name>.md` / `plan-<name>.md` (plan-view adds `.html` and `.assets/`) |
+| Research for this document | `research-<topic>.md` |
+| Grill summary | `grill-summary-<row>.md` (`<row>` = Grill Status row number) |
+| Code review | `code-review-<YYYY-MM-DD>.md` (second run on the same day: `-2`, …) |
+| Sub-plan | `sub-plan-<topic>.md` |
+| Visual diff page | `visual-diff-<YYYY-MM-DD>.html` (copy of the run's `visual-diff.html`) |
+| Worker or subagent report | `reports/<task>.md` (copy of `$TMPDIR/pi-reports/<task>.md`) |
+
+- Only the main file starts with `spec-` or `plan-`. The write guard arms itself from any such file, so other files must never use those prefixes.
+- Old flat documents (`docs/specs/spec-*.md`, `docs/plans/plan-*.md`) stay where they are. Their artifacts follow the same names, in a `docs/specs/<name>/` folder next to them.
+- Research done before any spec exists stays in `docs/research/research-<topic>.md`.
+- Workers and subagents never write into a document folder. The owner session copies their reports.
 
 ## Size guidance
 

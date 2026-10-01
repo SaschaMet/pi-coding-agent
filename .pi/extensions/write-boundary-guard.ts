@@ -27,7 +27,7 @@ const GUARDED_TOOLS = new Set(["write", "edit"]);
 
 /** Planning artifacts (spec or plan files) that arm the guard when written. */
 const PLANNING_PATH_PATTERN =
-    /(^|\/)(docs\/specs\/spec-|docs\/plans\/plan-)[^/]+\.md$/;
+    /(^|\/)docs\/(specs\/(?:[^/]+\/)?spec-|plans\/(?:[^/]+\/)?plan-)[^/]+\.md$/;
 
 /** Planning artifacts the agent must always be able to maintain while armed. */
 const ALWAYS_WRITABLE_PREFIXES = [

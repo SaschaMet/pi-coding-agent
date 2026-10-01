@@ -57,3 +57,14 @@ describe("temp write rules", () => {
         expect(subagentMd).toContain("`$TMPDIR/pi-reports/`");
     });
 });
+
+describe("artifact folder rules", () => {
+    it("SYSTEM.md sends tied artifacts to the document's folder", () => {
+        expect(systemMd).toContain("`docs/specs/<name>/`");
+        expect(systemMd).toContain("`docs/plans/<name>/`");
+    });
+
+    it("SUBAGENT.md keeps workers out of document folders", () => {
+        expect(subagentMd).toContain("Never write into `docs/specs/<name>/` or `docs/plans/<name>/`");
+    });
+});

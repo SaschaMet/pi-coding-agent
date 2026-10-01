@@ -96,8 +96,14 @@ fi
 # Write interpreter path for all subsequent steps (persists across invocations)
 mkdir -p graphify-out
 "$PYTHON" -c "import sys; open('graphify-out/.graphify_python', 'w', encoding='utf-8').write(sys.executable)"
-# Save scan root so `graphify update` (no args) knows where to look next time
-echo "$(cd INPUT_PATH && pwd)" > graphify-out/.graphify_root
+# Save scan root so `graphify update` (no args) knows where to look next time.
+# The scan path is passed through a quoted heredoc, never substituted into the
+# command line itself: a bare `cd <path>` (or an unquoted heredoc, which
+# still expands $()/backticks in its body) would let a malicious path execute
+# as shell code the moment this line runs.
+"$PYTHON" -c "import os, sys; out_path = os.path.abspath('graphify-out/.graphify_root'); os.chdir(sys.stdin.readline().rstrip('\n')); open(out_path, 'w', encoding='utf-8').write(os.getcwd())" <<'GRAPHIFY_ROOT_EOF'
+INPUT_PATH
+GRAPHIFY_ROOT_EOF
 ```
 
 If the import succeeds, print nothing and move straight to Step 2.
@@ -112,8 +118,11 @@ import json
 from graphify.detect import detect
 from pathlib import Path
 result = detect(Path('INPUT_PATH'))
-print(json.dumps(result, ensure_ascii=False))
-" > graphify-out/.graphify_detect.json
+# Write the sidecar from Python, not a shell redirect, so the same block renders
+# on PowerShell hosts without console-encoding drift (#2528).
+Path('graphify-out/.graphify_detect.json').write_text(json.dumps(result, ensure_ascii=False), encoding=\"utf-8\")
+print(f'Detected {result[\"total_files\"]} files')
+"
 ```
 
 Replace INPUT_PATH with the actual path the user provided. Do NOT cat or print the JSON - read it silently and present a clean summary instead:

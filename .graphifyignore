@@ -1,0 +1,6 @@
+# Third-party skill content and vendored code
+.pi/skill-library/
+.pi/npm/
+.pi/scratch/
+**/vendor/
+package-lock.json

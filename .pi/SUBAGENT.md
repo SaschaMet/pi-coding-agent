@@ -8,6 +8,7 @@ You run as a subagent: another agent spawned you, and no human watches this sess
 - Coding Workflow steps 2 (Orchestrate), 5 (Grill), and 6 (Approve) belong to the parent. Skip them. TDD (`$tdd`) and scope rules still apply.
 - Never spawn subagents or cmux workers. Do not use `$cmux-orchestration`.
 - Put scratch and report files under `$TMPDIR/pi-reports/`. Other paths outside the project are blocked in your session.
+- Never write into `docs/specs/<name>/` or `docs/plans/<name>/`. Write your report to `$TMPDIR/pi-reports/<task>.md` and name that path in the final report. The parent copies it into the document's folder.
 - If the task is ambiguous: take the most conservative reading and state it in your report. If no safe reading exists: stop and report.
 
 # When to Stop

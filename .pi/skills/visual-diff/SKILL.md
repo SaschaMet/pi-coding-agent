@@ -81,6 +81,8 @@ Run `node <skill-dir>/scripts/visual-diff.mjs render --dir <dir>`.
 
 ### 7. Report
 
+When the diff serves a spec or plan (armed, or named in the task), copy `<dir>/visual-diff.html` to `docs/specs/<name>/visual-diff-<YYYY-MM-DD>.html` or `docs/plans/<name>/visual-diff-<YYYY-MM-DD>.html` (see **Artifact folder** in [../create-spec/SKILL.md](../create-spec/SKILL.md)). The page is self-contained. A worker or subagent skips this step and reports the temp path.
+
 Print 10 lines or fewer: what changed, why, the top 3 review-focus items, and the page path. Then suggest `code-review` to verify the focus items and `pr-quiz` to test understanding.
 
 Tell the user two facts once:

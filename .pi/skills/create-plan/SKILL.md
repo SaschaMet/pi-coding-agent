@@ -71,11 +71,11 @@ If a check fails, fix the plan instead of adding narrative explanation.
 
 ## Step 5 - Deliver
 
-1. Write the plan to `docs/plans/plan-{task-name}.md`.
+1. Write the plan to `docs/plans/<name>/plan-<name>.md`. Every other file made for this plan goes into the same folder, named per **Artifact folder** in [../create-spec/SKILL.md](../create-spec/SKILL.md).
 2. Keep implementation out of scope. Do not write implementation code.
 3. Include a one-line handoff: which files to change and which tests to run.
 4. If the Grill Status table's latest row is not `done <date>` or `overridden <date>: <reason>`, the handoff must state: "Implementation is blocked until the grill-me session records a done row (or a recorded override) in the Grill Status table."
-5. Render the page: `node <plan-view-dir>/scripts/plan-view.mjs render docs/plans/plan-{task-name}.md`, where `<plan-view-dir>` is `../plan-view` from this skill's folder. Add `--no-open` when no human watches. Give the user the printed page path.
+5. Render the page: `node <plan-view-dir>/scripts/plan-view.mjs render docs/plans/<name>/plan-<name>.md`, where `<plan-view-dir>` is `../plan-view` from this skill's folder. Add `--no-open` when no human watches. Give the user the printed page path.
 
 ## Gotchas
 

@@ -67,7 +67,31 @@ describe("plan-view render", () => {
 		expect(res.status).toBe(0);
 	});
 
-	it.each(["src/notes.md", "docs/research/research-x.md", "docs/plans/nested/plan-x.md", "docs/plans/plan-x.txt"])(
+	it("renders a document one folder deep and writes the page next to it", () => {
+		const { res, html } = render("docs/specs/foo/spec-foo.md", "# Spec: Foo\n");
+		expect(res.status).toBe(0);
+		expect(res.stdout.trim()).toBe(path.join(repo, "docs/specs/foo/spec-foo.html"));
+		expect(html).toContain("Spec: Foo");
+	});
+
+	it("rejects a document two folders deep and names the allowed form", () => {
+		write("docs/specs/a/b/spec-x.md", "# x\n");
+		const res = run("render", "docs/specs/a/b/spec-x.md", "--no-open");
+		expect(res.status).toBe(2);
+		expect(res.stdout).toBe("");
+		expect(res.stderr).toContain("docs/{plans,specs}/[<name>/]*.md");
+	});
+
+	it("rejects a folder document symlinked to a file outside", () => {
+		write("src/notes.md", "# x\n");
+		fs.mkdirSync(path.join(repo, "docs/specs/foo"), { recursive: true });
+		fs.symlinkSync(path.join(repo, "src/notes.md"), path.join(repo, "docs/specs/foo/spec-foo.md"));
+		const res = run("render", "docs/specs/foo/spec-foo.md", "--no-open");
+		expect(res.status).toBe(2);
+		expect(fs.existsSync(path.join(repo, "src/notes.html"))).toBe(false);
+	});
+
+	it.each(["src/notes.md", "docs/research/research-x.md", "docs/plans/a/b/plan-x.md", "docs/plans/plan-x.txt"])(
 		"rejects %s with exit 2 and writes nothing",
 		(rel) => {
 			write(rel, "# x\n");

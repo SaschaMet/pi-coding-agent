@@ -341,6 +341,48 @@ describe("write boundary guard extension", () => {
         expect(result?.block).toBe(true);
     });
 
+    it("auto-arms from a plan file one folder deep", async () => {
+        const pi = createFakePi();
+        writeBoundaryGuard(pi as any);
+        writeFixture("docs/plans/foo/plan-foo.md", PLAN_BODY);
+
+        await toolResult(pi, { path: "docs/plans/foo/plan-foo.md" });
+
+        expect(messages(pi)).toContain("plan-foo.md");
+        const result = await toolCall(pi, "write", {
+            path: "scripts/deploy.sh",
+        });
+        expect(result?.block).toBe(true);
+    });
+
+    it.each([
+        "docs/specs/foo/sub-plan-x.md",
+        "docs/specs/foo/research-x.md",
+        "docs/specs/foo/code-review-2026-10-01.md",
+        "docs/specs/a/b/spec-x.md",
+    ])("does not auto-arm from %s", async (rel) => {
+        const pi = createFakePi();
+        writeBoundaryGuard(pi as any);
+        writeFixture(rel, SPEC_BODY);
+
+        await toolResult(pi, { path: rel });
+
+        expect(
+            await toolCall(pi, "write", { path: "scripts/deploy.sh" }),
+        ).toBeUndefined();
+    });
+
+    it("lets an armed scope write any artifact inside a doc folder", async () => {
+        const pi = armedGuard();
+        await arm(pi, "docs/specs/spec-demo.md");
+
+        expect(
+            await toolCall(pi, "write", {
+                path: "docs/specs/foo/grill-summary-1.md",
+            }),
+        ).toBeUndefined();
+    });
+
     it("does not auto-arm from a failed plan write", async () => {
         const pi = createFakePi();
         writeBoundaryGuard(pi as any);

@@ -279,4 +279,6 @@ PASS | FAIL | REQUIRES_MODIFICATION
 ```
 
 If no findings exist, output `## Findings` with `- none`. Omit `## Optional` when empty.
+
+Always print the report in chat. When the reviewed change serves a spec or plan, also write it to `docs/specs/<name>/code-review-<YYYY-MM-DD>.md` or `docs/plans/<name>/code-review-<YYYY-MM-DD>.md` (see **Artifact folder** in [../create-spec/SKILL.md](../create-spec/SKILL.md)). That applies when the document is armed or the task names it. If neither applies, print the report in chat only.
 Add blank lines between findings to keep the report readable.

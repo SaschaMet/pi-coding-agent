@@ -21,7 +21,7 @@ of lists — changes what the guard allows, with no compile error. Change the pa
 
 - Created: {date} · {author or agent}
 - Commits: {sha — subject, appended as work lands}
-- Back refs: {documents this one builds on, e.g. `docs/research/research-{topic}.md`}
+- Back refs: {documents this one builds on, e.g. `docs/specs/<name>/research-{topic}.md`}
 
 > Append-only lists. Refs are one-way: list what this document builds on; `grep` over `docs/` finds what links here. No secrets.
 

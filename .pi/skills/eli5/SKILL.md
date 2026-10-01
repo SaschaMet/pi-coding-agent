@@ -60,5 +60,5 @@ Re-pitch:
 > We are adding the login fix. I stopped before editing any file.
 > A guard decides which files I am allowed to edit. It reads that list from the spec file.
 > The list was changed after the guard read it. So the guard now holds the old list.
-> You need to reload it. Run `/scope off`, then `/scope docs/specs/spec-login.md`.
+> You need to reload it. Run `/scope off`, then `/scope docs/specs/login/spec-login.md`.
 > Does that make sense?

@@ -46,7 +46,7 @@ Some library skills orchestrate others — `improve-website` runs twelve of them
 
 1. **Never dump a whole `references/` folder into context.** Some skills carry over 3,000 lines of reference material. Loading it all defeats the purpose of the library.
 2. **Never invent a skill.** If it is not in the index, it does not exist.
-3. **Write artifacts to the current project**, into its `docs/` folder as the skill directs. Never write into `~/.pi/agent/skill-library/` — it is read-only in use.
+3. **Write artifacts to the current project**, into its `docs/` folder as the skill directs. An artifact made for a spec or plan goes into that document's folder (`docs/specs/<name>/` or `docs/plans/<name>/`). Never write into `~/.pi/agent/skill-library/` — it is read-only in use.
 4. **The library skill's method wins** over your default approach for the task it covers. That is why it was invoked.
 
 ## Failure modes

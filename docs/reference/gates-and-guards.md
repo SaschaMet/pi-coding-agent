@@ -78,7 +78,7 @@ Keeps `write` and `edit` inside the scope of the approved spec or plan. It is of
 
 ### Arming
 
-- Automatic: when a `write` or `edit` to `docs/specs/spec-*.md` or `docs/plans/plan-*.md` succeeds and no scope is armed, the guard arms itself from that file.
+- Automatic: when a `write` or `edit` to `docs/specs/spec-*.md` or `docs/plans/plan-*.md` succeeds and no scope is armed, the guard arms itself from that file. The same holds one folder down: `docs/specs/<name>/spec-*.md` and `docs/plans/<name>/plan-*.md`. Other files in a document folder (research, reviews, `sub-plan-*`) never arm it.
 - Manual: `/scope <path-to-spec>`. Use this in a new session.
 - `/scope` shows the status. `/scope off` disarms.
 - If a scope is already armed, a new spec or plan does not replace it. The agent cannot rewrite its own boundary. Run `/scope off` first.
@@ -113,7 +113,7 @@ Rules:
 2. Outside the working directory: block, or ask.
 3. Matches `Forbid`: block, or ask.
 4. The armed spec itself: pass.
-5. Under `docs/specs/`, `docs/plans/`, `docs/research/`: pass.
+5. Under `docs/specs/`, `docs/plans/`, `docs/research/`, including document folders such as `docs/specs/<name>/`: pass.
 6. Matches `Modify`: pass.
 7. Otherwise: block, or ask.
 

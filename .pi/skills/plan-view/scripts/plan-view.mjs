@@ -18,7 +18,7 @@ class Fail extends Error {
 
 // Only these render: the page is written next to the source, and the write
 // guard never sees this script's writes.
-const INPUT_RE = /^docs\/(plans|specs)\/[^/]+\.md$/;
+const INPUT_RE = /^docs\/(plans|specs)\/(?:[^/]+\/)?[^/]+\.md$/;
 
 const ARCHIFY_TYPES = ["architecture", "workflow", "sequence", "dataflow", "lifecycle"];
 const ASSET_RE = /^([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)\.json$/;
@@ -464,7 +464,7 @@ function resolveInput(arg) {
    }
    const rel = path.relative(cwd, real).split(path.sep).join("/");
    if (!INPUT_RE.test(rel) || !fs.statSync(real).isFile()) {
-      throw new Fail(2, `${arg}: only docs/plans/*.md and docs/specs/*.md under the working directory can be rendered`);
+      throw new Fail(2, `${arg}: only docs/{plans,specs}/[<name>/]*.md under the working directory can be rendered`);
    }
    return { real, rel };
 }

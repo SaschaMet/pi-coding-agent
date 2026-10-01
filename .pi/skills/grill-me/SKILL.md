@@ -248,6 +248,8 @@ Do not act on the plan until they confirm. Writing code or a spec at this point 
 
 Read [references/summary-template.md](references/summary-template.md) and write the summary in that structure: questions asked, answers given, default changes, risks accepted, open issues, next steps.
 
+Show the summary in chat. When the target is a spec or plan, also write it to the document's folder as `docs/specs/<name>/grill-summary-<row>.md` or `docs/plans/<name>/grill-summary-<row>.md`, where `<row>` is the Grill Status row this session fills (see **Artifact folder** in [../create-spec/SKILL.md](../create-spec/SKILL.md)).
+
 **Present the plan before the next steps.** Before the summary's Recommended Next Steps, present the target document's Execution Steps and Definition of Done so the user can approve or revise on the spot — without re-reading the document or looking anything up.
 
 **Done when**: every question has its answer and round recorded, every unresolved risk appears under Risks Accepted or Open Issues, and every next step is a concrete action.
