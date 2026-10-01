@@ -38,6 +38,7 @@ Use this gate before finalizing a plan.
 - [ ] Each change names the exact file.
 - [ ] Each change has a description.
 - [ ] No vague wording (`refactor`, `cleanup`, `improve`).
+- [ ] Every change has a diff preview within 40 lines per file, or a one-line reason why not.
 
 ## 4. Tests
 

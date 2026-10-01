@@ -51,8 +51,15 @@ One-liner: what changes and why.
 ## 3. Changes
 
 > Status markers: `[ ]` idle · `[wip]` in progress · `[x]` done · `[f]` failed. Only the owner session (the one that armed this document) sets them; workers report updates in their final report. After 2 failed fixes on one change, mark it `[f]`, stop, and report.
+> Diff preview: one `diff` block per file, real path in a `@@ path` line, up to 3 context lines, at most 40 lines per file. Past 40 lines, show the key hunks and list the rest in one line. The preview is a sketch; Done When stays the contract.
 
 - [ ] Change 1: `file.ts` — description
+  ```diff
+  @@ path/to/file.ts
+   context line
+  - old line
+  + new line
+  ```
 - [ ] Change 2: `file.ts` — description
 
 ## 4. Tests

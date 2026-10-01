@@ -386,3 +386,47 @@ describe("status markers", () => {
 		expect(headingText(html, "3. Changes")).toContain("1/2");
 	});
 });
+
+describe("diff blocks", () => {
+	function code(html: string): string {
+		return html.match(/<code class="lang-diff">([\s\S]*?)<\/code>/)?.[1] ?? "none";
+	}
+
+	it("gives every line a class and joins the spans without newlines", () => {
+		const md = ["```diff", "@@ x", " ctx", "- old", "+ new", "```"].join("\n");
+		const { html } = render("docs/plans/plan-x.md", md);
+		expect(code(html)).toBe(
+			'<span class="d-hunk">@@ x</span><span class="d-ctx"> ctx</span><span class="d-del">- old</span><span class="d-add">+ new</span>',
+		);
+	});
+
+	it("treats +++ and --- file headers as hunk lines", () => {
+		const md = ["```diff", "--- a/x", "+++ b/x", "```"].join("\n");
+		const { html } = render("docs/plans/plan-x.md", md);
+		expect(code(html)).toBe('<span class="d-hunk">--- a/x</span><span class="d-hunk">+++ b/x</span>');
+	});
+
+	it("escapes diff line text", () => {
+		const { html } = render("docs/plans/plan-x.md", "```diff\n+ <b>\n```");
+		expect(code(html)).toBe('<span class="d-add">+ &lt;b&gt;</span>');
+	});
+
+	it("strips at most the fence indent from an indented fence under a list item", () => {
+		const md = ["- [ ] Change 1", "  ```diff", "  + new", "   - old", " short", "  ```"].join("\n");
+		const { html } = render("docs/plans/plan-x.md", md);
+		expect(code(html)).toBe(
+			'<span class="d-add">+ new</span><span class="d-ctx"> - old</span><span class="d-ctx">short</span>',
+		);
+	});
+
+	it("renders an empty diff block", () => {
+		const { html } = render("docs/plans/plan-x.md", "```diff\n```");
+		expect(html).toContain('<pre><code class="lang-diff"></code></pre>');
+	});
+
+	it("leaves other languages unstyled", () => {
+		const { html } = render("docs/plans/plan-x.md", "```ts\n- a\n```");
+		expect(html).toContain('<code class="lang-ts">- a</code>');
+		expect(html).not.toContain('class="d-del"');
+	});
+});

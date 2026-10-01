@@ -53,6 +53,14 @@ describe("templates", () => {
         for (const marker of ["`[ ]`", "`[wip]`", "`[x]`", "`[f]`"]) expect(body).toContain(marker);
     });
 
+    it("keeps the spec template's outer fence longer than its inner diff fences", () => {
+        const text = fs.readFileSync(path.join(SKILLS, TEMPLATES[0]), "utf-8");
+        const outer = text.match(/^(`{3,})md$/m)?.[1].length ?? 0;
+        const inner = [...text.matchAll(/^\s+(`{3,})diff$/gm)].map((m) => m[1].length);
+        expect(inner.length).toBeGreaterThan(0);
+        for (const len of inner) expect(len).toBeLessThan(outer);
+    });
+
     it("gives only the spec template a per-step Validate list", () => {
         expect(filledTemplate(TEMPLATES[0])).toMatch(/^- Validate:\n {2}- \[ \] /m);
         expect(filledTemplate(TEMPLATES[1])).not.toContain("Validate:");

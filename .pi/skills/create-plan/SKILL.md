@@ -61,6 +61,7 @@ Keep it under 50 lines, not counting In Plain Words, Metadata, Amendments, and A
 - No vague criteria (`fast`, `better`, `clean`).
 - If the change is irreversible, note the rollback path.
 - Cite graphify findings when they affect scope or risk.
+- **Every change has a diff preview**: one `diff` block per file, real path in a `@@ path` line, up to 3 context lines, at most 40 lines per file; past 40 lines, the key hunks and a one-line list of the rest. No preview needs a one-line reason (new file over 40 lines, generated code, binary). The preview is a sketch, not the contract: if the shipped code behaves differently, the implementer adds a `decision` AI-Note.
 - **Any decision left to the user carries a recommended answer** and what changes if they pick otherwise. A plan that hands back open choices without a recommendation has moved the work back to the user instead of doing it.
 
 ## Step 4 - Run the quality gate

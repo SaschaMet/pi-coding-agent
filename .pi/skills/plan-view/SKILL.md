@@ -41,6 +41,10 @@ A line that holds only a diagram reference embeds an archify diagram:
 - For the JSON format, run `node <skill-library>/archify/bin/archify.mjs guide`, where `<skill-library>` is `../../skill-library` from `<skill-dir>`.
 - Other images and Mermaid blocks stay text.
 
+## Diff blocks
+
+- In a ` ```diff ` block, lines starting with `+` render green, `-` red, and `@@`, `+++`, `---` muted. A fence indented under a list item loses that indent, so `+`/`-` stay in column 1.
+
 ## Gotchas
 
 - A render failure does not fail an implementation step. Fix the diagram once. If the render still fails, add a `gotcha` AI-Note, name the failure in the step report, and continue.

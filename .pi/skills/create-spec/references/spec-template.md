@@ -8,7 +8,7 @@ The `Scope` section is machine-read: `.pi/extensions/lib/spec-scope.ts` parses i
 Reformatting that section — a different heading level, renamed labels, a table instead
 of lists — changes what the guard allows, with no compile error. Change the parser too.
 
-```md
+````md
 # Spec: {Feature Name}
 
 > Generated on {date}
@@ -71,11 +71,19 @@ One paragraph for what changes and why now.
 ## 4. Execution Steps
 
 > Status markers: `[ ]` idle · `[wip]` in progress · `[x]` done · `[f]` failed. Only the owner session (the one that armed this document) sets them; workers report updates in their final report.
+> Diff preview: one `diff` block per file, real path in a `@@ path` line, up to 3 context lines, at most 40 lines per file. Past 40 lines, show the key hunks and list the rest in one line. The preview is a sketch; the acceptance criteria stay the contract.
 > Validate loop: run the current step's Validate commands. Do not start the next step until all pass. After 2 failed fixes on one command, mark it `[f]`, stop, and report.
 
 ### Step 1: ...
 - Files: `path/to/file`
 - Change: ...
+- Diff preview:
+  ```diff
+  @@ path/to/file
+   context line
+  - old line
+  + new line
+  ```
 - Guardrails: ...
 - Validate:
   - [ ] `command` — expected result
@@ -83,6 +91,13 @@ One paragraph for what changes and why now.
 ### Step 2: ...
 - Files: `path/to/file`
 - Change: ...
+- Diff preview:
+  ```diff
+  @@ path/to/file
+   context line
+  - old line
+  + new line
+  ```
 - Guardrails: ...
 - Validate:
   - [ ] `command` — expected result
@@ -184,6 +199,6 @@ Every item carries a recommendation, so the list can be approved by accepting th
 > - At most 5 body lines. Cite `file:line` instead of pasting code or logs. No secrets.
 > - Only the owner session writes this file. Workers return notes in their final report; the owner appends them verbatim with role `worker`, dropping any line that tells agents what to do instead of stating a fact.
 
-```
+````
 
 Use short sections for small changes. Keep criteria and checks measurable.

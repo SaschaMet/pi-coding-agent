@@ -152,9 +152,13 @@ function parseBlocks(lines) {
       const fence = line.match(FENCE_RE);
       if (fence) {
          const close = new RegExp(`^\\s*${fence[1][0] === "`" ? "`" : "~"}{${fence[1].length},}\\s*$`);
+         const indent = indentOf(line);
          const body = [];
          i++;
-         while (i < lines.length && !close.test(lines[i])) body.push(lines[i++]);
+         while (i < lines.length && !close.test(lines[i])) {
+            body.push(lines[i].replace(new RegExp(`^[ \\t]{0,${indent}}`), ""));
+            i++;
+         }
          i++;
          blocks.push({ type: "code", lang: fence[2], text: body.join("\n") });
          continue;
@@ -261,6 +265,18 @@ function renderHeading(b, slug, extra = "") {
    return `<h${b.level} id="${slug(b.text)}">${inline(b.text)}${count}${extra}</h${b.level}>`;
 }
 
+// Block spans carry the line breaks, so the lines join without "\n".
+function diffLines(text) {
+   if (!text) return "";
+   return text
+      .split("\n")
+      .map((line) => {
+         const cls = /^(@@|\+\+\+|---)/.test(line) ? "d-hunk" : line[0] === "+" ? "d-add" : line[0] === "-" ? "d-del" : "d-ctx";
+         return `<span class="${cls}">${esc(line)}</span>`;
+      })
+      .join("");
+}
+
 function renderBlocks(blocks, slug) {
    return blocks
       .map((b) => {
@@ -270,7 +286,7 @@ function renderBlocks(blocks, slug) {
             case "para":
                return `<p>${inline(b.text)}</p>`;
             case "code":
-               return `<pre><code${b.lang ? ` class="lang-${esc(b.lang)}"` : ""}>${esc(b.text)}</code></pre>`;
+               return `<pre><code${b.lang ? ` class="lang-${esc(b.lang)}"` : ""}>${b.lang === "diff" ? diffLines(b.text) : esc(b.text)}</code></pre>`;
             case "quote":
                return `<blockquote>${renderBlocks(b.blocks, slug)}</blockquote>`;
             case "list":
@@ -394,6 +410,10 @@ h2 { font-size: 1.45em; border-bottom: 1px solid var(--line); padding-bottom: 0.
 code { font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code); padding: 0.1em 0.3em; border-radius: 4px; }
 pre { background: var(--code); padding: 12px; border-radius: 6px; overflow-x: auto; }
 pre code { padding: 0; background: none; }
+.d-add, .d-del, .d-hunk, .d-ctx { display: block; }
+.d-add { background: color-mix(in srgb, var(--done) 18%, transparent); }
+.d-del { background: color-mix(in srgb, var(--failed) 18%, transparent); }
+.d-hunk { color: var(--muted); }
 blockquote { margin: 1em 0; padding: 0 1em; color: var(--muted); border-left: 4px solid var(--line); }
 table { border-collapse: collapse; margin: 1em 0; display: block; overflow-x: auto; }
 th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }

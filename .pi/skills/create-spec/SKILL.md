@@ -96,6 +96,7 @@ Reviewing 100-200 lines per slice is cheaper than fixing 2000 lines afterwards.
 ### Spec quality requirements
 
 - Prefer concrete, testable language over ambiguous wording.
+- **Every change has a diff preview**: one `diff` block per file, real path in a `@@ path` line, up to 3 context lines, at most 40 lines per file; past 40 lines, the key hunks and a one-line list of the rest. No preview needs a one-line reason (new file over 40 lines, generated code, binary). The preview is a sketch, not the contract: if the shipped code behaves differently, the implementer adds a `decision` AI-Note.
 - Include exact paths, API names, and expected outputs.
 - Grade outcomes, not implementation paths: acceptance criteria should describe observable behavior.
 - Mark any irreversible change as a one-way door.

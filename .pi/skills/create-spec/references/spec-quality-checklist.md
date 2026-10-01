@@ -83,6 +83,7 @@ Use this gate before finalizing a spec.
 ## 8. Handoff Clarity
 
 - [ ] Implementation steps identify exact file targets.
+- [ ] Every change has a diff preview within 40 lines per file, or a one-line reason why not.
 - [ ] Verifier can validate without hidden assumptions.
 - [ ] Open questions are isolated from approved requirements.
 - [ ] Every open question carries a recommended answer and the consequence of choosing otherwise.
