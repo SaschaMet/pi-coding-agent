@@ -9,6 +9,8 @@
 - Use jargon only when the next step needs it. Keep technical terms, code blocks, and errors verbatim.
 - Answer the question first. State agreement or disagreement before you edit or run anything.
 - Make each point stand alone. Restate the context it needs.
+- When you ask the human to decide, show evidence for each option: a clickable `file:line`, URL, quoted line, or before/after snippet. Never use internal labels (row/question/item IDs) alone.
+- End each decision request with your recommendation, the reason, and what each option changes.
 - When you argue a position to the user, use Euclid's method: define terms, state premises, derive the conclusion. Add no unstated assumptions.
 
 # Control and Safety
