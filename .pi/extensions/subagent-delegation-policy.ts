@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { isShadowedProjectCopy } from "./lib/extension-helpers.ts";
+import { isInsideCmux, isShadowedProjectCopy } from "./lib/extension-helpers.ts";
 
 const DELEGATION_POLICY_REGISTERED = Symbol.for("pi.extensions.subagent-delegation-policy.registered");
 
@@ -22,15 +22,24 @@ function normalizeExplicitDelegation(text: string): string | null {
     ].join("\n");
 }
 
+// Subagent sessions bind extensions in "print" mode; only the interactive
+// session should steer toward panes.
+const inCmuxTui = (ctx: { mode?: string }): boolean => ctx.mode === "tui" && isInsideCmux();
+
+const CMUX_RULE =
+    "- Running in cmux: work the user should watch (parallel workers, long research, reviews) goes to a cmux pane worker per `$cmux-orchestration`, not an inline `Agent`. Research for your own context and skill-mandated dispatch keep `Agent`.";
+
 export default function subagentDelegationPolicy(pi: ExtensionAPI): void {
     if (isShadowedProjectCopy(import.meta.url)) return;
     const guardPi = pi as ExtensionAPI & Record<PropertyKey, unknown>;
     if (guardPi[DELEGATION_POLICY_REGISTERED]) return;
     guardPi[DELEGATION_POLICY_REGISTERED] = true;
 
-    pi.on("input", async (event) => {
+    pi.on("input", async (event, ctx) => {
         const raw = event.text.trim();
         if (raw.length === 0) return { action: "continue" };
+
+        if (inCmuxTui(ctx)) return { action: "continue" };
 
         const explicitDelegation = normalizeExplicitDelegation(raw);
         if (explicitDelegation) {
@@ -40,7 +49,7 @@ export default function subagentDelegationPolicy(pi: ExtensionAPI): void {
         return { action: "continue" };
     });
 
-    pi.on("before_agent_start", async () => {
+    pi.on("before_agent_start", async (_event, ctx) => {
         return {
             message: {
                 customType: "subagent-delegation-policy",
@@ -59,6 +68,7 @@ export default function subagentDelegationPolicy(pi: ExtensionAPI): void {
                     "- Repository reconnaissance that feeds a research artifact: delegate the searching to `generic-readonly` and keep only the returned summary in this context.",
                     "- A skill may direct delegation for drafting a document (spec, research, review notes); follow the skill in that case. This is not implementation.",
                     "- Keep trivial, localized tasks in-session unless user explicitly asks for delegation.",
+                    ...(inCmuxTui(ctx) ? [CMUX_RULE] : []),
                 ].join("\n"),
             },
         };

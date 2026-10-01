@@ -12,7 +12,7 @@ PI extensions that enforce quality and safety at the tool layer: session-end qua
 - `read-boundary-guard.ts` — block reads outside the working directory.
 - `write-boundary-guard.ts` — block writes outside allowed boundaries (spec-scope aware; system tmpdir exempt while the working directory is outside it).
 - `model-whitelist.ts` — restrict which models may be selected.
-- `subagent-delegation-policy.ts` — parse explicit delegation requests and route to the right subagent.
+- `subagent-delegation-policy.ts` — parse explicit delegation requests and route to the right subagent. In an interactive cmux session (`isInsideCmux()`: `CMUX_SURFACE_ID` plus a live `CMUX_SOCKET_PATH`) it adds a soft rule steering watch-worthy work to cmux pane workers and leaves spawn phrasing as plain text; no hard block.
 - `subagent-rules-injection.ts` — inject `.pi/SYSTEM.md` into a subagent whose system prompt lacks it.
 - `tools.ts` — `/tools` command to enable/disable tools interactively.
 - `context-analyzer.ts` — `/context` command: context-usage overview + breakdown (system prompt, messages by role, tools by source) with scrollable skills/tools/files lists. Local re-implementation of the audited `pi-context-analyzer@0.1.1` (pure logic in `lib/context-analyzer.ts`; TUI + registration here).

@@ -151,6 +151,17 @@ export function isShadowedProjectCopy(ownModuleUrl: string): boolean {
 }
 
 /**
+ * `true` in a live cmux terminal. A stale `CMUX_SOCKET_PATH` (cmux quit, or a
+ * tmux server started inside a pane) fails the socket-file check, so the
+ * fallback is normal non-cmux behavior.
+ */
+export function isInsideCmux(): boolean {
+   const surface = process.env.CMUX_SURFACE_ID?.trim();
+   const socket = process.env.CMUX_SOCKET_PATH?.trim();
+   return Boolean(surface && socket && fs.existsSync(socket));
+}
+
+/**
  * The system temp root: the resolved `os.tmpdir()` only, never the shared `/tmp`
  * or `/var/tmp`. Resolved once at import: `TMPDIR` is stable for a process lifetime.
  */
