@@ -749,6 +749,27 @@ describe("sync-pi-config", () => {
 		).toBe(true);
 	});
 
+	it("does not delete target-only claude-bridge state during push", () => {
+		const { localPiDir, globalAgentDir } = setupRoots(
+			"pi-sync-claude-bridge-target-only-",
+		);
+
+		for (const name of ["claude-bridge.json", "claude-bridge-diag.log"]) {
+			fs.writeFileSync(path.join(globalAgentDir, name), "{}\n", "utf-8");
+		}
+		fs.writeFileSync(path.join(localPiDir, "settings.json"), "{}\n", "utf-8");
+
+		const result = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+
+		expect(result.deleted).toEqual([]);
+		expect(fs.existsSync(path.join(globalAgentDir, "claude-bridge.json"))).toBe(
+			true,
+		);
+		expect(
+			fs.existsSync(path.join(globalAgentDir, "claude-bridge-diag.log")),
+		).toBe(true);
+	});
+
 	it("does not pull managed global extension directories into local project config", () => {
 		const { localPiDir, globalAgentDir } = setupRoots(
 			"pi-sync-global-extension-dirs-",

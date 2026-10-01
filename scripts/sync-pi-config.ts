@@ -21,6 +21,9 @@ const EXCLUDED_TOP_LEVEL_PATHS = new Set([
 	"mcp-cache.json",
 	"models-store.json",
 	"pi-cache-optimizer-stats.d",
+	// claude-bridge provider state — written by the global runtime, never mirrored.
+	"claude-bridge.json",
+	"claude-bridge-diag.log",
 ]);
 // Extension directories containing this marker file are considered
 // system-managed and will be pruned from local during sync.
