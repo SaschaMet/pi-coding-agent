@@ -1,1 +1,18 @@
-{}
+{
+    "defaultProvider": "iqRouter",
+    "defaultModel": "grunt",
+    "packages": [
+        "npm:@tintinweb/pi-subagents",
+        "./local-packages/pii-redaction.ts",
+        "npm:@raquezha/noheadroom@latest",
+        "npm:pi-mcp-adapter",
+        "npm:pi-spark",
+        "npm:@juicesharp/rpiv-ask-user-question",
+        "npm:@juicesharp/rpiv-todo",
+        "npm:pi-lens",
+        "npm:pi-cache-optimizer",
+        "npm:pi-insomnia",
+        "npm:pi-claude-bridge"
+    ],
+    "lastChangelogVersion": "0.99.2"
+}

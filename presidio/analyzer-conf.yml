@@ -1,0 +1,35 @@
+# Only the entities the pii-redaction package requests. NER scores are
+# fixed (0.85). Phone hits score 0.4 without an English context word, so
+# the threshold stays at 0.4 to keep German numbers.
+supported_languages: [en, de]
+default_score_threshold: 0.4
+
+nlp_configuration:
+  nlp_engine_name: spacy
+  models:
+    - lang_code: en
+      model_name: en_core_web_lg
+    - lang_code: de
+      model_name: de_core_news_lg
+  ner_model_configuration:
+    model_to_presidio_entity_mapping:
+      PER: PERSON
+      PERSON: PERSON
+
+# The registry adds the NLP recognizer (SpacyRecognizer) per language itself.
+recognizer_registry:
+  supported_languages: [en, de]
+  global_regex_flags: 26
+  recognizers:
+    - name: EmailRecognizer
+      type: predefined
+      supported_languages: [en, de]
+    - name: PhoneRecognizer
+      type: predefined
+      supported_languages: [en, de]
+    - name: IbanRecognizer
+      type: predefined
+      supported_languages: [en, de]
+    - name: CreditCardRecognizer
+      type: predefined
+      supported_languages: [en, de]

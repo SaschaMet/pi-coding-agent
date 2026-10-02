@@ -1,0 +1,19 @@
+# Presidio analyzer (en + de) for the pii-redaction PI package.
+#
+#   npm run presidio:up     # build if needed, start, wait for /health
+#   npm run presidio:down
+#
+# Started by `npm run agent` / `npm run dev` (scripts/presidio-up.sh) and by
+# Docker itself after a restart (restart: unless-stopped).
+#
+# Bound to 127.0.0.1 only: the analyzer sees full conversation text. The
+# image's gunicorn binds 0.0.0.0 inside the container; only the host publish
+# is narrowed.
+services:
+  presidio-analyzer:
+    build: ./presidio
+    image: pi-presidio-analyzer:2.2.364-de
+    container_name: presidio-analyzer
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5002:3000"

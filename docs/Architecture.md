@@ -25,6 +25,7 @@ Structural overview of the system. Read before any change to understand componen
 | Quality-Gate Extensions | `.pi/extensions/` | Tool-layer guardrail extensions: `gates` (workflow gates), `read/write-boundary-guard` (path boundaries), `model-whitelist`, `subagent-delegation-policy`, `rtk` (token-saving bash rewrite), `tools`, `debug`; shared helpers in `lib/` |
 | Config Sync | `scripts/sync-pi-config.ts` | Bidirectional sync of `.pi/` ↔ `~/.pi/agent/` with exclusions, managed-extension pruning, and `SYSTEM.md → CLAUDE.md` copy |
 | Headroom | `headroom-compose.yml`, `scripts/headroom-up.sh` | Docker-based token-optimization service started before agent runs |
+| PII redaction | `.pi/local-packages/pii-redaction.ts`, `presidio-compose.yml`, `scripts/presidio-up.sh` | Reversible PII tags on every model request via a local Presidio analyzer (en + de); see `docs/reference/pii-redaction.md` |
 | Smoke Check | `scripts/smoke.ts` | Extension/resource discovery smoke check (`npm run smoke`) |
 | Tests | `test/` | Unit and integration tests covering guards, secrets, sync, delegation, and quality gates; `helpers/fake-pi.ts` fake runtime |
 | Documentation | `docs/` | Architecture overview and reference docs (implementation workflow, startup perf, trust.json) |

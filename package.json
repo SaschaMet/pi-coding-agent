@@ -5,9 +5,9 @@
     "main": "src/main.ts",
     "scripts": {
         "postinstall": "tsx scripts/patch-retry.ts",
-        "predev": "bash scripts/headroom-up.sh --quiet",
+        "predev": "bash scripts/headroom-up.sh --quiet && bash scripts/presidio-up.sh --quiet",
         "dev": "tsx watch src/main.ts",
-        "preagent": "bash scripts/headroom-up.sh --quiet",
+        "preagent": "bash scripts/headroom-up.sh --quiet && bash scripts/presidio-up.sh --quiet",
         "agent": "tsx src/main.ts",
         "smoke": "tsx scripts/smoke.ts",
         "pi:patch-retry": "tsx scripts/patch-retry.ts",
@@ -17,7 +17,9 @@
         "pi:pull-global": "tsx scripts/sync-pi-config.ts pull",
         "pi:sync-global": "tsx scripts/sync-pi-config.ts push",
         "headroom:up": "bash scripts/headroom-up.sh",
-        "headroom:down": "docker compose -f headroom-compose.yml down"
+        "headroom:down": "docker compose -f headroom-compose.yml down",
+        "presidio:up": "bash scripts/presidio-up.sh",
+        "presidio:down": "docker compose -f presidio-compose.yml down"
     },
     "keywords": [],
     "author": "",

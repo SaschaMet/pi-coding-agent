@@ -5,6 +5,7 @@ Git-tracked PI config for the global PI runtime (`~/.pi/agent`). It adds:
 - Claude Code-style subagents (`@tintinweb/pi-subagents`)
 - Shared skills and agent roles
 - Quality-gate and boundary-guard extensions
+- Reversible PII redaction for every model request (see [step 7](#7-start-headroom-and-the-pii-analyzer))
 - A spec-gated coding workflow (see [Workflow and Guards](#workflow-and-guards))
 - A local bootstrap (`src/`) for developing the stack itself
 
@@ -21,7 +22,7 @@ Required:
 - Node `>=22.19.0` (check: `node -v`)
 - `npm`
 - `git`
-- Docker (runs the Headroom proxy, see step 7)
+- Docker (runs the Headroom proxy and the PII analyzer, see step 7)
 
 Optional, but some skills and the workflow depend on them:
 
@@ -133,7 +134,7 @@ What they do:
 | `pi-insomnia` | Keeps the machine awake during runs |
 | `pi-claude-bridge` | Use Claude models through Claude Code (step 9) |
 
-### 7. Start Headroom
+### 7. Start Headroom and the PII analyzer
 
 Headroom is a local compression proxy in Docker on `127.0.0.1:8788`.
 
@@ -146,6 +147,19 @@ Check: `curl -fsS http://127.0.0.1:8788/health`.
 - Headroom is an optimization. If Docker is missing, `pi` still starts and prints a warning.
 - Stop it: `npm run headroom:down`.
 - The container mounts `~/.claude/projects` and `~/.pi/agent/sessions` read-only.
+
+The PII analyzer is a local Presidio container (English + German) on `127.0.0.1:5002`. The `pii-redaction` package (`.pi/local-packages/pii-redaction.ts`) uses it to replace emails, phone numbers, IBANs, card numbers, and names with tags like `<pii:EMAIL_ADDRESS:…>` before any model sees them, Claude through `claude-bridge` included. Local tools (`bash`, `read`, `edit`, `write`, `grep`, `find`, `ls`) get the real values back, so logins still work.
+
+```bash
+npm run presidio:up   # first run builds the image (~1.5 GB)
+```
+
+Check: `curl -fsS http://127.0.0.1:5002/health`, then `/pii status` in a new PI session.
+
+- It starts with `npm run agent` / `npm run dev`, and Docker restarts it after a reboot.
+- If the analyzer is down, PI withholds new text instead of sending it raw. `/pii off` turns redaction off until the next session.
+- Stop it: `npm run presidio:down`.
+- Behavior, failure modes, and known gaps: [`docs/reference/pii-redaction.md`](docs/reference/pii-redaction.md).
 
 ### 8. MCP servers
 
@@ -213,6 +227,7 @@ Expected:
 - `/model` lists your provider's models.
 - The skills (`create-spec`, `grill-me`, `code-review`, ...) are listed.
 - `curl -fsS http://127.0.0.1:8788/health` succeeds.
+- `curl -fsS http://127.0.0.1:5002/health` succeeds, and `/pii status` reports `on`.
 
 ## Workflow and Guards
 
@@ -233,7 +248,7 @@ These are intended. Do not work around them. Full rules, decision order, and how
 
 ## Commands
 
-- `npm run agent`: run the local bootstrap (`src/main.ts`) from this repo. Starts Headroom first. For developing the stack.
+- `npm run agent`: run the local bootstrap (`src/main.ts`) from this repo. Starts Headroom and the PII analyzer first. For developing the stack.
 - `npm run dev`: same, with file watch.
 - `npm run smoke`: extension and resource discovery check.
 - `npm run typecheck`: `tsc --noEmit`.
@@ -242,6 +257,7 @@ These are intended. Do not work around them. Full rules, decision order, and how
 - `npm run pi:pull-global`: copy global config into this repo's `.pi/`.
 - `npm run pi:sync-global`: copy this repo's `.pi/` into `~/.pi/agent`. Overwrites global state.
 - `npm run headroom:up` / `npm run headroom:down`: start or stop the Headroom container.
+- `npm run presidio:up` / `npm run presidio:down`: start or stop the PII analyzer container.
 
 Both sync commands honor `PI_CODING_AGENT_DIR` if set. Default: `~/.pi/agent`.
 
@@ -339,10 +355,12 @@ pisync() {
 - `.pi/settings.json`: PI settings
 - `.pi/SYSTEM.md`: durable agent rules
 - `.pi/extensions/`: quality gates, guards, tools
+- `.pi/local-packages/`: extensions loaded as `packages` entries, so they run before npm packages (`pii-redaction.ts`)
 - `.pi/agents/`: subagent role definitions
 - `.pi/skills/`: project-local skills
 - `.pi/skill-library/`: on-demand skills, loaded only when named
-- `scripts/`: sync, smoke check, Headroom helpers
+- `scripts/`: sync, smoke check, Headroom and PII analyzer helpers
+- `presidio/`, `presidio-compose.yml`: PII analyzer image (en + de)
 - `docs/`: architecture and reference docs
 
 ## Role Catalog
@@ -365,6 +383,8 @@ pisync() {
 - Skills or extensions missing: run `npm run pi:sync-global`, then `npm run smoke`.
 - Subagents not running: check that `@tintinweb/pi-subagents` is installed (`pi install npm:@tintinweb/pi-subagents`).
 - No Headroom warning shown but no compression: run `curl -fsS http://127.0.0.1:8788/health`, then `npm run headroom:up`.
+- Messages show `[pii-redaction: withheld, analyzer unavailable]`: run `npm run presidio:up`. New text is redacted again within 30 s.
+- A tool call is blocked with "Unknown PII tag": the tag came from an earlier session or a restart. Give the value again.
 - "Refusing to start from $HOME": `cd` into a project directory.
 - Path approval prompts: expected. Reads and writes outside the current directory need approval. In non-interactive mode they are blocked.
 
