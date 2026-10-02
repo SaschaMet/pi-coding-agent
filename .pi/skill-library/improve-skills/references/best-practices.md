@@ -1,5 +1,11 @@
 # Skill Authoring Best Practices
 
+## Contents
+
+- Source Material · Scope · Description · Naming · Invocation · Body Structure
+- Degrees of Freedom · Progressive Disclosure · Instruction Patterns · Leading Words
+- Defaults · Scripts · AGENTS.md Guidance · Pruning · Anti-Patterns
+
 Use this reference for new skills and substantial skill rewrites. Keep `SKILL.md` short; move details here only when they are not needed on every run.
 
 ## Source Material
@@ -19,12 +25,16 @@ Use this reference for new skills and substantial skill rewrites. Keep `SKILL.md
 
 The frontmatter `description` is the trigger contract.
 
-- Start with imperative phrasing: `Use this skill when...`
+- Third person: "Extracts text from PDFs. Use when the user mentions PDFs or forms." Never "I can…" or "You can…": the description is injected into the system prompt.
 - Describe user intent, not implementation internals.
 - Include common implicit cases, not only exact keyword matches.
 - Add near-boundaries for false positives.
 - Keep it concise and under 1024 characters.
 - Avoid descriptions so broad they trigger for ordinary coding tasks.
+
+## Naming
+
+- Follow the library's existing name pattern. Name by what the skill does. Avoid `helper`, `utils`, `tools`.
 
 ## Invocation
 
@@ -51,12 +61,24 @@ Recommended order:
 
 Keep `SKILL.md` under 500 lines. Prefer much shorter when possible.
 
+## Degrees of Freedom
+
+Match how exact the instructions are to how fragile the task is:
+
+| Task | Freedom | Form |
+| --- | --- | --- |
+| Many valid paths, context decides | High | Goals and checks |
+| Preferred pattern, some variation | Medium | Pseudocode or a parameterized script |
+| Fragile, exact order | Low | One exact command, "do not add flags" |
+
 ## Progressive Disclosure
 
 - Keep always-needed instructions in `SKILL.md`.
 - Move detailed examples, variants, schemas, long templates, and advanced troubleshooting to `references/`.
 - Link every reference from `SKILL.md` with a condition: "Read X when Y."
-- Avoid nested reference chains. A reader should discover required material from `SKILL.md`.
+- Avoid nested reference chains. A reader should discover required material from `SKILL.md`. Agents preview nested files with partial reads (`head`) and miss content.
+- Start any reference over 100 lines with `## Contents`.
+- Name files by content (`form_validation_rules.md`, not `doc2.md`).
 - Do not create `README.md`, changelogs, installation guides, or extra docs inside a skill unless the runtime requires them.
 
 ## Instruction Patterns
@@ -121,6 +143,10 @@ Script requirements:
 - uses idempotent defaults
 - supports `--dry-run`, `--confirm`, or `--force` for risky operations
 - bounds output with `--limit`, `--offset`, or `--output` when needed
+- solves, does not defer: handles expected errors itself instead of failing for the agent to debug
+- justifies every constant in a comment; no magic numbers
+
+In `SKILL.md`, state the intent: "Run X" (execute) or "See X for the algorithm" (read). List required packages with the install command; never assume one is installed. Reference MCP tools by the fully qualified name the runtime exposes.
 
 ## AGENTS.md Guidance
 
@@ -154,3 +180,5 @@ Then hunt **no-ops** sentence by sentence, not just line by line: run the no-op 
 - References with no load condition.
 - Large examples that encourage copy-paste of irrelevant details.
 - Trigger descriptions optimized for exact eval wording instead of intent categories.
+- Dated instructions ("before August 2025 use…"). Move them to a collapsed "Old patterns" `<details>` block.
+- Several terms for one concept ("endpoint", "URL", "route"). Pick one and use it everywhere.

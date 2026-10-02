@@ -1,5 +1,10 @@
 # Skill Testing and Validation
 
+## Contents
+
+- Validation Levels · Format Checks · Trigger Evaluation · Description Optimization Loop
+- Evaluation-First Authoring · Output Quality Evaluation · Script Validation · Manual Validation Report
+
 Use this reference when validating a new skill, improving trigger behavior, checking scripts, or revising a skill from failed runs.
 
 ## Validation Levels
@@ -18,11 +23,13 @@ For skills:
 
 - `SKILL.md` exists.
 - Frontmatter has `name` and `description`.
-- `name` is lower hyphen-case.
+- `name` equals the folder, is ≤64 characters, `[a-z0-9-]` only, with no leading/trailing or double hyphen.
+- No XML tags in `name` or `description`.
 - `description` is under 1024 characters.
 - `SKILL.md` is under 500 lines unless justified.
 - `agents/openai.yaml` matches the current skill purpose when present.
 - Every reference linked from `SKILL.md` exists.
+- Every reference over 100 lines starts with `## Contents`.
 - No stray README/changelog/guide files were added unless required.
 
 Run the local validator when available. If dependencies are missing, use an equivalent YAML parse and length check.
@@ -55,6 +62,16 @@ Use this when changing a skill description.
 8. Select the best validation result, not necessarily the last rewrite.
 9. Sanity-check with 5-10 fresh prompts not used during optimization.
 
+## Evaluation-First Authoring
+
+Required for new skills; for edits, when practical.
+
+1. Run the target tasks without the skill. Record the failures; that is the baseline.
+2. Write at least 3 eval scenarios: `{skills, query, files, expected_behavior[]}`.
+3. Write only enough skill text to pass them. Re-run and compare against the baseline.
+4. Author in one session; test in a fresh session that has only the skill loaded.
+5. Run the evals on every model the skill targets. Small models need more guidance; large ones expose over-explaining.
+
 ## Output Quality Evaluation
 
 Use this when the skill triggers but results are weak.
@@ -66,6 +83,7 @@ Use this when the skill triggers but results are weak.
 - Inspect traces, not only final answers.
 - Look for wasted exploration, skipped steps, wrong defaults, unnecessary abstractions, and ignored references.
 - Check each completion criterion is _checkable_; flag **premature completion** — the agent declaring a step done before it is.
+- Watch navigation: unexpected read order (structure unclear), missed links (make them explicit), one file read every run (move it into `SKILL.md`), a file never read (cut it).
 - Revise the smallest instruction that explains the failure.
 
 Common fixes:

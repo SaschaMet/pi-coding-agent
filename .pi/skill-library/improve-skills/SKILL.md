@@ -1,6 +1,6 @@
 ---
 name: improve-skills
-description: Use this skill when the user asks to create, revise, audit, optimize, or troubleshoot Codex/agent skills, AGENTS.md files, agent instruction files, skill descriptions, bundled scripts, trigger behavior, or agent-facing documentation. Apply it when improving an agent's reliability from traces, review feedback, eval prompts, or documentation sprawl. Do not use for ordinary coding docs unless the target reader is an agent.
+description: Creates, revises, audits, and troubleshoots agent skills, AGENTS.md files, and agent-facing docs, including descriptions, trigger behavior, and bundled scripts. Use when improving an agent's reliability from traces, review feedback, eval prompts, or documentation sprawl. Not for ordinary coding docs whose reader is a human.
 ---
 
 # Improve Skills
@@ -37,6 +37,7 @@ The artifact's root virtue is **predictability**: the agent taking the same _pro
 4. Gather real source material before writing:
    - successful task traces, failed runs, review comments, issue fixes, runbooks, code examples, schemas, tests, or existing docs
    - prefer project-specific facts over general best practices
+   - for new skills: write at least 3 eval scenarios and record a no-skill baseline before drafting; see `references/testing.md`
    - for audits, inspect target runtime files, metadata, and directly linked references first; load traces or broad docs only when needed to prove a finding
 5. Rewrite for agent execution:
    - concise procedural workflow first
@@ -72,13 +73,15 @@ Use the pattern that matches the observed problem:
 | Main file causes context bloat | Progressive disclosure with focused references |
 | Repeated fragile logic is rewritten each run | Bundle a script with a stable CLI |
 | New architecture conflicts with old patterns | Create a spec; do not stretch old guidance |
+| Agent is over- or under-constrained | Set degrees of freedom; see `references/best-practices.md` |
 
 ## Skill-Specific Rules
 
-- `description` is the trigger contract. Write it as "Use this skill when..." and describe user intent, not internal implementation.
+- `description` is the trigger contract. Write it in third person: what the skill does, then "Use when <user intent>". Never "I" or "you".
+- `name`: equals the folder name, ≤64 chars, lowercase letters, digits, single inner hyphens. No XML tags in `name` or `description`.
 - Front-load the skill's **leading word** — the compact pretrained concept it anchors on — the description does its invocation work there.
 - **One trigger per branch.** Synonyms that rename a single branch are duplication; collapse them and keep only genuinely distinct branches.
-- **Cut identity already in the body.** Keep the description to triggers plus any "when another skill needs…" reach clause — do not restate the body.
+- **Cut identity already in the body.** Keep the description to one short clause of what the skill does, plus triggers and any reach clause. Do not restate body detail.
 - Include explicit near-boundaries: when to use the skill and when not to.
 - Keep descriptions under 1024 characters.
 - Decide **invocation** up front: user-invoked (`disable-model-invocation: true`, no context load, but it spends your cognitive load) vs model-invoked (always in the window, reaches itself and other skills). Reach for model-invocation only when the agent must fire it on its own or another skill must. See `references/best-practices.md`.
@@ -86,7 +89,6 @@ Use the pattern that matches the observed problem:
 - Keep `SKILL.md` under 500 lines unless there is a strong reason; split references before it becomes a knowledge dump.
 - Do not add `README.md`, changelogs, installation guides, or broad auxiliary docs inside a skill unless the runtime explicitly requires them.
 - Regenerate or update `agents/openai.yaml` when UI metadata becomes stale.
-See `references/best-practices.md` for detailed skill authoring rules, examples, and anti-patterns.
 
 ## Script Rules
 
@@ -112,6 +114,7 @@ Before finalizing, verify:
 - Scripts, if any, are deterministic and documented by `--help`.
 - Script output is structured, bounded, and split between stdout data and stderr diagnostics.
 - Validation follows `references/testing.md`, or a concrete manual verification path is documented.
+- Passes the anti-pattern list in `references/best-practices.md` (one term per concept, no dated instructions) and was tested on every model the skill targets.
 
 ## Output
 
