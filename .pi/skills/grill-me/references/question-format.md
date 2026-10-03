@@ -2,6 +2,14 @@
 
 How to write a question so the user can decide from it alone. Read before the first round.
 
+## Contents
+
+- The four-part explanation
+- Options and recommendation
+- The ask-back option
+- Question format
+- Questioning techniques
+
 ## The four-part explanation
 
 Every question carries all four, in this order, inside the block from `SKILL.md` Step 5, _The question

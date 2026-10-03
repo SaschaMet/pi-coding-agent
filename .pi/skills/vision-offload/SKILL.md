@@ -1,11 +1,11 @@
 ---
 name: vision-offload
-description: Use this skill when the prompt contains an image (file path, screenshot, pasted media) and the current model cannot read images (no vision capability). Delegate image reading to a local vision model (Ornith-1.5-9B-uncensored-MLX-8bit via omlx on port 1331) through a read-only subagent. Do not use when the current model has vision, or when no image is involved.
+description: Reads images for text-only models by delegating to a local vision model through a read-only subagent. Use when the prompt contains an image (file path, screenshot, pasted media) and the current model has no vision capability. Not for vision-capable models or prompts without an image.
 ---
 
 # Vision Offload
 
-Read an image using a local vision model (omlx, `http://localhost:1331`) when the current model has no vision capability. You can use the `junafinity/Ornith-1.5-9B-uncensored-MLX-8bit` model as the default.
+Read an image with the local vision model `junafinity/Ornith-1.5-9B-uncensored-MLX-8bit` (omlx, `http://localhost:1331`) when the current model has no vision capability.
 
 **Hard rule**: never guess or infer image contents yourself. If you cannot see the image, the answer comes from the local model — or from the user if the model is unavailable.
 
@@ -28,13 +28,13 @@ Extract from the current conversation a compact context block for the vision mod
 
 1. Load [references/subagent-prompt.md](references/subagent-prompt.md).
 2. Substitute `IMAGE_PATH`, `MIME_TYPE` (from `file IMAGE_PATH`), and the context block from Step 2.
-3. Dispatch via the `Agent` tool: `subagent_type: generic-readonly`, with the substituted prompt as the task. Description: "Read image via local Ornith".
+3. Dispatch via the `Agent` tool: `subagent_type: generic-readonly`, with the substituted prompt as the task. Description: "Read image via local vision model".
 4. The subagent is the executor only: it encodes the image, calls the local API, and returns the model's text answer verbatim. It must not add, correct, or interpret content of its own.
 
 ## Step 4 - Relay the result
 
 1. Present the subagent's returned answer to the user.
-2. Attribute it: note that the image was read by the local Ornith model.
+2. Attribute it: note that the image was read by the local vision model.
 3. Do not re-interpret or contradict the image content with guesses. Use the answer as the source of truth for the image.
 
 ## Failure handling (fail-safe)

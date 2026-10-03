@@ -81,5 +81,5 @@ PYEOF
 
 ## 3. Return
 
-- On success: return the printed text **verbatim** as your entire answer. Prefix it with one line: `Vision model (Ornith-1.5-9B-uncensored-MLX-8bit) answer:`. Nothing else.
+- On success: return the printed text **verbatim** as your entire answer. Prefix it with one line: `Vision model (Ornith-1.5-9B-uncensored-MLX-8bit) answer:`. Nothing else. If the printed text is empty, whitespace-only, or `None`, treat it as a failure and return `Vision offload failed: empty answer`.
 - On failure: return the verbatim error output prefixed with `Vision offload failed:`. Do not attempt workarounds, do not fabricate content.

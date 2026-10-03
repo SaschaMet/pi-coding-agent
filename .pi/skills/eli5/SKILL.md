@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # ELI5
 
-The user lost the thread. The last message did not land. Re-pitch it from scratch.
+Re-pitch the last message from scratch.
 
 ## Procedure
 
@@ -36,7 +36,7 @@ The user lost the thread. The last message did not land. Re-pitch it from scratc
 
 ## If it still does not land
 
-Go one rung down the ladder and repeat the procedure. Do not repeat the same rung.
+A second ELI5 request, or a "no" to the check question, means it did not land. Go one rung down the ladder and repeat the procedure. Each pass uses a new rung.
 
 1. The message — what you just said.
 2. The concept behind it — the one idea the message assumed.

@@ -1,4 +1,4 @@
 interface:
   display_name: "Code Review"
   short_description: "Review current changes for QA, security, and maintainability risks"
-  default_prompt: "Use $code-review to capture the current diff once, dispatch the required QA/security/code-quality passes as bounded read-only subagents, verify security findings independently, dedupe, and return a prioritized verdict without implementing fixes."
+  default_prompt: "Use $code-review to capture the current diff once, run one read-only reviewer over all selected lenses (split by file group on large diffs), verify security findings with isolated verifiers, and return a prioritized verdict without implementing fixes."

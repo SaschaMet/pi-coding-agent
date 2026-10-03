@@ -1,6 +1,6 @@
 ---
 name: to-slm
-description: 'Use this skill when the prompt or task message contains the keyword "toSlm" (or `/to-slm`), on any model: read this skill before any other tool call. It turns a task written for a frontier model into a spelled-out working brief, waits for the sender to approve it, then works from it. Do not use when the prompt only edits, reviews, or quotes the to-slm skill or the keyword.'
+description: 'Turns a task written for a frontier model into a spelled-out working brief, waits for the sender to approve it, then works from it. Use when the prompt or task message contains the keyword "toSlm" (or `/to-slm`), on any model; read this skill before any other tool call. Not for prompts that only edit, review, or quote the to-slm skill or the keyword.'
 ---
 
 # toSlm
@@ -17,7 +17,7 @@ Spell it out. A prompt written for a frontier model leaves steps, choices, and f
 
 Always write the brief first, even when the task looks easy. Your first answer is the brief, never the result.
 
-Do the steps in order. Do not start a step before the previous step is done.
+Do the steps in order. Finish each step's Done-when check, then start the next.
 
 - [ ] **1. Read.** Read the task, the system prompt rules that apply to this task, and every loaded skill. Compare each rule with the task: if the task asks for something a rule forbids (for example a language, a file write, a format), that is a conflict. Done when you can name each "must", "never", and "always" that touches this task, and every conflict.
 - [ ] **2. Check the goal.** If you cannot say the goal in one sentence, ask the sender one question about the goal and wait. Ask nothing else here. Done when the goal fits in one sentence.

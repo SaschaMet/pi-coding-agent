@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { parse } from "yaml";
 
 const SKILL_DIR = path.join(import.meta.dirname, "..", ".pi", "skills", "visual-diff");
 const SCRIPT = path.join(SKILL_DIR, "scripts", "visual-diff.mjs");
@@ -751,12 +752,62 @@ describe("visual-diff skill file", () => {
 		const front = /^---\n([\s\S]*?)\n---\n/.exec(skill)?.[1] ?? "";
 		expect(front).toMatch(/^name: visual-diff$/m);
 		const description = /^description: (.+)$/m.exec(front)?.[1] ?? "";
-		expect(description).toContain("Use this skill when");
+		expect(description).toContain("Use when");
 		expect(description).toContain("Do not use");
 		expect(skill).toContain("--no-open");
 		for (const ref of ["references/lenses.md", "references/narrative-schema.md"]) {
 			expect(skill).toContain(ref);
 			expect(fs.existsSync(path.join(SKILL_DIR, ref))).toBe(true);
 		}
+	});
+
+	const readSkill = (): { text: string; name: string; description: string } => {
+		const text = fs.readFileSync(path.join(SKILL_DIR, "SKILL.md"), "utf-8");
+		const front = /^---\n([\s\S]*?)\n---\n/.exec(text)?.[1] ?? "";
+		const name = /^name: (.*)$/m.exec(front)?.[1] ?? "";
+		const description = /^description: (.*)$/m.exec(front)?.[1] ?? "";
+		return { text, name, description };
+	};
+
+	// The PI loader parses frontmatter with `yaml` and drops the skill on a parse error.
+	it("has frontmatter the PI loader can parse", () => {
+		const { text, name, description } = readSkill();
+		const frontmatter = parse(/^---\n([\s\S]*?)\n---\n/.exec(text)?.[1] ?? "");
+		expect(frontmatter.name).toBe(name);
+		expect(frontmatter.description).toBe(description);
+	});
+
+	it("has a name the PI loader accepts", () => {
+		const { name } = readSkill();
+		expect(name).toBe(path.basename(SKILL_DIR));
+		expect(name.length).toBeLessThanOrEqual(64);
+		expect(name).toMatch(/^[a-z0-9-]+$/);
+		expect(name).not.toMatch(/^-|-$/);
+		expect(name).not.toContain("--");
+	});
+
+	it("has a third-person description under 1024 chars without XML tags", () => {
+		const { description } = readSkill();
+		expect(description.length).toBeGreaterThan(0);
+		expect(description.length).toBeLessThanOrEqual(1024);
+		expect(description).not.toMatch(/<[a-z][^>]*>/i);
+		expect(description).not.toMatch(/^(Use this skill|I |You )/);
+	});
+
+	it("links only references that exist", () => {
+		const { text } = readSkill();
+		const refs = [...new Set(text.match(/references\/[\w-]+\.md/g) ?? [])];
+		expect(refs.length).toBeGreaterThan(0);
+		for (const ref of refs) {
+			expect(fs.existsSync(path.join(SKILL_DIR, ref)), `${ref} is missing`).toBe(true);
+		}
+	});
+
+	it("loads the Honesty Rules from lenses.md", () => {
+		const { text } = readSkill();
+		const lines = text.split("\n");
+		expect(lines.some((l) => l.includes("Honesty Rules") && l.includes("references/lenses.md"))).toBe(true);
+		const lenses = fs.readFileSync(path.join(SKILL_DIR, "references", "lenses.md"), "utf-8");
+		expect(lenses).toContain("## Honesty Rules");
 	});
 });

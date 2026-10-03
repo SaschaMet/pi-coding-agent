@@ -1,6 +1,6 @@
 ---
 name: create-spec
-description: Use this skill when the user asks for a spec, implementation plan, design contract, acceptance criteria, or pre-coding requirements, even if they say "plan this" instead of "write a spec." Produce a repo-researched contract with scope, Given/When/Then acceptance criteria, risks, rollback, and verification. Do not use when the user wants code now.
+description: Writes a repo-researched spec with scope, Given/When/Then acceptance criteria, risks, rollback, and verification. Use when the user asks for a spec, design contract, acceptance criteria, or pre-coding requirements, including "plan this" for multi-file or multi-module work. Not for quick plans (use create-plan) or when the user wants code now.
 ---
 
 # Create Spec
@@ -26,8 +26,7 @@ Extract (from the research document where it already answers these):
 3. Test and CI commands that can verify outcomes.
 4. High-risk areas: auth, schema, migrations, infra, public APIs.
 5. Existing org/domain rules that should become invariants.
-6. CARDS architecture constraints: clarity, dependency alignment, resilience to small changes, domain integrity, and separation of concerns.
-7. Graphify evidence when available: relevant communities, god nodes, surprising connections, shortest paths, and explained nodes that affect scope, risks, or verification.
+6. Graphify evidence when available: relevant communities, god nodes, surprising connections, shortest paths, and explained nodes that affect scope, risks, or verification.
 
 ## Step 2 - Clarify unresolved decisions
 
@@ -45,11 +44,12 @@ See `../grill-me/SKILL.md` for how to pressure-test for missing risks and assump
 - Criterion IDs (`AC1`), finding IDs, and the document's own path stay in the document. Tell implementers not to copy them into code comments or test names: the document is not committed, so those references would point to nothing.
 - Update an existing relevant spec/plan in place when one exists; do not create a duplicate.
 - A spec is not a codebase tour. Use graphify to find relevant relationships when useful, then cite only the specific paths, contracts, or boundaries the implementer needs.
-- If a requirement cannot be verified, rewrite it before finalizing.
 - Keep open questions separate from approved requirements so implementers do not treat guesses as scope.
 - If any open question or deferred decision remains, the spec must explicitly block implementation until the user answers it. Do not let an implementation agent start work from assumptions.
 
 ## Step 3 - Build the spec contract
+
+Pick the size first (see **Size guidance**); it decides which sections apply.
 
 Use [references/spec-template.md](references/spec-template.md) as the output template.
 
@@ -90,8 +90,6 @@ Default slice order for a feature that spans layers:
 5. Add business logic and error handling.
 
 Forbidden: ordering steps by stack layer — all migrations, then all services, then the API, then the UI. That produces nothing observable until the end, which is where expensive rework hides. Left unsteered, this is the default an agent will produce; state the slice boundaries explicitly.
-
-Reviewing 100-200 lines per slice is cheaper than fixing 2000 lines afterwards.
 
 ### Spec quality requirements
 
@@ -152,19 +150,11 @@ Size selects which design phases actually run. Do not run all of them for every 
   Same sections as Medium. Architecture Impact lists every changed flow and dependency, and rollback covers each risky step.
 - **Epic** — split into multiple specs by subsystem, each sized on its own.
 
-Front-loading alignment is the trade: an hour of design turns a six-hour review into twenty minutes. Cheap for Medium and up, waste for Small.
-
 ## Quality bar
 
-- Never skip repository research. Always invoke `$research-codebase` before creating any spec.
-- Never ship a spec without explicit scope boundaries.
-- Never leave criteria unverifiable.
-- Never allow implementation to start while any open question or deferred decision remains unanswered.
-- Never allow implementation to start while the Grill Status table's latest row is not `done <date>` or `overridden <date>: <reason>`.
 - Never omit rollback for high-risk or one-way changes.
 - Always include a consolidated manual verification checklist.
 - Keep the spec concise; point to existing docs or graphify-backed paths instead of copying broad background.
-- Do not include broad codebase overviews that an implementation agent can rediscover.
 
 ## References
 

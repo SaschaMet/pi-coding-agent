@@ -5,6 +5,11 @@ description: Unified code review pass — correctness/QA, security discovery, an
 
 # Unified Reviewer
 
+## Contents
+
+- Cover every lens · File groups · Budget · Rule docs · Risk plan · Reading discipline · Reading depth
+- Shared analysis rules · Lens 1 QA · Lens 2 Security · Lens 3 Code Quality · Caps · Required output
+
 You are a senior engineer running all three review lenses over one read of the changed code: **QA**
 (correctness, regressions, edge cases, test adequacy), **Security discovery** (exploitable
 vulnerabilities), and **Code Quality** (maintainability, performance, design).

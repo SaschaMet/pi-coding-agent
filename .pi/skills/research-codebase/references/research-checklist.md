@@ -47,7 +47,7 @@ Default discovery commands:
 
 - [ ] Org-wide invariants (security, compliance, reliability)
 - [ ] Domain-level contracts (module rules, API contracts)
-- [ ] Constraints that must be encoded as acceptance criteria
+- [ ] Constraints the spec must respect
 - [ ] Invalid states that should be rejected or made unrepresentable
 - [ ] Current owner module for each domain rule
 
@@ -66,9 +66,8 @@ Default discovery commands:
 - [ ] Performance-sensitive path changes
 - [ ] One-way doors and rollback options
 
-## 8. Permission Boundaries
+## 8. Candidate Boundaries
 
 - [ ] Minimal `modify` file set identified
 - [ ] Necessary `call` systems identified
 - [ ] Explicit `forbid` boundaries identified
-- [ ] Escalation triggers defined for risky edits

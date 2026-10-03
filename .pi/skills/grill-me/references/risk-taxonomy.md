@@ -3,6 +3,12 @@
 Use this taxonomy to decide whether a question is worth asking at all.
 It is not a generic checklist. Prefer silent defaults over interrogation.
 
+## Contents
+
+- How To Use It
+- High-Signal Categories
+- Categories Usually Not Worth A Question
+
 ## How To Use It
 
 For each relevant category:

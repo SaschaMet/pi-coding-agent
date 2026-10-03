@@ -4,7 +4,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { parse } from "yaml";
 
+const SKILL_DIR = path.join(import.meta.dirname, "..", ".pi", "skills", "plan-view");
+const SKILL_PATH = path.join(SKILL_DIR, "SKILL.md");
 const SCRIPT = path.join(import.meta.dirname, "..", ".pi", "skills", "plan-view", "scripts", "plan-view.mjs");
 
 interface RunResult {
@@ -428,5 +431,48 @@ describe("diff blocks", () => {
 		const { html } = render("docs/plans/plan-x.md", "```ts\n- a\n```");
 		expect(html).toContain('<code class="lang-ts">- a</code>');
 		expect(html).not.toContain('class="d-del"');
+	});
+});
+
+function readSkill(): { text: string; name: string; description: string } {
+	expect(fs.existsSync(SKILL_PATH), `${SKILL_PATH} is missing`).toBe(true);
+	const text = fs.readFileSync(SKILL_PATH, "utf-8");
+	const frontmatter = text.match(/^---\n([\s\S]*?)\n---\n/)?.[1];
+	expect(frontmatter, "SKILL.md has no frontmatter").toBeDefined();
+	const name = frontmatter?.match(/^name: (.*)$/m)?.[1] ?? "";
+	const description = frontmatter?.match(/^description: (.*)$/m)?.[1] ?? "";
+	return { text, name, description };
+}
+
+describe("plan-view skill file", () => {
+	// The PI loader parses frontmatter with `yaml` and drops the skill on a parse error.
+	it("has frontmatter the PI loader can parse", () => {
+		const { text, name, description } = readSkill();
+		const frontmatter = parse(text.match(/^---\n([\s\S]*?)\n---\n/)?.[1] ?? "");
+		expect(frontmatter.name).toBe(name);
+		expect(frontmatter.description).toBe(description);
+	});
+
+	it("has a name the PI loader accepts", () => {
+		const { name } = readSkill();
+		expect(name).toBe(path.basename(SKILL_DIR));
+		expect(name.length).toBeLessThanOrEqual(64);
+		expect(name).toMatch(/^[a-z0-9-]+$/);
+		expect(name).not.toMatch(/^-|-$/);
+		expect(name).not.toContain("--");
+	});
+
+	// PI lists skills to the model inside XML, so tags in a description break that block.
+	it("has a third-person description under 1024 chars without XML tags", () => {
+		const { description } = readSkill();
+		expect(description.length).toBeGreaterThan(0);
+		expect(description.length).toBeLessThanOrEqual(1024);
+		expect(description).not.toMatch(/<[a-z][^>]*>/i);
+		expect(description).not.toMatch(/^(Use this skill|I |You )/);
+	});
+
+	it("keeps SKILL.md under 500 lines", () => {
+		const { text } = readSkill();
+		expect(text.split("\n").length).toBeLessThanOrEqual(500);
 	});
 });

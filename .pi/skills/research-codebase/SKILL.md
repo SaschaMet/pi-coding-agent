@@ -1,6 +1,6 @@
 ---
 name: research-codebase
-description: Use this skill when a change needs the codebase understood before it can be planned - locating entry points, tracing call paths, mapping information flow, or finding the closest existing implementation. Produce a cited research document that outlives the context window. Do not use for single-file changes that direct inspection answers, and do not write implementation code or a spec from it.
+description: Writes a cited research document on how a codebase works. Use when a change needs entry points located, call paths traced, information flow mapped, or the closest existing implementation found before planning. Not for single-file changes that direct reading answers, and not for writing code or a spec.
 ---
 
 # Research Codebase
@@ -11,9 +11,7 @@ Produce a research document, not a plan and not code. Answer one question about 
 
 ## Why this produces a file
 
-A turn is a stateless function call: context in, next step out. Research held only in conversation dies at the next compaction, and the next session pays for it again. Research written to `docs/research/` is reviewable, resumable, and citable by every later phase.
-
-Review leverage runs the other way from effort: a bad line of code is one bad line, a bad line of a plan is hundreds, a bad line of research is thousands. This document is the cheapest place to catch a wrong assumption.
+Research held only in conversation dies at the next compaction; a file in `docs/research/` is reviewable, resumable, and citable.
 
 ## Step 1 - Frame the question
 
@@ -21,15 +19,17 @@ State the one question this document answers, in a sentence. If the request impl
 
 Output path: when the research serves a spec or plan, `docs/specs/<name>/research-{topic}.md` or `docs/plans/<name>/research-{topic}.md` (see **Artifact folder** in [../create-spec/SKILL.md](../create-spec/SKILL.md)). Otherwise `docs/research/research-{topic}.md`. Update an existing document in place when one covers the same question; do not create a near-duplicate.
 
+**Done when**: the question is one sentence and the output path is chosen.
+
 ## Step 2 - Search wide, keep little
 
 Delegate the searching so the parent context stays clean:
 
-- Use the `generic-readonly` sub-agent for file discovery, call-path tracing, and summarization. Give it the specific question; keep only its returned summary.
+- Use the `generic-readonly` sub-agent for file discovery, call-path tracing, and summarization. Give it the specific question; keep only its returned summary. If you are yourself a subagent, search directly; do not spawn another.
 - If `graphify-out/graph.json` exists at the repository root, query graphify first for architecture, ownership boundaries, dependency paths, and prior-art nodes. For architecture-heavy or cross-module questions with no graph, run `graphify <repo-root> --mode deep --no-viz` before reading files.
 - Work through [references/research-checklist.md](references/research-checklist.md).
 
-Aim to keep context utilization moderate. When it climbs, write findings into the document and continue from the document rather than from a full window.
+**Done when**: every checklist section is answered or marked not applicable.
 
 ## Step 3 - Verify before recording
 
@@ -39,6 +39,8 @@ Every claim in the document must come from something read, not inferred:
 - Trace the real entry point and call path, not the plausible one.
 - Name the closest existing implementation. It is the style guide for whatever comes next.
 - Distinguish what the code does from what its docs or names claim. Where they disagree, record both and say which you verified.
+
+**Done when**: every claim has a `file:line` citation or sits under Unknowns.
 
 ## Step 4 - Write the document
 
@@ -55,14 +57,7 @@ Use [references/research-doc-template.md](references/research-doc-template.md).
 7. **Unknowns and risks**: what remains unverified, and what would resolve it.
 8. **Resumption state**: end goal, approach, steps completed, current blockers.
 
-The resumption block is what lets a fresh session — or a different agent — pick this up without re-reading everything.
-
-## Gotchas
-
-- Do not write a codebase tour. Cite only what the next phase needs.
-- An unverified guess recorded as a finding is the most expensive thing this skill can produce. Put it under Unknowns.
-- Do not resolve open questions by assumption. Record them and let the user answer.
-- Do not let the document drift into design. "Here is how it works" is research; "here is what we should build" is a spec.
+The resumption block is what lets a fresh session — or a different agent — pick this up without re-reading everything. Never leave it empty.
 
 ## Step 5 - Hand off
 
@@ -70,16 +65,9 @@ The resumption block is what lets a fresh session — or a different agent — p
 2. Surface unknowns explicitly — these are what the user must resolve before planning.
 3. Stop. Planning happens after the research is approved, per the workflow in `.pi/SYSTEM.md`.
 
-## Quality bar
+## Gotchas
 
-- Never record a behavioral claim without a citation.
-- Never present an inference as a verified finding.
-- Never leave the resumption block empty.
-- Keep it shorter than the code it describes.
-
-## References
-
-- [references/research-doc-template.md](references/research-doc-template.md) - output format.
-- [references/research-checklist.md](references/research-checklist.md) - repository discovery checklist.
-- `../create-spec/SKILL.md` - consumes this document to author a spec.
-- `../grill-me/SKILL.md` - pressure-test findings and assumptions before planning.
+- Do not write a codebase tour. Cite only what the next phase needs.
+- An unverified guess recorded as a finding is the most expensive thing this skill can produce. Put it under Unknowns.
+- Do not resolve open questions by assumption. Record them and let the user answer.
+- Do not let the document drift into design. "Here is how it works" is research; "here is what we should build" is a spec.

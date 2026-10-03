@@ -1,6 +1,6 @@
 ---
 name: grill-me
-description: Use this skill when the user asks to grill, pressure-test, or challenge a documented plan, design, architecture, proposal, or technical decision. Find contradictions, unstated assumptions, missing edge cases, and high-impact risks through concise adversarial questioning. Do not use for code review or implementation.
+description: Pressure-tests a documented plan, design, architecture, proposal, or technical decision by asking the user adversarial questions in rounds, surfacing contradictions, unstated assumptions, missing edge cases, and high-impact risks. Use when the user asks to grill, pressure-test, or challenge such a document. Not for code review or implementation.
 ---
 
 Interview the user relentlessly about this plan until you reach a shared understanding. You are the last gate before this goes to production.
@@ -9,7 +9,7 @@ Interview the user relentlessly about this plan until you reach a shared underst
 
 Model the plan as a **design tree**: every decision branches into the decisions that hang off it. Work the tree in **rounds**. The **frontier** is every decision whose prerequisites are already settled — the questions you can ask _now_ without guessing at answers you have not heard yet. Ask the whole frontier in one round, then wait. Each round of answers pushes the frontier outward.
 
-Spend the session on high-impact uncertainty, and spend it fully: about 20 questions over four to six rounds is a normal grilling, not an exhaustive one. Every question must earn its place — but a session ending after three questions has almost always stopped researching, not run out of risk.
+Spend the session on high-impact uncertainty. Every question must earn its place; the question budget is in Step 2.
 
 ## Step 1 — Silent Research
 

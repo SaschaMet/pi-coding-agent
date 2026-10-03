@@ -1,6 +1,6 @@
 ---
 name: pr-quiz
-description: Use this skill when the user wants to be quizzed on a pull request, branch, or diff to prove they understand it — a "whiteboard defense" of what changed, why, the trade-offs, the failure points, and the architecture, whoever wrote the code. Also use it when a project's AGENTS.md asks for a quiz after a PR is created, or when the user wants to re-run a quiz on their weak spots. Do not use to find defects in code (code-review), to pressure-test a plan before coding (grill-me), or to create or describe a PR (pull-request).
+description: Quizzes the user on a pull request, branch, or diff as a "whiteboard defense" of what changed, why, trade-offs, and failure points, whoever wrote the code. Use when the user wants to prove they understand a change, when a project's AGENTS.md asks for a quiz after a PR, or to re-run a quiz on weak spots. Not for finding defects (code-review), pressure-testing a plan (grill-me), or creating a PR (pull-request).
 ---
 
 # PR Quiz
@@ -105,9 +105,9 @@ Write each question with concrete names from the change ("the retry in the webho
 | ------- | ------------------------------------------------- | ------------------------------------------------ |
 | Solid   | Correct, and they could defend it on a whiteboard | One line of confirmation, move on                |
 | Partial | Right direction, but a gap or a wrong detail      | One follow-up aimed at the gap, then grade again |
+| Gap     | Wrong, or "I don't know"                          | Short correction, move on                        |
 
 A follow-up uses the step 5 format with the header `**Follow-up: <Category>**`.
-| Gap     | Wrong, or "I don't know"                          | Short correction, move on                        |
 
 After the final grade, show a correction of no more than three sentences when the grade is not Solid. Cite the evidence (`file:line`, commit, or doc). For an `undocumented` decision, say that no source records the reason, then name the trade-off the code shows. Then ask the next question.
 
@@ -146,7 +146,4 @@ Before the first write in a project, run `git check-ignore -q docs/pr-quiz/x.md`
 
 - When the choice itself is what you test, naming the options ("was it A or B?") leaks the answer. Ask "what was chosen here, and why?" instead. "Why X instead of Y?" is fine once X is known and the reason is what you test.
 - Three asks under one label are three questions. Split them, or keep the one that tests the decision.
-- Grading against a guessed reason teaches wrong facts. If there is no evidence, mark the decision `undocumented` and grade the reasoning.
-- A small change has few decisions. Asking four good questions beats asking ten, and the extra questions turn into trivia.
 - A long, vague answer is not Solid. Ask one follow-up that pins down the gap, e.g. "and what happens to the in-flight request?"
-- Corrections are for learning, not lecturing. Keep them to three sentences with evidence, then move on.

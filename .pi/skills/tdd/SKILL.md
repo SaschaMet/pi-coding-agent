@@ -1,6 +1,6 @@
 ---
 name: tdd
-description: Use this skill for test-driven development (TDD, red-green-refactor) whenever you write or change code — implementing a feature, fixing a bug, refactoring, or adding tests — even if the user never says "TDD". Do not use for docs-only changes, code review ($code-review), or writing specs and plans ($create-spec, $create-plan).
+description: Applies test-driven development (red-green-refactor) to code changes. Use when implementing a feature, fixing a bug, refactoring, or adding tests, even if the user never says "TDD". Not for docs-only changes, code review ($code-review), or writing specs and plans ($create-spec, $create-plan).
 ---
 
 # TDD
@@ -22,10 +22,10 @@ Done when the baseline count is recorded.
 2. Write the test before any production code.
 3. Run only that test.
 4. Read the failure. It must fail on an assertion about the behavior.
-5. If it fails on an import error, typo, missing fixture, or setup error, fix the test and run it again. If it passes on the first run, break the code on purpose or rewrite the test until it fails.
+5. If it fails on an import error, typo, missing fixture, or setup error, fix the test and run it again. If it passes on the first run, break the code on purpose or rewrite the test until it fails. Exception: a characterization test (see Cases) passes on the first run by design; record the pass line instead.
 6. Record the command and the one failure line.
 
-Done when the test fails on an assertion and the failure line is recorded.
+Done when the test fails on an assertion and the failure line is recorded. For a characterization test: done when it passes and the pass line is recorded.
 
 ## Step 2 - Green
 
@@ -33,7 +33,7 @@ Done when the test fails on an assertion and the failure line is recorded.
 2. If the test still fails, fix the code. Keep the assertion as strict as written.
 3. Run the same test. Record the command and the pass line.
 4. Run the full suite. Compare it to the baseline.
-5. If a test outside your change breaks, stop and report it under the stop-and-report rule.
+5. If a test outside your change breaks, stop and report it to the parent or the user.
 
 Done when the new test passes and the suite matches the baseline plus the new test.
 

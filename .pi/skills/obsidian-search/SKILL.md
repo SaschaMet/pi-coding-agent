@@ -1,13 +1,13 @@
 ---
 name: obsidian-search
-description: Use this skill when the user asks to search, find, or look up notes in their Obsidian vault, second brain, or personal knowledge base ("check my notes for X", "what do my notes say about Y", "find the note about Z"). Runs a deterministic fuzzy keyword search with context snippets and obsidian:// links, with iterative keyword refinement. Do not use for web search, project codebase search, or reading a specific file the user already named.
+description: Searches the user's Obsidian vault with a fuzzy keyword script and returns snippets with obsidian:// links. Use when the user asks to search, find, or look up notes in their vault, second brain, or personal knowledge base ("check my notes for X", "what do my notes say about Y"). Not for web search, project codebase search, or a file the user already named.
 ---
 
 # Obsidian Search
 
-Search the user's Obsidian vault (default: `~/Documents/Documents`) with the bundled script. You are the planner: you extract the keywords, judge the results, and refine. The script is a deterministic fuzzy matcher — it does not understand language.
+Search the user's Obsidian vault (default: `$OBSIDIAN_VAULT`, else `~/Documents/Documents`) with the bundled script. You are the planner: you extract the keywords, judge the results, and refine. The script is a deterministic fuzzy matcher — it does not understand language.
 
-Script location: `<skill-dir>/scripts/obsidian_search.py`, where `<skill-dir>` is the directory this SKILL.md was loaded from. (`obsidian_vault_search_openwebui.py` in the same dir is a reference copy of the patched Open WebUI tool — it needs rapidfuzz/httpx/pydantic and is not run by this skill.)
+Script location: `<skill-dir>/scripts/obsidian_search.py`, where `<skill-dir>` is the directory this SKILL.md was loaded from. (`obsidian_vault_search_openwebui.py` in the same dir is a reference copy of an Open WebUI tool and is not run by this skill.)
 
 ## Definition of Done
 
@@ -26,16 +26,14 @@ Script location: `<skill-dir>/scripts/obsidian_search.py`, where `<skill-dir>` i
 
    Exit codes: 0 matches, 1 no matches, 2 vault missing/empty, 3 invalid input (fix the flags, re-run).
 3. Judge the top snippets. If they answer the request, stop and answer. If not, refine once or twice: synonyms, related concepts, narrower or broader terms, the other language. Never repeat a keyword set. Read `references/refinement.md` for the refinement decision table.
-4. When a snippet is not enough, read the full note with the `read` tool using the vault-relative `path` (vault root: `~/Documents/Documents`).
+4. When a snippet is not enough, read the full note with the `read` tool at `<path after "Vault:" in the output, without the "(N notes)" suffix>/<note path>`. If the read is blocked, answer from the snippets.
 5. Answer with the 3-5 best notes: path, one line on why it matches, the quoted snippet, the `obsidian://` link.
 
 ## Gotchas
 
 - Do not `grep -r` or walk the vault yourself. Use the script — it handles fuzzy matching, scoring, dedupe, and bounded context.
-- Do not pass one vague keyword like `budget` alone; it floods the ~180-note vault with thousands of matches. Combine 2-4 specific terms or use a phrase.
+- Do not pass one vague keyword like `budget` alone; it floods the results. Combine 2-4 specific terms or use a phrase.
 - Do not quote whole notes back. Quote only the snippet you need; the vault holds personal notes — never copy note content into commits, issues, or external tools.
-- `--keywords` wins over `--query`; pass both only when you want the fallback extraction too.
-- The script ignores `.obsidian`, `.trash`, `_attachments`, and `node_modules`. Do not try to search those.
 
 ## References
 

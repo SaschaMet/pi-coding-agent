@@ -1,6 +1,6 @@
 ---
 name: visual-diff
-description: Use this skill when the user wants to see, understand, or walk through code changes visually — "show me the diff", "explain this PR", "what changed on this branch", "visual review", or a readable page for a commit, range, or working tree. It builds one offline HTML page with the real highlighted diff grouped into themes, notes pinned to lines, an impact diagram, behavior changes, and review focus. Do not use to find defects or give a verdict (code-review), to quiz the user on a change (pr-quiz), or to create or describe a PR (pull-request).
+description: Builds one offline HTML page that explains a change set beside its real highlighted diff. Use when the user wants to see, understand, or walk through code changes visually — "show me the diff", "explain this PR", "what changed on this branch", "visual review" — for a commit, range, PR, or working tree. Do not use to find defects or give a verdict (code-review), to quiz the user on a change (pr-quiz), or to create or describe a PR (pull-request).
 ---
 
 # Visual Diff
@@ -49,7 +49,7 @@ Read the hunk index first. Skip `[generated]` hunks. Read the rest of `<dir>/dif
 
 - Read commit messages (`git log <base>..HEAD`) or `prBody` for the stated intent.
 - Read the code around each hunk: the enclosing function, its callers, its tests.
-- Apply the lenses in [references/lenses.md](references/lenses.md). `summary` uses change taxonomy, cross-file impact, and hidden risks. `deep` uses all seven.
+- Apply the lenses and follow the Honesty Rules in [references/lenses.md](references/lenses.md). `summary` uses change taxonomy, cross-file impact, and hidden risks. `deep` uses all seven.
 - Group hunks into themes by purpose, not by file. Rate each theme's importance from 1 to 5.
 
 **Done when**: each hunk belongs to a theme or is left for "Other changes" on purpose.
@@ -95,6 +95,4 @@ Tell the user two facts once:
 ## Rules
 
 - Never write diff lines into the narrative. The page shows code only from `diff.patch`.
-- Never present a suspicion as a bug. Review focus lists failure scenarios to check, not verdicts.
-- Order themes by importance, not by file order.
 - The script writes only inside `$TMPDIR/pi-reports/` and never changes the git index or working tree.

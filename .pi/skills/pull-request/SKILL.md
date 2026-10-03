@@ -1,6 +1,6 @@
 ---
 name: pull-request
-description: Use this skill when the user asks to create, update, or prepare a GitHub pull request from local changes, including PR body, clean git history, screenshots, or reviewer context. Validate gh, branch safety, staged scope, and push state before creating or editing the PR. Do not use for generic git help or when the user only wants to commit without a PR.
+description: Creates or updates a GitHub pull request from local changes with focused commits, clean history, a push, and a reviewer-ready body. Use when the user asks to create, update, or prepare a PR. Not for plain git help or commit-only requests.
 disable-model-invocation: true
 ---
 
@@ -11,16 +11,14 @@ Make every PR **review-ready**: clean history, clear description, concrete verif
 ## Definition of Done
 
 - Branch is not `main`, `master`, default branch, or detached HEAD.
-- Git history must be clean, linear, and meaningful. Squash commits if needed, amend commits are the default. Focused commits only, no merge noise, no WIP messages.
+- Git history is clean and linear: one focused commit per concern, no merge noise, no WIP messages. Squash only when Step 4 triggers.
 - PR exists (created or updated) with a body that matches the pushed code.
 - Description answers: what changed, why, user impact, verification steps, residual risk.
-- Verification checklist is checked (`- [x]`) only when actually passing.
 - Screenshots attached for UI-visible changes (or explicitly noted as N/A).
 
 ## Gotchas
 
 - Never stage with `git add .` — stage explicit files from `git status`.
-- Do not commit or push from `main`, `master`, the default branch, or detached HEAD.
 - PR text must match pushed code — push before editing the PR body when local commits are ahead.
 - Do not stage sensitive files: `.env*`, `*.pem`, `*.key`, `id_rsa*`, credential files.
 
@@ -30,22 +28,21 @@ Make every PR **review-ready**: clean history, clear description, concrete verif
 
 - Check `gh` is available: `gh --version`. Abort if not.
 - Check current branch: `git branch --show-current`. Abort on detached HEAD.
-- Resolve default branch: `gh repo view --json defaultBranchRef`.
+- Resolve `<base_branch>`: `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`.
 - If current branch equals default branch, `main`, or `master`: abort. Suggest `git checkout -b <feature-branch-name>`.
 - Do not create the branch automatically. Create it only if the user explicitly asks.
 
 **Completion:** Branch is safe for PR work.
 
-### 2. Resolve or Create PR
+### 2. Resolve PR
 
 - Check for existing PR: `gh pr view --json number,url,state,baseRefName,headRefName`
-- If no PR exists and user wants one: create it.
-  - `gh pr create --title "<short title>" --body-file <description_path>`
-  - Use a placeholder body initially; fill it in later steps.
-- If PR exists: note its number and continue.
+- Non-zero exit from `gh pr view` = no PR.
+- If a PR exists: note its number and use its `baseRefName` as `<base_branch>`.
+- If no PR exists and the user wants one: continue; Step 5 creates it.
 - If no PR exists and user did not ask to create one: stop after reporting branch state.
 
-**Completion:** PR number is resolved.
+**Completion:** Existing PR resolved, or confirmed none.
 
 ### 3. Stage and Commit (if local changes exist)
 
@@ -68,9 +65,10 @@ Make every PR **review-ready**: clean history, clear description, concrete verif
 ### 4. Clean Git History (if needed)
 
 - If the branch has more than 3 commits or contains WIP or merge noise:
-  - Offer to squash: `git reset --soft $(git log --oneline --no-merges | tail -1 | cut -d' ' -f1)`
+  - Fetch first: `git fetch origin`.
+  - Offer to squash: `git reset --soft $(git merge-base origin/<base_branch> HEAD)`
   - Let the user confirm before rebasing.
-  - After squash, amend the commit message to reflect all changes.
+  - After squash, run a new `git commit` (never amend: HEAD is now the base commit) with a message that covers all changes.
 - If the user asks for interactive rebase: guide them through `git rebase -i`.
 - Never force-push without explicit user confirmation: `git push --force-with-lease`.
 
@@ -78,12 +76,12 @@ Make every PR **review-ready**: clean history, clear description, concrete verif
 
 ### 5. Push
 
-- Fetch latest: `git fetch origin`.
 - Check sync: `git status -sb`.
 - Push unpushed commits:
-  - With upstream: `git push`
+  - With upstream: `git push` (after a squash of pushed commits: `git push --force-with-lease`, only after user confirmation)
   - Without upstream: `git push -u origin HEAD`
 - If push is not desired: abort and report that PR description may not match remote code.
+- If no PR exists: `gh pr create --title "<short title>" --base <base_branch> --fill`, then `gh pr view --json number,url` to get `{pr_number}`.
 
 **Completion:** Remote branch matches local commits.
 
@@ -93,6 +91,7 @@ Make every PR **review-ready**: clean history, clear description, concrete verif
 - Read `references/screenshots.md` for capture workflow.
 - Save to `docs/pr_screenshots/pr-{pr_number}/` (before.png, after.png).
 - Add screenshot files to the commit if created.
+- If screenshots were committed, `git push` again so the PR matches the pushed code.
 - If not applicable or capture fails: note "N/A" in the PR description.
 
 **Completion:** Screenshots captured and committed, or marked N/A.
@@ -104,7 +103,7 @@ Make every PR **review-ready**: clean history, clear description, concrete verif
 - Gather PR context:
   - Diff: `gh pr diff {pr_number}`
   - Commits: `gh pr view {pr_number} --json commits`
-  - Changed files: `git diff --name-status origin/{base_branch}...HEAD`
+  - Changed files: `git diff --name-status origin/<base_branch>...HEAD`
 - Analyze for: problem solved, user impact, implementation approach, breaking changes, risks, reviewer focus areas.
 - Fill every section from the template. Write in ELI5 style:
   - Use simple language a junior developer understands.

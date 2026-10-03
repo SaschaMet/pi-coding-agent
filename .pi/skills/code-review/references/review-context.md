@@ -5,6 +5,12 @@ The parent captures all of this; the reviewer never re-runs the unscoped `git st
 `Review Context` block is a manifest, not a report: it stays under 30 lines total. Details live in the files;
 the reviewer reads the code itself.
 
+## Contents
+
+- Step 1 — Capture checklist
+- Step 2 — Project Validation Context
+- Step 3 — Review Context block
+
 ## Step 1 — Capture checklist
 
 Capture in this order. The order keeps secret-file contents out of every command output.

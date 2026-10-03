@@ -2,6 +2,12 @@
 
 Use this structure when producing the final summary after all questioning is complete.
 
+## Contents
+
+- Compact variant
+- Full table format
+- Guidelines
+
 The full table format below is the default — a normal session runs 12-20 questions, and at that size the
 tables are what make the decisions traceable.
 

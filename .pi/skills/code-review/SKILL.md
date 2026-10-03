@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Use this skill when the user asks to do a code review, to review local changes, inspect a diff, audit code quality, check security, assess QA risk, or produce a combined review verdict. Focus on actionable defects in the changed code. Do not use for implementation requests, broad architecture brainstorming, or style-only cleanup unless review is explicitly requested.
+description: Reviews the current diff for QA, security, and code-quality defects. Use when the user asks for a code review, to review local changes or inspect a diff, to check security, or to assess QA risk. Not for implementing fixes, architecture brainstorming, or style-only cleanup.
 ---
 
 # Code Review Orchestrator

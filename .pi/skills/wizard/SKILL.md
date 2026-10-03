@@ -1,6 +1,6 @@
 ---
 name: wizard
-description: Use when the user must perform a multi-step procedure and wants to go through it step by step. Be it a plan, checklist, setup, migration, or cutover — provisioning infrastructure, setting up credentials or CI secrets, walking an unfamiliar third-party dashboard, or a one-off state change. Walk them one step at a time with context, exact actions, progress tracking, and confirmation gates. Generate a bash wizard script (template.sh) only when the procedure is long and mechanical or the user wants a repeatable artifact; default to walking through it in the conversation. Don't invoke for steps the agent can perform itself.
+description: Guides the user through a multi-step procedure only they can perform, one step at a time with confirmation gates. Use when they must work through a plan, checklist, setup, migration, or cutover — provisioning infrastructure, setting up credentials or CI secrets, walking an unfamiliar third-party dashboard, or a one-off state change. Can generate a bash wizard script when the procedure is long and mechanical or must be repeatable. Do not use for steps the agent can perform itself.
 ---
 
 # Wizard
@@ -9,7 +9,7 @@ A **wizard** is a guided, step-by-step walkthrough of a procedure only the human
 
 Two delivery modes:
 
-- **Conversational** (default) — the agent walks the user through the steps in the chat, writes captured values where they belong, and adapts to the user's answers.
+- **Conversational** — the agent walks the user through the steps in the chat, writes captured values where they belong, and adapts to the user's answers.
 - **Script** — a bash script generated from [template.sh](template.sh) that runs the same walkthrough in the terminal. Use only when necessary (table below).
 
 ## Choosing the mode
@@ -28,7 +28,7 @@ Default: conversational.
 
 Work out every step the human must take and every value that gets captured along the way. Read the repo first — don't ask cold:
 
-- For setup: `.env`, `.env.example`, `.env.*`, `README`, `docker-compose*`, framework config, and `.github/workflows/*` (every `secrets.*` / `vars.*` reference is a value the wizard must produce).
+- For setup: `.env.example`, `README`, `docker-compose*`, framework config, and `.github/workflows/*` (every `secrets.*` / `vars.*` reference is a value the wizard must produce). Never read `.env` or `.env.*` files; ask the user which keys are already set. If a read is denied, ask the user; do not work around it.
 - For a migration or cutover: the current state, the target state, and the irreversible actions between them.
 - For a plan or checklist: the ordered steps as the user stated them, plus the values or decisions each step produces.
 
@@ -54,7 +54,7 @@ If the user's answer changes the path (a branch, a skip, a reorder), update the 
 
 ## 3. Script mode (only when the table above says script)
 
-The delightful UX is already solved by [template.sh](template.sh) — stage-by-stage progress, confirmation gates, cross-platform URL opening (including WSL), hidden secret entry, idempotent `.env` upserts, `gh secret`/`gh variable` writes, and a closing summary. **Your job is only to scope the procedure and author its stages.** The library above the `STAGES` marker is identical in every wizard; that consistency is the point — never hand-edit it.
+The delightful UX is already solved by [template.sh](template.sh) — stage-by-stage progress, confirmation gates, cross-platform URL opening (including WSL), hidden secret entry, idempotent `.env` upserts, `gh secret`/`gh variable` writes, and a closing summary. **Your job is only to scope the procedure and author its stages.** The library above the `STAGES` marker is identical in every wizard; that consistency is the point. Write only below the `STAGES` marker.
 
 ### Map each stage's journey
 
@@ -66,7 +66,7 @@ For each stage, write the precise path a human follows: which URL to open, what 
 
 Copy `template.sh` to the target path. Replace the example stage with one `stage` per step, in dependency order. Use the library helpers — `stage`, `say`/`step`, `open_url`, `ask`/`ask_secret`, `write_env`, `set_secret`/`set_var`, `pause`/`confirm` — and set `TOTAL_STAGES` to the number of stages you wrote.
 
-Hold the bar the template sets: open the URL before asking for its value, use `ask_secret` for anything secret, `write_env` every persisted value, `set_secret` only the values CI actually needs, and `confirm` before any irreversible action. Each `stage` clears the screen so only the current step is visible — keep a stage to one focused task so nothing the human needs scrolls away. Don't touch the library above the marker.
+Hold the bar the template sets: open the URL before asking for its value, use `ask_secret` for anything secret, `write_env` every persisted value, `set_secret` only the values CI actually needs, and `confirm` before any irreversible action. Each `stage` clears the screen so only the current step is visible — keep a stage to one focused task so nothing the human needs scrolls away.
 
 ### Verify and hand off
 

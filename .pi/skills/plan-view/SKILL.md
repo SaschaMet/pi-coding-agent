@@ -1,11 +1,11 @@
 ---
 name: plan-view
-description: Use this skill when a plan or spec in `docs/plans/` or `docs/specs/` (flat or in its own `<name>/` folder) should be read as a web page — "show the plan", "render the spec", "open the plan view" — and after each implementation step, so the page shows current status markers and AI-Notes. It renders the markdown to one offline HTML page next to it, with status chips, done/total counts, a Grill Status badge, an AI-Notes timeline, and archify diagrams. Do not use for research docs or any other markdown, to write or change a plan (create-plan, create-spec), or to show a code diff (visual-diff).
+description: Renders a plan or spec in `docs/plans/` or `docs/specs/` to one offline HTML page next to it. Use when the user wants to read it as a web page — "show the plan", "render the spec", "open the plan view" — and after each implementation step, so the page shows current status markers and AI-Notes. Do not use for research docs or other markdown, to write or change a plan (create-plan, create-spec), or to show a code diff (visual-diff).
 ---
 
 # Plan View
 
-Render a plan or spec as one offline web page next to it. The markdown stays the only source of truth: the `.html` and `<doc>.assets/*.html` files are generated. Never edit them by hand.
+Render a plan or spec as one offline web page next to it. The markdown stays the only source of truth: the `.html` and `<doc>.assets/*.html` files are generated. Edit the `.md`, then render again.
 
 Script: `node <skill-dir>/scripts/plan-view.mjs`, where `<skill-dir>` is the folder of this file.
 
@@ -26,7 +26,7 @@ Script: `node <skill-dir>/scripts/plan-view.mjs`, where `<skill-dir>` is the fol
 Exit codes:
 
 - `0` — page written. Malformed AI-Notes entries still render, marked "unparsed", with one `warning:` line each on stderr.
-- `2` — bad arguments, an input path outside `docs/plans/` or `docs/specs/` or more than one folder deep, or invalid diagram references. stderr lists every problem. The previous page stays untouched.
+- `2` — bad arguments, a path the Render rules reject, or invalid diagram references. stderr lists every problem. The previous page stays untouched.
 
 ## Diagrams
 

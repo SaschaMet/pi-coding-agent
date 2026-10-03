@@ -14,6 +14,4 @@ Read this only when the first search returned no matches (exit 1) or snippets th
 
 ## Rules
 
-- At most 2 refinement steps after the initial search (3 runs total).
-- Never repeat a keyword set already tried.
 - After 3 unsuccessful runs, stop and report: the keyword sets tried and the conclusion "no relevant note found". Do not keep looping.

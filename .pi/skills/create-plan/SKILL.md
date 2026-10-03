@@ -1,6 +1,6 @@
 ---
 name: create-plan
-description: Use this skill when the user asks for a quick plan, light plan, or short plan for a small change (1-3 files, single behavior). Produce a concise document with changes, tests, and verification — skipping full spec ceremony. Do not use when the user asks for a full spec, design doc, or when the change spans multiple modules.
+description: Writes a lightweight plan for a small change (1-3 files, one behavior) with changes, tests, and verification. Use when the user asks for a quick, light, or short plan. Not for full specs, design docs, or changes across modules (use create-spec).
 ---
 
 # Create Plan
@@ -18,9 +18,9 @@ Produce a lightweight plan document for small changes. Research first with graph
 3. Prior art or similar changes.
 4. High-risk areas near the change.
 
-If no graph exists, run `graphify <repo-root> --mode deep --no-viz` before drafting.
+If no graph exists, skip graphify and set the header to `Graphify: not available`.
 
-Do not proceed to Step 2 until graphify context is gathered.
+Do not proceed to Step 2 until the graph has been queried, when one exists.
 
 ## Step 2 - Inspect affected files
 
@@ -52,7 +52,7 @@ Use [references/plan-template.md](references/plan-template.md) as the output tem
 
 Then **Amendments** and **AI-Notes**, last, with the template's rules blockquotes. Changes carry status markers (`[ ]`, `[wip]`, `[x]`, `[f]`).
 
-Keep it under 50 lines, not counting In Plain Words, Metadata, Amendments, and AI-Notes. No BDD, no CARDS, no architecture diagrams.
+Keep it under 150 lines, not counting In Plain Words, Metadata, Amendments, and AI-Notes. No BDD, no CARDS, no architecture diagrams.
 
 ### Plan quality requirements
 
@@ -81,19 +81,6 @@ If a check fails, fix the plan instead of adding narrative explanation.
 ## Gotchas
 
 - Criterion IDs (`AC1`), finding IDs, and the document's own path stay in the document. Tell implementers not to copy them into code comments or test names: the document is not committed, so those references would point to nothing.
-- Update an existing plan/spec in place when one exists; do not create a duplicate.
-- If the change grows beyond 3 files or touches multiple modules, stop and use `$create-spec`.
-- Graphify is mandatory — never skip it. A plan without context is a guess.
-- If a verification step cannot be written, the plan is incomplete.
-
-## Quality bar
-
-- Never skip graphify. Always query before drafting.
-- Never ship a plan without explicit scope boundaries.
-- Never leave criteria unverifiable.
-- Never allow implementation to start while the Grill Status table's latest row is not `done <date>` or `overridden <date>: <reason>`.
-- Keep the plan concise; point to graphify paths instead of copying broad background.
-- Do not include broad codebase overviews that an implementation agent can rediscover.
 
 ## References
 

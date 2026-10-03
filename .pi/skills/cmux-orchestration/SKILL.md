@@ -1,9 +1,11 @@
 ---
 name: cmux-orchestration
-description: Use this skill when driving the cmux terminal app via its CLI — booting agent fleets, dynamically composing panes (workers, Logs, Browser, Research) for a task, broadcasting tasks to agent surfaces, reading their screens, reacting to cmux events, or tearing workspaces down. Covers the multi-agent orchestration loop on top of this repo's roster in `.cmux/cmux.json`. Do not use for plain shell work inside the current terminal, or for editing global cmux/Ghostty config. Invoke the skill when the user says `run in cmux` or `run cmux` or `spawn / use an agent team`, or `open a new pane`, use sub-agents or just use agents.
+description: Drives the cmux terminal app from its CLI. Boots agent panes, sends them tasks, reads their screens, reacts to events, and tears workspaces down. Use when running inside cmux and the user asks to run in cmux, use an agent team, use agents or sub-agents, open a new pane, or watch workers. Not for plain shell work in the current terminal or for editing global cmux/Ghostty config.
 ---
 
 # cmux Orchestration
+
+Orchestrator only. A session whose task starts with `You are a cmux worker` stops reading here; workers never spawn cmux panes.
 
 Drive cmux (native macOS terminal, Ghostty-based) from the CLI: one agent session (you) spawns, prompts, reads, and tears down other agent terminals. No SDK — every agent is a real, addressable terminal surface.
 
@@ -25,11 +27,11 @@ cmux read-screen --surface surface:3 --scrollback --lines 200   # read output
 cmux close-surface --surface surface:3      # stop / tear down one agent
 ```
 
-`send` with a trailing `\n` acts as Enter. There are no modifier chords (`Ctrl-C` impossible) — to stop a running agent, `close-surface` it. To stop a whole workspace: `cmux workspace close --workspace <ref>`.
+`send` with a trailing `\n` acts as Enter. Interrupt a running agent with `cmux send-key --workspace "$WS" --surface <ref> ctrl+c`. Use `close-surface` only as **Fail-Safe Teardown** allows. To stop a whole workspace: `cmux workspace close --workspace <ref>`.
 
 ### Boot verification (run once per worker)
 
-After a worker reports ready, read its model line once and report it to the user. Silent model fallback (e.g. `iqRouter/grunt:high` → `openrouter/z-ai/glm-5.3-flash:medium`) is otherwise visible only in the pane footer — verified: a full review ran on a fallback model unnoticed:
+After a worker reports ready, read its model line once and report it to the user. Silent model fallback (e.g. `iqRouter/grunt:high` → `openrouter/z-ai/glm-5.3-flash:medium`) is otherwise visible only in the pane footer:
 
 ```bash
 cmux read-screen --surface "$W" --scrollback --lines 60 | grep -oE '[A-Za-z0-9._-]+/[A-Za-z0-9._-]+:[a-z]+' | tail -1
@@ -43,7 +45,7 @@ Compare against the requested model. On mismatch: report it, do not silently acc
 
 **Model default: every new pane/agent boots on `iqRouter/grunt:high` unless the user names another model.**
 
-**Default: spawn in the caller workspace — no new window, no tab switch.** Fill a 2-column grid by anchored splits, alternating direction per worker (staircase: `right`, `down`, `right`, `down`, …), each anchored at the previous worker's surface — verified geometry: never more than 2 panes side by side; the 3rd pane lands on a new row.
+**Default: spawn in the caller workspace — no new window, no tab switch.** Fill a 2-column grid by anchored splits, alternating direction per worker (staircase: `right`, `down`, `right`, `down`, …), each anchored at the previous worker's surface. Never more than 2 panes side by side; the 3rd pane lands on a new row.
 
 ```bash
 WS="${CMUX_WORKSPACE_ID:-$(cmux identify --json | jq -r .caller.workspace_ref)}"
@@ -55,29 +57,15 @@ cmux send --workspace "$WS" --surface "$W1" "pi --no-session --model iqRouter/gr
 cmux send-key --workspace "$WS" --surface "$W1" enter   # boot first: split surfaces are bare shells
 ```
 
-Helper panes (Logs/Browser) join the same grid with `new-pane --workspace "$WS" …` when the task calls for them. Cleanup (user-approved, never automatic) closes worker/helper surfaces with explicit `--workspace "$WS"` — the caller's own pane and unrelated surfaces stay untouched.
+Helper panes (Logs/Browser) join the same grid with `new-pane --workspace "$WS" …` when the task calls for them. Cleanup follows **Fail-Safe Teardown**.
 
-**Alternative: dedicated workspace** (when the user asks for a separate tab or the fleet is large). Use this recipe only when `.cmux/cmux.json` exists in the current directory (`test -f .cmux/cmux.json`). Otherwise use the split recipe above. `.cmux/cmux.json` is the single roster source (`commands[]` → named workspace layout, currently `pi Team`: 2 panes each running `npm run agent`). After editing it: `cmux config doctor` (validate, no socket needed) then `cmux reload-config`.
+**Alternative: dedicated workspace** (the user asks for a separate tab or the fleet is large): read `references/roster-workspace.md` when `.cmux/cmux.json` exists in the current directory; otherwise use the split recipe above.
 
-```bash
-# 1. extract the layout from the roster and boot it (workspace create has NO --json flag)
-LAYOUT=$(node -e "const c=require('./.cmux/cmux.json'); \
-  console.log(JSON.stringify(c.commands.find(k=>k.name==='pi Team').workspace.layout))")
-cmux workspace create --name "pi-team" --cwd "$PWD" --layout "$LAYOUT"
-
-# 2. capture refs AFTER creation — never guess them
-cmux tree --all --json    # ground truth: every workspace/pane/surface with refs (→ WS, S1, S2)
-# note: `list-pane-surfaces --workspace` only lists ONE pane's surfaces — use tree --all
-
-# 3. label the workspace (color is runtime-only, not part of the layout JSON)
-cmux workspace-action --action set-color --workspace "$WS" --color Blue
-```
-
-Each roster surface auto-runs its `command` on open — the layout is the boot script. To boot agents other than the roster (e.g. `claude`, `codex`, `gemini`, `pi`): create a workspace, then `cmux new-split right --surface <ref>` (returns the new surface ref) and `cmux send` the agent CLI name into each surface. Boot Claude Code workers as `claude --permission-mode auto`: a bare `claude` starts in manual mode and asks before every shell command, so the worker stalls on its first command and never signals. Never use `bypassPermissions`: auto mode still stops risky actions, so keep the prompt watcher running.
+To boot agents other than the roster (e.g. `claude`, `codex`, `gemini`, `pi`): create a workspace, then `cmux new-split right --surface <ref>` (returns the new surface ref) and `cmux send` the agent CLI name into each surface. Boot Claude Code workers as `claude --permission-mode auto`: a bare `claude` starts in manual mode and asks before every shell command, so the worker stalls on its first command and never signals. Never use `bypassPermissions`: auto mode still stops risky actions, so keep the prompt watcher running.
 
 ## Orchestration Recipes
 
-**Worker messages:** every task message starts with `You are a cmux worker.` Workers are full pi sessions without an `<active_agent>` tag. That opening line makes them read the subagent rules — `.pi/SUBAGENT.md` if it exists, otherwise `~/.pi/agent/SUBAGENT.md` (approval comes from the task, no further delegation, when to stop).
+**Worker messages:** every task message starts with `You are a cmux worker.` Workers are full pi sessions without an `<active_agent>` tag. That opening line makes them read the subagent rules — `.pi/SUBAGENT.md` if it exists, otherwise `~/.pi/agent/SUBAGENT.md` (approval comes from the task, no further delegation, when to stop). Follow the opening with this bootstrap: "Your system prompt already contains the durable rules (SYSTEM.md) and, if present, this repo's AGENTS.md — follow them. Read the subagent rules: `.pi/SUBAGENT.md` if it exists, otherwise `~/.pi/agent/SUBAGENT.md`." Then add: "Use `general-purpose` subagents for any subagent work." Non-pi workers (e.g. `claude`) are not covered: they rely on their own context files, and their subagents may not load them.
 
 **Time signal:** workers pace their work to an elapsed-time budget. At fleet boot, set the start time and a budget of about 1.5× your estimate in seconds. Leave `BUDGET` unset when you cannot estimate. Append `$(ts)` to the end of every task, Green-dispatch, and steer message. Keep it on the same line: a newline in `cmux send` acts as Enter. The brackets keep workers from reading the tag as part of a trailing command such as `cmux wait-for -S <token>`.
 
@@ -92,6 +80,14 @@ ts() { local e=$(( $(date +%s) - T0 )); if [ -n "${BUDGET:-}" ]; then echo "[tim
 for S in $S1 $S2; do cmux send --surface "$S" "You are a cmux worker. $TASK $(ts)"; cmux send-key --surface "$S" enter; done
 ```
 
+**Completion: pick one.** Default: rendezvous.
+
+| Situation | Use |
+| --- | --- |
+| Worker can run `cmux wait-for -S` | Rendezvous (below) |
+| Worker cannot signal | Wait for a marker (below) |
+| Many workers, long run | Events (`references/events-and-dashboard.md`) |
+
 **Read to decide:** make agents print a machine-greppable sentinel instead of parsing prose.
 
 ```bash
@@ -102,19 +98,13 @@ VERDICT=$(printf '%s\n' "$OUT" | grep -oE 'VERDICT=(GREEN|RED)' | tail -1 | cut 
 
 **Wait for a marker (the one honest poll):** loop `read-screen --lines 30` + `grep -qE "$MARKER"` once per second, bounded (e.g. 60–120 polls), else time out.
 
-**Event-driven (push, not poll):**
+**Event-driven and dashboard:** read `references/events-and-dashboard.md` when many workers run long, or to show status and progress in the sidebar.
 
-```bash
-cmux events --name agent.hook --name notification.created --reconnect \
-  --cursor-file /tmp/cmux-fleet.seq | while read -r evt; do
-    SURF=$(printf '%s' "$evt" | jq -r '.surface_id // empty')
-    cmux read-screen --surface "$SURF" --scrollback --lines 40    # event = doorbell, read the details
-  done
-```
+**Rendezvous (block until a worker signals) — the preferred completion mechanism, not read-screen polling:**
 
-Event payloads redact titles/bodies (privacy doorbell: ids + lengths only). Other event names: `surface.created`, `surface.closed`, `workspace.created`.
-
-**Rendezvous (block until a worker signals) — the preferred completion mechanism, not read-screen polling:** orchestrator `cmux wait-for <token> --timeout 600` ⇄ worker `cmux wait-for -S <token>`. For long-output tasks (reports, reviews), put three requirements in the task prompt: the worker (1) writes its full report to `$TMPDIR/pi-reports/<task>.md`, (2) prints a one-line sentinel as its last chat line, (3) runs `cmux wait-for -S <token>` when done. The orchestrator waits on the token, then reads the report file. When the task serves a spec or plan, the task prompt names that document, and the orchestrator copies the report to `docs/specs/<name>/reports/<task>.md` or `docs/plans/<name>/reports/<task>.md` (see **Artifact folder** in [../create-spec/SKILL.md](../create-spec/SKILL.md)). Workers never write into a document folder. Never parse a long report from screen scrollback: the TUI wraps lines at pane width and truncates scrollback (verified: a 400-line read-screen captured a wrapped, incomplete report). Bounded `read-screen` marker polling stays the fallback only when the worker cannot signal `wait-for`. **Never wait blind — watch for approval prompts.** A worker blocked on an approval prompt can never signal, so a bare `wait-for` hangs until its timeout (verified: a pi review sat on "Allow write outside current directory?" for its report file while the orchestrator waited). Wait in 60-second slices and read the worker's screen between slices:
+- orchestrator `cmux wait-for <token> --timeout 600` ⇄ worker `cmux wait-for -S <token>`.
+- **Report contract:** For long-output tasks (reports, reviews), put three requirements in the task prompt: the worker (1) writes its full report to `$TMPDIR/pi-reports/<task>.md`, (2) prints a one-line sentinel as its last chat line, (3) runs `cmux wait-for -S <token>` when done. The orchestrator waits on the token, then reads the report file. When the task serves a spec or plan, the task prompt names that document, and the orchestrator copies the report to `docs/specs/<name>/reports/<task>.md` or `docs/plans/<name>/reports/<task>.md` (see **Artifact folder** in [../create-spec/SKILL.md](../create-spec/SKILL.md)). Workers never write into a document folder. Never parse a long report from screen scrollback: the TUI wraps lines at pane width and truncates scrollback (verified: a 400-line read-screen captured a wrapped, incomplete report). Bounded `read-screen` marker polling stays the fallback only when the worker cannot signal `wait-for`.
+- **Never wait blind — watch for approval prompts.** A worker blocked on an approval prompt can never signal, so a bare `wait-for` hangs until its timeout (verified: a pi review sat on "Allow write outside current directory?" for its report file while the orchestrator waited). Wait in 60-second slices and read the worker's screen between slices:
 
 ```bash
 wait_or_prompt() {   # $1 = token, $2 = worker surface; exit 0 = signalled, 2 = prompt, 1 = timed out
@@ -129,7 +119,7 @@ wait_or_prompt() {   # $1 = token, $2 = worker surface; exit 0 = signalled, 2 = 
 }
 ```
 
-Run it in the background. On exit 2, show the prompt to the user at once and let them decide. Do not answer a permission prompt for them unless they have said to. Keep the task file and the report file on different paths (`<task>.task.md` vs `<task>.report.md`) — verified: a shared path made workers overwrite their own task file with the report.
+Run it in the background. On exit 2, show the prompt to the user at once and let them decide. Do not answer a permission prompt for them unless they have said to. Keep the task file and the report file on different paths (`<task>.task.md` vs `<task>.md`) — verified: a shared path made workers overwrite their own task file with the report.
 
 **TDD gate (every code task) — the orchestrator enforces Red, not the worker:** a rule in `.pi/SYSTEM.md` alone does not hold (verified: a worker with the TDD rule loaded wrote source before tests). Split each code task into two dispatches:
 
@@ -138,10 +128,6 @@ Run it in the background. On exit 2, show the prompt to the user at once and let
 3. **Green dispatch:** send "implement until `<command>` is green, then refactor; do not weaken the tests", with the normal report, rendezvous, and `$(ts)` suffix.
 
 Check the order afterwards in the worker's transcript: its first `Edit`/`Write` of the slice must hit a test file. Report any violation to the user.
-
-**Rules reach every agent:** pi workers spawn subagents through pi, so the `subagent-rules-injection` extension injects `.pi/SYSTEM.md` into every subagent session at start (append-mode subagents already inherit it via the parent prompt). Put this in every worker task prompt: "Use `general-purpose` subagents for any subagent work." Pi workers boot with the durable rules already in their system prompt (project `.pi/SYSTEM.md` if present, else global `~/.pi/agent/SYSTEM.md`) and the repo-root `AGENTS.md` if present — never instruct them to read a repo-local rules file that may not exist. Start their task prompt with the bootstrap instead: "Your system prompt already contains the durable rules (SYSTEM.md) and, if present, this repo's AGENTS.md — follow them. Read the subagent rules: `.pi/SUBAGENT.md` if it exists, otherwise `~/.pi/agent/SUBAGENT.md`." Non-pi workers (e.g. `claude`) are not covered: they rely on their own context files, and their subagents may not load them.
-
-**Dashboard:** `cmux set-status build "running" --workspace "$WS" --color "#ff9500"` · `cmux set-progress 0.4 --label "Building"` · `cmux log --workspace "$WS" --level info -- "msg"` · `cmux top --format tsv` (per-surface CPU/mem) · `cmux notify --title .. --body ..` for desktop alerts.
 
 **Fan-in:** read every surface with `read-screen --scrollback`, compare/aggregate, then report. `cmux tree --all` is the ground truth of what is running.
 
@@ -171,9 +157,7 @@ Composition is a per-task decision. State it at boot and at every dynamic spawn 
 | Research for your own context                                 | in-process subagent; report the result in this conversation (conversation counts as visible)                                           |
 | Mixed                                                         | minimal set that covers verification                                                                                                   |
 
-**Dynamic workers:** to exceed the roster's 2, join the existing workspace: `cmux new-split --workspace "$WS" right --surface <ref>`. A split surface is a **bare shell** (layout `command` does not auto-run) — first send the worker boot command (`pi --no-session --model iqRouter/grunt:high`), wait for it to come up, then send the task. Workers always run with `--no-session` (prevents resuming your session) and default to `iqRouter/grunt:high` unless the task names another model. If a worker's model backend errors (e.g. 503 busy), report it and ask the user which model to respawn on — do not pick a fallback yourself.
-
-**Host model defaults:** all workers and researchers boot on `iqRouter/grunt:high` (per `.pi/SYSTEM.md`). Any other model only on explicit user request.
+**Dynamic workers:** to exceed the roster's 2, join the existing workspace: `cmux new-split --workspace "$WS" right --surface <ref>`. A split surface is a **bare shell** (layout `command` does not auto-run) — first send the worker boot command (see **Boot the Team**), wait for it to come up, then send the task. If a worker's model backend errors (e.g. 503 busy), report it and ask the user which model to respawn on — do not pick a fallback yourself.
 
 **Creation recipes (additive only, never steal focus):**
 
@@ -183,25 +167,19 @@ cmux new-pane --workspace "$WS" --type terminal --direction right --command "tou
 cmux new-pane --workspace "$WS" --type browser --url <url> --focus false                            # Browser pane
 ```
 
-Reuse the existing right-hand helper pane (add a surface) before creating more panes. Surface-affecting verbs (`close-surface`, `new-split`) resolve refs against the **focused** workspace — always pass `--workspace "$WS"` explicitly (verified: without it, valid refs fail with "Surface not found" when the user is focused elsewhere). Browser snapshots: `cmux browser snapshot --surface <ref>`.
+Reuse the existing right-hand helper pane (add a surface) before creating more panes. Surface-affecting verbs (`close-surface`, `new-split`) resolve refs against the **focused** workspace — always pass `--workspace "$WS"` explicitly (without it, valid refs fail with "Surface not found" when the user is focused elsewhere). Browser snapshots: `cmux browser snapshot --surface <ref>`.
 
-**Ephemeral lifecycle:** every helper pane is opened with a purpose, and closes only when the user approves (e.g. confirms the step it served is done) — never automatically on completion: the Logs pane stays until the user has seen the monitored result, the Browser pane until the user has seen the verification, the Research pane until the user has read the result (keep it open only if the user asks). Dynamic workers close with the user-approved workspace teardown. After an approved cleanup, `cmux tree --all` must show only panes the user wants to keep.
+**Ephemeral lifecycle:** every helper pane is opened with a purpose and closes per **Fail-Safe Teardown**: the Logs, Browser, or Research pane stays until the user has seen its result. After an approved cleanup, `cmux tree --all` must show only panes the user wants to keep.
 
 **Transparency default:** every delegated unit of work is either a visible pane or is reported in this conversation.
 
 ## Gotchas
 
-- **Refs are captured, not guessed.** Create first, then read refs from `tree --all --json` (complete) or `identify --json` (caller). `list-pane-surfaces --workspace` covers a single pane only (verified).
-- **Workers must not resume the orchestrator's session.** A worker whose command boots pi in the same project cwd continues the most recent session — i.e. the live orchestrator conversation (verified: cross-talk + concurrent writes). Launch workers with an isolated session before broadcasting: `pi --no-session`, or `npm run agent -- --new-session` inside the pi-coding-agent repo.
-- **`CMUX_QUIET=1`** silences legacy-alias notices for clean scripting (verified: output unchanged, exit 0). Prefer modern verb forms anyway: `workspace create`/`workspace list`/`workspace close` over the legacy `new-workspace`/`list-workspaces`/`close-workspace` aliases.
+- **Refs are captured, not guessed.** Create first, then read refs from `tree --all --json` (complete) or `identify --json` (caller). `list-pane-surfaces --workspace` covers a single pane only.
+- **Workers must not resume the orchestrator's session.** A worker whose command boots pi in the same project cwd continues the most recent session — i.e. the live orchestrator conversation (verified: cross-talk + concurrent writes). Boot them with the command in **Boot the Team**.
+- **`CMUX_QUIET=1`** silences legacy-alias notices for clean scripting. Prefer modern verb forms anyway: `workspace create`/`workspace list`/`workspace close` over the legacy `new-workspace`/`list-workspaces`/`close-workspace` aliases.
 - **Never overwrite a working agent login** with `--env-file` placeholder keys; scope credential injection to agents that actually need it.
 - **Socket access:** default `socketControlMode` is `cmuxOnly` — this skill's verbs work when pi runs _inside_ a cmux pane. If `cmux ping` fails, check `cmux capabilities --json`; do not raise socket mode without explicit user approval.
 - **`reload-config` reloads global AND Ghostty config** and refreshes terminals live — no app restart.
 - **Focus verbs are user-affecting** (`select-workspace`, `focus-pane`, `focus-panel`): call only on explicit user request; pass `--focus false` on creation/move verbs that support it.
 - Layout `split` ratios are 0.1–0.9, exactly two `children` per split node; `pane` nodes hold `surfaces` with auto-run `command`.
-
-## CLI help
-
-```
-$ cmux --help
-```
