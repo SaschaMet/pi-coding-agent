@@ -71,6 +71,7 @@ Reversible PII redaction for PI model requests, backed by a local Presidio analy
 - Claude Code adds its own context (for example your account email) inside `claude-bridge`; PI cannot see or redact it.
 - Sessions that ran before redaction was enabled keep raw history in Claude Code's session file. Start a new session.
 - After a PI restart plus compaction, tags in old summaries are unknown; a tool call using one is blocked. Give the value again.
+- The NER model scores every `PERSON` hit 0.85, so a threshold cannot drop false hits. A short exact-match list (`NOT_A_PERSON` in the package: Stop, When, Done, Read-only, Docker, Claude) skips common words it mislabels. Add words there as you find them.
 - NER can tag long spans (a whole phrase as `PERSON`) and long digit runs as phones. Edits stay correct because tool calls get real values.
 - The smoke drift check covers `.pi/extensions/`, not `.pi/local-packages/`; run `npm run pi:sync-global` after changing the package.
 

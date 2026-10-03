@@ -250,6 +250,28 @@ describe("pii-redaction extension", () => {
         expect(third.messages[1].content).toMatch(/^mail <pii:EMAIL_ADDRESS:/);
     });
 
+    it("keeps common words the analyzer tags as PERSON, but still tags real names", async () => {
+        const text = "Stop. Read-only: ask Hans Meier about the Docker setup, ask Claude.";
+        const { handler } = setup({
+            analyze: async (texts) =>
+                texts.map((t) => [
+                    span(t, "Stop", "PERSON", 0.85),
+                    span(t, "Read-only", "PERSON", 0.85),
+                    span(t, "Hans Meier", "PERSON", 0.85),
+                    span(t, "Docker", "PERSON", 0.85),
+                    span(t, "Claude", "PERSON", 0.85),
+                ]),
+        });
+        const { messages } = await runContext(handler("context"), [{ role: "user", content: text, timestamp: 1 }]);
+        expect(messages[0].content).toMatch(/^Stop\. Read-only: ask <pii:PERSON:[0-9a-f]{12}> about the Docker setup, ask Claude\.$/);
+    });
+
+    it("does not exempt a common word from non-PERSON entities", async () => {
+        const { handler } = setup({ analyze: async (texts) => texts.map((t) => [span(t, "Stop", "EMAIL_ADDRESS", 1)]) });
+        const { messages } = await runContext(handler("context"), [{ role: "user", content: "Stop", timestamp: 1 }]);
+        expect(messages[0].content).toMatch(/^<pii:EMAIL_ADDRESS:[0-9a-f]{12}>$/);
+    });
+
     it("withholds only the text the analyzer rejects", async () => {
         const { handler } = setup({
             analyze: async (texts, language) => {

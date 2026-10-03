@@ -37,6 +37,9 @@ const ENTITIES = ["EMAIL_ADDRESS", "PHONE_NUMBER", "IBAN_CODE", "CREDIT_CARD", "
 const SCORE_THRESHOLD = 0.4;
 // Only local tools get real values; MCP, web, AskClaude and subagents keep tags.
 const RESTORE_TOOLS = new Set(["bash", "read", "edit", "write", "grep", "find", "ls"]);
+// The NER model scores every PERSON hit 0.85, real names and false hits alike, so a
+// threshold cannot separate them. Common words it mislabels are skipped by exact match.
+const NOT_A_PERSON = new Set(["stop", "when", "done", "read-only", "docker", "claude"]);
 const REQUEST_TIMEOUT_MS = 15_000;
 const COOLDOWN_MS = 30_000;
 const BATCH_MAX_TEXTS = 20;
@@ -165,7 +168,10 @@ export function createPiiRedaction(deps: Deps) {
             for (const p of batch) {
                 const parts = [...p.parts];
                 for (const i of p.plain) {
-                    const spans = perLanguage.flatMap((result) => result[cursor] ?? []);
+                    const chars = [...(parts[i] ?? "")];
+                    const spans = perLanguage
+                        .flatMap((result) => result[cursor] ?? [])
+                        .filter((h) => h.entity_type !== "PERSON" || !NOT_A_PERSON.has(chars.slice(h.start, h.end).join("").trim().toLowerCase()));
                     parts[i] = redactText(parts[i] ?? "", spans, key, state.reverse);
                     cursor += 1;
                 }

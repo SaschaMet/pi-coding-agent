@@ -45,6 +45,8 @@ Compare against the requested model. On mismatch: report it, do not silently acc
 
 **Model default: every new pane/agent boots on `iqRouter/grunt:high` unless the user names another model.**
 
+**Private sessions:** when this session runs with `--private` (or the user says the work is private), append `--private` to every worker boot command: `pi --no-session --model iqRouter/grunt:high --private`. Workers are separate processes and start with redaction off. Start the analyzer first with `npm run presidio:up`. In the pi-coding-agent repo, `npm run agent:private -- --new-session` is the equivalent.
+
 **Default: spawn in the caller workspace — no new window, no tab switch.** Fill a 2-column grid by anchored splits, alternating direction per worker (staircase: `right`, `down`, `right`, `down`, …), each anchored at the previous worker's surface. Never more than 2 panes side by side; the 3rd pane lands on a new row.
 
 ```bash
