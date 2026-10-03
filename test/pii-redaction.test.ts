@@ -168,21 +168,24 @@ function fakeSpans(text: string, language: string) {
     return spans;
 }
 
-function setup(overrides: { analyze?: Analyze; now?: () => number; keyPath?: string } = {}) {
+function setup(overrides: { analyze?: Analyze; now?: () => number; keyPath?: string; flags?: Record<string, boolean | string> } = {}) {
     const analyze = vi.fn(overrides.analyze ?? (async (texts: string[], language: string) => texts.map((t) => fakeSpans(t, language))));
-    const fake = createFakePi();
+    const fake = createFakePi({ flags: overrides.flags });
     const keyPath = overrides.keyPath ?? path.join(tmp, "state", "hmac.key");
     createPiiRedaction({ analyze, keyPath, now: overrides.now })(asExtensionAPI(fake));
     const handler = (name: string) => fake.handlers.get(name)?.[0] as (event: any, ctx: any) => any;
     return { fake, analyze, keyPath, handler };
 }
 
-const newCtx = () => ({ hasUI: true, ui: { notify: vi.fn() } });
+const newCtx = (entries: any[] = []) => ({ hasUI: true, ui: { notify: vi.fn() }, sessionManager: { getBranch: () => entries } });
+const startSession = (handler: (event: any, ctx: any) => any, ctx: any) => handler({ type: "session_start", reason: "startup" }, ctx);
+const RAW = [{ role: "user", content: `Login as ${EMAIL}`, timestamp: 1 }];
 
 let tmp = "";
 beforeEach(() => {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pii-redaction-"));
     delete (globalThis as Record<symbol, unknown>)[Symbol.for("pi.pii-redaction.state")];
+    delete (globalThis as Record<symbol, unknown>)[Symbol.for("pi.pii-redaction.flag")];
 });
 afterEach(() => {
     fs.rmSync(tmp, { recursive: true, force: true });
@@ -310,16 +313,85 @@ describe("pii-redaction extension", () => {
         expect(messages[0].content[0].text).toBe(`${tag} works`);
     });
 
-    it("/pii off passes messages through, status reports it, and a new session turns it back on", async () => {
+    it("stays off after a flagless session_start and makes no analyzer call", async () => {
+        const { handler, analyze } = setup();
+        await startSession(handler("session_start"), newCtx());
+        expect((await runContext(handler("context"), RAW)).messages[0].content).toBe(`Login as ${EMAIL}`);
+        expect(analyze).not.toHaveBeenCalled();
+    });
+
+    it("redacts after a session_start with --private", async () => {
+        const { handler } = setup({ flags: { private: true } });
+        await startSession(handler("session_start"), newCtx());
+        expect((await runContext(handler("context"), RAW)).messages[0].content).toMatch(/<pii:EMAIL_ADDRESS:/);
+    });
+
+    it("/pii on after a flagless start redacts and marks the session", async () => {
         const { fake, handler } = setup();
+        const ctx = newCtx(fake.entries);
+        await startSession(handler("session_start"), ctx);
+        await fake.commands.get("pii")!.handler("on", ctx);
+        expect((await runContext(handler("context"), RAW)).messages[0].content).toMatch(/<pii:EMAIL_ADDRESS:/);
+        expect(fake.entries.map((e: any) => e.customType)).toEqual(["pii-private"]);
+    });
+
+    it("/pii off passes messages through, status reports it, and a later session_start keeps it off", async () => {
+        const { fake, handler } = setup({ flags: { private: true } });
         const ctx = newCtx();
+        await startSession(handler("session_start"), ctx);
         await fake.commands.get("pii")!.handler("off", ctx);
-        const raw = [{ role: "user", content: `Login as ${EMAIL}`, timestamp: 1 }];
-        expect((await runContext(handler("context"), raw)).messages[0].content).toBe(`Login as ${EMAIL}`);
+        expect((await runContext(handler("context"), RAW)).messages[0].content).toBe(`Login as ${EMAIL}`);
         await fake.commands.get("pii")!.handler("status", ctx);
         expect(ctx.ui.notify.mock.calls.at(-1)?.[0]).toMatch(/off/);
-        await handler("session_start")({ type: "session_start", reason: "new" }, ctx);
-        expect((await runContext(handler("context"), raw)).messages[0].content).toMatch(/<pii:EMAIL_ADDRESS:/);
+        await startSession(handler("session_start"), ctx);
+        expect((await runContext(handler("context"), RAW)).messages[0].content).toBe(`Login as ${EMAIL}`);
+    });
+
+    it("a flagless session_start from a second copy (subagent) keeps redaction on", async () => {
+        const first = setup({ flags: { private: true } });
+        await startSession(first.handler("session_start"), newCtx());
+        const second = setup();
+        await startSession(second.handler("session_start"), newCtx());
+        expect((await runContext(first.handler("context"), RAW)).messages[0].content).toMatch(/<pii:EMAIL_ADDRESS:/);
+    });
+
+    it("stays off and writes no marker when the non-registering copy starts first", async () => {
+        const registering = setup();
+        const other = setup();
+        const entries: any[] = [];
+        const ctx = newCtx(entries);
+        await startSession(other.handler("session_start"), ctx);
+        await startSession(registering.handler("session_start"), ctx);
+        expect(other.fake.entries).toEqual([]);
+        expect(registering.fake.entries).toEqual([]);
+        expect((await runContext(registering.handler("context"), RAW)).messages[0].content).toBe(`Login as ${EMAIL}`);
+    });
+
+    it("registers the private flag once across two loaded copies", () => {
+        const first = setup();
+        const second = setup();
+        expect(first.fake.registerFlag).toHaveBeenCalledTimes(1);
+        expect(first.fake.registerFlag.mock.calls[0]).toEqual(["private", expect.objectContaining({ type: "boolean", default: false })]);
+        expect(second.fake.registerFlag).not.toHaveBeenCalled();
+    });
+
+    it("writes the private marker once per session", async () => {
+        const { fake, handler } = setup({ flags: { private: true } });
+        const ctx = newCtx(fake.entries);
+        await startSession(handler("session_start"), ctx);
+        await startSession(handler("session_start"), ctx);
+        expect(fake.entries.filter((e: any) => e.customType === "pii-private")).toHaveLength(1);
+    });
+
+    it("switches on when a reopened session holds the marker, and stays off without it", async () => {
+        const marked = setup();
+        await startSession(marked.handler("session_start"), newCtx([{ type: "custom", customType: "pii-private" }]));
+        expect((await runContext(marked.handler("context"), RAW)).messages[0].content).toMatch(/<pii:EMAIL_ADDRESS:/);
+        delete (globalThis as Record<symbol, unknown>)[Symbol.for("pi.pii-redaction.state")];
+        delete (globalThis as Record<symbol, unknown>)[Symbol.for("pi.pii-redaction.flag")];
+        const plain = setup();
+        await startSession(plain.handler("session_start"), newCtx([{ type: "custom", customType: "other" }]));
+        expect((await runContext(plain.handler("context"), RAW)).messages[0].content).toBe(`Login as ${EMAIL}`);
     });
 
     it("shares state between two loaded copies and redacts once per emit", async () => {
@@ -352,6 +424,7 @@ describe("pii-redaction extension", () => {
 
         const down = setup({ analyze: async () => { throw new AnalyzerUnavailable("down"); }, keyPath: path.join(tmp, "other", "hmac.key") });
         delete (globalThis as Record<symbol, unknown>)[Symbol.for("pi.pii-redaction.state")];
+    delete (globalThis as Record<symbol, unknown>)[Symbol.for("pi.pii-redaction.flag")];
         const prep2: any = { messagesToSummarize: [{ role: "user", content: "new other@example.de", timestamp: 1 }], turnPrefixMessages: [] };
         const ctx = newCtx();
         expect(await down.handler("session_before_compact")({ type: "session_before_compact", preparation: prep2 }, ctx)).toEqual({ cancel: true });
@@ -372,6 +445,7 @@ describe("pii-redaction extension", () => {
         const first = setup();
         const a = await runContext(first.handler("context"), [{ role: "user", content: `Login as ${EMAIL}`, timestamp: 1 }]);
         delete (globalThis as Record<symbol, unknown>)[Symbol.for("pi.pii-redaction.state")];
+    delete (globalThis as Record<symbol, unknown>)[Symbol.for("pi.pii-redaction.flag")];
         const second = setup({ keyPath: first.keyPath });
         const b = await runContext(second.handler("context"), [{ role: "user", content: `Login as ${EMAIL}`, timestamp: 1 }]);
         expect(b.messages[0].content).toBe(a.messages[0].content);

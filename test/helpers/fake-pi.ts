@@ -33,7 +33,7 @@ export interface FakePi {
   on: (event: string, handler: (event: any, ctx: any) => any) => void;
 }
 
-export function createFakePi(): FakePi & Record<string, any> {
+export function createFakePi(options: { flags?: Record<string, boolean | string> } = {}): FakePi & Record<string, any> {
   const tools = new Map<string, RegisteredTool>();
   const commands = new Map<string, RegisteredCommand>();
   const shortcuts: RegisteredShortcut[] = [];
@@ -72,7 +72,7 @@ export function createFakePi(): FakePi & Record<string, any> {
       existing.push(handler);
       handlers.set(event, existing);
     },
-    registerFlag: () => undefined,
+    registerFlag: vi.fn(),
     registerMessageRenderer: () => undefined,
     sendMessage: (message: any, options?: any) => {
       sentMessages.push({ message, options });
@@ -96,7 +96,7 @@ export function createFakePi(): FakePi & Record<string, any> {
     },
     setModel: async () => true,
     setThinkingLevel: () => undefined,
-    getFlag: () => undefined,
+    getFlag: (name: string) => options.flags?.[name],
     events: { on: () => undefined, off: () => undefined, emit: () => undefined },
     registerProvider: () => undefined,
     ui: undefined,

@@ -43,6 +43,9 @@ const BATCH_MAX_TEXTS = 20;
 const BATCH_MAX_BYTES = 200_000;
 const CACHE_MAX = 5000;
 const STATE_KEY = Symbol.for("pi.pii-redaction.state");
+const FLAG_KEY = Symbol.for("pi.pii-redaction.flag");
+// Written into a session that ran with redaction on, so reopening it without the flag stays private.
+const PRIVATE_MARKER = "pii-private";
 
 export type Analyze = (texts: string[], language: string) => Promise<Span[][]>;
 export type Deps = { analyze: Analyze; keyPath: string; now?: () => number };
@@ -55,6 +58,7 @@ type State = {
     cache: Map<string, string>;
     key?: Buffer;
     enabled: boolean;
+    decided: boolean;
     downUntil: number;
     warned: boolean;
 };
@@ -70,7 +74,7 @@ function sharedState(keyPath: string): State {
     const all = (g[STATE_KEY] ??= new Map<string, State>()) as Map<string, State>;
     let state = all.get(keyPath);
     if (!state) {
-        state = { reverse: new Map(), cache: new Map(), enabled: true, downUntil: 0, warned: false };
+        state = { reverse: new Map(), cache: new Map(), enabled: true, decided: false, downUntil: 0, warned: false };
         all.set(keyPath, state);
     }
     return state;
@@ -90,6 +94,9 @@ function loadKey(keyPath: string): Buffer {
     if (key.length !== 32) throw new Error("PII key file is not 32 bytes");
     return key;
 }
+
+const hasPrivateMarker = (ctx: Pick<ExtensionContext, "sessionManager">) =>
+    ctx.sessionManager.getBranch().some((entry) => entry.type === "custom" && entry.customType === PRIVATE_MARKER);
 
 const hashText = (text: string) => createHash("sha256").update(text).digest("hex");
 
@@ -260,8 +267,27 @@ export function createPiiRedaction(deps: Deps) {
             return { value: walk((text) => out.get(text) ?? WITHHELD), withheld };
         };
 
-        pi.on("session_start", () => {
-            state.enabled = true;
+        // Both the project and the global copy load; only one may register the flag.
+        const g = globalThis as Record<symbol, unknown>;
+        const registersFlag = !g[FLAG_KEY];
+        g[FLAG_KEY] = true;
+        if (registersFlag) {
+            pi.registerFlag("private", { description: "Enable PII redaction (needs the Presidio analyzer)", type: "boolean", default: false });
+        }
+
+        const markPrivate = (ctx: Pick<ExtensionContext, "sessionManager">) => {
+            if (!hasPrivateMarker(ctx)) pi.appendEntry(PRIVATE_MARKER, {});
+        };
+
+        pi.on("session_start", (_event, ctx) => {
+            // Decided once: later starts (subagents, /new, /resume) never switch it off.
+            if (registersFlag && !state.decided) {
+                state.decided = true;
+                state.enabled = pi.getFlag("private") === true;
+            }
+            if (hasPrivateMarker(ctx)) state.enabled = true;
+            // Before the decision `enabled` is only the fail-safe default, not a choice to record.
+            if (state.decided && state.enabled) markPrivate(ctx);
         });
 
         pi.on("context", async (event, ctx) => {
@@ -333,6 +359,7 @@ export function createPiiRedaction(deps: Deps) {
             handler: async (args, ctx) => {
                 const arg = args.trim();
                 if (arg === "on" || arg === "off") state.enabled = arg === "on";
+                if (state.enabled && arg === "on") markPrivate(ctx);
                 const analyzer = now() < state.downUntil ? "down" : "ok";
                 ctx.ui.notify(`PII redaction ${state.enabled ? "on" : "off"} · analyzer ${analyzer} · ${state.reverse.size} tags`, "info");
             },

@@ -5,10 +5,11 @@
     "main": "src/main.ts",
     "scripts": {
         "postinstall": "tsx scripts/patch-retry.ts",
-        "predev": "bash scripts/headroom-up.sh --quiet && bash scripts/presidio-up.sh --quiet",
+        "predev": "bash scripts/headroom-up.sh --quiet",
         "dev": "tsx watch src/main.ts",
-        "preagent": "bash scripts/headroom-up.sh --quiet && bash scripts/presidio-up.sh --quiet",
+        "preagent": "bash scripts/headroom-up.sh --quiet",
         "agent": "tsx src/main.ts",
+        "agent:private": "bash scripts/headroom-up.sh --quiet && bash scripts/presidio-up.sh --quiet && tsx src/main.ts --private",
         "smoke": "tsx scripts/smoke.ts",
         "pi:patch-retry": "tsx scripts/patch-retry.ts",
         "typecheck": "tsc --noEmit",

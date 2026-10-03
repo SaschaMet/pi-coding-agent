@@ -156,8 +156,8 @@ npm run presidio:up   # first run builds the image (~1.5 GB)
 
 Check: `curl -fsS http://127.0.0.1:5002/health`, then `/pii status` in a new PI session.
 
-- It starts with `npm run agent` / `npm run dev`, and Docker restarts it after a reboot.
-- If the analyzer is down, PI withholds new text instead of sending it raw. `/pii off` turns redaction off until the next session.
+- Redaction is off by default. Turn it on with `pi --private` or `npm run agent:private` (which also starts the analyzer). A private session stays private when reopened. Docker restarts the container after a reboot.
+- With redaction on and the analyzer down, PI withholds new text instead of sending it raw. `/pii off` turns redaction off until you quit PI.
 - Stop it: `npm run presidio:down`.
 - Behavior, failure modes, and known gaps: [`docs/reference/pii-redaction.md`](docs/reference/pii-redaction.md).
 
@@ -248,8 +248,9 @@ These are intended. Do not work around them. Full rules, decision order, and how
 
 ## Commands
 
-- `npm run agent`: run the local bootstrap (`src/main.ts`) from this repo. Starts Headroom and the PII analyzer first. For developing the stack.
+- `npm run agent`: run the local bootstrap (`src/main.ts`) from this repo. Starts Headroom first. For developing the stack.
 - `npm run dev`: same, with file watch.
+- `npm run agent:private`: start headroom and the PII analyzer, then run the bootstrap with `--private`.
 - `npm run smoke`: extension and resource discovery check.
 - `npm run typecheck`: `tsc --noEmit`.
 - `npm test`: unit and integration tests.

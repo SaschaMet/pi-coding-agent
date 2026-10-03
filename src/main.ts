@@ -30,6 +30,8 @@ async function main(): Promise<void> {
             const services = await createAgentSessionServices({
                 cwd: runtimeCwd,
                 agentDir,
+                // Only this flag is forwarded: other src/ flags (--new-session) would be rejected as unknown.
+                extensionFlagValues: process.argv.includes("--private") ? new Map([["private", true]]) : undefined,
             });
 
             // Per-worker model passthrough (--model <ref>[:<level>] [--provider]),

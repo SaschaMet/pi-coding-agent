@@ -1,11 +1,22 @@
 # PII redaction
 
-Reversible PII redaction for every PI model request, backed by a local Presidio analyzer (English + German).
+Reversible PII redaction for PI model requests, backed by a local Presidio analyzer (English + German).
 
 - Package: `.pi/local-packages/pii-redaction.ts` (PI wiring, analyzer client, key file)
 - Pure logic: `.pi/extensions/lib/pii-redaction.ts` (tags, span merging, restore, message walks)
 - Analyzer: `presidio-compose.yml`, `presidio/Dockerfile`, `presidio/analyzer-conf.yml`
 - Tests: `test/pii-redaction.test.ts`
+
+## Turning it on
+
+- **Off by default.** A plain `pi` sends text raw and makes no analyzer calls. This is a deliberate exception to Fail-Safe Defaults, chosen because the analyzer caused errors in everyday sessions.
+- On: `pi --private`, or `npm run agent:private` (starts headroom and Presidio, then runs `src/main.ts --private`).
+- `src/main.ts` forwards only `--private`. Other extension flags are not forwarded by `npm run agent`.
+- The choice is made once per process, by the first loaded copy. Later session starts (subagents, `/new`, `/resume`, `/reload`) never switch it off.
+- Sticky: a session that ran with redaction on gets a hidden `pii-private` entry. Reopening it, even without the flag, switches redaction on. The entry only ever switches on.
+- Put `--private` last, or give no prompt: `pi --private "fix the bug"` takes the prompt as the flag's value. `--private=false` still turns it on.
+- cmux workers are separate `pi` processes and start raw. Add `--private` to their boot command by hand.
+- This replaces the earlier rule that a new session turns redaction back on.
 
 ## What it does
 
@@ -32,12 +43,12 @@ Reversible PII redaction for every PI model request, backed by a local Presidio 
 ## Commands
 
 - `/pii status` — on/off, analyzer state, number of known tags
-- `/pii off` — send raw text until the next session (explicit opt-out)
-- `/pii on`
+- `/pii off` — send raw text until you quit PI or reopen a private session (explicit opt-out)
+- `/pii on` — switch on and mark the session private
 
 ## Running the analyzer
 
-- Starts with `npm run agent` / `npm run dev` (`scripts/presidio-up.sh`, never blocks), and after Docker restarts (`restart: unless-stopped`).
+- Starts with `npm run agent:private` (`scripts/presidio-up.sh`, never blocks), and after Docker restarts (`restart: unless-stopped`). `npm run agent` and `npm run dev` do not start it.
 - Manual: `npm run presidio:up`, `npm run presidio:down`.
 - Listens on `127.0.0.1:5002` only.
 
