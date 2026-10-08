@@ -140,6 +140,8 @@ Check the order afterwards in the worker's transcript: its first `Edit`/`Write` 
 
 Standing user approval, only for a worker running `$grill-me`: approve its start prompt at once (trust-folder or first-run `Allow …?`) with `cmux send-key --workspace "$WS" --surface <ref> enter`, no human step. Any later prompt, and any prompt on another worker, still goes to the user. When the grill report is read, close that worker's pane automatically; this is the only automatic close.
 
+Scrollback truncates long output, so tell a grill worker in its task to write each round (header and every question, verbatim) to `$TMPDIR/pi-reports/<task>.r<N>.md` before it waits for answers. Read the question file, never the screen.
+
 ## Fail-Safe Teardown
 
 Closing panes is user-approved, never automatic, except a grill worker's pane (see **Grill Workers**). A finished task is not a close signal — the user must be able to verify the outcome in the pane. Close a spawned pane, surface, or workspace only after the user approves it (e.g. says the research step is done, or part 1 of the plan is done). On an error path (failed boot, timeout, unresponsive agent), report and ask — do not close on your own.

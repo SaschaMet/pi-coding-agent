@@ -1,0 +1,133 @@
+{
+  "components": {
+    "editor": {
+      "enabled": true,
+      "style": "minimalist"
+    },
+    "footer": {
+      "style": "starship",
+      "colorSource": "theme",
+      "colors": {
+        "cwd": "muted",
+        "gitBranch": "muted"
+      },
+      "styles": {
+        "starship": {
+          "format": "$cwd( on $git_branch)$fill$context$fill$tokens($sep$cost)",
+          "compactFormat": "$cwd( on $git_branch)$fill$context($sep$tokens)",
+          "compactMaxLines": 3,
+          "responsive": true,
+          "extensionStatuses": {
+            "placements": {
+              "claude-usage": "middle"
+            },
+            "defaultPlacement": "right",
+            "colorModes": {}
+          },
+          "separator": "pipe",
+          "contextStyle": "text",
+          "contextThresholds": {
+            "warning": 70,
+            "error": 90
+          },
+          "pathDisplay": {
+            "mode": "basename",
+            "depth": 0
+          },
+          "segments": {
+            "cwd": true,
+            "sessionName": true,
+            "gitBranch": true,
+            "gitStatus": true,
+            "gitCounts": false,
+            "gitCommit": false,
+            "gitMetrics": false,
+            "runtime": true,
+            "modelInfo": false,
+            "context": true,
+            "tokens": true,
+            "cost": true,
+            "sessionDuration": false,
+            "username": false,
+            "time": false,
+            "os": false,
+            "packageVersion": false
+          },
+          "gitBranch": {
+            "maxLength": "full"
+          },
+          "gitCommit": {
+            "hashLength": 7,
+            "onlyDetached": true,
+            "showTag": true
+          },
+          "gitMetrics": {
+            "onlyNonzero": true,
+            "ignoreSubmodules": false
+          }
+        }
+      },
+      "codexQuota": false,
+      "modelLabel": "id"
+    },
+    "extensionStatuses": {
+      "defaultVisibility": "show",
+      "visibility": {
+        "pi-cache-stats": "hide"
+      }
+    },
+    "userMessages": {
+      "enabled": false,
+      "style": "compact"
+    },
+    "thinkingSteps": {
+      "enabled": true,
+      "mode": "streaming"
+    },
+    "workingLine": {
+      "enabled": true,
+      "turnSummary": true,
+      "turnSummaryFormat": "Turn took $turn_duration$join_sep(thought for $thought_duration)$join_sep(↑$input_tokens ↓$output_tokens)$join_sep$token_rate",
+      "spinner": "claude-inspired",
+      "animateSpinnerColor": false,
+      "textAnimation": "kitt",
+      "placement": "above",
+      "colors": {
+        "high": "#DE7356",
+        "mid": "#DE7356",
+        "low": "#C4694F"
+      },
+      "spinnerIntervalMs": 160,
+      "textIntervalMs": 100,
+      "colorSource": "theme",
+      "messages": {
+        "custom": false,
+        "values": [
+          "Sautéing…",
+          "Cooking…",
+          "Ionizing…",
+          "Zigzagging…",
+          "Razzle-dazzling…",
+          "Photosynthesizing…",
+          "Nucleating…",
+          "Brewing…",
+          "Combobulating…",
+          "Boogieing…",
+          "Befuddling…",
+          "Alchemizing…",
+          "Conjuring…",
+          "Baking…",
+          "Simmering…",
+          "Blanching…"
+        ]
+      },
+      "segments": {
+        "tokenRate": true,
+        "tool": true,
+        "elapsed": true,
+        "thought": true,
+        "tokens": true
+      }
+    }
+  }
+}

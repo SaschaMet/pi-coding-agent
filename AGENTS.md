@@ -31,6 +31,9 @@ Durable rules, distilled from `.pi/SYSTEM.md` (the single origin — read it for
 - Coding standard: the `npm` scripts are the quality gate — `npm run typecheck`, `npm test`, `npm run smoke`. No separate standard doc exists yet; use the `add-coding-standard` skill to install one if desired.
 - Quality gates: `.pi/extensions/gates.ts` enforces change-disclosure + verification-ran before completion; `read-boundary-guard.ts` / `write-boundary-guard.ts` enforce path boundaries. Respect these guards; do not work around them.
 - Skill location: third-party skills belong in the **project-local** `.pi/skill-library/` (source of truth), never directly in the global `~/.pi/agent/skill-library/`. The global directory is a synced copy managed by `scripts/sync-pi-config.ts` (`push` = project→global, `pull` = global→project). Add the skill to the project, then run `npm run pi:sync-global` to propagate.
+- UI/config changes (colors, footer, thinking): ask for a reference (hex or screenshot) first, then render in a pty and read the escape codes before reporting done. Copies of `zentui.json` and the theme live in `docs/reference/ui-config/`; see `docs/reference/ui-customization.md`.
+- cmux shell: the `pi` on `PATH` is a shim that treats `update` and other subcommands as prompts. Call the real binary (`$(npm root -g)/../bin/pi`) for `pi update`, `pi list`, and similar.
+- Commits: the graphify git hook can leave a stale `.git/index.lock`. Check `git status` after each commit and retry once if it failed.
 - Debugging: use the extension in `.pi/extensions/debug.ts`; full guide in `.pi/docs/debug-extension-guide.md`.
 
 ## Verification
