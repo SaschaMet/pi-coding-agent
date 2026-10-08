@@ -209,6 +209,8 @@ function pushDecision(args: string[], call: ToolCall, policy: Policy): Decision 
 	}
 	for (const refspec of refspecs) {
 		if (refspec.startsWith("+")) return deny("Force push (+refspec) is blocked.");
+		// A target built at run time cannot be checked here, so it fails closed.
+		if (/[$`]/.test(refspec)) return deny("git push target is built at run time. Type the branch name.");
 		const colon = refspec.indexOf(":");
 		const source = colon === -1 ? refspec : refspec.slice(0, colon);
 		const destination = colon === -1 ? "" : refspec.slice(colon + 1);

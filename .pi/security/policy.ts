@@ -42,16 +42,16 @@ export const policy: Policy = {
 	rmFlag: String.raw`^(?:-[a-zA-Z]*[rRf][a-zA-Z]*|--recursive|--force)$`,
 	// Matched after normalization: quotes stripped, $HOME and the literal home path
 	// rewritten to "~", trailing slashes removed.
-	rmDangerousTarget: String.raw`^(?:/|/\*|/[^/*]+|~|~/\*|~/[^/*]+)$`,
+	rmDangerousTarget: String.raw`^(?:/|/\*|/[^/*]+|~[^/*]*|~[^/*]*/\*|~[^/*]*/[^/*]+)$`,
 	commandRules: [
 		{
 			name: "pipe-to-shell",
-			source: String.raw`\b(?:curl|wget)\b[^|]*\|\s*(?:sudo\s+)?(?:ba|z|da|k)?sh\b|curl.*-o\s*/tmp.*&&.*bash`,
+			source: String.raw`\b(?:curl|wget)\b.*\|\s*(?:sudo\s+)?(?:ba|z|da|k)?sh\b|curl.*-o\s*/tmp.*&&.*bash`,
 			flags: "i",
 		},
 		{
 			name: "data exfiltration host",
-			source: String.raw`\b(?:curl|wget|nc|ncat)\b.*\b(?:ngrok|burp|requestbin|pipedream|webhook\.site|hookbin|canarytokens)\b`,
+			source: String.raw`\b(?:curl|wget|nc|ncat|rsync|scp|sftp|socat|telnet)\b.*\b(?:ngrok|burp|requestbin|pipedream|webhook\.site|hookbin|canarytokens)\b`,
 			flags: "i",
 		},
 		{

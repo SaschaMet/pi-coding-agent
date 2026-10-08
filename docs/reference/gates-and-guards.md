@@ -204,7 +204,8 @@ Known gaps of the security guard:
 - Extension `/commands` are not prompt-scanned: PI runs them before `input`.
 - The agent guard does not scan commits; the git hook does.
 - PI-only guards (gates, scope guard) do not exist for Claude. PI has no sandbox like Claude's.
-- The legacy Claude hooks in `~/.claude/hooks/` stay until parity is proven.
+- The legacy Claude hooks were removed after a side-by-side check. Two stay, because nothing replaces them: `scan-secrets.sh` (BIP39 seed phrases in Claude prompts) and `prompt-injection-defender.sh` (injection warnings on tool output).
+- A `git push` whose branch is built at run time (`$(...)`, `$VAR`, backticks) is blocked; type the branch name.
 - Code review is not automatic: the `code-review` skill runs only when invoked.
 - No injection warning on tool results yet.
 - `init-project` and `add-coding-standard` do not yet check that the global guard is installed.
