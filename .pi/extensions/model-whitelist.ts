@@ -7,6 +7,9 @@ import type {
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { isShadowedProjectCopy } from "./lib/extension-helpers.ts";
 
+// models.json whitelist entries are always chat models.
+type ChatModelConfig = Extract<ProviderModelConfig, { type?: "chat" }>;
+
 const MODEL_WHITELIST_REGISTERED = Symbol.for(
 	"pi.extensions.model-whitelist.registered",
 );
@@ -31,7 +34,7 @@ export default function modelWhitelist(pi: ExtensionAPI): void {
 		providers?: Record<
 			string,
 			{
-				models?: (Partial<ProviderModelConfig> & { id: string })[];
+				models?: (Partial<ChatModelConfig> & { id: string })[];
 				baseUrl?: string;
 				apiKey?: string;
 				api?: string;
@@ -52,7 +55,7 @@ export default function modelWhitelist(pi: ExtensionAPI): void {
 	// Pass through every field declared on the whitelist entry (reasoning,
 	// contextWindow, maxTokens, input, cost, thinkingLevelMap, headers, compat,
 	// api, baseUrl); defaults apply only to fields models.json omits.
-	const models: ProviderModelConfig[] = openRouterConfig.models.map((m) => ({
+	const models: ChatModelConfig[] = openRouterConfig.models.map((m) => ({
 		reasoning: false,
 		input: ["text"],
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
