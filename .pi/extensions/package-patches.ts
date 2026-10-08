@@ -26,11 +26,11 @@ function run(pi: ExtensionAPI, ctx: ExtensionContext): void {
     const attention: string[] = [];
 
     for (const file of listPatches(agentDir)) {
-        const before = checkPatch(agentDir, file);
+        const before = checkPatch(agentDir, file, ctx.cwd);
         let status = before;
-        if (before.state === "needed" && applyPatch(agentDir, file) === "applied") {
+        if (before.state === "needed" && applyPatch(agentDir, file, ctx.cwd) === "applied") {
             patched += 1;
-            status = checkPatch(agentDir, file);
+            status = checkPatch(agentDir, file, ctx.cwd);
         }
         if (status.state === "conflict" || status.reviewDue) attention.push(formatStatus(status));
     }

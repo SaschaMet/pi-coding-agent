@@ -104,6 +104,48 @@ describe("applyPatch", () => {
     });
 });
 
+describe("project copy", () => {
+    let projectDir: string;
+    const writeProjectPkg = (content: string) => {
+        const dir = path.join(projectDir, ".pi", "npm", "node_modules", "pkg");
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ version: "1.0.0" }));
+        fs.writeFileSync(path.join(dir, "a.ts"), content);
+        return path.join(dir, "a.ts");
+    };
+
+    beforeEach(() => {
+        projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "package-patches-proj-"));
+    });
+    afterEach(() => fs.rmSync(projectDir, { recursive: true, force: true }));
+
+    it("applies to the global and the project copy", () => {
+        writePkg("one\ntwo\nthree\n");
+        const projectTarget = writeProjectPkg("one\ntwo\nthree\n");
+        expect(applyPatch(agentDir, patchFile, projectDir)).toBe("applied");
+        expect(fs.readFileSync(target, "utf8")).toBe("one\nTWO\nthree\n");
+        expect(fs.readFileSync(projectTarget, "utf8")).toBe("one\nTWO\nthree\n");
+    });
+
+    it("is needed while any copy is unpatched", () => {
+        writePkg("one\nTWO\nthree\n");
+        writeProjectPkg("one\ntwo\nthree\n");
+        expect(checkPatch(agentDir, patchFile, projectDir).state).toBe("needed");
+    });
+
+    it("is conflict when any copy conflicts, and writes nothing there", () => {
+        writePkg("one\ntwo\nthree\n");
+        const projectTarget = writeProjectPkg("one\nsomething else\nthree\n");
+        expect(checkPatch(agentDir, patchFile, projectDir).state).toBe("conflict");
+        expect(fs.readFileSync(projectTarget, "utf8")).toBe("one\nsomething else\nthree\n");
+    });
+
+    it("ignores a missing project copy", () => {
+        writePkg("one\nTWO\nthree\n");
+        expect(checkPatch(agentDir, patchFile, projectDir).state).toBe("applied");
+    });
+});
+
 describe("listPatches / runCheck", () => {
     it("lists patch files across package folders", () => {
         expect(listPatches(agentDir)).toEqual([patchFile]);

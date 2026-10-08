@@ -17,10 +17,10 @@ if (command !== "check" && command !== "apply") {
 
 const agentDir = getAgentDir();
 if (command === "apply") {
-    for (const file of listPatches(agentDir)) applyPatch(agentDir, file);
+    for (const file of listPatches(agentDir)) applyPatch(agentDir, file, process.cwd());
 }
 
-const { statuses, exitCode } = runCheck(agentDir);
+const { statuses, exitCode } = runCheck(agentDir, process.cwd());
 if (statuses.length === 0) console.log(`no patches in ${agentDir}/patches`);
 for (const status of statuses) console.log(formatStatus(status));
 process.exit(exitCode);

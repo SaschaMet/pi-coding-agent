@@ -5,7 +5,7 @@ description: Judges and repairs the local patches applied to installed Pi packag
 
 # Package Patches
 
-Local edits to installed packages live as `.patch` files in this repo's `.pi/patches/<pkg>/`, synced to `~/.pi/agent/patches/`. The `package-patches` extension applies clean ones at session start. This skill handles what it cannot: conflicts and new package versions.
+Local edits to installed packages live as `.patch` files in this repo's `.pi/patches/<pkg>/`, synced to `~/.pi/agent/patches/`. The `package-patches` extension applies clean ones at session start, to the global package and to the project's own `.pi/npm` copy when one exists. This skill handles what it cannot: conflicts and new package versions.
 
 ## Steps
 
