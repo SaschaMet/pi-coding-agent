@@ -49,6 +49,7 @@ async function fire(
 type RunOptions = {
     toolResults?: Array<{ toolName: string; input: Record<string, unknown>; isError?: boolean }>;
     assistantText?: string;
+    aborted?: boolean;
 };
 
 async function runAgent(pi: ReturnType<typeof createFakePi>, options: RunOptions = {}) {
@@ -62,6 +63,7 @@ async function runAgent(pi: ReturnType<typeof createFakePi>, options: RunOptions
         });
     }
     await fire(pi, "agent_end", { messages: [] });
+    await fire(pi, "agent_settled", { aborted: options.aborted ?? false });
 }
 
 function corrections(pi: ReturnType<typeof createFakePi>): string[] {
@@ -91,7 +93,8 @@ describe("gates extension", () => {
         gatesExtension(pi as any);
 
         expect(pi.handlers.get("agent_start")?.length).toBeGreaterThan(0);
-        expect(pi.handlers.get("agent_end")?.length).toBeGreaterThan(0);
+        expect(pi.handlers.get("agent_settled")?.length).toBeGreaterThan(0);
+        expect(pi.handlers.get("agent_end")).toBeUndefined();
         expect(pi.handlers.get("tool_result")?.length).toBeGreaterThan(0);
         expect(pi.handlers.get("message_end")?.length).toBeGreaterThan(0);
         expect(pi.commands.has("gates")).toBe(true);
@@ -357,6 +360,49 @@ describe("gates extension", () => {
         await runAgent(pi, { assistantText: "Done again." });
 
         expect(corrections(pi)).toHaveLength(1);
+    });
+
+    it("sends no correction when the run was aborted", async () => {
+        const pi = withGit(createFakePi(), { status: ["", " M src/env.ts\n"] });
+        gatesExtension(pi as any);
+
+        await runAgent(pi, { assistantText: "Done.", aborted: true });
+
+        expect(corrections(pi)).toHaveLength(0);
+    });
+
+    describe("a run that loops again after a retry", () => {
+        async function retriedRun(pi: ReturnType<typeof createFakePi>, finalText: string) {
+            await fire(pi, "agent_start", {});
+            await fire(pi, "tool_result", { isError: false, toolName: "bash", input: { command: "npm test" } });
+            await fire(pi, "agent_end", { messages: [] });
+            await fire(pi, "agent_start", {});
+            await fire(pi, "message_end", {
+                message: { role: "assistant", content: [{ type: "text", text: finalText }] },
+            });
+            await fire(pi, "agent_end", { messages: [] });
+            await fire(pi, "agent_settled", { aborted: false });
+        }
+
+        it("checks the whole run once, against the final message", async () => {
+            const pi = withGit(createFakePi(), { status: ["", " M src/env.ts\n"] });
+            gatesExtension(pi as any);
+
+            await retriedRun(pi, "Updated `src/env.ts`. All tests pass.");
+
+            expect(corrections(pi)).toHaveLength(0);
+        });
+
+        it("still flags an edit made before the retry", async () => {
+            const pi = withGit(createFakePi(), { status: ["", " M src/env.ts\n"] });
+            gatesExtension(pi as any);
+
+            await retriedRun(pi, "Done. All tests pass.");
+
+            const [correction] = corrections(pi);
+            expect(correction).toContain("src/env.ts");
+            expect(correction).not.toContain("verification_actually_ran");
+        });
     });
 
     it("re-arms corrections after a clean run", async () => {

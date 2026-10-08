@@ -26,6 +26,7 @@ type GatesState = {
     bashMutations: BashMutation[];
     assistantText: string;
     consecutiveCorrections: number;
+    runOpen: boolean;
     workTreeChecked: boolean;
     isWorkTree: boolean;
 };
@@ -40,6 +41,7 @@ function defaultState(): GatesState {
         bashMutations: [],
         assistantText: "",
         consecutiveCorrections: 0,
+        runOpen: false,
         workTreeChecked: false,
         isWorkTree: false,
     };
@@ -138,6 +140,9 @@ export default function gatesExtension(pi: ExtensionAPI): void {
 
     pi.on("agent_start", async (_event, ctx) => {
         const state = getState(pi);
+        // A run re-enters the loop after retries and compaction; keep one record per run.
+        if (state.runOpen) return;
+        state.runOpen = true;
         state.toolCalls = [];
         state.bashMutations = [];
         state.assistantText = "";
@@ -174,9 +179,11 @@ export default function gatesExtension(pi: ExtensionAPI): void {
         return undefined;
     });
 
-    pi.on("agent_end", async (_event, ctx) => {
+    // `agent_end` fires while the run is still active, so a prompt sent there is rejected.
+    pi.on("agent_settled", async (event, ctx) => {
         const state = getState(pi);
-        if (!state.enabled) return;
+        state.runOpen = false;
+        if (!state.enabled || event.aborted) return;
 
         const current = await gitChangedPaths(pi, state, ctx.cwd);
 

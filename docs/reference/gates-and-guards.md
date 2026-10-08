@@ -6,7 +6,7 @@ How the quality gates and path guards in `.pi/extensions/` decide. Source of tru
 
 | Extension | When it runs | What it does | Fails to |
 | --- | --- | --- | --- |
-| `gates.ts` | After each agent turn (`agent_end`) | Checks the final message against what actually happened. Sends one correction. | Open when git cannot answer |
+| `gates.ts` | After each agent run settles (`agent_settled`) | Checks the final message against what actually happened. Sends one correction. | Open when git cannot answer |
 | `read-boundary-guard.ts` | Before `read`, `write`, `edit`, `grep`, `find`, `ls` | Blocks paths outside the working directory unless approved or trusted. | Blocked |
 | `write-boundary-guard.ts` | Before `write`, `edit` | Limits writes to the armed spec or plan scope. | Blocked once armed. Open while not armed. |
 | `security-guard.ts` | Before every tool call, and on each prompt (`input`) | Blocks `.env` and credential paths, dangerous shell commands, protected-branch and force pushes, hook bypasses, and secrets in prompts. Shares one policy with the Claude hook and the global git hook. | Blocked, and prompts dropped |
@@ -22,7 +22,7 @@ Result: guards and gates only act from `~/.pi/agent/extensions/`. Run `npm run p
 
 ## Gates (`gates.ts`)
 
-Gates do not block tool calls. They run once when the agent ends its turn.
+Gates do not block tool calls. They run once per run, on `agent_settled`: `agent_end` fires while the run is still active, so a correction sent there is rejected. Retries and compaction re-enter the loop without starting a new record. An aborted run gets no correction.
 
 What it records during the turn:
 
