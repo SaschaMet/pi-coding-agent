@@ -1,0 +1,22 @@
+Purpose: thinking headings use the thinkingText color instead of text.
+Reviewed-Version: 0.14.2
+--- a/extensions/compact-tools-thinking.ts
++++ b/extensions/compact-tools-thinking.ts
+@@ -219,7 +219,7 @@
+ 			return renderThinkingSections(sections, thinkingViewForPhase(this.phase), context.availableWidth, {
+ 				// Keep thinking chrome neutral across themes: effort-level and border colors can
+ 				// be intentionally vivid and are not content hierarchy colors.
+-				styleSummary: theme ? (summary) => theme.fg("text", theme.bold(summary)) : undefined,
++				styleSummary: theme ? (summary) => theme.fg("thinkingText", theme.bold(summary)) : undefined,
+ 				// Prefix styling resets the foreground; resume the host's thinking text color.
+ 				// The rail and connector are the same frame the tool rows draw, so they take
+ 				// the same chrome tone rather than a color name of their own.
+@@ -248,7 +248,7 @@
+ 		// this label in thinkingText, so an inner text span keeps it consistent with
+ 		// completed summary titles.
+ 		this.phase = getInitialThinkingPhase();
+-		const hiddenLabel = this.theme.fg("text", this.theme.bold("Thinking..."));
++		const hiddenLabel = this.theme.fg("thinkingText", this.theme.bold("Thinking..."));
+ 		// Pi does not currently expose transcript invalidation directly. Updating
+ 		// this label rebuilds assistant Markdown and requests a render without
+ 		// changing the message or its hidden/visible state.

@@ -24,6 +24,9 @@ const EXCLUDED_TOP_LEVEL_PATHS = new Set([
 	// claude-bridge provider state — written by the global runtime, never mirrored.
 	"claude-bridge.json",
 	"claude-bridge-diag.log",
+	// Per-machine UI preferences — never mirrored, a push must not delete them.
+	"zentui.json",
+	"themes",
 ]);
 // Extension directories containing this marker file are considered
 // system-managed and will be pruned from local during sync.

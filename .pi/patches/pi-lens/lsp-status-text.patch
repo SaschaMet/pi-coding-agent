@@ -1,0 +1,13 @@
+Purpose: footer shows "LSP Active" without listing every server.
+Reviewed-Version: 4.4.0
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -138963,7 +138963,7 @@
+       const { activeIds, failedIds } = selectLspStatus(getLSPService().getAliveServerIds(), getFailedLspServerIds(), getSessionLanguages());
+       const parts = [];
+       const compact = getLensFlag("lens-compact-lsp-status") === true;
+-      const activeText = compact ? "LSP \u2713" : `LSP Active: ${activeIds.join(", ")}`;
++      const activeText = compact ? "LSP \u2713" : "LSP Active";
+       const failedText = compact ? "LSP \u2717" : `LSP Failed: ${failedIds.join(", ")}`;
+       const inactiveText = compact ? "LSP \u2717" : "LSP Inactive";
+       if (activeIds.length > 0) {

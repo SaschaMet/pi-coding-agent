@@ -12,6 +12,7 @@
         "agent:private": "bash scripts/headroom-up.sh --quiet && bash scripts/presidio-up.sh --quiet && tsx src/main.ts --private",
         "smoke": "tsx scripts/smoke.ts",
         "pi:patch-retry": "tsx scripts/patch-retry.ts",
+        "pi:package-patches": "tsx scripts/pi-package-patches.ts",
         "typecheck": "tsc --noEmit",
         "test": "vitest run",
         "test:coverage": "vitest run --coverage",

@@ -1,0 +1,14 @@
+Purpose: leave the working row to pi-zentui.
+Requires: pi-zentui (drop this patch if Zentui is removed)
+Reviewed-Version: 0.14.2
+--- a/extensions/compact-tools-progress.ts
++++ b/extensions/compact-tools-progress.ts
+@@ -148,6 +148,8 @@
+ 
+ 	bind(ctx: ExtensionContext): void {
+ 		this.stopAnimation();
++		this.context = undefined;
++		return;
+ 		this.context = ctx;
+ 		this.readLevel();
+ 		this.activeTools.clear();
