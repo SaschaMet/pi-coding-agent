@@ -10,7 +10,7 @@ Dev utilities outside the runtime: bidirectional config sync (`.pi/` ↔ `~/.pi/
 
 - `patch-retry.ts` — re-applies the pi-ai retry-backoff cap (60s from 5th retry) after every `npm install`; runs as `postinstall` + `npm run pi:patch-retry`. See `test/patch-retry.test.ts`.
 - `pi-package-patches.ts` — `check` / `apply` for the `.pi/patches/<pkg>/*.patch` files that re-apply local edits to packages under `<agentDir>/npm/node_modules`; exit 0 applied or absent, 1 needed, 2 conflict. Logic lives in `.pi/extensions/lib/package-patches.ts`. Separate from `patch-retry.ts` on purpose. See `test/package-patches.test.ts`.
-- `sync-pi-config.ts` (+ `sync-pi-config.md`) — managed sync of the `.pi/` tree: exclusions, extension pruning, settings/mcp merge, and `SYSTEM.md → CLAUDE.md` copy.
+- `sync-pi-config.ts` (+ `sync-pi-config.md`) — managed sync of the `.pi/` tree: exclusions, extension pruning, settings/mcp merge, `SYSTEM.md → CLAUDE.md` copy, file modes on push, and the security policy check before push.
 - `smoke.ts` — extension/resource discovery smoke check.
 - `headroom-up.sh` — brings up the Docker headroom service (`headroom-compose.yml`).
 - `headroom-log-rotate.sh` — rotates the proxy log inside the headroom container (weekly cron); accepts a local directory argument for deterministic tests (`test/headroom-log-rotate.test.ts`).
@@ -21,6 +21,7 @@ Dev utilities outside the runtime: bidirectional config sync (`.pi/` ↔ `~/.pi/
 - Extension directories are pruned from local **only** when the global extension carries a `.pi-managed` marker. Never prune unmarked directories.
 - `settings.json` and `mcp.json` are merge-synced, never overwritten: settings keep target-only keys and merge `packages`; mcp merges `mcpServers`. Preserve this.
 - Scripts are standalone and independently runnable; no cross-imports between scripts.
+- `push` keeps file modes (synced git hooks need their exec bit) and refuses to run when `.pi/security/policy.ts` does not load. Sync never writes global git config or `~/.claude/settings.json`.
 
 ## Work Guidance
 

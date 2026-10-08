@@ -141,6 +141,8 @@ migration path; test adequacy for changed behavior.
   actual runtime call pattern before accepting "no regression": is the cache-holding object constructed once
   per process/module, or freshly per request/call? Rate it HIGH when the cache cannot activate under the real
   call pattern on a hot path (for example, on every unauthenticated request), and cite the specific caller.
+- Flag audit-log gaps: a changed auth or admin action (login, role change, permission grant, account
+  deletion) that no longer writes, or never wrote, an audit record.
 - Every QA finding names the user-visible or caller-visible scenario that fails.
 
 ### Running tests
@@ -194,11 +196,19 @@ tokens, credentials, PII, or security-relevant logs; missing validation/sanitiza
 input reaches a dangerous sink; authentication/session/config changes that weaken a security boundary;
 dangerous defaults or silent failures (a zero/empty/negative value that silently disables a check, a catch
 block that turns a security failure into a success return, untrusted input selecting a crypto
-algorithm/mode).
+algorithm/mode); prompt injection (model or tool output reaching a shell, SQL, or file sink without
+validation); unbounded tool permissions granted to an agent; dependency names that do not exist on the
+registry or look like a typo of a real package (hallucinated or squatted); error responses that leak a stack
+trace or internal detail instead of a generic message.
+
+- **Agent instruction files are code, not documentation:** `CLAUDE.md`, `AGENTS.md`, `SKILL.md`,
+  `SYSTEM.md`, `.mcp.json`, `.claude/**`, `.pi/agents/**`. Report untrusted instructions, unbounded tool
+  permissions, and secrets in them.
 
 **Hard exclusions — do not report:** DoS/resource exhaustion/rate-limit-only issues; dependency
 staleness/version hygiene; documentation-only issues; pure client-side missing permission checks;
-non-exploitable speculative risks.
+non-exploitable speculative risks. Carve-out, always reportable: a stack trace in a response, and missing
+rate limits on login, signup, password reset, and AI endpoints.
 
 **Finding Bar** — each security finding names: the attacker-controlled input or capability, the vulnerable
 sink or trust-boundary mistake, the exploit result, and the smallest effective mitigation.

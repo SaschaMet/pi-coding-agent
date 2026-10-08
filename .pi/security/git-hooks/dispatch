@@ -1,0 +1,29 @@
+#!/bin/sh
+# Global git hook dispatcher, reached through core.hooksPath. pre-commit runs
+# the shared secret and .env scan; every hook then hands over to the repo's own
+# hook, because a global core.hooksPath hides .git/hooks otherwise.
+name=$1
+shift
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 1
+
+if [ "$name" = pre-commit ]; then
+	# GUI git clients start hooks with a short PATH.
+	node=$(command -v node 2>/dev/null)
+	if [ -z "$node" ] && [ -x /opt/homebrew/bin/node ]; then node=/opt/homebrew/bin/node; fi
+	if [ -z "$node" ]; then
+		echo "security hook: node not found, commit blocked." >&2
+		exit 1
+	fi
+	"$node" "$here/../guard-cli.ts" pre-commit || exit 1
+fi
+
+# --git-common-dir, not --git-path hooks: the latter follows core.hooksPath
+# back here and recurses. The common dir also serves linked worktrees.
+common=$(git rev-parse --git-common-dir) || exit 1
+hook="$common/hooks/$name"
+if [ -x "$hook" ]; then
+	exec "$hook" "$@"
+elif [ -e "$hook" ]; then
+	echo "security hook: $hook is not executable, skipped." >&2
+fi
+exit 0

@@ -13,6 +13,7 @@ The project-local PI config tree — the source of truth for the global PI runti
 - `.pi/agents/` — subagent role definitions (`generic-readonly`, `generic-worker`) for `@tintinweb/pi-subagents`.
 - `.pi/skills/` — project-local skills (`create-spec`, `code-review`, `graphify`, `init-project`, `add-coding-standard`, `obsidian-search`, `visual-diff`, …).
 - `.pi/extensions/` — quality-gate + boundary-guard extensions (see child).
+- `.pi/security/` — the shared security policy (`policy.ts`), its pure evaluator (`guard-core.ts`), the Claude hook and git pre-commit CLI (`guard-cli.ts`), the global git hook dispatcher (`git-hooks/`), and the global git ignore file. Synced to `~/.pi/agent/security/`; see `docs/reference/gates-and-guards.md`.
 - `.pi/local-packages/` — local extensions loaded as `packages` entries in `settings.json`, for ones that must run before npm packages (`pii-redaction.ts`, before noheadroom).
 - `.pi/mcp.json` — MCP config (merge-synced, never overwritten). `.pi/models.json` — model config (never synced; holds API keys).
 - `.pi/docs/` — agent docs (e.g. the debug-extension guide).

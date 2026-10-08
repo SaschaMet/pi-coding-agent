@@ -271,10 +271,16 @@ function mergeMcpServers(
 	return Buffer.from(`${JSON.stringify(sourceJson, null, 2)}\n`, "utf-8");
 }
 
+function fileMode(filePath: string): number {
+	return fs.statSync(filePath).mode & 0o777;
+}
+
+// keepMode: a synced git hook without its exec bit is skipped by git silently.
 function copyFileIfChanged(
 	source: string,
 	target: string,
 	relativePath: string,
+	keepMode: boolean,
 ): boolean {
 	const sourceBuf = fs.readFileSync(source);
 	let outputBuf: Buffer<ArrayBufferLike> = sourceBuf;
@@ -289,11 +295,13 @@ function copyFileIfChanged(
 			const mergedMcp = mergeMcpServers(sourceBuf, targetBuf);
 			if (mergedMcp) outputBuf = mergedMcp;
 		}
-		if (outputBuf.equals(targetBuf)) return false;
+		const sameMode = !keepMode || fileMode(source) === fileMode(target);
+		if (outputBuf.equals(targetBuf) && sameMode) return false;
 	}
 
 	ensureDir(path.dirname(target));
 	fs.writeFileSync(target, outputBuf);
+	if (keepMode) fs.chmodSync(target, fileMode(source));
 	return true;
 }
 
@@ -404,7 +412,7 @@ export function syncManagedPiDirectory(
 	for (const relativePath of sourceFiles) {
 		const sourcePath = path.join(sourceRoot, relativePath);
 		const targetPath = path.join(targetRoot, relativePath);
-		if (copyFileIfChanged(sourcePath, targetPath, relativePath))
+		if (copyFileIfChanged(sourcePath, targetPath, relativePath, mode === "push"))
 			updated.push(relativePath);
 	}
 
@@ -421,7 +429,26 @@ export function syncManagedPiDirectory(
 	return { updated, deleted, directoriesRemoved };
 }
 
-export function main(): void {
+/**
+ * PI, Claude, and every git commit fail closed on a policy that does not load,
+ * so push refuses to ship one and the last good global copy stays in place.
+ */
+export async function checkSecurityPolicy(localPiDir: string): Promise<void> {
+	const securityDir = path.join(localPiDir, "security");
+	if (!fs.existsSync(securityDir)) return;
+	try {
+		const [core, policyModule] = await Promise.all([
+			import(pathToFileURL(path.join(securityDir, "guard-core.ts")).href),
+			import(pathToFileURL(path.join(securityDir, "policy.ts")).href),
+		]);
+		core.checkPolicy(policyModule.policy);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		throw new Error(`Security policy check failed, nothing synced: ${message}`);
+	}
+}
+
+export async function main(): Promise<void> {
 	const mode = parseMode(process.argv);
 	const projectRoot = process.cwd();
 	const localPiDir = path.join(projectRoot, ".pi");
@@ -430,6 +457,7 @@ export function main(): void {
 	if (!fs.existsSync(localPiDir)) {
 		throw new Error(`Local .pi directory not found: ${localPiDir}`);
 	}
+	if (mode === "push") await checkSecurityPolicy(localPiDir);
 
 	ensureDir(globalAgentDir);
 
@@ -484,5 +512,8 @@ if (
 	process.argv[1] &&
 	import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
-	main();
+	main().catch((error: unknown) => {
+		console.error(error instanceof Error ? error.message : error);
+		process.exitCode = 1;
+	});
 }

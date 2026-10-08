@@ -9,6 +9,7 @@ How the quality gates and path guards in `.pi/extensions/` decide. Source of tru
 | `gates.ts` | After each agent turn (`agent_end`) | Checks the final message against what actually happened. Sends one correction. | Open when git cannot answer |
 | `read-boundary-guard.ts` | Before `read`, `write`, `edit`, `grep`, `find`, `ls` | Blocks paths outside the working directory unless approved or trusted. | Blocked |
 | `write-boundary-guard.ts` | Before `write`, `edit` | Limits writes to the armed spec or plan scope. | Blocked once armed. Open while not armed. |
+| `security-guard.ts` | Before every tool call, and on each prompt (`input`) | Blocks `.env` and credential paths, dangerous shell commands, protected-branch and force pushes, hook bypasses, and secrets in prompts. Shares one policy with the Claude hook and the global git hook. | Blocked, and prompts dropped |
 | `model-whitelist.ts` | At startup | Shows only the OpenRouter models listed in `models.json`. | No-op |
 | `subagent-delegation-policy.ts` | On input and before each agent start | Routes explicit delegation requests to the `Agent` tool. Adds delegation rules. | Continue |
 | `subagent-rules-injection.ts` | Before a subagent starts | Adds `.pi/SYSTEM.md` to a subagent that lacks it. | Continue |
@@ -131,6 +132,37 @@ A write to the armed spec that changes its Modify or Forbid lists needs a Yes fr
 - After the write lands, the guard re-arms only if the file on disk matches the approved lists.
 - Notes and status markers in the spec do not trigger this.
 
+## Security guard (`security-guard.ts`, `.pi/security/`)
+
+One policy for PI, Claude Code, and git on this machine.
+
+- `.pi/security/policy.ts` holds the rules as data. `guard-core.ts` evaluates them. It is pure and runs under plain `node`.
+- Adapters: the PI extension `security-guard.ts`, the Claude hook `guard-cli.ts`, and the git pre-commit hook (`guard-cli.ts pre-commit`, reached through `git-hooks/dispatch`).
+- Install: sync ships the files to `~/.pi/agent/security/`. The human runs the one-time git and Claude commands in `scripts/sync-pi-config.md`. Sync never writes global git config or `~/.claude/settings.json`.
+
+What it blocks:
+
+| Rule | PI and Claude tool calls | Prompts | git commit |
+| --- | --- | --- | --- |
+| `.env`, `.env.*` (not `.example`, `.sample`, `.template`, `.dist`, `.defaults`, `.vault`) | Any path input, `grep`/`find` globs, shell commands | | Staged file names |
+| Credential paths: `~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.kube`, `~/.npmrc`, `*.pem`, `*.key`, `secrets/` | Any path input, shell commands | | |
+| Push to `main`, `master`, `production`, `release/*`; force push (`--force-with-lease` is allowed); deleting a protected branch | Shell commands; a bare push uses the current branch, and an unknown branch blocks | | |
+| `rm` with `-r`/`-f` on `/`, `~`, `$HOME`, or a direct child of them; pipe-to-shell; exfil hosts; `--dangerously-skip-permissions` | Shell commands | | |
+| `--no-verify`, `git commit -n`, any change of `core.hooksPath` | Shell commands | | |
+| Secret patterns (block mode) | | Dropped with the pattern name and "If this was a real key, rotate it now." | Commit fails |
+| 64-hex and generic `key = value` patterns (warn mode) | | Warning only | Warning only |
+
+Fails closed:
+
+- PI: when `policy.ts` or `guard-core.ts` cannot load, every tool call blocks and every prompt is dropped. Fix it from a plain shell with `npm run pi:sync-global`.
+- Claude: the hook command is `node "$HOME/.pi/agent/security/guard-cli.ts" || exit 2`. Every deny and error exits 2.
+- git: a missing `node` or policy fails the commit. More than 5 MB of staged text (lockfiles excluded) fails the commit.
+- Sync: `push` refuses a policy that does not load and writes nothing.
+
+The git dispatcher hands each hook (14 names) to the repo's own `.git/hooks/<name>` with the same arguments and stdin, so repo hooks keep running.
+
+Rollback: `git config --global --unset core.hooksPath`, `git config --global --unset core.excludesFile`, and remove the hook entries from `~/.claude/settings.json`.
+
 ## Bash mutation detection
 
 `lib/bash-mutations.ts` finds paths a `bash` command plausibly changed. It feeds `bash_mutations_disclosed`.
@@ -159,8 +191,23 @@ A write to the armed spec that changes its Modify or Forbid lists needs a Yes fr
 
 ## Not covered here
 
-- The `.env` read block is a Claude Code hook (`~/.claude/hooks/block-env-files.sh`). It is not part of PI. PI has no equivalent.
-- Shell rules such as "no push to main" are Claude Code hooks too.
+Known gaps of the security guard:
+
+- Shell matching is a speed bump, not a boundary: obfuscated commands such as `$(printf ...)` pass. The path check and the git hook are the enforcing layers.
+- A Claude hook that reaches its `timeout` (30 s) is cancelled, and Claude allows the call.
+- A repo's `.claude/settings.json` with `"disableAllHooks": true` turns off the Claude guard there. Read an untrusted repo's settings before you trust the folder.
+- A repo with its own `core.hooksPath` (husky, lefthook) skips the global git hook. `git commit --no-verify` typed by a human skips it too.
+- While the global `core.hooksPath` is set, repo hooks under names without a wrapper (for example `push-to-checkout`, `reference-transaction`) do not run.
+- Installers that use `git rev-parse --git-path hooks` (for example `graphify hook install`) write into the global folder. Use the env-prefix command in `scripts/sync-pi-config.md`.
+- Staged changes to tracked `.env.<other>` files are blocked.
+- Binary staged files are not scanned.
+- Extension `/commands` are not prompt-scanned: PI runs them before `input`.
+- The agent guard does not scan commits; the git hook does.
+- PI-only guards (gates, scope guard) do not exist for Claude. PI has no sandbox like Claude's.
+- The legacy Claude hooks in `~/.claude/hooks/` stay until parity is proven.
+- Code review is not automatic: the `code-review` skill runs only when invoked.
+- No injection warning on tool results yet.
+- `init-project` and `add-coding-standard` do not yet check that the global guard is installed.
 
 ## Tests
 
@@ -172,3 +219,7 @@ Each behavior above is pinned by a test. Change a guard only together with its t
 - `test/spec-scope.test.ts`
 - `test/trust-loader.test.ts`
 - `test/subagent-delegation-policy.test.ts`
+- `test/security-guard.test.ts`
+- `test/security-parity.test.ts`
+- `test/security-git-hook.test.ts`
+- `test/sync-pi-config.test.ts` (file modes and the policy check before push)

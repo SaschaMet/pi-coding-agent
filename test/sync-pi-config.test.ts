@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -6,6 +7,27 @@ import {
 	syncManagedPiDirectory,
 	copySystemMdToClaudeMd,
 } from "../scripts/sync-pi-config.ts";
+import { fakeSecrets } from "./fixtures/security/cases.ts";
+
+const REPO_ROOT = path.resolve(import.meta.dirname, "..");
+const TSX = path.join(REPO_ROOT, "node_modules/.bin/tsx");
+const SYNC_SCRIPT = path.join(REPO_ROOT, "scripts/sync-pi-config.ts");
+
+function runSyncScript(cwd: string, home: string, agentDir: string) {
+	return spawnSync(TSX, [SYNC_SCRIPT, "push"], {
+		cwd,
+		env: { ...process.env, HOME: home, PI_CODING_AGENT_DIR: agentDir },
+		encoding: "utf8",
+		timeout: 120_000,
+	});
+}
+
+function listFiles(root: string): string[] {
+	return fs
+		.readdirSync(root, { recursive: true, withFileTypes: true })
+		.filter((entry) => entry.isFile())
+		.map((entry) => path.relative(root, path.join(entry.parentPath, entry.name)));
+}
 
 function writeJson(filePath: string, value: unknown): void {
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -996,6 +1018,114 @@ describe("sync-pi-config", () => {
 
 		expect(result.directoriesRemoved.length).toBe(0);
 		expect(fs.existsSync(localPlanMode)).toBe(true);
+	});
+
+	describe("file modes on push", () => {
+		it("keeps the shipped binaries executable, since push copies their mode", () => {
+			const bin = path.join(REPO_ROOT, ".pi/bin");
+			const files = fs.readdirSync(bin).filter((name) => fs.statSync(path.join(bin, name)).isFile());
+			expect(files.length).toBeGreaterThan(0);
+			for (const file of files) expect(fs.statSync(path.join(bin, file)).mode & 0o111, file).toBe(0o111);
+		});
+
+		it("keeps the source mode and repairs a mode-only drift", () => {
+			const { localPiDir, globalAgentDir } = setupRoots("pi-sync-mode-");
+			const hook = path.join(localPiDir, "security/git-hooks/pre-commit");
+			fs.mkdirSync(path.dirname(hook), { recursive: true });
+			fs.writeFileSync(hook, "#!/bin/sh\n");
+			fs.chmodSync(hook, 0o755);
+			const target = path.join(globalAgentDir, "security/git-hooks/pre-commit");
+
+			syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+			expect(fs.statSync(target).mode & 0o777).toBe(0o755);
+
+			fs.chmodSync(target, 0o644);
+			const drift = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+			expect(drift.updated).toEqual(["security/git-hooks/pre-commit"]);
+			expect(fs.statSync(target).mode & 0o777).toBe(0o755);
+
+			expect(syncManagedPiDirectory("push", localPiDir, globalAgentDir).updated).toEqual([]);
+		});
+
+		it("ships the security hooks so a commit through the synced copy is blocked", () => {
+			const { localPiDir, globalAgentDir } = setupRoots("pi-sync-security-");
+			fs.cpSync(path.join(REPO_ROOT, ".pi/security"), path.join(localPiDir, "security"), { recursive: true });
+			syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+
+			const hooks = path.join(globalAgentDir, "security/git-hooks");
+			for (const file of fs.readdirSync(hooks)) expect(fs.statSync(path.join(hooks, file)).mode & 0o777).toBe(0o755);
+
+			const repo = fs.mkdtempSync(path.join(os.tmpdir(), "pi-sync-commit-"));
+			tmpRoots.push(repo);
+			const env = {
+				...process.env,
+				PATH: `${path.dirname(process.execPath)}:/usr/bin:/bin`,
+				GIT_CONFIG_GLOBAL: path.join(repo, ".gitconfig-test"),
+				GIT_CONFIG_NOSYSTEM: "1",
+				GIT_AUTHOR_NAME: "Test",
+				GIT_AUTHOR_EMAIL: "test@example.invalid",
+				GIT_COMMITTER_NAME: "Test",
+				GIT_COMMITTER_EMAIL: "test@example.invalid",
+			};
+			const git = (...args: string[]) => spawnSync("git", args, { cwd: repo, env, encoding: "utf8" });
+			fs.writeFileSync(env.GIT_CONFIG_GLOBAL, `[core]\n\thooksPath = ${hooks}\n`);
+			git("init", "-q");
+			fs.writeFileSync(path.join(repo, "a.ts"), `const k = "${fakeSecrets.aws}";\n`);
+			git("add", "a.ts");
+			const commit = git("commit", "-q", "-m", "x");
+			expect(commit.status).not.toBe(0);
+			expect(commit.stderr).toContain("AWS access key ID");
+		});
+
+		it("pushes the real tree twice: only CLAUDE.md lands in HOME and the second run has no changes", () => {
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-sync-real-"));
+			tmpRoots.push(root);
+			const home = path.join(root, "home");
+			const agentDir = path.join(root, "agent");
+			fs.mkdirSync(home);
+
+			expect(runSyncScript(REPO_ROOT, home, agentDir).status).toBe(0);
+			const second = runSyncScript(REPO_ROOT, home, agentDir);
+			expect(second.status).toBe(0);
+			expect(second.stdout).toContain("No changes.");
+			expect(listFiles(home)).toEqual([path.join(".claude", "CLAUDE.md")]);
+		}, 240_000);
+	});
+
+	describe("security policy check before push", () => {
+		function setupProject(policySource: string) {
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-sync-policy-check-"));
+			tmpRoots.push(root);
+			const security = path.join(root, "project/.pi/security");
+			fs.mkdirSync(security, { recursive: true });
+			fs.copyFileSync(path.join(REPO_ROOT, ".pi/security/guard-core.ts"), path.join(security, "guard-core.ts"));
+			fs.writeFileSync(path.join(security, "policy.ts"), policySource);
+			const agentDir = path.join(root, "agent");
+			const existing = path.join(agentDir, "security/policy.ts");
+			fs.mkdirSync(path.dirname(existing), { recursive: true });
+			fs.writeFileSync(existing, "// last good policy\n");
+			const home = path.join(root, "home");
+			fs.mkdirSync(home);
+			return { cwd: path.join(root, "project"), agentDir, existing, home };
+		}
+
+		const realPolicy = () => fs.readFileSync(path.join(REPO_ROOT, ".pi/security/policy.ts"), "utf8");
+
+		it.each([
+			["throws on import", 'throw new Error("broken policy");\n', /broken policy/],
+			[
+				"has a regex that does not compile",
+				realPolicy().replace('maxScanChars: 1_000_000', 'maxScanChars: 1_000_000, rmFlag: "("'),
+				/regular expression|Invalid/i,
+			],
+		])("refuses a policy that %s and leaves the global copy untouched", (_label, source, error) => {
+			const project = setupProject(source);
+			const result = runSyncScript(project.cwd, project.home, project.agentDir);
+			expect(result.status).not.toBe(0);
+			expect(result.stderr).toMatch(error);
+			expect(fs.readFileSync(project.existing, "utf8")).toBe("// last good policy\n");
+			expect(fs.existsSync(path.join(project.agentDir, "security/guard-core.ts"))).toBe(false);
+		});
 	});
 
 	describe("copySystemMdToClaudeMd", () => {
