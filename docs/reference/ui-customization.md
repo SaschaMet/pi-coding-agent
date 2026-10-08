@@ -17,7 +17,7 @@ Restore: copy `docs/reference/ui-config/zentui.json` to `~/.pi/agent/` and `my-d
 - **Context window:** `$context` in the middle zone. The Claude 5h/7d usage comes from `~/.pi/agent/extensions/claude-usage.ts` and is placed in the middle via `extensionStatuses.placements`. It appears only after a `claude-bridge` turn.
 - **Cache:** the `pi-cache-stats` status is hidden. Only the hit rate shows, inside `$tokens`.
 - **Thinking:** Streaming mode (`Ctrl+T` expands the full text).
-- **Working line:** `#DE7356` for `high` and `mid`, `#C4694F` for `low`. A darker `low` makes the sweep look brown.
+- **Working line:** `#d19a66` (`high`), `#a97d52` (`mid`), `#7d5d3c` (`low`). The sweep animation cycles through the three. Tried `#DE7356` (peach) and went back.
 
 ## Package patches
 

@@ -93,9 +93,9 @@
       "textAnimation": "kitt",
       "placement": "above",
       "colors": {
-        "high": "#DE7356",
-        "mid": "#DE7356",
-        "low": "#C4694F"
+        "high": "#d19a66",
+        "mid": "#a97d52",
+        "low": "#7d5d3c"
       },
       "spinnerIntervalMs": 160,
       "textIntervalMs": 100,
