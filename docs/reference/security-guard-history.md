@@ -18,7 +18,7 @@ One policy now protects PI, Claude Code, and every git commit on this machine:
 | `8e07d2d` | Global security guard: policy, evaluator, PI extension, Claude hook CLI, git hook dispatcher, global ignore file, mode-keeping sync with a policy check, code-review lens rules, docs. `.pi/bin/fd` and `rg` tracked as executable. |
 | `433ce0a` | Gaps found against the legacy Claude hooks: pipe-to-shell across pipes, exfil via rsync/scp/sftp/socat/telnet, push targets built at run time, `~<user>` homes as `rm` targets. |
 | `edef56d` | Reference doc on repo setup with the global guard. |
-| next commit | Bypass fixes (hiding or dropping the git config, `sh -c` wrappers), `check-install.ts`, skill and graphify instructions, this record. |
+| `c696c24` | Bypass fixes (hiding or dropping the git config, `sh -c` wrappers), `check-install.ts`, skill and graphify instructions, this record. |
 
 ## Components
 
