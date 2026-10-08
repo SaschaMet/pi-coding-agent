@@ -18,7 +18,7 @@ Dev utilities outside the runtime: bidirectional config sync (`.pi/` ↔ `~/.pi/
 
 - `sync-pi-config.ts`: `EXCLUDED_TOP_LEVEL_PATHS` (`auth.json`, `sessions`, `npm`, `models.json`, `trust.json`, `AGENTS.md` top-level) must never be synced or deleted. Keep the list fail-safe (personal/machine data and the project-local root `AGENTS.md` stay out; nested `AGENTS.md` files still sync).
 - Extension directories are pruned from local **only** when the global extension carries a `.pi-managed` marker. Never prune unmarked directories.
-- `settings.json` and `mcp.json` are merge-synced (`packages` / `mcpServers`), never overwritten. Preserve this.
+- `settings.json` and `mcp.json` are merge-synced, never overwritten: settings keep target-only keys and merge `packages`; mcp merges `mcpServers`. Preserve this.
 - Scripts are standalone and independently runnable; no cross-imports between scripts.
 
 ## Work Guidance

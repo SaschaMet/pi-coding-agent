@@ -14,7 +14,7 @@ The project-local PI config tree — the source of truth for the global PI runti
 - `.pi/skills/` — project-local skills (`create-spec`, `code-review`, `graphify`, `init-project`, `add-coding-standard`, `obsidian-search`, `visual-diff`, …).
 - `.pi/extensions/` — quality-gate + boundary-guard extensions (see child).
 - `.pi/local-packages/` — local extensions loaded as `packages` entries in `settings.json`, for ones that must run before npm packages (`pii-redaction.ts`, before noheadroom).
-- `.pi/mcp.json`, `.pi/models.json` — MCP + model config (merge-synced, never overwritten).
+- `.pi/mcp.json` — MCP config (merge-synced, never overwritten). `.pi/models.json` — model config (never synced; holds API keys).
 - `.pi/docs/` — agent docs (e.g. the debug-extension guide).
 
 ## Local Contracts

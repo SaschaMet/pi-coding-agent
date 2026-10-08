@@ -123,6 +123,58 @@ describe("sync-pi-config", () => {
 		]);
 	});
 
+	it("keeps target-only settings keys on pull and push", () => {
+		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-target-only-");
+		const localFile = path.join(localPiDir, "settings.json");
+		const globalFile = path.join(globalAgentDir, "settings.json");
+		const read = (file: string) =>
+			JSON.parse(fs.readFileSync(file, "utf-8")) as Record<string, unknown>;
+
+		writeJson(localFile, { defaultProvider: "local-provider" });
+		writeJson(globalFile, {
+			defaultProvider: "global-provider",
+			extensions: ["-builtin:mcp"],
+		});
+
+		syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+
+		const globalAfterPush = read(globalFile);
+		expect(globalAfterPush.defaultProvider).toBe("local-provider");
+		expect(globalAfterPush.extensions).toEqual(["-builtin:mcp"]);
+
+		writeJson(localFile, { defaultProvider: "local", localOnly: true });
+		writeJson(globalFile, { defaultProvider: "global", globalOnly: true });
+
+		syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
+
+		const localAfterPull = read(localFile);
+		expect(localAfterPull.defaultProvider).toBe("global");
+		expect(localAfterPull.globalOnly).toBe(true);
+		expect(localAfterPull.localOnly).toBe(true);
+	});
+
+	it("never copies lastChangelogVersion", () => {
+		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-changelog-key-");
+		const localFile = path.join(localPiDir, "settings.json");
+		const globalFile = path.join(globalAgentDir, "settings.json");
+		const read = (file: string) =>
+			JSON.parse(fs.readFileSync(file, "utf-8")) as Record<string, unknown>;
+
+		writeJson(localFile, { lastChangelogVersion: "0.99.2", theme: "light" });
+		writeJson(globalFile, { lastChangelogVersion: "1.0.4", theme: "dark" });
+		syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+		expect(read(globalFile).lastChangelogVersion).toBe("1.0.4");
+		expect(read(globalFile).theme).toBe("light");
+
+		writeJson(globalFile, { theme: "dark" });
+		syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+		expect(read(globalFile)).not.toHaveProperty("lastChangelogVersion");
+
+		writeJson(globalFile, { lastChangelogVersion: "1.0.4" });
+		syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
+		expect(read(localFile).lastChangelogVersion).toBe("0.99.2");
+	});
+
 	it("falls back to byte-copy semantics when settings JSON is invalid", () => {
 		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-invalid-json-");
 

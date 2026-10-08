@@ -31,6 +31,8 @@ const EXCLUDED_TOP_LEVEL_PATHS = new Set([
 // See scripts/sync-pi-config.md for details.
 const MANAGED_EXTENSION_MARKER = ".pi-managed";
 const SETTINGS_RELATIVE_PATH = "settings.json";
+// Per-machine pi state: never copied between project and global.
+const MACHINE_LOCAL_SETTINGS_KEYS = ["lastChangelogVersion"];
 const MCP_RELATIVE_PATH = "mcp.json";
 const EXTENSIONS_RELATIVE_PATH = "extensions";
 
@@ -229,8 +231,13 @@ function mergeSettingsPackages(
 		? targetJson.packages.filter((v): v is string => typeof v === "string")
 		: [];
 
-	sourceJson.packages = mergePackages(sourcePackages, targetPackages);
-	return Buffer.from(`${JSON.stringify(sourceJson, null, 2)}\n`, "utf-8");
+	const merged: JsonObject = { ...targetJson, ...sourceJson };
+	merged.packages = mergePackages(sourcePackages, targetPackages);
+	for (const key of MACHINE_LOCAL_SETTINGS_KEYS) {
+		if (key in targetJson) merged[key] = targetJson[key];
+		else delete merged[key];
+	}
+	return Buffer.from(`${JSON.stringify(merged, null, 2)}\n`, "utf-8");
 }
 
 function getJsonObjectProperty(
