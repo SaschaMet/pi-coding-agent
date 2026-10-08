@@ -1,0 +1,13 @@
+Purpose: stronger red/green diff row tints (0.17 to 0.3) so rows read like GitHub on a dark terminal.
+Reviewed-Version: 0.14.2
+--- a/extensions/compact-tools-color.ts
++++ b/extensions/compact-tools-color.ts
+@@ -230,7 +230,7 @@
+  * Diff rows need a tint that reads on the terminal background without hijacking `toolSuccessBg`
+  * and `toolErrorBg`, which Pi paints across the whole tool row.
+  */
+-export function diffTintRgb(theme: Theme, color: ThemeColor, amount = 0.17): Rgb | undefined {
++export function diffTintRgb(theme: Theme, color: ThemeColor, amount = 0.3): Rgb | undefined {
+ 	const rgb = themeColorRgb(theme, color);
+ 	return rgb && interpolateRgb(isDark(theme) ? BLACK : WHITE, rgb, amount);
+ }
