@@ -64,6 +64,7 @@ Helper panes (Logs/Browser) join the same grid with `new-pane --workspace "$WS" 
 **Alternative: dedicated workspace** (the user asks for a separate tab or the fleet is large): read `references/roster-workspace.md` when `.cmux/cmux.json` exists in the current directory; otherwise use the split recipe above.
 
 To boot agents other than the roster (e.g. `claude`, `codex`, `gemini`, `pi`): create a workspace, then `cmux new-split right --surface <ref>` (returns the new surface ref) and `cmux send` the agent CLI name into each surface. Boot Claude Code workers as `claude --permission-mode auto`: a bare `claude` starts in manual mode and asks before every shell command, so the worker stalls on its first command and never signals. Never use `bypassPermissions`: auto mode still stops risky actions, so keep the prompt watcher running.
+Note: When spwaning claude agents, use thinking level `medium`.
 
 ## Orchestration Recipes
 
@@ -84,11 +85,13 @@ for S in $S1 $S2; do cmux send --surface "$S" "You are a cmux worker. $TASK $(ts
 
 **Completion: pick one.** Default: rendezvous.
 
-| Situation | Use |
-| --- | --- |
-| Worker can run `cmux wait-for -S` | Rendezvous (below) |
-| Worker cannot signal | Wait for a marker (below) |
-| Many workers, long run | Events (`references/events-and-dashboard.md`) |
+| Situation                         | Use                                           |
+| --------------------------------- | --------------------------------------------- |
+| Worker can run `cmux wait-for -S` | Rendezvous (below)                            |
+| Worker cannot signal              | Wait for a marker (below)                     |
+| Many workers, long run            | Events (`references/events-and-dashboard.md`) |
+
+**Check interval:** the orchestrator never goes more than 30 seconds without checking a worker.
 
 **Read to decide:** make agents print a machine-greppable sentinel instead of parsing prose.
 
@@ -104,14 +107,14 @@ VERDICT=$(printf '%s\n' "$OUT" | grep -oE 'VERDICT=(GREEN|RED)' | tail -1 | cut 
 
 **Rendezvous (block until a worker signals) — the preferred completion mechanism, not read-screen polling:**
 
-- orchestrator `cmux wait-for <token> --timeout 600` ⇄ worker `cmux wait-for -S <token>`.
+- orchestrator `wait_or_prompt <token> <surface>` (below) ⇄ worker `cmux wait-for -S <token>`.
 - **Report contract:** For long-output tasks (reports, reviews), put three requirements in the task prompt: the worker (1) writes its full report to `$TMPDIR/pi-reports/<task>.md`, (2) prints a one-line sentinel as its last chat line, (3) runs `cmux wait-for -S <token>` when done. The orchestrator waits on the token, then reads the report file. When the task serves a spec or plan, the task prompt names that document, and the orchestrator copies the report to `docs/specs/<name>/reports/<task>.md` or `docs/plans/<name>/reports/<task>.md` (see **Artifact folder** in [../create-spec/SKILL.md](../create-spec/SKILL.md)). Workers never write into a document folder. Never parse a long report from screen scrollback: the TUI wraps lines at pane width and truncates scrollback (verified: a 400-line read-screen captured a wrapped, incomplete report). Bounded `read-screen` marker polling stays the fallback only when the worker cannot signal `wait-for`.
-- **Never wait blind — watch for approval prompts.** A worker blocked on an approval prompt can never signal, so a bare `wait-for` hangs until its timeout (verified: a pi review sat on "Allow write outside current directory?" for its report file while the orchestrator waited). Wait in 60-second slices and read the worker's screen between slices:
+- **Never wait blind — watch for approval prompts.** A worker blocked on an approval prompt can never signal, so a bare `wait-for` hangs until its timeout (verified: a pi review sat on "Allow write outside current directory?" for its report file while the orchestrator waited). Wait in 15-second slices and read the worker's screen between slices:
 
 ```bash
 wait_or_prompt() {   # $1 = token, $2 = worker surface; exit 0 = signalled, 2 = prompt, 1 = timed out
-  for _ in $(seq 1 60); do
-    cmux wait-for "$1" --timeout 60 && return 0          # exits 1 on timeout
+  for _ in $(seq 1 240); do
+    cmux wait-for "$1" --timeout 15 && return 0          # exits 1 on timeout
     SCR=$(cmux read-screen --workspace "$WS" --surface "$2" --lines 40)
     if printf '%s\n' "$SCR" | grep -qE 'Allow .*\?|Do you want to proceed|Trust project folder|→ Yes'; then
       echo "PROMPT on $2"; printf '%s\n' "$SCR" | tail -15; return 2
@@ -121,7 +124,7 @@ wait_or_prompt() {   # $1 = token, $2 = worker surface; exit 0 = signalled, 2 = 
 }
 ```
 
-Run it in the background. On exit 2, show the prompt to the user at once and let them decide. Do not answer a permission prompt for them unless they have said to. Keep the task file and the report file on different paths (`<task>.task.md` vs `<task>.md`) — verified: a shared path made workers overwrite their own task file with the report.
+Run it in the background. On exit 2, show the prompt to the user at once and let them decide. Do not answer a permission prompt for them unless they have said to. Standing exception: a grill worker's start prompt (see below). Keep the task file and the report file on different paths (`<task>.task.md` vs `<task>.md`) — verified: a shared path made workers overwrite their own task file with the report.
 
 **TDD gate (every code task) — the orchestrator enforces Red, not the worker:** a rule in `.pi/SYSTEM.md` alone does not hold (verified: a worker with the TDD rule loaded wrote source before tests). Split each code task into two dispatches:
 
@@ -133,9 +136,13 @@ Check the order afterwards in the worker's transcript: its first `Edit`/`Write` 
 
 **Fan-in:** read every surface with `read-screen --scrollback`, compare/aggregate, then report. `cmux tree --all` is the ground truth of what is running.
 
+## Grill Workers
+
+Standing user approval, only for a worker running `$grill-me`: approve its start prompt at once (trust-folder or first-run `Allow …?`) with `cmux send-key --workspace "$WS" --surface <ref> enter`, no human step. Any later prompt, and any prompt on another worker, still goes to the user. When the grill report is read, close that worker's pane automatically; this is the only automatic close.
+
 ## Fail-Safe Teardown
 
-Closing panes is user-approved, never automatic. A finished task is not a close signal — the user must be able to verify the outcome in the pane. Close a spawned pane, surface, or workspace only after the user approves it (e.g. says the research step is done, or part 1 of the plan is done). On an error path (failed boot, timeout, unresponsive agent), report and ask — do not close on your own.
+Closing panes is user-approved, never automatic, except a grill worker's pane (see **Grill Workers**). A finished task is not a close signal — the user must be able to verify the outcome in the pane. Close a spawned pane, surface, or workspace only after the user approves it (e.g. says the research step is done, or part 1 of the plan is done). On an error path (failed boot, timeout, unresponsive agent), report and ask — do not close on your own.
 
 ```bash
 cmux workspace close --workspace "$WS"
@@ -152,7 +159,7 @@ Composition is a per-task decision. State it at boot and at every dynamic spawn 
 
 | Task                                                          | Panes                                                                                                                                  |
 | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Code/feature work                                             | workers (`.cmux/cmux.json` roster when present, else split workers)                                                                     |
+| Code/feature work                                             | workers (`.cmux/cmux.json` roster when present, else split workers)                                                                    |
 | Backend with a stream worth watching (dev server, long build) | workers + Logs pane (judgment: only if output is worth watching live)                                                                  |
 | Frontend change                                               | workers; Browser pane **only on user request** (`new-pane --type browser --url`, then `browser reload` / `browser snapshot` to verify) |
 | Research the user should watch                                | Research worker in a pane (fleet worker — live output by construction)                                                                 |
@@ -185,3 +192,4 @@ Reuse the existing right-hand helper pane (add a surface) before creating more p
 - **`reload-config` reloads global AND Ghostty config** and refreshes terminals live — no app restart.
 - **Focus verbs are user-affecting** (`select-workspace`, `focus-pane`, `focus-panel`): call only on explicit user request; pass `--focus false` on creation/move verbs that support it.
 - Layout `split` ratios are 0.1–0.9, exactly two `children` per split node; `pane` nodes hold `surfaces` with auto-run `command`.
+- Synonym for pane is tab.

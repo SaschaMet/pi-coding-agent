@@ -99,4 +99,22 @@ describe("cmux-orchestration skill", () => {
             expect(lines.slice(0, 15), `${ref.file} has no ## Contents`).toContain("## Contents");
         }
     });
+
+    // A longer blind wait hides a worker stuck on an approval prompt.
+    it("caps every wait slice at 30 seconds", () => {
+        const { text } = readSkill();
+        const files = [text, ...readReferences().map((r) => r.text)];
+        for (const body of files) {
+            for (const m of body.matchAll(/--timeout (\d+)/g)) {
+                expect(Number(m[1])).toBeLessThanOrEqual(30);
+            }
+        }
+        expect(text).toContain("30 seconds");
+    });
+
+    it("auto-approves a grill worker's start prompt and closes its pane afterwards", () => {
+        const { text } = readSkill();
+        expect(text).toMatch(/grill.{0,200}approve.{0,40}(at once|immediately)/is);
+        expect(text).toMatch(/grill.{0,300}close.{0,40}pane.{0,40}automatically/is);
+    });
 });
