@@ -263,8 +263,69 @@ function gitDecision(words: string[], call: ToolCall, policy: Policy): Decision 
 		if (!readOnly || setsHooksEnv) return deny("Changing core.hooksPath skips the security git hook.");
 	}
 	if (git.subcommand === "commit" && commitSkipsHooks(git.args)) return deny("git commit -n skips git hooks and is blocked.");
+	if (git.subcommand === "config" && changesHookConfig(git.args))
+		return deny("Changing core or include settings can drop the security git hook.");
 	if (git.subcommand === "push") return pushDecision(git.args, call, policy);
 	return ALLOW;
+}
+
+const INCLUDE_KEY_RE = /^include(?:if\..+)?\.path$/i;
+const SECTION_OPS = new Set(["--remove-section", "--rename-section", "remove-section", "rename-section"]);
+
+// Dropping [core] or adding an include overrides core.hooksPath without naming it.
+function changesHookConfig(args: string[]): boolean {
+	if (args.some((arg, i) => SECTION_OPS.has(arg) && args[i + 1]?.toLowerCase() === "core")) return true;
+	const readOnly = args.some((arg) => CONFIG_READ_FLAGS.has(arg)) && !args.some((arg) => CONFIG_WRITE_FLAGS.has(arg));
+	return !readOnly && args.some((arg) => INCLUDE_KEY_RE.test(arg));
+}
+
+const MAX_SHELL_DEPTH = 3;
+const SHELLS = new Set(["sh", "bash", "zsh", "dash"]);
+
+/** The `-c` command string of a sh/bash/zsh/dash call in this simple command, if there is one. */
+function shellDashC(words: string[]): string | undefined {
+	const start = words.findIndex((word) => SHELLS.has(baseName(word)));
+	if (start === -1) return undefined;
+	for (let i = start + 1; i < words.length; i++) {
+		const arg = words[i];
+		if (arg === "-o" || arg === "+o") i++;
+		else if (/^-[a-zA-Z]*c[a-zA-Z]*$/.test(arg)) return words[i + 1] ?? "";
+		else if (!/^[-+]/.test(arg)) return undefined;
+	}
+	return undefined;
+}
+
+function invokesGit(commands: string[][], depth: number): boolean {
+	return commands.some((words) => {
+		if (findGit(words)) return true;
+		const inner = shellDashC(words);
+		return inner !== undefined && depth < MAX_SHELL_DEPTH && invokesGit(splitShellCommands(inner), depth + 1);
+	});
+}
+
+function envDropsHome(args: string[]): boolean {
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i];
+		if (arg === "-" || arg === "--ignore-environment" || /^-[a-z]*i[a-z]*$/.test(arg)) return true;
+		if (arg === "-uHOME" || arg === "--unset=HOME") return true;
+		if (arg === "-u" || arg === "--unset") {
+			if (args[i + 1] === "HOME") return true;
+			i++;
+		} else if (!arg.startsWith("-")) return false;
+	}
+	return false;
+}
+
+// Without HOME, git cannot find ~/.gitconfig and so skips the global core.hooksPath.
+function hidesHome(commands: string[][]): boolean {
+	return commands.some((words) =>
+		words.some(
+			(word, i) =>
+				/^HOME=/.test(word) ||
+				(word === "unset" && words.slice(i + 1).includes("HOME")) ||
+				(baseName(word) === "env" && envDropsHome(words.slice(i + 1))),
+		),
+	);
 }
 
 function normalizeRmTarget(target: string, home: string): string {
@@ -289,14 +350,25 @@ function rmDecision(words: string[], call: ToolCall, policy: Policy): Decision {
 	return ALLOW;
 }
 
-function evaluateShellCommand(command: string, call: ToolCall, policy: Policy): Decision {
+function evaluateShellCommand(command: string, call: ToolCall, policy: Policy, depth = 0): Decision {
+	if (depth > MAX_SHELL_DEPTH) return deny("Nested shell -c is too deep to check.");
 	if (command.length > policy.maxScanChars) return deny("Command is too large to check.");
 	if (mentionsBlockedEnvFile(command, policy)) return deny(envReason());
 	if (credentialCommandRegex(call, policy).test(command)) return deny("Command touches a credential path.");
 	for (const rule of policy.commandRules) {
 		if (new RegExp(rule.source, rule.flags).test(command)) return deny(`Blocked: ${rule.name}.`);
 	}
-	for (const words of splitShellCommands(command)) {
+	const commands = splitShellCommands(command);
+	if (commands.some((words) => words.some((word) => /^GIT_CONFIG_GLOBAL=/.test(word))))
+		return deny("Hiding the global git config skips the security git hook. To search for it, drop the '='.");
+	if (hidesHome(commands) && invokesGit(commands, depth))
+		return deny("Hiding HOME hides ~/.gitconfig and skips the security git hook.");
+	for (const words of commands) {
+		const inner = shellDashC(words);
+		if (inner !== undefined) {
+			const decision = evaluateShellCommand(inner, call, policy, depth + 1);
+			if (decision.decision === "deny") return decision;
+		}
 		for (const check of [gitDecision, rmDecision]) {
 			const decision = check(words, call, policy);
 			if (decision.decision === "deny") return decision;

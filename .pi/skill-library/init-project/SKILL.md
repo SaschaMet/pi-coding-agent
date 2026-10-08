@@ -24,6 +24,7 @@ Do not use for ordinary feature work, isolated edits to one existing `AGENTS.md`
 - A `.claudeignore` exists at the repo root excluding `node_modules`, build artifacts, and lockfiles.
 - The project's `.pi/settings.json` has an `ignorePatterns` array excluding the same paths as a tool-layer guardrail.
 - The result was verified: the DOX chain is consistent and links resolve.
+- The global guard check result is reported (`ok`, or the `missing`/`warn` lines and the install commands for the user).
 
 ## Workflow
 
@@ -34,6 +35,7 @@ Before Step 1, check whether `graphify-out/graph.json` exists at the repo root. 
 - Repo shape: languages, package manager, frameworks, source/test layout, top-level directories.
 - Existing agent docs: `AGENTS.md`, `CLAUDE.md`, `.cursorrules`, `README` engineering sections. Preserve and extend; do not clobber.
 - Existing coding standard: `AGENTS.md` standard sections, engineering-standard docs, lint/format/test/CI config, hooks.
+- Global security guard: run `node ~/.pi/agent/security/check-install.ts` (read-only). If the script does not exist, the guard is not installed. Report its `missing` and `warn` lines. Never run the install commands it prints; the user does.
 - When inspecting, don't `cat` entire large files — grep for the relevant symbols or sections and read targeted line ranges instead.
 2. Read [references/dox-framework.md](references/dox-framework.md) for the exact section templates, Child DOX Index syntax, and closeout rules.
 3. Create the root `AGENTS.md` (adapt [templates/AGENTS-root.md](templates/AGENTS-root.md)):

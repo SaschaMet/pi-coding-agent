@@ -161,7 +161,54 @@ export const dangerousCommandCases: ToolCase[] = [
 	bash("grep -rn core.hooksPath docs", "allow"),
 ];
 
-export const toolCases: ToolCase[] = [...envCases, ...credentialCases, ...pushCases, ...dangerousCommandCases];
+const shellQuote = (text: string): string => `'${text.replaceAll("'", "'\\''")}'`;
+const nestBashC = (command: string, levels: number): string =>
+	levels === 0 ? command : nestBashC(`bash -c ${shellQuote(command)}`, levels - 1);
+
+export const gitConfigCases: ToolCase[] = [
+	bash("GIT_CONFIG_GLOBAL=/dev/null git commit -m x", "deny"),
+	bash("env GIT_CONFIG_GLOBAL=/dev/null git commit -m x", "deny"),
+	bash("export GIT_CONFIG_GLOBAL=/dev/null; git commit -m x", "deny"),
+	bash("GIT_CONFIG_GLOBAL=/dev/null graphify hook install", "deny"),
+	bash("HOME=/tmp git commit -m x", "deny"),
+	bash("HOME=/tmp; git commit -m x", "deny"),
+	bash("export HOME=/tmp && git commit -m x", "deny"),
+	bash("unset HOME; git commit -m x", "deny"),
+	bash("env -i git commit -m x", "deny"),
+	bash("env - git commit -m x", "deny"),
+	bash("env -u HOME git commit -m x", "deny"),
+	bash("env -uHOME git commit -m x", "deny"),
+	bash("env --unset=HOME git commit -m x", "deny"),
+	bash("git config --global --remove-section core", "deny"),
+	bash("git config --global --rename-section core x", "deny"),
+	bash("git config --global include.path /tmp/x", "deny"),
+	bash("git config --global includeIf.gitdir:~/.path /tmp/x", "deny"),
+	bash("bash -c 'HOME=/tmp git commit -m x'", "deny"),
+	bash("sh -c 'git commit --no-verify -m x'", "deny"),
+	bash("zsh -c 'cd x && GIT_CONFIG_GLOBAL=/dev/null git commit -m x'", "deny"),
+	bash("export HOME=/tmp; bash -c 'git commit -m x'", "deny"),
+	bash("timeout 10 sh -c 'git commit -n -m x'", "deny"),
+	bash("env bash -c 'git push origin main'", "deny"),
+	bash(nestBashC("echo hi", 4), "deny"),
+	bash(nestBashC("echo hi", 3), "allow"),
+	bash("HOME=/tmp node x.js", "allow"),
+	bash("echo $HOME", "allow"),
+	bash("git config --global --get user.name", "allow"),
+	bash("git config --global --get include.path", "allow"),
+	bash("git commit -m x", "allow"),
+	bash("XDG_CONFIG_HOME=/tmp git status", "allow"),
+	bash("GIT_CONFIG_NOSYSTEM=1 git status", "allow"),
+	bash("bash -c 'git status'", "allow"),
+	bash("grep -rn GIT_CONFIG_GLOBAL docs", "allow"),
+];
+
+export const toolCases: ToolCase[] = [
+	...envCases,
+	...credentialCases,
+	...pushCases,
+	...dangerousCommandCases,
+	...gitConfigCases,
+];
 
 export interface PromptCase {
 	name: string;

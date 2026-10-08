@@ -134,7 +134,7 @@ A write to the armed spec that changes its Modify or Forbid lists needs a Yes fr
 
 ## Security guard (`security-guard.ts`, `.pi/security/`)
 
-One policy for PI, Claude Code, and git on this machine.
+One policy for PI, Claude Code, and git on this machine. History, decisions, and verification: [security-guard-history.md](security-guard-history.md).
 
 - `.pi/security/policy.ts` holds the rules as data. `guard-core.ts` evaluates them. It is pure and runs under plain `node`.
 - Adapters: the PI extension `security-guard.ts`, the Claude hook `guard-cli.ts`, and the git pre-commit hook (`guard-cli.ts pre-commit`, reached through `git-hooks/dispatch`).
@@ -148,7 +148,9 @@ What it blocks:
 | Credential paths: `~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.kube`, `~/.npmrc`, `*.pem`, `*.key`, `secrets/` | Any path input, shell commands | | |
 | Push to `main`, `master`, `production`, `release/*`; force push (`--force-with-lease` is allowed); deleting a protected branch | Shell commands; a bare push uses the current branch, and an unknown branch blocks | | |
 | `rm` with `-r`/`-f` on `/`, `~`, `$HOME`, or a direct child of them; pipe-to-shell; exfil hosts; `--dangerously-skip-permissions` | Shell commands | | |
-| `--no-verify`, `git commit -n`, any change of `core.hooksPath` | Shell commands | | |
+| `--no-verify`, `git commit -n`, any change of `core.hooksPath`, `git config --remove-section core`, writing `include.path` | Shell commands | | |
+| Hiding `~/.gitconfig`: any `GIT_CONFIG_GLOBAL=` word; `HOME=`, `unset HOME`, `env -i`/`env -u HOME` with git in the command | Shell commands | | |
+| All shell rules inside `sh`/`bash`/`zsh`/`dash -c '…'`, up to 3 levels deep (deeper is blocked) | Shell commands | | |
 | Secret patterns (block mode) | | Dropped with the pattern name and "If this was a real key, rotate it now." | Commit fails |
 | 64-hex and generic `key = value` patterns (warn mode) | | Warning only | Warning only |
 
@@ -198,7 +200,9 @@ Known gaps of the security guard:
 - A repo's `.claude/settings.json` with `"disableAllHooks": true` turns off the Claude guard there. Read an untrusted repo's settings before you trust the folder.
 - A repo with its own `core.hooksPath` (husky, lefthook) skips the global git hook. `git commit --no-verify` typed by a human skips it too.
 - While the global `core.hooksPath` is set, repo hooks under names without a wrapper (for example `push-to-checkout`, `reference-transaction`) do not run.
-- Installers that use `git rev-parse --git-path hooks` (for example `graphify hook install`) write into the global folder. Use the env-prefix command in `scripts/sync-pi-config.md`.
+- Installers that use `git rev-parse --git-path hooks` (for example `graphify hook install`) write into the global folder, and `pre-commit install` refuses to run. A human runs them as `GIT_CONFIG_GLOBAL=/dev/null <installer>` (`scripts/sync-pi-config.md`); agents are blocked from that prefix.
+- Raw edits of `~/.gitconfig` (`sed`, `>`, an editor), shell aliases, `sudo`, and git run by `npm` or `make` scripts are not blocked. `node ~/.pi/agent/security/check-install.ts` reports a removed hook path afterwards.
+- A search for a word that starts with `GIT_CONFIG_GLOBAL=` is blocked; search without the `=`.
 - Staged changes to tracked `.env.<other>` files are blocked.
 - Binary staged files are not scanned.
 - Extension `/commands` are not prompt-scanned: PI runs them before `input`.
@@ -208,7 +212,7 @@ Known gaps of the security guard:
 - A `git push` whose branch is built at run time (`$(...)`, `$VAR`, backticks) is blocked; type the branch name.
 - Code review is not automatic: the `code-review` skill runs only when invoked.
 - No injection warning on tool results yet.
-- `init-project` and `add-coding-standard` do not yet check that the global guard is installed. Details and the planned fix: [security-guard-repo-setup.md](security-guard-repo-setup.md).
+- `init-project` and `add-coding-standard` check the install with `check-install.ts` but never install it; the user runs the commands. Details: [security-guard-repo-setup.md](security-guard-repo-setup.md).
 
 ## Tests
 
@@ -223,4 +227,6 @@ Each behavior above is pinned by a test. Change a guard only together with its t
 - `test/security-guard.test.ts`
 - `test/security-parity.test.ts`
 - `test/security-git-hook.test.ts`
+- `test/security-check-install.test.ts`
+- `test/guard-check-skill-text.test.ts`
 - `test/sync-pi-config.test.ts` (file modes and the policy check before push)

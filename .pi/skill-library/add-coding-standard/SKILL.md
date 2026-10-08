@@ -28,6 +28,7 @@ Do not use for ordinary feature work, one-off lint fixes, generic code advice, o
 - A universal `.env` guard is installed or adapted so existing `.env` files cannot be read or changed by AI tools; `.env.example` remains available for documentation.
 - Future agents can find the standard through `AGENTS.md` or an equivalent local instruction file.
 - The narrowest meaningful local and CI-oriented verification commands were run or documented if unavailable.
+- The global guard check result is reported (`ok`, or the `missing`/`warn` lines and the install commands for the user).
 
 ## Workflow
 
@@ -37,6 +38,7 @@ Before Step 1, check whether `graphify-out/graph.json` exists at the target repo
    - languages, repo shape, package manager, frameworks, source/test layout
    - current format, lint, typecheck, test, coverage, mutation, copy/paste detection, hook, CI, audit, and secret-scan setup
    - existing `.github/hooks`, `.github/copilot`, `.claude/settings.json`, `.codex` or Codex plugin hook config, and `.pi/extensions`
+   - the global security guard: run `node ~/.pi/agent/security/check-install.ts` (read-only; if the script does not exist, the guard is not installed) and report the result. Never run the install commands it prints; the user does.
    - existing `AGENTS.md`, `CLAUDE.md`, engineering docs, workflow files, and scripts
    - sensitive-data clues and AI-risk patterns such as test-only fixes, weak assertions, over-mocking, snapshot churn, and hardcoded fixtures
    - existing architecture boundaries, dependency direction, domain invariants, invalid-state handling, and separation between domain, orchestration, IO, and presentation

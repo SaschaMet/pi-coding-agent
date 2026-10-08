@@ -72,15 +72,22 @@ git config --global --unset core.excludesFile
 
 Then remove the two entries from `~/.claude/settings.json`.
 
-### Installing repo hooks while the global hook path is set
-
-Installers that ask git for the hooks folder (`git rev-parse --git-path hooks`), such as `graphify hook install`, get the global folder and write into it. Their hook then never runs, and the next push overwrites it. Point git at the repo's own folder for that one command:
+Check the install at any time (read-only; exit 0 when installed, 1 with the commands above when not):
 
 ```bash
-GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0="$(git rev-parse --absolute-git-dir)/hooks" graphify hook install
+node ~/.pi/agent/security/check-install.ts
 ```
 
-The global dispatcher then runs that repo hook after its own scan.
+### Installing repo hooks while the global hook path is set
+
+Installers that ask git for the hooks folder (`git rev-parse --git-path hooks`), such as `graphify hook install`, get the global folder and write into it. Their hook then never runs, and the next push overwrites it. `pre-commit install` refuses to run at all while `core.hooksPath` is set. Hide the global config for that one command:
+
+```bash
+GIT_CONFIG_GLOBAL=/dev/null graphify hook install
+GIT_CONFIG_GLOBAL=/dev/null pre-commit install
+```
+
+Both then write into the repo's own `.git/hooks/` (verified: graphify, and pre-commit 4.6.2). The global dispatcher runs those repo hooks after its own scan. Run these yourself: the guard blocks agents from hiding the global git config.
 
 ## settings.json
 
