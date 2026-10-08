@@ -208,7 +208,7 @@ Known gaps of the security guard:
 - A `git push` whose branch is built at run time (`$(...)`, `$VAR`, backticks) is blocked; type the branch name.
 - Code review is not automatic: the `code-review` skill runs only when invoked.
 - No injection warning on tool results yet.
-- `init-project` and `add-coding-standard` do not yet check that the global guard is installed.
+- `init-project` and `add-coding-standard` do not yet check that the global guard is installed. Details and the planned fix: [security-guard-repo-setup.md](security-guard-repo-setup.md).
 
 ## Tests
 
