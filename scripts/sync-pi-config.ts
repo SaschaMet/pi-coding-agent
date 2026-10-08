@@ -27,6 +27,8 @@ const EXCLUDED_TOP_LEVEL_PATHS = new Set([
 	// Per-machine UI preferences — never mirrored, a push must not delete them.
 	"zentui.json",
 	"themes",
+	// pi-compact-tools release-notice markers — runtime state, a push must not delete them.
+	"compact-tools-notices",
 ]);
 // Extension directories containing this marker file are considered
 // system-managed and will be pruned from local during sync.

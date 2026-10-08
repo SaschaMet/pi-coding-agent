@@ -836,6 +836,18 @@ describe("sync-pi-config", () => {
 		expect(fs.existsSync(path.join(globalAgentDir, "zentui.json"))).toBe(true);
 	});
 
+	it("does not delete target-only compact-tools notice markers during push", () => {
+		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-notices-");
+		fs.mkdirSync(path.join(globalAgentDir, "compact-tools-notices"), { recursive: true });
+		fs.writeFileSync(path.join(globalAgentDir, "compact-tools-notices", "0.14.2"), "", "utf-8");
+		fs.writeFileSync(path.join(localPiDir, "settings.json"), "{}\n", "utf-8");
+
+		const result = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+
+		expect(result.deleted).toEqual([]);
+		expect(fs.existsSync(path.join(globalAgentDir, "compact-tools-notices", "0.14.2"))).toBe(true);
+	});
+
 	it("does not pull managed global extension directories into local project config", () => {
 		const { localPiDir, globalAgentDir } = setupRoots(
 			"pi-sync-global-extension-dirs-",
