@@ -1,6 +1,6 @@
 ---
 name: to-slm
-description: 'Turns a task written for a frontier model into a spelled-out working brief, waits for the sender to approve it, then works from it. Use when the prompt or task message contains the keyword "toSlm" (or `/to-slm`), on any model; read this skill before any other tool call. Not for prompts that only edit, review, or quote the to-slm skill or the keyword.'
+description: 'Turns a task written for a frontier model into a spelled-out working brief, waits for the sender to approve it, then works from it. Use when the prompt or task message contains the keyword "toSlm" (or `/to-slm`), on any model, or the model is `iqRouter/grunt`; read this skill before any other tool call. Not for prompts that only edit, review, or quote the to-slm skill or the keyword.'
 ---
 
 # toSlm
@@ -40,27 +40,35 @@ Copy this template. Keep the headings exactly.
 
 ```markdown
 ## Goal
+
 <one sentence: what the result is>
 
 ## Hard rules
+
 - "<quote each must / never / always from the task, system prompt, or skill that touches this task>"
 
 ## Steps
+
 1. <one action per step, in order>
 
 ## Defaults
+
 - <open choice> → <the choice you will make>
 
 ## Output format
+
 <exact shape of the final answer: sections, file names, code block, length>
 
 ## Out of scope
+
 - <what you will not do>
 
 ## Open questions
+
 - <question> — default if unanswered: <answer>
 
 ## Too hard for me
+
 - <part you may get wrong, and why> — or "none"
 ```
 
@@ -68,16 +76,16 @@ Copy this template. Keep the headings exactly.
 
 Use these when you fill the brief:
 
-| The task says                         | Write in the brief                                 |
-| ------------------------------------- | -------------------------------------------------- |
-| A step it does not name               | A numbered step                                    |
-| "choose", "decide", "as needed"       | A Default                                          |
-| "good", "clean", "appropriate"        | A test you can check (count, name, format)         |
-| "don't do X"                          | "Do Y instead" next to it                          |
-| Several goals in one sentence         | One step per goal                                  |
-| Background that changes no action     | Leave it out                                       |
-| Two rules that conflict               | An Open question, with the safer rule as default   |
-| A missing input (file, value, name)   | An Open question, with a default or "stop"         |
+| The task says                       | Write in the brief                               |
+| ----------------------------------- | ------------------------------------------------ |
+| A step it does not name             | A numbered step                                  |
+| "choose", "decide", "as needed"     | A Default                                        |
+| "good", "clean", "appropriate"      | A test you can check (count, name, format)       |
+| "don't do X"                        | "Do Y instead" next to it                        |
+| Several goals in one sentence       | One step per goal                                |
+| Background that changes no action   | Leave it out                                     |
+| Two rules that conflict             | An Open question, with the safer rule as default |
+| A missing input (file, value, name) | An Open question, with a default or "stop"       |
 
 ## Example
 
@@ -85,30 +93,38 @@ Task: "toSlm: add a retry to the fetch helper, keep it clean."
 
 ```markdown
 ## Goal
+
 `fetchJson` retries failed requests before it throws.
 
 ## Hard rules
+
 - "Write the test first."
 
 ## Steps
+
 1. Find `fetchJson` and its tests.
 2. Write a failing test: the first call fails, the second call succeeds.
 3. Add the retry to `fetchJson`.
 4. Run the tests.
 
 ## Defaults
+
 - Retries → 3, fixed 200 ms delay, only on network errors and 5xx.
 
 ## Output format
+
 Changed files, plus the test command and its result.
 
 ## Out of scope
+
 - Other HTTP helpers.
 
 ## Open questions
+
 - Should 429 responses retry? — default if unanswered: no.
 
 ## Too hard for me
+
 - none
 ```
 
