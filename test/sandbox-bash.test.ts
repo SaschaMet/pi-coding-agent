@@ -336,6 +336,8 @@ function setup(
 	const sessionCtx = { cwd: projectDir, hasUI: true, ui };
 	const toolCtx = {
 		cwd: projectDir,
+		hasUI: true,
+		ui,
 		sessionManager: { getSessionId: () => "test", getSessionFile: () => undefined },
 	};
 	const start = () => Promise.all((fake.handlers.get("session_start") ?? []).map((h) => h({}, sessionCtx)));
@@ -360,10 +362,16 @@ describe("sandbox-bash extension", () => {
 		expect(fake.registerFlag).toHaveBeenCalledWith("no-sandbox", expect.objectContaining({ type: "boolean" }));
 	});
 
-	it("tells the model that permission errors come from the sandbox", () => {
+	it("tells the model which errors come from the sandbox and where the playbook is", () => {
 		const { fake } = setup();
-		const tool = fake.tools.get("bash") as any;
-		expect(tool.promptGuidelines.join("\n")).toMatch(/OS sandbox.*report it to the user/s);
+		const guidelines = (fake.tools.get("bash") as any).promptGuidelines.join("\n");
+		expect(guidelines).toMatch(/OS sandbox/);
+		expect(guidelines).toMatch(/permission error/);
+		// macOS srt blocks hosts through a proxy (403); other setups fail to resolve.
+		expect(guidelines).toMatch(/403/);
+		expect(guidelines).toMatch(/ENOTFOUND/);
+		expect(guidelines).toMatch(/bash blocked/);
+		expect(guidelines).toMatch(/`sandboxed-bash` skill/);
 	});
 
 	it("runs commands through srt once the sandbox is active", async () => {
@@ -468,6 +476,20 @@ describe("sandbox-bash extension", () => {
 		expect(await s.userBash("echo hi")).toBeUndefined();
 	});
 
+	// A --print run has no footer; the orchestrator verifies the one-shot pane by this line.
+	it("says sandbox OFF on stderr when there is no UI", async () => {
+		installFakeSrt();
+		const fake = createFakePi({ flags: { "no-sandbox": true } });
+		sandboxBashExtension(asExtensionAPI(fake));
+		const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+		try {
+			await Promise.all(fake.handlers.get("session_start")!.map((h) => h({}, { cwd: projectDir, hasUI: false })));
+			expect(stderr).toHaveBeenCalledWith(expect.stringMatching(/^sandbox OFF/));
+		} finally {
+			stderr.mockRestore();
+		}
+	});
+
 	it("routes user ! commands through the same sandbox", async () => {
 		installFakeSrt();
 		const s = setup();
@@ -479,6 +501,87 @@ describe("sandbox-bash extension", () => {
 		});
 		expect(exitCode).toBe(0);
 		expect(chunks.join("")).toMatch(/SRT-WRAPPED[\s\S]*from-user/);
+	});
+
+	describe("settings file lifecycle", () => {
+		const settingsFile = () => {
+			const dir = path.join(scratch, "agent", "sandbox-run");
+			return path.join(dir, fs.readdirSync(dir)[0]);
+		};
+
+		it("blocks bash with a clear message once the settings file is gone, and keeps blocking", async () => {
+			installFakeSrt();
+			const s = setup();
+			await s.start();
+			const file = settingsFile();
+			fs.rmSync(file);
+			const marker = path.join(projectDir, "ran");
+			const expected = `bash blocked: sandbox unavailable (settings file missing: ${file}; restart pi)`;
+
+			await expect(s.run(`touch ${marker}`)).rejects.toThrow(expected);
+			await expect(s.run(`touch ${marker}`)).rejects.toThrow(expected);
+			const user = await s.userBash(`touch ${marker}`);
+			expect(user.result.output).toBe(expected);
+			expect(fs.existsSync(marker)).toBe(false);
+			expect(fs.existsSync(file)).toBe(false);
+			expect(s.lastStatus()).toBe("bash blocked: sandbox unavailable");
+		});
+
+		it("blocks user ! commands first, too, when the file is gone", async () => {
+			installFakeSrt();
+			const s = setup();
+			await s.start();
+			fs.rmSync(settingsFile());
+			const user = await s.userBash("echo hi");
+			expect(user.result.output).toMatch(/settings file missing/);
+			expect(s.lastStatus()).toBe("bash blocked: sandbox unavailable");
+		});
+
+		it("rebuilds the sandbox with a new settings file on the next session start", async () => {
+			installFakeSrt();
+			const s = setup();
+			await s.start();
+			fs.rmSync(settingsFile());
+			await expect(s.run("echo hi")).rejects.toThrow(/settings file missing/);
+			await s.start();
+			expect(s.text(await s.run("echo again"))).toContain("SRT-WRAPPED");
+		});
+
+		// A call that read the old active state just as session_start reset it must not write
+		// "blocked" over the fresh pending state (the file is gone, but a restart is under way).
+		it("never marks a restarting session as blocked from a stale snapshot", async () => {
+			installFakeSrt();
+			for (let ticks = 0; ticks <= 8; ticks++) {
+				const s = setup();
+				await s.start();
+				s.ui.setStatus.mockClear();
+				let release: () => void = () => undefined;
+				const gate = new Promise<void>((resolve) => {
+					release = resolve;
+				});
+				const exec = s.fake.exec;
+				s.fake.exec = vi.fn(async (command: string, args: string[], options: unknown) => {
+					if (args.includes("--version")) await gate;
+					return exec(command, args, options);
+				});
+				const call = s.run("echo hi").catch((error: Error) => error);
+				for (let i = 0; i < ticks; i++) await Promise.resolve();
+				const restart = s.start();
+				release();
+				await Promise.all([call, restart]);
+				const statuses = s.ui.setStatus.mock.calls.map((c) => c[1]);
+				expect(statuses, `after ${ticks} microtasks`).not.toContain("bash blocked: sandbox unavailable");
+				expect(s.text(await s.run("echo again"))).toContain("SRT-WRAPPED");
+			}
+		});
+
+		it("blocks a bash call that arrives after session shutdown", async () => {
+			installFakeSrt();
+			const s = setup();
+			await s.start();
+			await s.shutdown();
+			await expect(s.run("echo late")).rejects.toThrow(/bash blocked: sandbox unavailable \(session ended\)/);
+		});
 	});
 
 	it("blocks user ! commands when the sandbox is unavailable", async () => {

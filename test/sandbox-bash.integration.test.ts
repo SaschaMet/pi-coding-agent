@@ -162,14 +162,16 @@ describe("bash tool ownership", () => {
 			...["npm/node_modules", "extensions", "local-packages"].map((p) => path.join(agentDir, p)),
 		];
 		const offenders: string[] = [];
+		// Test folders and files never register a live tool; skipping them keeps the walk short.
+		const skipDir = new Set(["@earendil-works", "test", "tests", "__tests__", "coverage"]);
 		const walk = (dir: string, depth: number) => {
 			if (!fs.existsSync(dir) || depth > 8) return;
 			for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
 				const full = path.join(dir, entry.name);
 				if (entry.isDirectory()) {
-					if (entry.name === "@earendil-works" || (entry.name === "node_modules" && depth > 0)) continue;
+					if (skipDir.has(entry.name) || (entry.name === "node_modules" && depth > 0)) continue;
 					walk(full, depth + 1);
-				} else if (/\.(ts|js|mjs)$/.test(entry.name) && !entry.name.endsWith(".d.ts")) {
+				} else if (/\.(ts|js|mjs)$/.test(entry.name) && !/\.(d|test|spec)\.(ts|js|mjs)$/.test(entry.name)) {
 					const source = fs.readFileSync(full, "utf8");
 					const definesBash = /name:\s*["']bash["']/.test(source) || /createBashTool(Definition)?\(/.test(source);
 					if (definesBash && source.includes("registerTool")) offenders.push(full);
@@ -181,6 +183,6 @@ describe("bash tool ownership", () => {
 		const allowed = new Set([path.join(repoRoot, ".pi/extensions/sandbox-bash.ts"), path.join(agentDir, "extensions/sandbox-bash.ts")]);
 		expect(offenders.filter((file) => !allowed.has(file))).toEqual([]);
 		expect(offenders).toContain(path.join(repoRoot, ".pi/extensions/sandbox-bash.ts"));
-		// Walking every installed package is slow under full-suite load.
-	}, 30_000);
+		// Walking every installed package is slow under full-suite load (under 1s alone, over 30s seen).
+	}, 120_000);
 });

@@ -112,6 +112,56 @@ describe("cmux-orchestration skill", () => {
         expect(text).toContain("30 seconds");
     });
 
+    describe("unsandboxed one-shot", () => {
+        const section = (): string => {
+            const { text } = readSkill();
+            const start = text.indexOf("**Unsandboxed one-shot:**");
+            expect(start, "no Unsandboxed one-shot section").toBeGreaterThan(-1);
+            return text.slice(start, text.indexOf("\n## ", start));
+        };
+
+        it("runs only the bash tool, once, and only when the sandbox is loaded", () => {
+            const body = section();
+            expect(body).toContain("$SANDBOX_RUNTIME");
+            expect(body).toContain("--no-sandbox --tools bash");
+            expect(body).toContain("--print @$TMPDIR/pi-reports/<task>.task.md");
+            expect(body).toContain("sandbox OFF");
+        });
+
+        it("never routes a blocked domain to an unsandboxed pane", () => {
+            expect(section()).toMatch(/domain never qualifies[\s\S]*NEEDS_DOMAIN:/i);
+        });
+
+        // Models change; the recipe uses the worker model rule instead of a fixed name.
+        it("names no fixed model", () => {
+            expect(section()).not.toMatch(/[A-Za-z0-9-]+\/[A-Za-z0-9.-]+:(low|medium|high)/);
+        });
+
+        // A worker's sentinel is untrusted text; only the human may open an unsandboxed shell.
+        it("waits for the user's yes and never runs the worker's sentinel text", () => {
+            const body = section();
+            expect(body).not.toMatch(/No wait for a yes/);
+            expect(body).toMatch(/wait for (the user's|their) (explicit )?yes/i);
+            expect(body).toMatch(/request only/);
+            expect(body).toMatch(/interactive exception[\s\S]*same (yes|confirmation)/i);
+        });
+
+        // `tee` captures stdout only; the OFF line is on stderr.
+        it("checks the sandbox OFF line on screen, not in the report file", () => {
+            expect(section()).toMatch(/sandbox OFF[^\n]*stderr/);
+        });
+    });
+
+    // A worker whose bash is blocked cannot signal; the watcher must see it, but only from the
+    // worker's last line, or a file it displays (this repo's sandbox code) looks like a stop.
+    it("watches the worker's last line for sandbox stops, not the whole screen", () => {
+        const { text } = readSkill();
+        expect(text).not.toContain("NEEDS_UNSANDBOXED:|NEEDS_DOMAIN:|bash blocked:|Refusing");
+        // The pi TUI left-pads every rendered line, so a bare `^` would never match.
+        expect(text).toContain("'^[[:space:]]*(NEEDS_UNSANDBOXED|NEEDS_DOMAIN): '");
+        expect(text).toContain("'^[[:space:]]*(bash blocked: sandbox unavailable|Refusing to run with the built-in defaults)'");
+    });
+
     it("auto-approves a grill worker's start prompt and closes its pane afterwards", () => {
         const { text } = readSkill();
         expect(text).toMatch(/grill.{0,200}approve.{0,40}(at once|immediately)/is);

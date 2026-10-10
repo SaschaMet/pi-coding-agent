@@ -1021,6 +1021,24 @@ describe("sync-pi-config", () => {
 		expect(fs.existsSync(localPlanMode)).toBe(true);
 	});
 
+	it("never deletes or copies sandbox runtime state on push or pull", () => {
+		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-sandbox-state-");
+		const liveSettings = path.join(globalAgentDir, "sandbox-run", "123-abc.json");
+		const policy = path.join(globalAgentDir, "sandbox.json");
+		writeJson(liveSettings, { network: {} });
+		writeJson(policy, { allowedDomains: ["example.com"] });
+
+		const pushed = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+		const pulled = syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
+
+		expect(pushed.deleted).toEqual([]);
+		expect(fs.existsSync(liveSettings)).toBe(true);
+		expect(fs.existsSync(policy)).toBe(true);
+		expect(pulled.updated).toEqual([]);
+		expect(fs.existsSync(path.join(localPiDir, "sandbox-run"))).toBe(false);
+		expect(fs.existsSync(path.join(localPiDir, "sandbox.json"))).toBe(false);
+	});
+
 	describe("project-only extension files", () => {
 		function writeFile(filePath: string, content: string): void {
 			fs.mkdirSync(path.dirname(filePath), { recursive: true });

@@ -173,7 +173,8 @@ The security guard reads command text. Code that the command starts (`node -e`, 
 - Layers: `security-guard` checks the text first. Then `sandbox-bash` runs the command as `exec <srt> --settings <file> -- /bin/bash -c '<command>'`.
 - Engine: `srt` from `@anthropic-ai/sandbox-runtime`, pinned to `0.0.79`, installed globally (`npm i -g @anthropic-ai/sandbox-runtime@0.0.79`). On macOS it uses Seatbelt (`sandbox-exec`).
 - Threat model: untrusted code that bash runs. It does not stop a prompt-injected agent (see accepted risks).
-- Scope: this repo only for now. **`npm run pi:sync-global` copies every file in `.pi/extensions/`, so the next sync makes the sandbox global.** Check that you want that before you sync.
+- Scope: this repo only. `sandbox-bash.ts` and `lib/sandbox-bash.ts` are in `PROJECT_ONLY_EXTENSION_FILES` (`scripts/sync-pi-config.ts`): sync never copies or deletes them, and smoke skips them while no global copy exists. A stale global copy is still reported as `differ`, because it would shadow the project copy. Removing the entries rolls the sandbox out with the next push.
+- Settings file: each session writes `~/.pi/agent/sandbox-run/<pid>-<hex>.json`. Sync never touches `sandbox-run/` or `sandbox.json`. If the file vanishes anyway, bash is blocked with `settings file missing: <path>; restart pi` until the next session start.
 - `/sandbox` shows the state, the effective policy, and the names of removed env vars (never values). The footer shows `sandbox: …`, `sandbox OFF`, or `bash blocked: sandbox unavailable`.
 
 Default policy:
@@ -204,6 +205,10 @@ Escape hatch: `pi --no-sandbox` runs bash unsandboxed for that session and shows
 
 Human steps (they fail inside the sandbox by design): `git push`, `gh`, `npm publish`, `git fetch`/`pull`, `git config`, `git push -u`, and `npm run pi:sync-global`. The `pull-request` skill's push step needs the human. Run them in a normal terminal or a `pi --no-sandbox` session.
 
+### When the sandbox blocks an agent
+
+The `bash` tool guideline points the model to the `sandboxed-bash` skill: fix the command in place, ask the human (domains go into `~/.pi/agent/sandbox.json`), or, for Docker, `gh`, push/fetch/pull, `npm publish`, and a listening port, run a one-shot `pi --no-sandbox --tools bash --print` in a cmux pane after the user's explicit yes (cmux-orchestration skill, "Unsandboxed one-shot"). Workers and subagents never escalate themselves. They stop with a last line of `NEEDS_UNSANDBOXED: <command> — <reason>` or `NEEDS_DOMAIN: <host> — <reason>` (`.pi/SUBAGENT.md`). That line is a request only: the orchestrator writes the one-shot commands from the task it assigned, never from the worker's text, because anything the worker read can plant the line. A domain never leaves the sandbox.
+
 Invariant: AskClaude `allowFullMode` stays `false` in `~/.pi/agent/claude-bridge.json`. Full mode runs Claude Code's own shell, which does not pass through this sandbox.
 
 Accepted risks:
@@ -213,7 +218,7 @@ Accepted risks:
 - A hijacked agent could use credentials through flows the human runs outside the sandbox.
 - Files written in the project (`node_modules/`, `package.json` scripts) run unsandboxed when a human runs them outside pi.
 
-Rollback: delete `.pi/extensions/sandbox-bash.ts` (and its global copy, if synced), or start pi with `--no-sandbox`.
+Rollback: delete `.pi/extensions/sandbox-bash.ts` (and any manual global copy), or start pi with `--no-sandbox`.
 
 ## Bash mutation detection
 

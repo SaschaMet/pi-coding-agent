@@ -31,7 +31,9 @@ const PROBE_TIMEOUT_MS = 10_000;
 // A tool call that arrives before any session_start must not wait forever.
 const READY_TIMEOUT_MS = 30_000;
 const GUIDELINE =
-	"bash runs in an OS sandbox; a permission error outside the project or on a non-allowlisted domain is the sandbox — report it to the user, do not work around it.";
+	"bash runs in an OS sandbox; a permission error, a blocked host (proxy 403 or ENOTFOUND), or a 'bash blocked' message is the sandbox — do not retry or work around it; follow the `sandboxed-bash` skill.";
+// The `sandbox OFF` prefix is a contract: the cmux one-shot recipe verifies a pane by it.
+const OFF_MESSAGE = "sandbox OFF: bash runs unsandboxed this session (--no-sandbox)";
 
 type State =
 	| { kind: "pending" }
@@ -45,6 +47,21 @@ function errorMessage(error: unknown): string {
 
 function blockedMessage(reason: string): string {
 	return `bash blocked: sandbox unavailable (${reason})`;
+}
+
+type Report = { status: string; notice?: string; level: "warning" | "error" };
+
+function describeState(state: State): Report | undefined {
+	if (state.kind === "off") return { status: "sandbox OFF", notice: OFF_MESSAGE, level: "warning" };
+	if (state.kind === "blocked") {
+		return { status: "bash blocked: sandbox unavailable", notice: blockedMessage(state.reason), level: "error" };
+	}
+	if (state.kind !== "active") return undefined;
+	const { network, filesystem } = state.settings;
+	return {
+		status: `sandbox: ${network.allowedDomains.length} domains, ${filesystem.allowWrite.length} write paths, ${state.envNames.length} env removed`,
+		level: "warning",
+	};
 }
 
 // CLAUDE_CODE_TMPDIR keeps $TMPDIR the same path inside and outside srt.
@@ -98,7 +115,7 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 		label: "bash (sandboxed)",
 		promptGuidelines: [...(inner.promptGuidelines ?? []), GUIDELINE],
 		async execute(toolCallId, params, signal, onUpdate, ctx) {
-			const current = await currentState();
+			const current = checkSettingsFile(await currentState(), ctx);
 			if (current.kind === "blocked") throw new Error(blockedMessage(current.reason));
 			return inner.execute(toolCallId, params, signal, onUpdate, ctx);
 		},
@@ -115,8 +132,8 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 		};
 	}
 
-	pi.on("user_bash", async () => {
-		const current = await currentState();
+	pi.on("user_bash", async (_event, ctx) => {
+		const current = checkSettingsFile(await currentState(), ctx);
 		if (current.kind === "off") return undefined;
 		if (current.kind === "active") return { operations: sandboxedOperations(current) };
 		const reason = current.kind === "blocked" ? current.reason : "sandbox not ready";
@@ -182,21 +199,25 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 		if (state.kind === "active") fs.rmSync(state.settingsPath, { force: true });
 	}
 
+	// The file can vanish under a live session (a manual delete or cleanup); srt would then
+	// fail with a cryptic error while the footer still says the sandbox is active.
+	function checkSettingsFile(current: State, ctx: ExtensionContext | undefined): State {
+		if (current.kind !== "active" || fs.existsSync(current.settingsPath)) return current;
+		// A restart may have replaced the state since the snapshot was taken; it owns the file then,
+		// and this call must not run srt against the deleted file.
+		if (state !== current) return { kind: "blocked", reason: "sandbox is restarting" };
+		state = { kind: "blocked", reason: `settings file missing: ${current.settingsPath}; restart pi` };
+		if (ctx) report(ctx);
+		return state;
+	}
+
 	function report(ctx: ExtensionContext): void {
-		if (state.kind === "off") {
-			ctx.ui?.setStatus(STATUS_KEY, "sandbox OFF");
-			ctx.ui?.notify("sandbox OFF: bash runs unsandboxed this session (--no-sandbox)", "warning");
-		} else if (state.kind === "blocked") {
-			ctx.ui?.setStatus(STATUS_KEY, "bash blocked: sandbox unavailable");
-			ctx.ui?.notify(blockedMessage(state.reason), "error");
-			if (!ctx.hasUI) process.stderr.write(`${blockedMessage(state.reason)}\n`);
-		} else if (state.kind === "active") {
-			const { network, filesystem } = state.settings;
-			ctx.ui?.setStatus(
-				STATUS_KEY,
-				`sandbox: ${network.allowedDomains.length} domains, ${filesystem.allowWrite.length} write paths, ${state.envNames.length} env removed`,
-			);
-		}
+		const line = describeState(state);
+		if (!line) return;
+		ctx.ui?.setStatus(STATUS_KEY, line.status);
+		if (!line.notice) return;
+		ctx.ui?.notify(line.notice, line.level);
+		if (!ctx.hasUI) process.stderr.write(`${line.notice}\n`);
 	}
 
 	pi.on("session_start", async (_event, ctx) => {
@@ -219,6 +240,7 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 
 	pi.on("session_shutdown", async () => {
 		removeSettingsFile();
+		if (state.kind === "active") state = { kind: "blocked", reason: "session ended" };
 	});
 
 	pi.registerCommand("sandbox", {

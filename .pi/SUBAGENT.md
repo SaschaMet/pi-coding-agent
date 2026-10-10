@@ -20,6 +20,10 @@ Stop only when one of these holds:
 3. The next step is destructive or outside scope. Report it. Do not do it.
 4. The stop-and-report rule fires.
 5. A tool or guard blocks an action. Report the block. Do not reach the same result another way.
+6. The task needs a command the bash sandbox blocks (Docker, `gh`, `git push/fetch/pull`, `npm publish`, a listening port). Last line: `NEEDS_UNSANDBOXED: <command> — <reason>`.
+7. The sandbox blocks a host (`CONNECT tunnel failed, response 403` or `ENOTFOUND`). Last line: `NEEDS_DOMAIN: <host> — <reason>`.
+
+Never retry or work around a sandbox block (`$sandboxed-bash`). When a subagent of yours returns either sentinel, print it as your own last line.
 
 Never end a turn in these ways while work is still owed:
 
