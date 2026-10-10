@@ -12,6 +12,7 @@ PI extensions that enforce quality and safety at the tool layer: session-end qua
 - `read-boundary-guard.ts` — block reads outside the working directory.
 - `write-boundary-guard.ts` — block writes outside allowed boundaries (spec-scope aware; system tmpdir exempt while the working directory is outside it).
 - `security-guard.ts` — PI adapter for the shared security policy in `.pi/security/`: blocks `.env`/credential paths, dangerous shell commands, protected and force pushes, hook bypasses, and secrets in prompts. Loads the core by dynamic import so a load failure blocks instead of skipping the extension. See `docs/reference/gates-and-guards.md`.
+- `sandbox-bash.ts` — replaces the built-in `bash` tool and user `!` commands with one that runs each command inside `srt` (`@anthropic-ai/sandbox-runtime@0.0.79`, global install): file, network, env-var, and socket limits from `lib/sandbox-bash.ts` plus optional `~/.pi/agent/sandbox.json`. Fail-closed: a missing/wrong `srt`, failed probe, bad config, or cwd `$HOME`/`/` blocks bash. `--no-sandbox` opts out per session; `/sandbox` shows the policy. Syncing makes it global.
 - `model-whitelist.ts` — restrict which models may be selected.
 - `subagent-delegation-policy.ts` — parse explicit delegation requests and route to the right subagent. In an interactive cmux session (`isInsideCmux()`: `CMUX_SURFACE_ID` plus a live `CMUX_SOCKET_PATH`) it adds a soft rule steering watch-worthy work to cmux pane workers and leaves spawn phrasing as plain text; no hard block.
 - `subagent-rules-injection.ts` — inject `.pi/SYSTEM.md` into a subagent whose system prompt lacks it.
@@ -29,7 +30,7 @@ PI extensions that enforce quality and safety at the tool layer: session-end qua
 
 - Fail-Safe Defaults: a guard must fail to the most restrictive state. Uncertain → block, never allow.
 - Guards hook tool-call events (`ToolCallEvent` / `ToolResultEvent`) and message-end; keep handlers idempotent and side-effect-free beyond the guard decision.
-- Do not bypass a guard in code or tests. The guards are the contract — they are pinned by `test/gates.test.ts`, `test/read-boundary-guard.test.ts`, `test/write-boundary-guard.test.ts`, `test/spec-scope.test.ts`, `test/trust-loader.test.ts`, `test/subagent-delegation-policy.test.ts`, `test/security-guard.test.ts`, `test/security-parity.test.ts`.
+- Do not bypass a guard in code or tests. The guards are the contract — they are pinned by `test/gates.test.ts`, `test/read-boundary-guard.test.ts`, `test/write-boundary-guard.test.ts`, `test/spec-scope.test.ts`, `test/trust-loader.test.ts`, `test/subagent-delegation-policy.test.ts`, `test/security-guard.test.ts`, `test/security-parity.test.ts`, `test/sandbox-bash.test.ts`, `test/sandbox-bash.integration.test.ts`.
 - Security rules live only in `.pi/security/policy.ts`. `security-guard.ts` maps events and holds no rule logic.
 - Shared logic lives in `lib/`; do not duplicate path/trust/gate helpers across extension files.
 

@@ -10,6 +10,7 @@ How the quality gates and path guards in `.pi/extensions/` decide. Source of tru
 | `read-boundary-guard.ts` | Before `read`, `write`, `edit`, `grep`, `find`, `ls` | Blocks paths outside the working directory unless approved or trusted. | Blocked |
 | `write-boundary-guard.ts` | Before `write`, `edit` | Limits writes to the armed spec or plan scope. | Blocked once armed. Open while not armed. |
 | `security-guard.ts` | Before every tool call, and on each prompt (`input`) | Blocks `.env` and credential paths, dangerous shell commands, protected-branch and force pushes, hook bypasses, and secrets in prompts. Shares one policy with the Claude hook and the global git hook. | Blocked, and prompts dropped |
+| `sandbox-bash.ts` | Every `bash` call and every user `!` command | Runs the command inside an OS sandbox (`srt`): limits file reads/writes, network, and env vars. | Blocked (bash refuses to run) |
 | `model-whitelist.ts` | At startup | Shows only the OpenRouter models listed in `models.json`. | No-op |
 | `subagent-delegation-policy.ts` | On input and before each agent start | Routes explicit delegation requests to the `Agent` tool. Adds delegation rules. | Continue |
 | `subagent-rules-injection.ts` | Before a subagent starts | Adds `.pi/SYSTEM.md` to a subagent that lacks it. | Continue |
@@ -165,6 +166,55 @@ The git dispatcher hands each hook (14 names) to the repo's own `.git/hooks/<nam
 
 Rollback: `git config --global --unset core.hooksPath`, `git config --global --unset core.excludesFile`, and remove the hook entries from `~/.claude/settings.json`.
 
+## Sandboxed bash (`sandbox-bash.ts`)
+
+The security guard reads command text. Code that the command starts (`node -e`, an npm install script) never passes through it. The sandbox limits that code at the kernel level.
+
+- Layers: `security-guard` checks the text first. Then `sandbox-bash` runs the command as `exec <srt> --settings <file> -- /bin/bash -c '<command>'`.
+- Engine: `srt` from `@anthropic-ai/sandbox-runtime`, pinned to `0.0.79`, installed globally (`npm i -g @anthropic-ai/sandbox-runtime@0.0.79`). On macOS it uses Seatbelt (`sandbox-exec`).
+- Threat model: untrusted code that bash runs. It does not stop a prompt-injected agent (see accepted risks).
+- Scope: this repo only for now. **`npm run pi:sync-global` copies every file in `.pi/extensions/`, so the next sync makes the sandbox global.** Check that you want that before you sync.
+- `/sandbox` shows the state, the effective policy, and the names of removed env vars (never values). The footer shows `sandbox: …`, `sandbox OFF`, or `bash blocked: sandbox unavailable`.
+
+Default policy:
+
+| Area | Allowed | Denied |
+| --- | --- | --- |
+| Network | `registry.npmjs.org` only (strict allowlist; DNS of other names fails) | Everything else, including GitHub |
+| Read | Everything not denied | `~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.pi/agent/auth.json`, `~/.pi/agent/models.json`, `~/.config/gh`, `~/.netrc`, `~/.git-credentials`, `~/.docker/config.json`, `~/.npmrc`, project `.env`, `.env.*` |
+| Write | Project, `$TMPDIR`, `/tmp`, `~/.npm` | Project `.pi/`, `.env*`, `.git/hooks`, `.git/config` (srt default), shell rc files (srt default), the settings folder `~/.pi/agent/sandbox-run/` |
+| Env vars | Everything else | Names matching `TOKEN`, `SECRET`, `PASSWORD`, `PASSWD`, `API_KEY`, `_KEY`, `CREDENTIAL`, `AUTH` (except `CMUX_*`, `SSH_AUTH_SOCK`) |
+| Unix sockets | `$CMUX_SOCKET_PATH`, `$TMPDIR/tsx-<uid>/` (tsx IPC for tests) | All others, including Docker |
+| Other | — | App launches (`open`), AppleScript, keychain lookups, binding network ports |
+
+Add a domain or path for every repo: create `~/.pi/agent/sandbox.json`. Lists are added to the defaults, never replace them. A file that does not parse blocks bash.
+
+```json
+{ "network": { "allowedDomains": ["github.com"] }, "filesystem": { "allowWrite": ["~/.cache/some-tool"] } }
+```
+
+Fails closed. Bash is blocked for the session, with the reason in the notice, when:
+
+- `srt` is missing, or `srt --version` is not `0.0.79` (for example after `nvm use` to another Node).
+- The probe command fails, or `~/.pi/agent/sandbox.json` does not parse.
+- pi starts in `$HOME` or `/`.
+- No session started within 30 s.
+
+Escape hatch: `pi --no-sandbox` runs bash unsandboxed for that session and shows `sandbox OFF`.
+
+Human steps (they fail inside the sandbox by design): `git push`, `gh`, `npm publish`, `git fetch`/`pull`, `git config`, `git push -u`, and `npm run pi:sync-global`. The `pull-request` skill's push step needs the human. Run them in a normal terminal or a `pi --no-sandbox` session.
+
+Invariant: AskClaude `allowFullMode` stays `false` in `~/.pi/agent/claude-bridge.json`. Full mode runs Claude Code's own shell, which does not pass through this sandbox.
+
+Accepted risks:
+
+- The `write`/`edit` tools can create `.pi/extensions/*.ts`. pi loads it unsandboxed on the next start.
+- The cmux socket is allowed, so `cmux new-split --command` can start an unsandboxed terminal.
+- A hijacked agent could use credentials through flows the human runs outside the sandbox.
+- Files written in the project (`node_modules/`, `package.json` scripts) run unsandboxed when a human runs them outside pi.
+
+Rollback: delete `.pi/extensions/sandbox-bash.ts` (and its global copy, if synced), or start pi with `--no-sandbox`.
+
 ## Bash mutation detection
 
 `lib/bash-mutations.ts` finds paths a `bash` command plausibly changed. It feeds `bash_mutations_disclosed`.
@@ -188,7 +238,7 @@ Rollback: `git config --global --unset core.hooksPath`, `git config --global --u
 ## Subagent rules injection (`subagent-rules-injection.ts`)
 
 - Detects a subagent by the `<active_agent name="` tag in its system prompt.
-- If the prompt does not contain the first line of `.pi/SYSTEM.md` (`# Role and Communication`), it injects `.pi/SYSTEM.md` once.
+- It injects `.pi/SYSTEM.md` and the root `AGENTS.md` once, each only if the prompt does not already contain its full text. Replace-mode subagents get both; append-mode subagents already carry them. Files are read from the subagent's session folder.
 - Missing, unreadable or empty file: it does nothing and the subagent still starts.
 
 ## Not covered here
@@ -207,7 +257,7 @@ Known gaps of the security guard:
 - Binary staged files are not scanned.
 - Extension `/commands` are not prompt-scanned: PI runs them before `input`.
 - The agent guard does not scan commits; the git hook does.
-- PI-only guards (gates, scope guard) do not exist for Claude. PI has no sandbox like Claude's.
+- PI-only guards (gates, scope guard, bash sandbox) do not exist for Claude.
 - The legacy Claude hooks were removed after a side-by-side check. Two stay, because nothing replaces them: `scan-secrets.sh` (BIP39 seed phrases in Claude prompts) and `prompt-injection-defender.sh` (injection warnings on tool output).
 - A `git push` whose branch is built at run time (`$(...)`, `$VAR`, backticks) is blocked; type the branch name.
 - Code review is not automatic: the `code-review` skill runs only when invoked.
@@ -230,3 +280,5 @@ Each behavior above is pinned by a test. Change a guard only together with its t
 - `test/security-check-install.test.ts`
 - `test/guard-check-skill-text.test.ts`
 - `test/sync-pi-config.test.ts` (file modes and the policy check before push)
+- `test/sandbox-bash.test.ts`
+- `test/sandbox-bash.integration.test.ts` (real `srt`; skips with `SKIPPED:` when `srt` is missing or it runs inside the sandbox)

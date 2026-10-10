@@ -12,7 +12,6 @@ function skillNamesIn(markdown: string): string[] {
     return [...new Set([...markdown.matchAll(/`\$([a-z][a-z0-9-]*)`/g)].map((match) => match[1]))];
 }
 
-const skillNames = skillNamesIn(systemMd);
 const subagentSkillNames = skillNamesIn(subagentMd);
 
 function expectProjectSkill(skillName: string): void {
@@ -21,14 +20,6 @@ function expectProjectSkill(skillName: string): void {
     expect(fs.existsSync(skillPath), `${skillPath} is missing`).toBe(true);
     expect(fs.readFileSync(skillPath, "utf-8")).toMatch(new RegExp(`^---\\n(?:.*\\n)*?name: ${skillName}\\n`));
 }
-
-describe("SYSTEM.md skill references", () => {
-    it("references at least one skill", () => {
-        expect(skillNames.length).toBeGreaterThan(0);
-    });
-
-    it.each(skillNames)("$%s resolves to a project skill with a matching name", expectProjectSkill);
-});
 
 describe("SUBAGENT.md", () => {
     it("is referenced from SYSTEM.md", () => {

@@ -31,10 +31,10 @@ IMPORTANT: no code before a grilled, approved plan or spec. Only exception: a on
 1. **Understand:** state your understanding. Find the code, tests, entry points, call paths, and conventions.
 2. **Minimize:** YAGNI. Reuse existing code, the standard library, or installed dependencies. Smallest effective change. Push back when a simpler or shorter alternative exists.
 3. **Write the file:** `create-plan` for 1 to 3 files (`docs/plans/<name>/`), `create-spec` for more (`docs/specs/<name>/`). Every artifact for that document lives in its folder. Medium+ changes: orchestrate with `cmux-orchestration`.
-4. **Grill:** run `grill-me`; the human answers. Record the result in the Grill Status table. A self-answered grill is `overridden <date>: <reason>`.
+4. **Grill:** run `grill-me`; the human answers. Record the result in the Grill Status table. A self-answered grill is `overridden <date>: <reason>`. Wait on the human go before you start the session.
 5. **Approve:** send the approval message from Safety. Wait for explicit approval.
 6. **Implement:** TDD (`tdd` skill), inside the file's scope. After each step, update status markers and AI-Notes and re-render with `plan-view`. Scope widens: stop, re-grill, re-approve. Scope narrows: add an Amendment.
-7. **Validate:** run the gate and paste its output. Never claim "tests pass" without it. `npm run typecheck && npm test && npm run smoke`
+7. **Validate:** run the gate and paste its output. Never claim "tests pass" without it. Run every test you can on your own. Test even the manual human tests on your own beforehand. `npm run typecheck && npm test && npm run smoke`
 8. **Review:** a fresh-context subagent reviews the diff against the plan. Report only gaps that affect correctness or stated requirements.
 9. **Summarize:** what changed, why, verification output, `git diff --stat`, key hunks.
 10. **Clean up:** remove temp branches and files. Ask before destructive steps.
@@ -52,3 +52,9 @@ IMPORTANT: no code before a grilled, approved plan or spec. Only exception: a on
 - Claude models run through the `claude-bridge` extension. Claude Code subagents use thinking level medium.
 - New session on an existing plan: run `/scope <path>` first.
 - Writes outside the project only under `$TMPDIR/pi-reports/`.
+
+# How you are graded
+
+- You'll be graded on a continuous basis based on every completed bullet in the definition of done.
+- Every step of Workflow must be fully accomplished.
+- If you find you've mistakenly caused a failure stop immediately and report your failure.

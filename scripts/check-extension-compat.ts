@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import semver from "semver";
-import { isManagedRelativePath } from "./sync-pi-config.ts";
+import { isManagedRelativePath, isProjectOnlyExtensionPath } from "./sync-pi-config.ts";
 
 export interface CompatViolation {
     name: string;
@@ -123,6 +123,8 @@ export function compareExtensionTrees(
     for (const relativePath of projectFiles) {
         const absoluteGlobal = globalAbsolute.get(relativePath);
         if (absoluteGlobal === undefined) {
+            // A project-only file matters only when a stale global twin would shadow it.
+            if (isProjectOnlyExtensionPath(relativePath)) continue;
             diffs.push({ path: relativePath, status: "only-project" });
             continue;
         }

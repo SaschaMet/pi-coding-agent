@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
 	syncManagedPiDirectory,
 	copySystemMdToClaudeMd,
+	isProjectOnlyExtensionPath,
 } from "../scripts/sync-pi-config.ts";
 import { fakeSecrets } from "./fixtures/security/cases.ts";
 
@@ -1018,6 +1019,79 @@ describe("sync-pi-config", () => {
 
 		expect(result.directoriesRemoved.length).toBe(0);
 		expect(fs.existsSync(localPlanMode)).toBe(true);
+	});
+
+	describe("project-only extension files", () => {
+		function writeFile(filePath: string, content: string): void {
+			fs.mkdirSync(path.dirname(filePath), { recursive: true });
+			fs.writeFileSync(filePath, content, "utf-8");
+		}
+
+		it("matches only the exact listed paths", () => {
+			expect(isProjectOnlyExtensionPath("sandbox-bash.ts")).toBe(true);
+			expect(isProjectOnlyExtensionPath("lib/sandbox-bash.ts")).toBe(true);
+			expect(isProjectOnlyExtensionPath("sandbox-bash-extra.ts")).toBe(false);
+			expect(isProjectOnlyExtensionPath("other/sandbox-bash.ts")).toBe(false);
+			expect(isProjectOnlyExtensionPath("lib/sandbox-bash.ts.bak")).toBe(false);
+		});
+
+		it("push copies every extension file except the project-only ones", () => {
+			const { localPiDir, globalAgentDir } = setupRoots("pi-sync-project-only-push-");
+			writeFile(path.join(localPiDir, "extensions", "sandbox-bash.ts"), "sandbox\n");
+			writeFile(path.join(localPiDir, "extensions", "lib", "sandbox-bash.ts"), "core\n");
+			writeFile(path.join(localPiDir, "extensions", "lib", "helpers.ts"), "helpers\n");
+			writeFile(path.join(localPiDir, "extensions", "gates.ts"), "gates\n");
+
+			const result = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+
+			expect(result.updated.sort()).toEqual(["extensions/gates.ts", "extensions/lib/helpers.ts"]);
+			expect(fs.existsSync(path.join(globalAgentDir, "extensions", "sandbox-bash.ts"))).toBe(false);
+			expect(fs.existsSync(path.join(globalAgentDir, "extensions", "lib", "sandbox-bash.ts"))).toBe(false);
+		});
+
+		it("pull keeps the project copies unchanged, even when a global copy differs", () => {
+			const { localPiDir, globalAgentDir } = setupRoots("pi-sync-project-only-pull-");
+			const local = path.join(localPiDir, "extensions", "sandbox-bash.ts");
+			const localLib = path.join(localPiDir, "extensions", "lib", "sandbox-bash.ts");
+			writeFile(local, "project\n");
+			writeFile(localLib, "project core\n");
+			writeFile(path.join(globalAgentDir, "extensions", "sandbox-bash.ts"), "stale global\n");
+
+			const result = syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
+
+			expect(result.updated).toEqual([]);
+			expect(fs.readFileSync(local, "utf-8")).toBe("project\n");
+			expect(fs.readFileSync(localLib, "utf-8")).toBe("project core\n");
+		});
+
+		it.each(["sandbox-bash.ts", "lib/sandbox-bash.ts"])("push neither updates nor deletes a manual global copy of %s", (file) => {
+			const { localPiDir, globalAgentDir } = setupRoots("pi-sync-project-only-twin-");
+			const globalCopy = path.join(globalAgentDir, "extensions", file);
+			writeFile(path.join(localPiDir, "extensions", file), "project core\n");
+			writeFile(globalCopy, "manual global\n");
+
+			const result = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+
+			expect(result.updated).toEqual([]);
+			expect(result.deleted).toEqual([]);
+			expect(fs.readFileSync(globalCopy, "utf-8")).toBe("manual global\n");
+		});
+
+		it.each(["push", "pull"] as const)(
+			"%s keeps a local folder that holds a project-only file, even when the global folder is managed",
+			(mode) => {
+				const { localPiDir, globalAgentDir } = setupRoots(`pi-sync-project-only-prune-${mode}-`);
+				const localLib = path.join(localPiDir, "extensions", "lib", "sandbox-bash.ts");
+				writeFile(localLib, "project core\n");
+				writeFile(path.join(globalAgentDir, "extensions", "lib", "helpers.ts"), "global helpers\n");
+				writeFile(path.join(globalAgentDir, "extensions", "lib", ".pi-managed"), "");
+
+				const result = syncManagedPiDirectory(mode, localPiDir, globalAgentDir);
+
+				expect(result.directoriesRemoved).toEqual([]);
+				expect(fs.readFileSync(localLib, "utf-8")).toBe("project core\n");
+			},
+		);
 	});
 
 	describe("file modes on push", () => {

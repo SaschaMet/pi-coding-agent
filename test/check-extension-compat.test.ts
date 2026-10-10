@@ -116,6 +116,34 @@ describe("compareExtensionTrees", () => {
         expect(compareExtensionTrees(project, global)).toEqual([]);
     });
 
+    it("skips a project-only file while no global copy exists", () => {
+        const root = fs.mkdtempSync(path.join(os.tmpdir(), "compat-drift-project-only-"));
+        const project = path.join(root, "project");
+        const global = path.join(root, "global");
+        makeTree(project, {
+            "sandbox-bash.ts": "sandbox",
+            "lib/sandbox-bash.ts": "core",
+            "sandbox-bash-extra.ts": "not listed",
+        });
+        makeTree(global, {});
+
+        expect(compareExtensionTrees(project, global)).toEqual([
+            { path: "sandbox-bash-extra.ts", status: "only-project" },
+        ]);
+    });
+
+    it("reports a project-only file whose global copy differs", () => {
+        const root = fs.mkdtempSync(path.join(os.tmpdir(), "compat-drift-project-only-twin-"));
+        const project = path.join(root, "project");
+        const global = path.join(root, "global");
+        makeTree(project, { "sandbox-bash.ts": "new", "lib/sandbox-bash.ts": "same" });
+        makeTree(global, { "sandbox-bash.ts": "stale", "lib/sandbox-bash.ts": "same" });
+
+        expect(compareExtensionTrees(project, global)).toEqual([
+            { path: "sandbox-bash.ts", status: "differ" },
+        ]);
+    });
+
     it("reports a file whose content differs", () => {
         const root = fs.mkdtempSync(path.join(os.tmpdir(), "compat-drift-differ-"));
         const project = path.join(root, "project");

@@ -85,12 +85,38 @@ function ensureDir(dirPath: string): void {
 	fs.mkdirSync(dirPath, { recursive: true });
 }
 
+// Extension files that stay in this repo until their rollout is decided.
+// Sync never copies or deletes them; smoke skips them while no global copy exists.
+// Remove an entry to roll the file out globally with the next push.
+export const PROJECT_ONLY_EXTENSION_FILES: ReadonlySet<string> = new Set([
+	"sandbox-bash.ts",
+	"lib/sandbox-bash.ts",
+]);
+
+export function isProjectOnlyExtensionPath(extensionRelativePath: string): boolean {
+	return PROJECT_ONLY_EXTENSION_FILES.has(extensionRelativePath.split(path.sep).join("/"));
+}
+
+function holdsProjectOnlyFile(localExtensionDir: string, extensionName: string): boolean {
+	return [...PROJECT_ONLY_EXTENSION_FILES].some(
+		(file) =>
+			file.startsWith(`${extensionName}/`) &&
+			fs.existsSync(path.join(localExtensionDir, file.slice(extensionName.length + 1))),
+	);
+}
+
 export function isManagedRelativePath(relativePath: string): boolean {
 	const normalized = relativePath.split(path.sep).join("/");
 	if (!normalized) return false;
 	if (path.posix.basename(normalized) === ".DS_Store") return false;
 
 	const topLevel = normalized.split("/")[0];
+	if (
+		topLevel === EXTENSIONS_RELATIVE_PATH &&
+		isProjectOnlyExtensionPath(normalized.slice(EXTENSIONS_RELATIVE_PATH.length + 1))
+	) {
+		return false;
+	}
 	return !EXCLUDED_TOP_LEVEL_PATHS.has(topLevel);
 }
 
@@ -352,6 +378,8 @@ function pruneLocalExtensionDirectoriesThatExistGlobally(
 			EXTENSIONS_RELATIVE_PATH,
 			extensionName,
 		);
+		// Sync never widens what it deletes: a project-only file outlives any global twin folder.
+		if (holdsProjectOnlyFile(localExtensionDir, extensionName)) continue;
 		const relativeDir = `${EXTENSIONS_RELATIVE_PATH}/${extensionName}`;
 		if (removeDirectoryIfExists(localExtensionDir)) removed.push(relativeDir);
 	}
