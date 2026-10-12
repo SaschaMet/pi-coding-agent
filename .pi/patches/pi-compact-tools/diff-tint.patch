@@ -1,5 +1,5 @@
 Purpose: stronger red/green diff row tints (0.17 to 0.3) so rows read like GitHub on a dark terminal.
-Reviewed-Version: 0.14.2
+Reviewed-Version: 0.15.0
 --- a/extensions/compact-tools-color.ts
 +++ b/extensions/compact-tools-color.ts
 @@ -230,7 +230,7 @@
