@@ -64,7 +64,7 @@ being built.
 
 | Option | Recommend it when | Cost |
 |---|---|---|
-| **Tailwind only** | Marketing sites, landing pages, portfolios — anything where components are bespoke and few. **This is the usual fit for the work `design-taste` routes**, so it is the usual recommendation here. | You build every component, including its accessible behavior |
+| **Tailwind only** | Marketing sites, landing pages, portfolios — anything where components are bespoke and few. **This is the usual fit for taste-skill family work**, so it is the usual recommendation here. | You build every component, including its accessible behavior |
 | **shadcn/ui + Tailwind** | A React or Next app that needs real interactive components soon — dialogs, menus, forms. Accessible Radix primitives, copied into the repo so they stay editable. | Tailwind in the markup, plus a components directory you now own and maintain |
 | **CSS custom properties, no framework** | Small or embedded surfaces, strict bundle limits, a non-JS template stack, or a team that prefers plain CSS | No utilities, no component library; the most to write by hand |
 
@@ -155,8 +155,8 @@ not done.
 
 ## Hand-off
 
-With the foundation in place, visual design work proceeds: `design-taste` routes it, and every
-workflow skill under it builds against these tokens rather than inventing values. Point later runs at
+With the foundation in place, visual design work proceeds in `impeccable` or a taste-skill family
+skill, and each builds against these tokens rather than inventing values. Point later runs at
 `docs/DESIGN-SYSTEM.md` instead of re-deriving the system.
 
 ## Anti-Patterns

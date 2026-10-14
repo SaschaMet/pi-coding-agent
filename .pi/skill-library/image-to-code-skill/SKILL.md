@@ -80,9 +80,9 @@ gave you.
 ## 0.A SHARED FAMILY RULES (LOCAL ADDITION)
 
 These eight rules are **family-wide**: they hold whether this skill or `taste-skill` drives the run.
-They are restated here rather than cross-referenced because the router loads exactly one workflow
-skill per run — never both — so a pointer would aim at a file that is not in context. Keep this list
-in sync with `design-taste`'s Conflict Rules.
+They are restated here rather than cross-referenced because a run loads exactly one workflow
+skill — never both — so a pointer would aim at a file that is not in context. This is the
+family's only written copy of these rules.
 
 1. **No em-dash or en-dash in user-visible output.** Not "limited use" — zero. A single `—` or `–` fails the check. Restructure the sentence or use a colon.
 2. **Fonts:** `Inter` is discouraged as a default; `Fraunces` and `Instrument Serif` are banned as display defaults; reaching for a serif because the brief says "editorial" or "premium" is the most-tested AI tell there is. Prefer `Geist`, `Outfit`, `Cabinet Grotesk`, `Satoshi`.

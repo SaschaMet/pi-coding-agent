@@ -1,0 +1,17 @@
+#!/bin/sh
+# Set as IMPECCABLE_BROWSER. The engine's Chrome may reach localhost only:
+# no Google Fonts, no remote page resources, no background traffic.
+set -eu
+real=${IMPECCABLE_REAL_BROWSER:-}
+if [ -z "$real" ]; then
+  for c in "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+           "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"; do
+    if [ -x "$c" ]; then real=$c; break; fi
+  done
+fi
+if [ -z "$real" ] || [ ! -x "$real" ]; then
+  echo "chrome-offline: no Chromium browser found; set IMPECCABLE_REAL_BROWSER" >&2
+  exit 127
+fi
+exec "$real" --proxy-server=http://127.0.0.1:9 '--proxy-bypass-list=localhost;127.0.0.1;[::1]' \
+  '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1' "$@"

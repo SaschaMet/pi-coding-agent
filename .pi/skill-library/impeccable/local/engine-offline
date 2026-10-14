@@ -1,0 +1,18 @@
+#!/bin/sh
+# Set as IMPECCABLE_BIN. Every engine HTTPS call goes through one proxy-aware client,
+# so a dead proxy blocks all remote calls, including hosts the engine hard-codes.
+set -eu
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+IMPECCABLE_LOCAL_DIR="$here" . "$here/offline.sh"
+dead=http://127.0.0.1:9
+export HTTPS_PROXY=$dead HTTP_PROXY=$dead ALL_PROXY=$dead https_proxy=$dead http_proxy=$dead all_proxy=$dead
+export NO_PROXY=localhost,127.0.0.1,::1 no_proxy=localhost,127.0.0.1,::1
+unset OPENAI_API_KEY
+version=$(tr -d '[:space:]' < "$here/../scripts/VERSION")
+engine="${IMPECCABLE_HOME:-${HOME:-/nonexistent}/.impeccable}/bin/$version/impeccable"
+if [ ! -x "$engine" ]; then
+  echo "engine-offline: engine $version missing at $engine." >&2
+  echo "Install once in a normal terminal: env -u IMPECCABLE_BIN -u IMPECCABLE_DOWNLOAD_BASE \"$here/../scripts/impeccable\" engine-probe" >&2
+  exit 127
+fi
+exec "$engine" "$@"

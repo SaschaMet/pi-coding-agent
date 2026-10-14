@@ -1,6 +1,6 @@
 ---
 name: improve-website
-description: 'Guided journey from a live website that underperforms to a prioritized, evidence-backed backlog of conversion, usability, message, and speed fixes - each shipped as a testable experiment. Orchestrates eight skills phase by phase - cro-methodology, ux-heuristics, refactoring-ui, web-typography, storybrand-messaging, high-perf-browser, made-to-stick, and ux-heuristics'' Norman references - asking the user questions at every decision point and recording results in the project docs/ folder so the journey resumes across sessions. Use when the user wants to know WHY a page underperforms: it isn''t converting, visitors leave, or ''the homepage feels off but a redesign didn''t help''. If they instead want the visual fixed now - ''looks generic'', ''make it expensive'', ''build this screenshot'' - that is design-taste, not this. For one framework in isolation, invoke that skill directly.'
+description: 'Guided journey from a live website that underperforms to a prioritized, evidence-backed backlog of conversion, usability, message, and speed fixes - each shipped as a testable experiment. Orchestrates eight skills phase by phase - cro-methodology, ux-heuristics, refactoring-ui, web-typography, storybrand-messaging, high-perf-browser, made-to-stick, and ux-heuristics'' Norman references - asking the user questions at every decision point and recording results in the project docs/ folder so the journey resumes across sessions. Use when the user wants to know WHY a page underperforms: it isn''t converting, visitors leave, or ''the homepage feels off but a redesign didn''t help''. If they instead want the visual fixed now - ''looks generic'' (impeccable), ''make it expensive'' (top-design), ''build this screenshot'' (image-to-code-skill) - that is not this. For one framework in isolation, invoke that skill directly.'
 license: MIT
 metadata:
   author: wondelai
@@ -46,14 +46,14 @@ constituent skills carry the method — invoke them rather than improvising thei
 6. **Phase exit.** Present the draft artifact content for sign-off before writing. On approval: write or extend the docs/ files, update the tracker (status, Key Decisions, Next Actions). Done when the files are written and the phase row shows `done`.
 7. **Artifact discipline.** Read before writing; create a file only if missing, otherwise extend — add or update your sections, preserve everyone else's. Files are UPPERCASE in `docs/`. Every recommendation lands as a checkbox or a table row with owner and priority. See [references/artifact-templates.md](references/artifact-templates.md) when creating a docs/ file for the first time — create it from the full skeleton (all section headings), then fill the sections your phase names.
 8. **Not every "this page is bad" request belongs here.** This skill answers *why visitors don't
-   convert* and produces evidence-backed documents; `design-taste` answers *what it should look like*
+   convert* and produces evidence-backed documents; `impeccable` answers *what it should look like*
    and produces code. Route by what the user is asking for:
    - "Traffic but nobody signs up", "why do they leave", "audit for clarity" → **here**. Phase 1 is the gate.
-   - "It looks generic / cheap / dated", "make it look expensive", "build this from a screenshot" → **`design-taste`**, directly. Do not open a CRO journey for a visual request; the user did not ask for a backlog.
-   - Both, in order: run this journey, then hand the ranked visual findings to `design-taste` to implement. That is the chain, and it only runs in that direction.
+   - "It looks generic / cheap / dated" → **`impeccable`**; "make it look expensive" → **`top-design`**; "build this from a screenshot" → **`image-to-code-skill`**. Directly. Do not open a CRO journey for a visual request; the user did not ask for a backlog.
+   - Both, in order: run this journey, then hand the ranked visual findings to `impeccable` to implement. That is the chain, and it only runs in that direction.
 
    A visual request routed here produces a tracker and seven phases the user never wanted. A
-   conversion problem routed to `design-taste` produces a prettier page with the same unaddressed
+   conversion problem routed to `impeccable` produces a prettier page with the same unaddressed
    objections — which is mistake #1 below.
 9. **Diagnose before redesigning.** No visual or copy change ships before the Phase 1 diagnosis produces evidence for it, and every change lands in EXPERIMENTS.md with a pre-committed metric. A fix with no Phase 1 finding behind it goes back to Phase 1; a bold change with no test attached stays in the backlog until it has one.
 

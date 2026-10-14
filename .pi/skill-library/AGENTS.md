@@ -51,7 +51,7 @@ its rules — that discipline is what keeps two skills from contradicting each o
 | The editorial-minimal look | `minimalist-skill` |
 | Cutting scope; ship / no-ship verdicts | `steve-jobs-design-review` |
 | Stack detection and the design-token contract | `design-foundation` |
-| Routing and conflict arbitration for design work | `design-taste` |
+| Default entry for frontend design work: build, refine, critique, audit, live iteration | `impeccable` |
 | The resumable conversion journey — diagnose, rank, ship as experiments | `improve-website` |
 | Evidence, sample size, no-peeking, ICE, the 10x screen | `cro-methodology` |
 | Persuasion principles **and the ethics/regulatory layer** | `influence-psychology` |
@@ -67,9 +67,10 @@ its rules — that discipline is what keeps two skills from contradicting each o
 | Multi-session planning of foggy efforts as decision-ticket maps | `wayfinder` |
 | Complete, untruncated output | `output-skill` |
 
-Two cross-family boundaries worth stating once:
+Three cross-family boundaries worth stating once:
 
-- **`improve-website` vs `design-taste`.** The first asks *why* visitors don't convert and produces documents; the second asks *what it should look like* and produces code. They chain in that order when both apply, never the reverse. Both files now carry this paragraph, because `AGENTS.md` is not in context when either is named directly.
+- **`improve-website` vs `impeccable`.** The first asks *why* visitors don't convert and produces documents; the second asks *what it should look like* and produces code. They chain in that order when both apply, never the reverse. Both skills carry this rule (`improve-website` in its routing paragraph, `impeccable` in `local/RULES.md`), because `AGENTS.md` is not in context when either is named directly.
+- **`impeccable` vs the taste-skill family.** Two separate design systems. They disagree on eyebrows, motion, icons, and scope (impeccable also covers dashboards). Never load both in one run. Unnamed design requests go to `impeccable`; the family runs only when named.
 - **`refactoring-ui` vs `taste-skill`.** Behind a login, `refactoring-ui`. Trying to sell something, `taste-skill`. Their values genuinely conflict — shadows, spacing, centered heroes, `grid-cols-3` — and that is a scope boundary, not a bug.
 
 ### Website improvement
@@ -91,7 +92,7 @@ Note for updates: the repo also has a `plugins/` directory. It is generated buil
 | `influence-psychology`     | Cialdini's seven principles of ethical persuasion applied to copy, product, and sales, with explicit ethical limits.                              |
 | `steve-jobs-design-review` | Brutal end-to-end design review: ruthless simplicity, focus, saying no, binary verdicts.                                                          |
 | `microinteractions`        | Triggers, rules, feedback, loops, and modes — the small details of interaction design.                                                            |
-| `top-design`               | Awwwards-level immersive web experiences: scroll animation, cinematic storytelling, premium component architecture. **Also the "expensive / premium / agency" overlay** for a `design-taste` run, absorbed from the retired `soft-skill`. |
+| `top-design`               | Awwwards-level immersive web experiences: scroll animation, cinematic storytelling, premium component architecture. **Also the "expensive / premium / agency" overlay** for a `taste-skill` run, absorbed from the retired `soft-skill`. |
 
 #### Orchestration map for `improve-website`
 
@@ -175,18 +176,19 @@ Note for updates: the repo keeps its skills in `skills/<name>/`, **not** at the 
 
 | Skill                 | What it does                                                                                                                                       |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `design-taste`        | Metaskill. Routes a design request to one workflow skill plus at most one aesthetic overlay, and keeps them from contradicting each other.          |
 | `design-foundation`   | GATE before any design work. Detects the project's existing stack and adopts it; only when the project is empty does it help choose one, set the tokens, and write `docs/DESIGN-SYSTEM.md`. |
 | `taste-skill`         | Default generator **and the redesign protocol**. Reads the brief, infers the design language, tunes VARIANCE / MOTION / DENSITY, ships landing pages and portfolios; its section 11 handles redesigns with SEO, IA, and analytics preservation. Absorbed the retired `redesign-skill`. |
 | `image-to-code-skill` | Image-first, two modes: convert an image the user supplies into a web design, or generate the reference first when none is given and the runtime can. |
 | `minimalist-skill`    | Aesthetic overlay: editorial monochrome, typographic contrast, flat bento grids, muted pastels, `<kbd>` and window-chrome components. No gradients, no heavy shadows. The "expensive" counterpart is `top-design`. |
-| `output-skill`        | Cross-cutting: bans truncation, placeholder comments, and skeleton-instead-of-implementation. Loaded on every `design-taste` run.                   |
+| `output-skill`        | Cross-cutting: bans truncation, placeholder comments, and skeleton-instead-of-implementation. Load it with every `taste-skill` or `image-to-code-skill` run. |
 
-#### Orchestration map for `design-taste`
+#### Running the family by name
+
+The family has no router since its router skill was retired on 2026-10-14; its aesthetic-neutral rules moved to `impeccable/local/RULES.md`. It runs only when the user names one of its skills; unnamed design requests go to `impeccable`. When named, assemble the run yourself:
 
 | Slot             | Skill                                                     |                                       |
 | ---------------- | --------------------------------------------------------- | ------------------------------------- |
-| step 0           | `design-foundation`                                       | GATE — no stack, none recorded, or two competing systems |
+| step 0           | `design-foundation` step 1                                | GATE — no stack, none recorded, or two competing systems |
 | workflow         | `taste-skill`                                             | new page from a brief, **or** a redesign (its section 11) |
 | workflow         | `image-to-code-skill`                                     | a design image drives the build       |
 | overlay          | `top-design` **or** `minimalist-skill`                    | only when the user names a look       |
@@ -194,35 +196,55 @@ Note for updates: the repo keeps its skills in `skills/<name>/`, **not** at the 
 
 Exactly one workflow skill — the two disagree on enough rules that loading both produces output failing one of them. Never two overlays: `top-design` demands depth and shadow, `minimalist-skill` bans them.
 
-**Scope gate first, always.** The whole family covers landing pages, portfolios, marketing and product pages, editorial sites, and redesigns of those. It does **not** cover dashboards, data tables, or multi-step product UI — and "redesign" does not buy an exception. Route `design-taste` through its own Scope Gate before believing the table above; the verb never outranks the page kind.
+**Scope gate first, always.** The whole family covers landing pages, portfolios, marketing and product pages, editorial sites, and redesigns of those. It does **not** cover dashboards, data tables, or multi-step product UI — and "redesign" does not buy an exception. For those, use `impeccable` or `refactoring-ui`; the verb never outranks the page kind.
 
 **Tie-breaks against other clusters** — these overlap on keywords and nothing else resolves them:
 
 | Request | Route | Not |
 |---|---|---|
-| "Awwwards-level", immersive scroll storytelling, or "make it expensive" | `top-design` — standalone for a whole-site build, or loaded as the overlay inside a `design-taste` run | Two separate skills; since `soft-skill` was retired into it, one file serves both cases |
-| "The site underperforms / doesn't convert" — wants evidence, then a ranked backlog | `improve-website` | `design-taste`, which writes code without seeking evidence |
-| "The site looks generic / cheap" — wants the code-level visual fixed now | `design-taste` | `improve-website`, which starts with CRO research |
+| "Awwwards-level", immersive scroll storytelling, or "make it expensive" | `top-design` — standalone for a whole-site build, or loaded as the overlay inside a `taste-skill` run | Two separate skills; since `soft-skill` was retired into it, one file serves both cases |
+| "The site underperforms / doesn't convert" — wants evidence, then a ranked backlog | `improve-website` | `impeccable`, which writes code without seeking evidence |
+| "The site looks generic / cheap" — wants the code-level visual fixed now | `impeccable` | `improve-website`, which starts with CRO research |
+| "Build this screenshot / mockup" — a supplied image to reproduce | `image-to-code-skill`, Mode A | `impeccable`, which treats images as inspiration |
 
 The word "Awwwards" alone decides nothing — scope does. One page is an overlay; a whole site with scroll choreography is `top-design`. If the phrasing does not settle it, ask.
 
-The last row routes to `design-taste`, not to a workflow skill: which workflow skill runs is decided by the tie-breakers in `design-taste/SKILL.md`, which outrank this table. "Looks generic" says nothing about whether there is a codebase to work in.
+Rule of thumb: `improve-website` asks *why* visitors don't convert and produces documents; `impeccable` asks *what it should look like* and produces code. They chain in that order when both apply — diagnose first, then hand the ranked visual findings to `impeccable`.
 
-Rule of thumb: `improve-website` asks *why* visitors don't convert and produces documents; `design-taste` asks *what it should look like* and produces code. They chain in that order when both apply — diagnose first, then hand the ranked visual findings to `design-taste`.
-
-Two caveats live in `design-taste/SKILL.md` and are repeated here because they decide whether a run is viable: `image-to-code-skill` runs in Mode A (the user supplies the image) or Mode B (it generates one, which needs an image-gen MCP in this runtime) — with neither, fall back to `taste-skill` and a written brief rather than inventing a reference; and `taste-skill` and `image-to-code-skill` are ~1200 lines each, deliberately **not** split into references so upstream re-copies stay near-merge-free. Load them only when the route selects them.
+Two caveats decide whether a family run is viable: `image-to-code-skill` runs in Mode A (the user supplies the image) or Mode B (it generates one, which needs an image-gen MCP in this runtime) — with neither, fall back to `taste-skill` and a written brief rather than inventing a reference; and `taste-skill` and `image-to-code-skill` are ~1200 lines each, deliberately **not** split into references so upstream re-copies stay near-merge-free. Load them only when the route selects them.
 
 **An attached image routes to `image-to-code-skill`, Mode A.** It is the strongest routing signal in the family — stronger than any inferred direction. Do not send it to `taste-skill` and describe the image back in prose.
 
 **The project's existing stack always wins.** Every skill in this cluster detects the project's stack and adopts it — never migrates it, never adds a second styling system or component library beside it. `taste-skill` ships an opinionated stack section (React/Next, Tailwind v4, Motion, Phosphor-class icons); that is a **greenfield recommendation, not this family's default**. Where it disagrees with what the project already uses, the project wins. With no stack at all, `design-foundation` establishes one with the user first. If the user explicitly asks for a different stack than the project uses, that is their call — name the cost of two systems in one tree, then honor it and record why.
 
-**A direct invocation of a workflow skill does not escape the gate.** `taste-skill` and `image-to-code-skill` are named directly often, and none of them contains the Foundation Gate — it lives in `design-taste`. So when one of them is invoked by name for design work, read `design-taste`'s Foundation Gate and Stack Rule first anyway: detect the stack, read `docs/DESIGN-SYSTEM.md` if it exists, and route to `design-foundation` when the project has nothing, nothing recorded, or two competing systems. It is a few hundred words against the cost of a page built on invented values. This is the family's known weak point: the gate is only as strong as this paragraph.
+**A direct invocation of a workflow skill does not escape the gate.** `taste-skill` and `image-to-code-skill` are named directly often, and neither contains the Foundation Gate. So when one of them is invoked by name for design work, run `design-foundation` step 1 first anyway: detect the stack, read `docs/DESIGN-SYSTEM.md` in full if it exists, and run `design-foundation` when the project has nothing, nothing recorded, or two competing systems. Say the stack and its token source out loud before writing code. It is a few hundred words against the cost of a page built on invented values. This is the family's known weak point: the gate is only as strong as this paragraph.
 
 `design-foundation` is sourced differently from the rest of this cluster: written locally, MIT, 2026-09-11. Its shadcn/ui path credits <https://github.com/nextlevelbuilder/ui-ux-pro-max-skill> (MIT) in prose; nothing is vendored from it, so there is nothing to re-copy on update.
 
-Like everything here, `design-taste` never fires on its own — name it, or reach it through the `use-skill-library` router. It is called `design-taste`, not `design`, because an auto-loaded `design` skill (the Claude Design canvas) already owns that word; "use the design skill" is ambiguous, "use design-taste" is not.
-
 These skills write nothing to this directory — their output is code in the current project.
+
+### Impeccable
+
+Source: <https://github.com/pbakaus/impeccable>, Apache-2.0 (`LICENSE` and `NOTICE.md` kept in the folder), copied 2026-10-14 from the repository's prebuilt Pi tree **`.pi/skills/impeccable/`** at commit `2f98774f86bc05563876643db37e6c37c322850f` (skill v4.5.2, engine 0.1.14).
+
+Note for updates: re-copy from `.pi/skills/impeccable/` (not `skill/`, which is the unbuilt source, and not the old `dist/pi/`), and add `LICENSE` and `NOTICE.md` from the repo root. Three things must survive every re-copy:
+
+1. **`local/`** — the offline layer and local rules. Upstream has no such folder; copy around it.
+2. **The one-line `LOCAL ADDITION` block** right after the frontmatter of `SKILL.md`, which loads `local/RULES.md`. Every other upstream file stays byte-identical.
+3. **A fresh network audit.** List every outbound call in the new engine source (`crates/`) and confirm the proxy and browser locks still cover them, then run `npx vitest run test/impeccable-offline.test.ts`.
+
+| Skill | What it does |
+| --- | --- |
+| `impeccable` | Default design suite, 24 commands (`init`, `shape`, `critique`, `audit`, `polish`, `typeset`, `layout`, `harden`, `live`, …) for landing pages, product UI, dashboards, and components. Writes `PRODUCT.md`, `DESIGN.md`, and `.impeccable/` in the **current project**. Say "use impeccable to polish X"; there is no `/impeccable` slash command here. Its `local/RULES.md` outranks upstream. |
+
+**Offline by design: nothing it runs may reach a third party.** `local/engine-offline`, set as `IMPECCABLE_BIN`, starts the engine with every proxy variable pointed at a closed local port, which blocks all engine HTTPS calls, hard-coded hosts included. `local/chrome-offline`, set as `IMPECCABLE_BROWSER`, lets the engine's Chrome reach localhost only, so no Google Fonts and no remote page resources. `local/offline.sh` sets both, plus the telemetry, update-check, and live-copy-agent switches. Design-option rolls run offline in "degraded" mode: fewer directions, nothing sent. `test/impeccable-offline.test.ts` proves the locks.
+
+Human setup, once per machine, in a normal terminal:
+
+1. Install the engine (a one-time download from GitHub Releases, no project data): `env -u IMPECCABLE_BIN -u IMPECCABLE_DOWNLOAD_BASE ~/.pi/agent/skill-library/impeccable/scripts/impeccable engine-probe` → prints `impeccable-engine 0.1.14`.
+2. Add `. "$HOME/.pi/agent/skill-library/impeccable/local/offline.sh"` to `~/.zshrc` and open a new terminal.
+
+Without step 2 the skill refuses to run its launcher and reads `PRODUCT.md` / `DESIGN.md` directly instead.
 
 ## Adding a new skill
 

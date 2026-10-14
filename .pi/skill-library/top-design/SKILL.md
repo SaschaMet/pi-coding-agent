@@ -1,6 +1,6 @@
 ---
 name: top-design
-description: 'Create award-winning, immersive web experiences at the level of Awwwards-featured agencies. Use when the user mentions "Awwwards quality", "make my site stunning", "scroll animations", "parallax storytelling", "cinematic web design", "portfolio site", or "brand experience". Also the owner of the "expensive / premium / agency / Apple-like" aesthetic direction: when a design-taste run needs that overlay, it loads this skill. Also trigger when elevating a standard landing page into a memorable digital experience. Covers dramatic typography, purposeful motion, scroll-based composition, premium component architecture, and performance-optimized animation. For product UI (dashboards, forms, tables), see refactoring-ui. For type selection and loading, see web-typography.'
+description: 'Create award-winning, immersive web experiences at the level of Awwwards-featured agencies. Use when the user mentions "Awwwards quality", "make my site stunning", "scroll animations", "parallax storytelling", "cinematic web design", "portfolio site", or "brand experience". Also the owner of the "expensive / premium / agency / Apple-like" aesthetic direction: when a taste-skill run needs that overlay, it loads this skill. Also trigger when elevating a standard landing page into a memorable digital experience. Covers dramatic typography, purposeful motion, scroll-based composition, premium component architecture, and performance-optimized animation. For product UI (dashboards, forms, tables), see refactoring-ui. For type selection and loading, see web-typography.'
 license: MIT
 metadata:
   author: wondelai
@@ -206,7 +206,7 @@ See [references/technical-stack.md](references/technical-stack.md) when choosing
 - Every link and card has a considered hover state -- scale, overlay, or meaningful transform
 - Focus states are visible AND beautiful -- on-brand indicators that keyboard users can clearly see
 - Loading, empty, 404, and error states are designed, helpful moments
-- Micro-typography is correct -- smart quotes, no orphans on headlines, `text-wrap: balance` on key text. **Dashes: `taste-skill` bans the em-dash and en-dash characters outright in user-visible output, and that ban wins whenever `taste-skill` is driving** — a single `—` fails its pre-flight check. When this skill drives a standalone build, correct dash usage is fine; when it runs as the "expensive / Awwwards" overlay inside a `design-taste` run, restructure the sentence or use a colon instead.
+- Micro-typography is correct -- smart quotes, no orphans on headlines, `text-wrap: balance` on key text. **Dashes: `taste-skill` bans the em-dash and en-dash characters outright in user-visible output, and that ban wins whenever `taste-skill` is driving** — a single `—` fails its pre-flight check. When this skill drives a standalone build, correct dash usage is fine; when it runs as the "expensive / Awwwards" overlay inside a `taste-skill` run, restructure the sentence or use a colon instead.
 
 **Ethical boundary:** Focus states must meet keyboard-visibility requirements even when styled on-brand, and error/empty/404 states must be genuinely helpful, not just decorative.
 
