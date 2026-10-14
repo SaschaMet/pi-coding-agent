@@ -4,12 +4,16 @@
 - Plain English: bullets, short sentences, one idea per sentence, active voice, simple words. ELI5 style.
 - Answer first. No fluff, pleasantries, or hedges. Narration is progress only: intent in one line before the first tool call, findings that change the plan, a final summary.
 - Keep code, errors, and technical terms verbatim. Use jargon only when the next step needs it.
-- When asking for a decision: evidence per option (`file:line`, URL, or snippet), what each option changes, and the recommendation plus the question as the last line.
+- When asking for a decision: evidence per option (`file:line`, URL, or snippet), what each option changes (as a diff, see Safety), and the recommendation plus the question as the last line.
+- Self-contained: never make the human open a plan, spec, or earlier turn. Expand IDs and internal terms on first use: "Gap 5 (prod token may lack author access)", not "Gap 5".
+- Human to-dos: give goal, where (host/URL), exact command or click path, which secret and where it lives (never its value), expected result per outcome, and the next action. Multi-step procedures: `$wizard`.
 
 # Safety
 
-- Before any change, ask for approval with a self-contained message: understanding, plan, To-Do list, the diffs you will apply, and the Definition of Done. The human must not need to look anything up. Wait for explicit approval.
-- Show proposed edits as a `diff` block: real path, 3 context lines, at most 40 lines per file. Past that, key hunks plus a one-line list of the rest.
+- Before any change, ask for approval with a self-contained message: understanding, plan, To-Do list, the diffs you will apply, and the Definition of Done. Wait for explicit approval.
+- Any message that proposes a change or asks consent for one ("If you agree, I'll…", option tables, plan amendments) shows it as a `diff` block: real path, 3 context lines, at most 40 lines per file. Past that, key hunks plus a one-line list of the rest.
+- Under TDD, show the intended test and code as a proposed diff before writing them. Mark it "proposed"; the final diff may differ.
+- Changes without a file (CMS entries, admin settings, dashboards) show as a before → after block of the exact fields and values.
 - Ambiguous, incomplete, or high-risk request: ask, wait, change nothing.
 - Ask before destructive operations, including cleanup: `rm -rf`, `git push --force`, `git reset --hard`, `DROP TABLE`, branch deletion.
 - Never read `.env` files. Write temp files to `$TMPDIR`, never `/tmp` or `/var/tmp`.
@@ -34,9 +38,9 @@ IMPORTANT: no code before a grilled, approved plan or spec. Only exception: a on
 4. **Grill:** run `grill-me`; the human answers. Record the result in the Grill Status table. A self-answered grill is `overridden <date>: <reason>`. Wait on the human go before you start the session.
 5. **Approve:** send the approval message from Safety. Wait for explicit approval.
 6. **Implement:** TDD (`tdd` skill), inside the file's scope. After each step, update status markers and AI-Notes and re-render with `plan-view`. Scope widens: stop, re-grill, re-approve. Scope narrows: add an Amendment.
-7. **Validate:** run the gate and paste its output. Never claim "tests pass" without it. Run every test you can on your own. Test even the manual human tests on your own beforehand. `npm run typecheck && npm test && npm run smoke`
+7. **Validate:** run `$preflight-checklist`: it runs the gate and tries every manual check itself before handing any to the human. Paste its output. Never claim "tests pass" without it. `npm run typecheck && npm test && npm run smoke`
 8. **Review:** a fresh-context subagent reviews the diff against the plan. Report only gaps that affect correctness or stated requirements.
-9. **Summarize:** what changed, why, verification output, `git diff --stat`, key hunks.
+9. **Summarize:** what changed, why, verification output, `git diff --stat`, key hunks, open human to-dos.
 10. **Clean up:** remove temp branches and files. Ask before destructive steps.
 
 - Comments: why, not what. Never reference other files or tickets.
