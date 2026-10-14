@@ -20,5 +20,12 @@
     "-builtin:mcp"
   ],
   "theme": "my-dark",
-  "hideThinkingBlock": true
+  "hideThinkingBlock": true,
+  "compaction": {
+    "modelOverrides": {
+      "iqRouter/grunt": {
+        "reserveTokens": 156000
+      }
+    }
+  }
 }
