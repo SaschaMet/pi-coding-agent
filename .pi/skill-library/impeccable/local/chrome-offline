@@ -1,6 +1,7 @@
 #!/bin/sh
-# Set as IMPECCABLE_BROWSER. The engine's Chrome may reach localhost only:
-# no Google Fonts, no remote page resources, no background traffic.
+# Set as IMPECCABLE_BROWSER. The engine's Chrome may reach localhost and the
+# owner's own site only: no Google Fonts, no third-party page resources, no
+# background traffic.
 set -eu
 real=${IMPECCABLE_REAL_BROWSER:-}
 if [ -z "$real" ]; then
@@ -13,5 +14,19 @@ if [ -z "$real" ] || [ ! -x "$real" ]; then
   echo "chrome-offline: no Chromium browser found; set IMPECCABLE_REAL_BROWSER" >&2
   exit 127
 fi
-exec "$real" --proxy-server=http://127.0.0.1:9 '--proxy-bypass-list=localhost;127.0.0.1;[::1]' \
-  '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1' "$@"
+bypass='localhost;127.0.0.1;[::1];saschametzger.com;www.saschametzger.com'
+rules='MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1, EXCLUDE saschametzger.com, EXCLUDE www.saschametzger.com'
+# One extra host per run, set only after the user approved it in chat.
+# Plain ASCII host names only, so a value cannot widen the rules (no *, lists
+# or spaces). Characters are spelled out: ranges follow the locale under UTF-8.
+ascii='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-'
+if [ -n "${IMPECCABLE_REMOTE_HOST:-}" ]; then
+  case $IMPECCABLE_REMOTE_HOST in
+    *[!$ascii]*|.*|*..*)
+      echo "chrome-offline: IMPECCABLE_REMOTE_HOST must be one plain host name" >&2
+      exit 2 ;;
+  esac
+  bypass="$bypass;$IMPECCABLE_REMOTE_HOST"
+  rules="$rules, EXCLUDE $IMPECCABLE_REMOTE_HOST"
+fi
+exec "$real" --proxy-server=http://127.0.0.1:9 "--proxy-bypass-list=$bypass" "--host-resolver-rules=$rules" "$@"

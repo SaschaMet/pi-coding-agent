@@ -124,12 +124,65 @@ describe("impeccable offline layer", () => {
         const args = res.stdout.split("\n").filter((l) => l.startsWith("ARG=")).map((l) => l.slice(4));
         expect(args).toEqual([
             `--proxy-server=${DEAD}`,
-            "--proxy-bypass-list=localhost;127.0.0.1;[::1]",
-            "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1",
+            "--proxy-bypass-list=localhost;127.0.0.1;[::1];saschametzger.com;www.saschametzger.com",
+            "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1, EXCLUDE saschametzger.com, EXCLUDE www.saschametzger.com",
             "--headless=new",
             "about:blank",
         ]);
     });
+
+    it("allows exactly one extra host named in IMPECCABLE_REMOTE_HOST", () => {
+        const { root, local } = makeSkill();
+        const fakeBrowser = path.join(root, "browser");
+        writeFake(fakeBrowser);
+        const res = run(
+            path.join(local, "chrome-offline"),
+            { IMPECCABLE_REAL_BROWSER: fakeBrowser, IMPECCABLE_REMOTE_HOST: "example.org" },
+            ["about:blank"],
+        );
+        expect(res.status, res.stderr).toBe(0);
+        const args = res.stdout.split("\n").filter((l) => l.startsWith("ARG=")).map((l) => l.slice(4));
+        expect(args.slice(0, 3)).toEqual([
+            `--proxy-server=${DEAD}`,
+            "--proxy-bypass-list=localhost;127.0.0.1;[::1];saschametzger.com;www.saschametzger.com;example.org",
+            "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1, EXCLUDE saschametzger.com, EXCLUDE www.saschametzger.com, EXCLUDE example.org",
+        ]);
+    });
+
+    it("treats an empty IMPECCABLE_REMOTE_HOST as unset", () => {
+        const { root, local } = makeSkill();
+        const fakeBrowser = path.join(root, "browser");
+        writeFake(fakeBrowser);
+        const res = run(
+            path.join(local, "chrome-offline"),
+            { IMPECCABLE_REAL_BROWSER: fakeBrowser, IMPECCABLE_REMOTE_HOST: "" },
+            ["about:blank"],
+        );
+        expect(res.status, res.stderr).toBe(0);
+        const args = res.stdout.split("\n").filter((l) => l.startsWith("ARG=")).map((l) => l.slice(4));
+        expect(args.slice(1, 3)).toEqual([
+            "--proxy-bypass-list=localhost;127.0.0.1;[::1];saschametzger.com;www.saschametzger.com",
+            "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1, EXCLUDE saschametzger.com, EXCLUDE www.saschametzger.com",
+        ]);
+    });
+
+    // é.com and а (Cyrillic) would pass a locale-aware [A-Za-z] range under UTF-8.
+    it.each(["*", "a.com,b.com", "a.com;b.com", "a.com b.com", ".a.com", "a..com", "*.a.com", "é.com", "аpple.com"])(
+        "refuses a remote host value that is not one plain host name: %s",
+        (host) => {
+            const { root, local } = makeSkill();
+            const fakeBrowser = path.join(root, "browser");
+            writeFake(fakeBrowser);
+            const res = run(
+                path.join(local, "chrome-offline"),
+                { IMPECCABLE_REAL_BROWSER: fakeBrowser, IMPECCABLE_REMOTE_HOST: host, LANG: "en_US.UTF-8" },
+                ["about:blank"],
+            );
+            expect(res.status).toBe(2);
+            expect(res.stdout).toBe("");
+            expect(res.stderr).toContain("IMPECCABLE_REMOTE_HOST");
+        },
+    );
 
     it("refuses when the configured browser does not exist", () => {
         const { root, local } = makeSkill();
