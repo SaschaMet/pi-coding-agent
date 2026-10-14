@@ -90,14 +90,53 @@ describe("tmp directory exemption", () => {
 		expect(result?.block).toBe(true);
 	});
 
-	it("prompts (blocks with no UI) for a read from the /tmp POSIX alias outside os.tmpdir()", async () => {
+	it("allows a read from the shared /tmp and its /private/tmp real path", async () => {
 		const pi = guardInRepo();
 
-		const result = await toolCall(pi, "read", {
-			path: path.join("/tmp", `pi-read-guard-alias-${process.pid}.txt`),
-		});
+		for (const root of ["/tmp", fs.realpathSync("/tmp")]) {
+			const result = await toolCall(pi, "read", {
+				path: path.join(root, `pi-read-guard-shots-${process.pid}`, "shot.png"),
+			});
+			expect(result, root).toBeUndefined();
+		}
+	});
 
-		expect(result?.block).toBe(true);
+	it("allows grep, ls, and find with a path inside the shared /tmp", async () => {
+		const pi = guardInRepo();
+
+		for (const toolName of ["grep", "ls", "find"]) {
+			const result = await toolCall(pi, toolName, { path: "/tmp" });
+			expect(result, toolName).toBeUndefined();
+		}
+	});
+
+	it("still blocks write and edit to the shared /tmp", async () => {
+		const pi = guardInRepo();
+
+		for (const toolName of ["write", "edit"]) {
+			const result = await toolCall(pi, toolName, {
+				path: path.join("/tmp", `pi-read-guard-write-${process.pid}.txt`),
+			});
+			expect(result?.block, toolName).toBe(true);
+		}
+	});
+
+	it("keeps the shared /tmp exemption inactive when cwd is inside /tmp (fail-safe)", async () => {
+		const tmpCwd = fs.mkdtempSync(path.join("/tmp", "pi-read-guard-cwd-"));
+		try {
+			const pi = createFakePi();
+			readBoundaryGuardExtension(asExtensionAPI(pi));
+			const result = await (pi.handlers.get("tool_call") ?? [])[0](
+				{
+					toolName: "read",
+					input: { path: path.join("/tmp", `pi-read-guard-sibling-${process.pid}.txt`) },
+				},
+				{ hasUI: false, cwd: tmpCwd },
+			);
+			expect(result?.block).toBe(true);
+		} finally {
+			fs.rmSync(tmpCwd, { recursive: true, force: true });
+		}
 	});
 
 	it("prompts (blocks with no UI) for a read from the /var/tmp POSIX alias", async () => {

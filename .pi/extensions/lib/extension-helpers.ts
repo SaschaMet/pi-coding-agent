@@ -188,6 +188,18 @@ export function isWithinTempDir(inputPath: string, cwd: string): boolean {
    return tmpRoots.some((root) => isWithinRoot(resolvedInput, root));
 }
 
+const SHARED_TMP_ROOT = resolvePathWithRealAncestor("/tmp");
+
+/**
+ * Whether the resolved target sits inside the shared `/tmp`. Only for read-only
+ * tools: sandboxed bash already reads and writes there, so a read prompt adds no
+ * protection. Same fail-safe rules as `isWithinTempDir`.
+ */
+export function isWithinSharedTmp(inputPath: string, cwd: string): boolean {
+   if (isWithinRoot(resolvePathWithRealAncestor(cwd), SHARED_TMP_ROOT)) return false;
+   return isWithinRoot(resolveInputPath(inputPath, cwd), SHARED_TMP_ROOT);
+}
+
 /** Folder under the temp root where agents write their reports. */
 const TEMP_REPORTS_DIRNAME = "pi-reports";
 
