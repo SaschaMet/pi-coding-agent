@@ -1,6 +1,6 @@
 Purpose: leave the working row to pi-zentui.
 Requires: pi-zentui (drop this patch if Zentui is removed)
-Reviewed-Version: 0.15.0
+Reviewed-Version: 0.16.2
 --- a/extensions/compact-tools-progress.ts
 +++ b/extensions/compact-tools-progress.ts
 @@ -148,6 +148,8 @@

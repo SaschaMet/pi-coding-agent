@@ -1,5 +1,5 @@
 Purpose: thinking headings use the thinkingText color instead of text.
-Reviewed-Version: 0.15.0
+Reviewed-Version: 0.16.2
 --- a/extensions/compact-tools-thinking.ts
 +++ b/extensions/compact-tools-thinking.ts
 @@ -219,7 +219,7 @@
