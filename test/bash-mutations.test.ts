@@ -58,13 +58,16 @@ describe("extractBashMutations", () => {
         expect(extractBashMutations("mkdir -p deep/dir").map((m) => m.path)).toEqual(["deep/dir"]);
     });
 
-    it("extracts both the cp source and destination", () => {
-        expect(extractBashMutations("cp -R src dst")).toEqual([{ path: "src" }, { path: "dst" }]);
+    it("extracts only the cp destination, never a source it merely read", () => {
+        expect(extractBashMutations("cp -R src dst")).toEqual([{ path: "dst" }]);
+        expect(extractBashMutations("cp a.md b.md out/")).toEqual([{ path: "out/" }]);
+        expect(extractBashMutations("cp -t out a.md b.md")).toEqual([{ path: "out" }]);
+        expect(extractBashMutations("cp --target-directory=out a.md")).toEqual([{ path: "out" }]);
     });
 
     it("extracts across command chains", () => {
         expect(extractBashMutations("echo ok && rm x | cp y z; touch w").map((m) => m.path)).toEqual(
-            ["x", "y", "z", "w"],
+            ["x", "z", "w"],
         );
     });
 

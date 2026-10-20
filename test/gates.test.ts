@@ -3,6 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import gatesExtension from "../.pi/extensions/gates.ts";
+import {
+    buildCorrection,
+    checkBashMutationsDisclosed,
+    claimsVerification,
+} from "../.pi/extensions/lib/gate-checks.ts";
 import { asExtensionAPI, createFakePi } from "./helpers/fake-pi.ts";
 
 type GitScript = { isWorkTree?: boolean; status: string[] };
@@ -35,11 +40,15 @@ function makeCtx(overrides: Record<string, unknown> = {}) {
     };
 }
 
+function uiCtx(pi: ReturnType<typeof createFakePi>, overrides: Record<string, unknown> = {}) {
+    return makeCtx({ hasUI: true, ui: { notify: pi.notify }, ...overrides });
+}
+
 async function fire(
     pi: ReturnType<typeof createFakePi>,
     event: string,
     payload: unknown,
-    ctx: Record<string, unknown> = makeCtx(),
+    ctx: Record<string, unknown> = uiCtx(pi),
 ) {
     for (const handler of pi.handlers.get(event) ?? []) {
         await handler(payload, ctx);
@@ -67,9 +76,7 @@ async function runAgent(pi: ReturnType<typeof createFakePi>, options: RunOptions
 }
 
 function corrections(pi: ReturnType<typeof createFakePi>): string[] {
-    return pi.sentUserMessages.map((message: any) =>
-        typeof message === "string" ? message : (message?.content ?? JSON.stringify(message)),
-    );
+    return pi.notifications.map((notification: { message: string }) => notification.message);
 }
 
 function writeFixture(relativePath: string, contents: string): string {
@@ -352,14 +359,32 @@ describe("gates extension", () => {
         }
     });
 
-    it("sends at most one correction across consecutive violating runs", async () => {
+    it("warns in the UI on every violating run without touching the conversation", async () => {
         const pi = withGit(createFakePi(), { status: ["", " M src/env.ts\n", "", " M src/env.ts\n"] });
         gatesExtension(pi as any);
 
         await runAgent(pi, { assistantText: "Done." });
         await runAgent(pi, { assistantText: "Done again." });
 
-        expect(corrections(pi)).toHaveLength(1);
+        expect(corrections(pi)).toHaveLength(2);
+        expect(pi.notifications.every((n: { level?: string }) => n.level === "warning")).toBe(true);
+        expect(pi.sentUserMessages).toHaveLength(0);
+        expect(pi.sentMessages).toHaveLength(0);
+    });
+
+    it("stays silent on violations when there is no UI", async () => {
+        const pi = withGit(createFakePi(), { status: ["", " M src/env.ts\n"] });
+        gatesExtension(pi as any);
+
+        await fire(pi, "agent_start", {}, makeCtx());
+        await fire(pi, "message_end", {
+            message: { role: "assistant", content: [{ type: "text", text: "Done." }] },
+        }, makeCtx());
+        await fire(pi, "agent_settled", { aborted: false }, makeCtx());
+
+        expect(corrections(pi)).toHaveLength(0);
+        expect(pi.sentUserMessages).toHaveLength(0);
+        expect(pi.sentMessages).toHaveLength(0);
     });
 
     it("sends no correction when the run was aborted", async () => {
@@ -405,7 +430,7 @@ describe("gates extension", () => {
         });
     });
 
-    it("re-arms corrections after a clean run", async () => {
+    it("warns again after a clean run", async () => {
         const pi = withGit(createFakePi(), {
             status: ["", " M src/env.ts\n", "", "", "", " M src/env.ts\n"],
         });
@@ -457,7 +482,7 @@ describe("gates extension", () => {
         gatesExtension(pi as any);
 
         await pi.commands.get("gates")!.handler("off", makeCtx());
-        await fire(pi, "session_tree", {}, makeCtx({ sessionManager: { getBranch: () => pi.entries } }));
+        await fire(pi, "session_tree", {}, uiCtx(pi, { sessionManager: { getBranch: () => pi.entries } }));
 
         await runAgent(pi, { assistantText: "Done." });
         expect(corrections(pi)).toHaveLength(0);
@@ -468,7 +493,7 @@ describe("gates extension", () => {
         gatesExtension(pi as any);
 
         await pi.commands.get("gates")!.handler("off", makeCtx());
-        await fire(pi, "session_tree", {}, makeCtx({ sessionManager: { getBranch: () => [] } }));
+        await fire(pi, "session_tree", {}, uiCtx(pi, { sessionManager: { getBranch: () => [] } }));
 
         await runAgent(pi, { assistantText: "Done." });
         expect(corrections(pi)).toHaveLength(1);
@@ -483,6 +508,89 @@ describe("gates extension", () => {
         const status = pi.sentMessages.map((sent: any) => String(sent.message?.content ?? "")).join("\n");
         expect(status).toMatch(/gates are on/i);
         expect(status).toContain("changes_disclosed");
+    });
+});
+
+describe("gate warning text", () => {
+    it("addresses the human reading the UI, not the agent", () => {
+        const text = buildCorrection(["verification_actually_ran: x"]);
+
+        expect(text).toContain("[GATES]");
+        expect(text).toContain("1. verification_actually_ran: x");
+        expect(text).not.toMatch(/Fix these before continuing|Address each item|Do not restate/);
+    });
+});
+
+describe("claimsVerification", () => {
+    it("ignores planned checks listed under a done-when or next-steps heading", () => {
+        for (const text of [
+            "**Done when**\n- `npm run typecheck && npm test && npm run smoke` passes.\n\nShould I proceed?",
+            "## Definition of Done\n- All tests pass\n- Lint is clean",
+            "Next steps:\n1. Make the build green.",
+        ]) {
+            expect(claimsVerification(text), text).toBe(false);
+        }
+    });
+
+    it("ignores future or conditional statements", () => {
+        expect(claimsVerification("Tests will pass once the fixture is fixed.")).toBe(false);
+        expect(claimsVerification("The build should succeed after the sync.")).toBe(false);
+    });
+
+    it("still sees a claim after a planning list ends", () => {
+        expect(claimsVerification("**Done when**\n- tests pass\n\nI ran it: all tests pass.")).toBe(true);
+        expect(claimsVerification("**Summary**\n- All tests pass.")).toBe(true);
+        expect(claimsVerification("Next steps:\n- x\n\n- All 42 tests pass")).toBe(true);
+    });
+
+    it("treats only a bare heading line as a planning heading", () => {
+        expect(claimsVerification("Next step: none — all tests pass.")).toBe(true);
+        expect(claimsVerification("Plan worked; the build succeeded.")).toBe(true);
+    });
+
+    it("keeps a past result next to a future clause in the same sentence", () => {
+        for (const text of [
+            "All tests pass, so the PR should be ready.",
+            "Typecheck is clean, so it will deploy fine.",
+            "Ran it once: all tests pass.",
+        ]) {
+            expect(claimsVerification(text), text).toBe(true);
+        }
+    });
+});
+
+describe("checkBashMutationsDisclosed", () => {
+    const cwd = "/work/repo";
+
+    it("accepts an absolute path disclosed relative to the working directory", () => {
+        expect(
+            checkBashMutationsDisclosed([{ path: "/work/repo/docs/r/a.md" }], "Copied `docs/r/a.md`.", cwd),
+        ).toEqual([]);
+    });
+
+    it("accepts a directory whose disclosed contents are named", () => {
+        expect(
+            checkBashMutationsDisclosed(
+                [{ path: "/work/repo/docs/r" }, { path: "/work/repo/docs/r/a.md" }],
+                "Created `docs/r/a.md`.",
+                cwd,
+            ),
+        ).toEqual([]);
+    });
+
+    it("accepts a path named at the end of a plain-text sentence", () => {
+        expect(checkBashMutationsDisclosed([{ path: "docs/r/a.md" }], "I created docs/r/a.md.", cwd)).toEqual([]);
+        expect(checkBashMutationsDisclosed([{ path: "out" }], "Copied files into out.", cwd)).toEqual([]);
+    });
+
+    it("still flags a directory when only a sibling with the same prefix is named", () => {
+        const [violation] = checkBashMutationsDisclosed([{ path: "docs/r" }], "Created `docs/rx/a.md`.", cwd);
+        expect(violation).toContain("docs/r");
+    });
+
+    it("still flags an absolute path outside the working directory named only by a suffix", () => {
+        const [violation] = checkBashMutationsDisclosed([{ path: "/elsewhere/docs/a.md" }], "Wrote `docs/a.md`.", cwd);
+        expect(violation).toContain("/elsewhere/docs/a.md");
     });
 });
 

@@ -6,7 +6,7 @@ How the quality gates and path guards in `.pi/extensions/` decide. Source of tru
 
 | Extension | When it runs | What it does | Fails to |
 | --- | --- | --- | --- |
-| `gates.ts` | After each agent run settles (`agent_settled`) | Checks the final message against what actually happened. Sends one correction. | Open when git cannot answer |
+| `gates.ts` | After each agent run settles (`agent_settled`) | Checks the final message against what actually happened. Shows a UI warning. | Open when git cannot answer |
 | `read-boundary-guard.ts` | Before `read`, `write`, `edit`, `grep`, `find`, `ls` | Blocks paths outside the working directory unless approved or trusted. | Blocked |
 | `write-boundary-guard.ts` | Before `write`, `edit` | Limits writes to the armed spec or plan scope. | Blocked once armed. Open while not armed. |
 | `security-guard.ts` | Before every tool call, and on each prompt (`input`) | Blocks `.env` and credential paths, dangerous shell commands, protected-branch and force pushes, hook bypasses, and secrets in prompts. Shares one policy with the Claude hook and the global git hook. | Blocked, and prompts dropped |
@@ -23,7 +23,7 @@ Result: guards and gates only act from `~/.pi/agent/extensions/`. Run `npm run p
 
 ## Gates (`gates.ts`)
 
-Gates do not block tool calls. They run once per run, on `agent_settled`: `agent_end` fires while the run is still active, so a correction sent there is rejected. Retries and compaction re-enter the loop without starting a new record. An aborted run gets no correction.
+Gates do not block tool calls. They run once per run, on `agent_settled`, after the run is fully done. Retries and compaction re-enter the loop without starting a new record. An aborted run gets no warning.
 
 What it records during the turn:
 
@@ -39,17 +39,19 @@ Checks at the end of the turn (`lib/gate-checks.ts`):
 | `changes_disclosed` | A file is new in `git status` since the turn began and the final message does not name it. A full path counts. A bare file name counts only when it is unique among the turn's changes. |
 | `artifacts_exist` | A successful `write` or `edit` names a path that does not exist on disk. |
 | `files_non_empty` | A successful `write` or `edit` left an empty file. |
-| `bash_mutations_disclosed` | A path changed by `bash` is not named in the final message. |
+| `bash_mutations_disclosed` | A path changed by `bash` is not named in the final message. The name must stand alone: `docs/r` is not named by `docs/rx/a.md`. An absolute path inside the working directory also counts when named relative to it. A directory counts when a path inside it is named. |
 | `verification_actually_ran` | The final message claims success ("tests pass", "typecheck is clean", "build succeeded") and no verification command ran this turn. |
 
 What counts as a verification command: `npm|pnpm|yarn|bun [run] test|typecheck|type-check|lint|build`, `vitest`, `jest`, `pytest`, `tsc`, `eslint`, `cargo test`, `go test`, `make test|check`.
 
-Sentences with negation ("not", "n't", "never", "fail", "unable", "cannot") are not treated as success claims. An honest "I did not run the tests" passes.
+Not treated as success claims:
 
-On violation:
+- Sentences with negation ("not", "n't", "never", "fail", "unable", "cannot"). An honest "I did not run the tests" passes.
+- Clauses about the future ("will", "would", "should", "must"). A clause ends at `,` `;` `:` or `—`, so "All tests pass, so it should ship" is still a claim.
+- The list right after a planning heading. The heading must be a line of its own: "Done when", "Definition of Done", "DoD", "Acceptance criteria", "Next step(s)", "To-do(s)", or "Plan", with optional `#`, `**`, or `:`. Blank lines may sit between the heading and the first item. A blank line after an item ends the list.
+- Not handled: quoted examples. "tests pass" inside quotes or backticks still counts as a claim.
 
-1. The gate sends one user message that starts with `[GATE VIOLATION]` and lists each failure.
-2. If the next turn still violates, it only reports `[GATES] N violation(s) still open`. It does not loop.
+On violation, the gate shows one UI warning (`ctx.ui.notify`, level `warning`) that starts with `[GATES]` and lists each failure. It never adds a message to the conversation and never starts an agent turn. You decide whether to ask the agent to fix anything. Without a UI (print or JSON mode), nothing is shown.
 
 Fail-open cases: not a git repo, or `git status` fails. Then only the non-git checks run.
 
@@ -224,7 +226,7 @@ Rollback: delete `.pi/extensions/sandbox-bash.ts` (and any manual global copy), 
 
 `lib/bash-mutations.ts` finds paths a `bash` command plausibly changed. It feeds `bash_mutations_disclosed`.
 
-- Detected: `>`, `>>`, `2>`, `&>`, `sed -i`, `mv`, `git mv`, `cp` (sources and destination), `rm`, `touch`, `tee`, `mkdir`, `ln`.
+- Detected: `>`, `>>`, `2>`, `&>`, `sed -i`, `mv`, `git mv`, `cp` (destination only, including `-t DIR` and `--target-directory=DIR`; sources are only read), `rm`, `touch`, `tee`, `mkdir`, `ln`.
 - Ignored: `/dev/*`, the system temp directory, tokens with shell metacharacters, options, and any command containing an unquoted heredoc (`<<`).
 - Anything it does not recognize yields nothing. It misses some changes. It never blocks.
 

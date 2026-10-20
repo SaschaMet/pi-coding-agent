@@ -25,7 +25,6 @@ type GatesState = {
     toolCalls: RecordedToolCall[];
     bashMutations: BashMutation[];
     assistantText: string;
-    consecutiveCorrections: number;
     runOpen: boolean;
     workTreeChecked: boolean;
     isWorkTree: boolean;
@@ -40,7 +39,6 @@ function defaultState(): GatesState {
         toolCalls: [],
         bashMutations: [],
         assistantText: "",
-        consecutiveCorrections: 0,
         runOpen: false,
         workTreeChecked: false,
         isWorkTree: false,
@@ -192,24 +190,15 @@ export default function gatesExtension(pi: ExtensionAPI): void {
                 ? []
                 : checkChangesDisclosed(state.baseline, current, state.assistantText)),
             ...checkWrittenArtifacts(state.toolCalls, ctx.cwd),
-            ...checkBashMutationsDisclosed(state.bashMutations, state.assistantText),
+            ...checkBashMutationsDisclosed(state.bashMutations, state.assistantText, ctx.cwd),
             ...checkVerificationRan(state.toolCalls, state.assistantText),
         ];
 
-        if (violations.length === 0) {
-            state.consecutiveCorrections = 0;
-            return;
-        }
+        if (violations.length === 0) return;
 
-        // One correction per violating streak: a correction starts a new run, which would
-        // otherwise re-trigger this handler indefinitely.
-        if (state.consecutiveCorrections >= 1) {
-            report(`[GATES] ${violations.length} violation(s) still open; a correction was already sent for this streak.`);
-            return;
-        }
-
-        state.consecutiveCorrections += 1;
-        pi.sendUserMessage(buildCorrection(violations));
+        // UI-only: a violation is for the human to judge; it must never enter the
+        // conversation or start an agent turn.
+        if (ctx.hasUI) ctx.ui.notify(buildCorrection(violations), "warning");
     });
 
     pi.registerCommand("gates", {
@@ -220,7 +209,6 @@ export default function gatesExtension(pi: ExtensionAPI): void {
 
             if (requested === "on" || requested === "off") {
                 state.enabled = requested === "on";
-                state.consecutiveCorrections = 0;
                 pi.appendEntry(GATES_STATE_TYPE, { enabled: state.enabled });
                 report(`Gates ${state.enabled ? "on" : "off"}.`);
                 return;

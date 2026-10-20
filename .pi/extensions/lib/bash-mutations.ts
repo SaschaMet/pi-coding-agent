@@ -97,7 +97,7 @@ function isExemptPath(targetPath: string): boolean {
 
 /**
  * Conservative allowlist extraction of file paths a shell command plausibly
- * mutated: redirections, `sed -i`, `mv`, `git mv`, `cp`, `rm`, `touch`, `tee`,
+ * mutated: redirections, `sed -i`, `mv`, `git mv`, `cp` (destination), `rm`, `touch`, `tee`,
  * `mkdir`, `ln`. Anything unrecognized yields nothing (fail-open — a missed
  * form degrades to today's behavior, never to a false block).
  */
@@ -132,8 +132,13 @@ export function extractBashMutations(command: string): BashMutation[] {
             if (pathLike.length > 0) push(pathLike[pathLike.length - 1]);
             continue;
         } else if (head === "cp") {
-            // cp sources and destination are all recorded (source inclusion is deliberate).
-            for (const arg of rest.filter(isPathLike)) push(arg);
+            // Sources are only read; reporting them demands disclosure of files nothing changed.
+            const targetFlag = rest.indexOf("-t");
+            const targetLong = rest.find((arg) => arg.startsWith("--target-directory="));
+            const pathLike = rest.filter(isPathLike);
+            if (targetFlag >= 0 && targetFlag + 1 < rest.length) push(rest[targetFlag + 1]);
+            else if (targetLong !== undefined) push(targetLong.slice("--target-directory=".length));
+            else if (pathLike.length > 0) push(pathLike[pathLike.length - 1]);
             continue;
         }
         if (args === undefined) continue;
