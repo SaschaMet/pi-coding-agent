@@ -2,7 +2,8 @@
 // git pre-commit hook (`guard-cli.ts pre-commit`). Exit 2 is the only result
 // Claude treats as a block on its own (JSON that fails schema validation lets
 // the call through), so every deny and every error exits 2 with a reason on
-// stderr. Installed as: node "$HOME/.pi/agent/security/guard-cli.ts" || exit 2
+// stderr. Installed as: /usr/bin/perl -e 'alarm shift; exec @ARGV' 25 node "$HOME/.pi/agent/security/guard-cli.ts" || exit 2
+// (the alarm turns a check that outlasts Claude's hook timeout into a block).
 import { execFileSync } from "node:child_process";
 import os from "node:os";
 import type * as GuardCore from "./guard-core.ts";

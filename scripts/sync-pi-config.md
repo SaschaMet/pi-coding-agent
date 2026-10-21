@@ -72,14 +72,16 @@ Sync only ships the files. Point git and Claude at them once, by hand. The hook 
    {
      "hooks": {
        "PreToolUse": [
-         { "matcher": "*", "hooks": [{ "type": "command", "command": "node \"$HOME/.pi/agent/security/guard-cli.ts\" || exit 2", "timeout": 30 }] }
+         { "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/perl -e 'alarm shift; exec @ARGV' 25 node \"$HOME/.pi/agent/security/guard-cli.ts\" || exit 2", "timeout": 30 }] }
        ],
        "UserPromptSubmit": [
-         { "hooks": [{ "type": "command", "command": "node \"$HOME/.pi/agent/security/guard-cli.ts\" || exit 2", "timeout": 30 }] }
+         { "hooks": [{ "type": "command", "command": "/usr/bin/perl -e 'alarm shift; exec @ARGV' 25 node \"$HOME/.pi/agent/security/guard-cli.ts\" || exit 2", "timeout": 30 }] }
        ]
      }
    }
    ```
+
+   The `perl` alarm kills a check still running after 25 s, before Claude's 30 s timeout, and `|| exit 2` turns that into a block. Without it, Claude allows a call whose check runs too long. `check-install.ts` warns when either part is missing.
 
 Undo:
 
