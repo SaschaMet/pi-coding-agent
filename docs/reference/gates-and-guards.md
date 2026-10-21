@@ -147,7 +147,8 @@ What it blocks:
 
 | Rule | PI and Claude tool calls | Prompts | git commit |
 | --- | --- | --- | --- |
-| `.env`, `.env.*` (not `.example`, `.sample`, `.template`, `.dist`, `.defaults`, `.vault`) | Any path input, `grep`/`find` globs, shell commands | | Staged file names |
+| `.env`, `.env.*` (not `.example`, `.sample`, `.template`, `.dist`, `.defaults`, `.vault`) | Any path input, `grep`/`find` globs, shell commands. Shell words are checked as bash would expand them: quotes removed (`.e''nv`), one level of braces (`.e{n,}v`, letter ranges like `.{e..f}nv`; more than 64 results is blocked), both sides of a redirect inside a word (`cat<.e*`, `cat .e*>&2`), unquoted globs whose fixed start can become the name (`.e*`, `.[!x]nv`), and `find -name`/`-path` patterns, which match dotfiles. A backslash before `.env` in bash is regex text (`grep "process\.env"` runs), except in file-name filters (`find -regex`, `rg -g`, `grep --include`). PowerShell words split on `\` and escape with a backtick | | Staged file names |
+| Env dumps: `printenv` without a name, `env` without a command, `export -p`/`declare`/`typeset` with only flags, bare `set`, `docker compose config`/`convert` (unless `--services`, `--volumes`, `--profiles`, `--images`, `--networks`, `--hash`, `-q`), `docker inspect` without a plain field format, `debug:dotenv`, `/proc/<pid>/environ`, PowerShell `env:` drive | Shell commands, at the start of a command (also after `{`, `!`, `if`, `then`, `do`, `function NAME {`, …), after a wrapper (`sudo`, `timeout`, `xargs`, `env`, …), or after `docker exec`/`run` and `kubectl exec`. Docker global options (`--context`, `-H`, …) are skipped. `docker inspect` runs only with literal text and `{{.Field.Path}}` actions. `printenv NAME` and `$env:NAME` read one variable and run | | |
 | Credential paths: `~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.kube`, `~/.npmrc`, `*.pem`, `*.key`, `secrets/` | Any path input, shell commands | | |
 | Push to `main`, `master`, `production`, `release/*`; force push (`--force-with-lease` is allowed); deleting a protected branch | Shell commands; a bare push uses the current branch, and an unknown branch blocks | | |
 | `rm` with `-r`/`-f` on `/`, `~`, `$HOME`, or a direct child of them; pipe-to-shell; exfil hosts; `--dangerously-skip-permissions` | Shell commands | | |
@@ -253,6 +254,12 @@ Rollback: delete `.pi/extensions/sandbox-bash.ts` (and any manual global copy), 
 Known gaps of the security guard:
 
 - Shell matching is a speed bump, not a boundary: obfuscated commands such as `$(printf ...)` pass. The path check and the git hook are the enforcing layers.
+- The pi sandbox's read deny covers only `.env` and `.env.*` at the top of the session folder, not `src/.env`, and only in pi. Claude Code has no pi sandbox.
+- `.env` reads that pass the shell check: recursive readers (`grep -r KEY .`, `rg -uu`, `tar`, `cp -r`, `find -exec` without a name pattern), interpreters (`node -e`, `php -r`, `python -c`), names built from variables (`f=.e; cat ${f}nv`), nested braces, zsh grouping and glob qualifiers (`(.e)nv`, `*env(D)`; Claude Code runs commands in zsh), dotglob switches (`shopt -s dotglob`, `GLOBIGNORE`, `setopt globdots`), and PowerShell `*` on Windows, which matches dotfiles.
+- Listing-only commands that are blocked: `ls -a .*`, `du -sh .[!.]*`, `find . -name '*'`, `find . -name '*.*'`. Name the files instead.
+- After a wrapper every word counts as a command, so a search whose last word is a dump command is blocked, for example `git ls-files | xargs grep -l env` or `timeout 30 grep -c set`. A search for `debug:dotenv` is blocked anywhere.
+- Heredoc bodies are checked as commands, so a heredoc whose text names a dump command or a dotfile glob is blocked. Write files with the write tool.
+- Very long commands can be slow to check: the credential-path and `env -u HOME` checks grow with the square of a long run of letters or `env` words. A check past the Claude hook's 30 s timeout allows the call.
 - A Claude hook that reaches its `timeout` (30 s) is cancelled, and Claude allows the call.
 - A repo's `.claude/settings.json` with `"disableAllHooks": true` turns off the Claude guard there. Read an untrusted repo's settings before you trust the folder.
 - A repo with its own `core.hooksPath` (husky, lefthook) skips the global git hook. `git commit --no-verify` typed by a human skips it too.

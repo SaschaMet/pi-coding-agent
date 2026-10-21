@@ -19,6 +19,7 @@ One policy now protects PI, Claude Code, and every git commit on this machine:
 | `433ce0a` | Gaps found against the legacy Claude hooks: pipe-to-shell across pipes, exfil via rsync/scp/sftp/socat/telnet, push targets built at run time, `~<user>` homes as `rm` targets. |
 | `edef56d` | Reference doc on repo setup with the global guard. |
 | `c696c24` | Bypass fixes (hiding or dropping the git config, `sh -c` wrappers), `check-install.ts`, skill and graphify instructions, this record. |
+| (pending) | Env guard hardening: shell `.env` check by expanded word (quotes, braces, unquoted globs, `find` patterns), env-dump block, regex searches with `\.env` allowed in bash. |
 
 ## Components
 
@@ -81,6 +82,21 @@ Grill answered by the orchestrator for the user (human override); the user appro
 | Repo warning | Only a local `core.hooksPath` | The real bypass; no guessing from husky or lefthook file names |
 | Installer command | `GIT_CONFIG_GLOBAL=/dev/null <installer>`, run by a human | Works for graphify and pre-commit; the old env-prefix form fails for pre-commit |
 
+### Env guard hardening (plan `env-guard-hardening`)
+
+Grill answered by the orchestrator for the user (human override); the user approved the decisions and the plan.
+
+| Decision | Choice | Why |
+| --- | --- | --- |
+| Quoted glob characters | Only unquoted `*?[{` count | `jq '.[]'` and quoted regexes are daily use; the shell does not expand quoted globs |
+| Command after a wrapper | Every later word counts; no option table per wrapper | Tables drift and miss silently; a rare blocked search can be reworded |
+| `printenv NAME` | Allowed; only a bare `printenv` is blocked | `echo $NAME` reads the same value and stays allowed; bulk dumps are the risk |
+| Bounded work | Linear `find` glob matcher; brace results counted before any word is built (cap 64); dump helpers scan from an index and stop at the first non-option word | A backtracking regex took over 20 s, recursion crashed the process, and building choices before the cap ran out of memory; a Claude hook that times out allows the call, and a crash in pi ends the session |
+| `docker inspect` | Allowed only with literal text and `{{.Field.Path}}` or `{{json .Field.Path}}` actions, no Config/Env | `{{.}}`, `{{$}}`, `{{.Config}}`, and `{{index . "Config"}}` print the environment |
+| Review fixes | Reserved words (`then`, `do`, `{`) before a command; docker global options; letter-range braces; `=` inside `[...]`; redirect with no space; `/proc/<any path>/environ`; PowerShell backtick escape and `\` separator; `\.env` in file-name filters stays blocked | A fresh-context review reproduced each form reading the file or the environment in bash or zsh |
+| Second review fixes | Every piece of a word around `<`/`>` is checked (`cat .e*>&2`); `function NAME { … }` bodies | The first redirect fix kept only the text after the redirect; a second review caught it |
+| zsh syntax, dotglob, heredocs, PowerShell on Windows | Documented as known limits | Deliberate evasion or rare; parsing them adds a second grammar to a speed bump |
+
 ## Verification evidence
 
 - Tests: 708 before the work, 1090 after (51 files), all green; typecheck clean; smoke green against a temp sync.
@@ -105,6 +121,7 @@ Listed with reasons in [gates-and-guards.md](gates-and-guards.md#not-covered-her
 - Load `init-project` once in an interactive session and confirm Step 1 reports the guard check (in print mode the report was hidden by a gates correction).
 - Restart agent sessions that started before a sync; they run the old guard.
 - Follow-ups: injection warning on tool output (then `prompt-injection-defender.sh` can go); optional BIP39 check in the new guard (then `scan-secrets.sh` can go).
+- Follow-up: make the credential-path regex and the `env -u HOME` check linear. Both were already quadratic before env guard hardening: 40 000 letters take 0.75 s, and a 1 MB command can pass the Claude hook's 30 s timeout.
 
 ## Working documents (local only)
 
@@ -112,3 +129,4 @@ Listed with reasons in [gates-and-guards.md](gates-and-guards.md#not-covered-her
 
 - `docs/specs/global-security-parity/`: `spec-global-security-parity.md` (+ `.html`), `research-global-security-parity.md`, `grill-summary-4.md`, `reports/manual-checklist.md`, `reports/legacy-hook-diff.md`.
 - `docs/specs/guard-repo-setup/`: `spec-guard-repo-setup.md` (+ `.html`), `research-guard-repo-setup.md`, `grill-summary-1.md`.
+- `docs/plans/env-guard-hardening/`: `plan-env-guard-hardening.md` (+ `.html`), `grill-summary-1.md`, `reports/` (grill rounds).
