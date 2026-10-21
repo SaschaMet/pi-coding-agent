@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import securityGuardExtension from "../.pi/extensions/security-guard.ts";
 import { policy } from "../.pi/security/policy.ts";
 import { asExtensionAPI, createFakePi, createFakeUi } from "./helpers/fake-pi.ts";
-import { fakeSecrets, promptCases, toolCases, type ToolCase } from "./fixtures/security/cases.ts";
+import { fakeSecrets, promptCases, scanCostCases, toolCases, type ToolCase } from "./fixtures/security/cases.ts";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 
@@ -61,7 +61,9 @@ describe("security guard extension", () => {
 		expect(pi.handlers.get("tool_call")).toHaveLength(1);
 	});
 
-	it.each(toolCases.map((c) => [c.name, c] as const))("%s", async (_name, testCase: ToolCase) => {
+	// The 1 MB rows run here only: both adapters share the core, and the default 5 s
+	// test timeout fails any check that is no longer linear.
+	it.each([...toolCases, ...scanCostCases].map((c) => [c.name, c] as const))("%s", async (_name, testCase: ToolCase) => {
 		const handler = loadToolCallHandler(securityGuardExtension as never);
 		const result = await handler(
 			{ toolName: testCase.tool, input: testCase.input },

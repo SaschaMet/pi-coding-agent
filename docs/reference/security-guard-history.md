@@ -39,7 +39,7 @@ One policy now protects PI, Claude Code, and every git commit on this machine:
 Done 2026-10-08, by the user and, on the user's explicit request, by the agent:
 
 - `git config --global core.hooksPath ~/.pi/agent/security/git-hooks` and `core.excludesFile ~/.pi/agent/security/gitignore-global` (both were empty before).
-- `~/.claude/settings.json`: a `PreToolUse` entry (matcher `*`) and a `UserPromptSubmit` entry running `node "$HOME/.pi/agent/security/guard-cli.ts" || exit 2`, `timeout: 30`. Edited by a script that changed only the `hooks` arrays and never printed the file.
+- `~/.claude/settings.json`: a `PreToolUse` entry (matcher `*`) and a `UserPromptSubmit` entry running `node "$HOME/.pi/agent/security/guard-cli.ts" || exit 2`, `timeout: 30`. Edited by a script that changed only the `hooks` arrays and never printed the file. Since the linear-checks plan, both commands run under `/usr/bin/perl -e 'alarm shift; exec @ARGV' 25 …` (edited by hand).
 - Legacy Claude hooks removed after a side-by-side check: `scan-commit.sh`, `block-env-files.sh`, and the five inline Bash hooks (push to main, exfil, permission flags, pipe-to-shell, `rm`). Kept: `scan-secrets.sh` (BIP39 seed phrases) and `prompt-injection-defender.sh` (no replacement yet).
 - Backups: `~/.claude/settings.json.bak-2026-10-08` (before the new hook) and `~/.claude/settings.json.bak-2026-10-08-before-legacy-removal`. Both hold the full settings, including the OTEL header; delete them once Claude has run a day without problems.
 
@@ -60,7 +60,7 @@ Grills 1 and 2 were answered by an agent (their reports were lost); grill 3 was 
 | Protected branches | `main`, `master`, `production`, `release/*`; `--force-with-lease` allowed | User decision |
 | Secret in a prompt | Drop it (`handled`) with the pattern name and "If this was a real key, rotate it now." | Never send a secret to a provider |
 | Guard fails to load | PI blocks every tool call and drops every prompt; fix from a shell | Fail closed (user confirmed) |
-| Claude hook timeout | `timeout: 30`, 1M-char cap on scanned text, block only with exit 2 | A timed-out hook lets the call through; JSON output that fails validation does too |
+| Claude hook timeout | `timeout: 30`, 1M-char cap on scanned text, block only with exit 2; later a 25 s `alarm` wrapper (linear-checks plan) | A timed-out hook lets the call through; JSON output that fails validation does too |
 | Claude hook location | `~/.claude/settings.json` by hand, no sudo managed settings | User decision; a repo's `disableAllHooks` is an accepted gap |
 | Sync check | Push refuses a policy that does not load and writes nothing | One broken file would block PI, Claude, and every commit |
 | BIP39 and lockfile warning | Cut | No requirement; noise |
@@ -97,6 +97,19 @@ Grill answered by the orchestrator for the user (human override); the user appro
 | Second review fixes | Every piece of a word around `<`/`>` is checked (`cat .e*>&2`); `function NAME { … }` bodies | The first redirect fix kept only the text after the redirect; a second review caught it |
 | zsh syntax, dotglob, heredocs, PowerShell on Windows | Documented as known limits | Deliberate evasion or rare; parsing them adds a second grammar to a speed bump |
 
+### Linear-time checks (plan `guard-linear-checks`)
+
+Grill answered by the orchestrator for the user (human override); the user approved the decisions and the plan.
+
+| Decision | Choice | Why |
+| --- | --- | --- |
+| Slow checks in Claude | A 25 s `/usr/bin/perl` alarm on both guard hooks; `\|\| exit 2` turns the kill into a block | A sweep missed five slow shapes; only a time limit covers the shapes nobody has found. macOS only |
+| Slow checks in pi | Make every known slow path linear: credential regex, `rmDecision`, `hidesHome`, dump helpers, the two `commandRules` regexes | pi runs the check in process and cannot stop it, so a slow check freezes the session |
+| Same decisions | Old-versus-new comparison on 200 000 random commands, the policy regexes on 200 000 random strings, and every sequence of up to 6 pipe-to-shell tokens (1.1 M strings); 0 mismatches, plus corner rows | Each rewrite is a one-pass rule whose correctness rests on a subset argument. A review found a multi-line `curl -o … -o⏎/tmp && bash` that random strings never built; the enumeration shows 117 such mismatches without the fix |
+| Per-word regexes | Lookahead forms for `-[a-z]*X[a-z]*` (`sh -c`, `env -i`, `rmFlag`) and a loop for trailing `/` | Each was quadratic on one long word; review and sweep found them after the first fixes |
+| Missing time limit | `check-install.ts` warns, not fails, unless the command has `alarm` and ends in `\|\| exit 2` | A guarantee nobody checks silently disappears; without `\|\| exit 2` the alarm's exit 142 does not block; `warn` keeps other repos' installs working |
+| 1 MB test rows | pi adapter test only | Both adapters share the core; a second run re-times the same function |
+
 ## Verification evidence
 
 - Tests: 708 before the work, 1090 after (51 files), all green; typecheck clean; smoke green against a temp sync.
@@ -122,7 +135,6 @@ Listed with reasons in [gates-and-guards.md](gates-and-guards.md#not-covered-her
 - Load `init-project` once in an interactive session and confirm Step 1 reports the guard check (in print mode the report was hidden by a gates correction).
 - Restart agent sessions that started before a sync; they run the old guard.
 - Follow-ups: injection warning on tool output (then `prompt-injection-defender.sh` can go); optional BIP39 check in the new guard (then `scan-secrets.sh` can go).
-- Follow-up: make the credential-path regex and the `env -u HOME` check linear. Both were already quadratic before env guard hardening: 40 000 letters take 0.75 s, and a 1 MB command can pass the Claude hook's 30 s timeout.
 
 ## Working documents (local only)
 

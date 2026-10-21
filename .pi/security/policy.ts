@@ -39,20 +39,32 @@ export const policy: Policy = {
 	credentialExtensions: [".pem", ".key"],
 	credentialDirNames: ["secrets"],
 	protectedBranches: ["main", "master", "production", "release/*"],
-	rmFlag: String.raw`^(?:-[a-zA-Z]*[rRf][a-zA-Z]*|--recursive|--force)$`,
+	// Lookahead form of `-[a-zA-Z]*[rRf][a-zA-Z]*`, which is quadratic on one long dash word.
+	rmFlag: String.raw`^(?:-(?=[a-zA-Z]*[rRf])[a-zA-Z]*|--recursive|--force)$`,
 	// Matched after normalization: quotes stripped, $HOME and the literal home path
 	// rewritten to "~", trailing slashes removed.
 	rmDangerousTarget: String.raw`^(?:/|/\*|/[^/*]+|~[^/*]*|~[^/*]*/\*|~[^/*]*/[^/*]+)$`,
+	// The first two rules run from each line start only (flag m), skip to the first trigger
+	// word, then commit to the earliest later token: a succeeded lookahead and `(?=(…))\1`
+	// never backtrack. A plain `curl.*\|.*sh` retries from every `curl` and is quadratic,
+	// and the Claude hook allows a call whose check outlasts its timeout. Only the last `-o`
+	// on a line can have whitespace that crosses a line break, so the third alternative
+	// covers the one `/tmp` the earliest `-o` cannot reach.
 	commandRules: [
 		{
 			name: "pipe-to-shell",
-			source: String.raw`\b(?:curl|wget)\b.*\|\s*(?:sudo\s+)?(?:ba|z|da|k)?sh\b|curl.*-o\s*/tmp.*&&.*bash`,
-			flags: "i",
+			source:
+				String.raw`^(?:(?!\b(?:curl|wget)\b).)*\b(?:curl|wget)\b(?=.*\|\s*(?:sudo\s+)?(?:ba|z|da|k)?sh\b)` +
+				String.raw`|^(?:(?!curl).)*curl(?=(.*?-o\s*/tmp))\1(?=(.*?&&))\2.*bash` +
+				String.raw`|^(?:(?!curl).)*curl.*-o[^\S\n\r\u2028\u2029]*[\n\r\u2028\u2029]\s*/tmp(?=(.*?&&))\3.*bash`,
+			flags: "im",
 		},
 		{
 			name: "data exfiltration host",
-			source: String.raw`\b(?:curl|wget|nc|ncat|rsync|scp|sftp|socat|telnet)\b.*\b(?:ngrok|burp|requestbin|pipedream|webhook\.site|hookbin|canarytokens)\b`,
-			flags: "i",
+			source:
+				String.raw`^(?:(?!\b(?:curl|wget|nc|ncat|rsync|scp|sftp|socat|telnet)\b).)*\b(?:curl|wget|nc|ncat|rsync|scp|sftp|socat|telnet)\b` +
+				String.raw`(?=.*\b(?:ngrok|burp|requestbin|pipedream|webhook\.site|hookbin|canarytokens)\b)`,
+			flags: "im",
 		},
 		{
 			name: "permission escalation flag",

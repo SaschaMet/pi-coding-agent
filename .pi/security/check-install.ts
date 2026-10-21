@@ -20,7 +20,8 @@ const INSTALL_COMMANDS = [
 	"  npm run pi:sync-global   # in the pi-coding-agent repo",
 	"  git config --global core.hooksPath ~/.pi/agent/security/git-hooks",
 	"  git config --global core.excludesFile ~/.pi/agent/security/gitignore-global",
-	'  add the guard-cli.ts entries to ~/.claude/settings.json: PreToolUse (matcher "*") and UserPromptSubmit',
+	'  add the guard-cli.ts entries to ~/.claude/settings.json: PreToolUse (matcher "*") and UserPromptSubmit,',
+	"  each as: /usr/bin/perl -e 'alarm shift; exec @ARGV' 25 node \"$HOME/.pi/agent/security/guard-cli.ts\" || exit 2",
 ].join("\n");
 
 const home = os.homedir();
@@ -81,6 +82,22 @@ function hasGuardHook(groups: unknown, needsWildcard: boolean): boolean {
 	);
 }
 
+// Claude allows a call whose hook outlasts its timeout; the alarm wrapper kills a slow
+// check first, and `|| exit 2` turns that into a block. Without either, a slow check passes.
+const hasBlockingTimeLimit = (command: string): boolean => command.includes("alarm") && /\|\|\s*exit\s+2\s*$/.test(command);
+
+function guardHooksWithoutTimeLimit(groups: unknown): boolean {
+	if (!Array.isArray(groups)) return false;
+	return groups.some(
+		(group) =>
+			isRecord(group) &&
+			Array.isArray(group.hooks) &&
+			group.hooks.some(
+				(hook) => isRecord(hook) && typeof hook.command === "string" && hook.command.includes(GUARD_CLI) && !hasBlockingTimeLimit(hook.command),
+			),
+	);
+}
+
 function claudeHooks(): Result {
 	const name = "claude-hook";
 	const configDir = process.env.CLAUDE_CONFIG_DIR?.trim() || path.join(home, ".claude");
@@ -97,6 +114,9 @@ function claudeHooks(): Result {
 	const hooks = isRecord(settings.hooks) ? settings.hooks : {};
 	if (!hasGuardHook(hooks.PreToolUse, true)) return { status: "missing", name, detail: 'no PreToolUse entry with matcher "*" runs guard-cli.ts' };
 	if (!hasGuardHook(hooks.UserPromptSubmit, false)) return { status: "missing", name, detail: "no UserPromptSubmit entry runs guard-cli.ts" };
+	if (guardHooksWithoutTimeLimit(hooks.PreToolUse) || guardHooksWithoutTimeLimit(hooks.UserPromptSubmit)) {
+		return { status: "warn", name, detail: "a guard hook has no time limit, so Claude allows a call whose check runs past the hook timeout" };
+	}
 	return { status: "ok", name, detail: "PreToolUse and UserPromptSubmit run guard-cli.ts" };
 }
 

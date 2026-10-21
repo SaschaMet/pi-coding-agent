@@ -161,7 +161,7 @@ What it blocks:
 Fails closed:
 
 - PI: when `policy.ts` or `guard-core.ts` cannot load, every tool call blocks and every prompt is dropped. Fix it from a plain shell with `npm run pi:sync-global`.
-- Claude: the hook command is `node "$HOME/.pi/agent/security/guard-cli.ts" || exit 2`. Every deny and error exits 2.
+- Claude: the hook command is `/usr/bin/perl -e 'alarm shift; exec @ARGV' 25 node "$HOME/.pi/agent/security/guard-cli.ts" || exit 2`, with `timeout: 30`. Every deny and error exits 2. The alarm kills a check still running after 25 s, before Claude's timeout, so a slow check blocks the call. `check-install.ts` warns when a guard hook has no `alarm` or does not end in `|| exit 2`.
 - git: a missing `node` or policy fails the commit. More than 5 MB of staged text (lockfiles excluded) fails the commit.
 - Sync: `push` refuses a policy that does not load and writes nothing.
 
@@ -259,8 +259,8 @@ Known gaps of the security guard:
 - Listing-only commands that are blocked: `ls -a .*`, `du -sh .[!.]*`, `find . -name '*'`, `find . -name '*.*'`. Name the files instead.
 - After a wrapper every word counts as a command, so a search whose last word is a dump command is blocked, for example `git ls-files | xargs grep -l env` or `timeout 30 grep -c set`. A search for `debug:dotenv` is blocked anywhere.
 - Heredoc bodies are checked as commands, so a heredoc whose text names a dump command or a dotfile glob is blocked. Write files with the write tool.
-- Very long commands can be slow to check: the credential-path and `env -u HOME` checks grow with the square of a long run of letters or `env` words. A check past the Claude hook's 30 s timeout allows the call.
-- A Claude hook that reaches its `timeout` (30 s) is cancelled, and Claude allows the call.
+- Check time: the 40 shapes in the sweep (`docs/plans/guard-linear-checks/reports/sweep.ts`, local only) run in linear time, a ~1 MB command in under 0.7 s. A shape the sweep misses can still be slow. In Claude Code the 25 s alarm then blocks the call; in pi the session waits until the check finishes.
+- A Claude guard hook without the alarm wrapper is cancelled at its `timeout` (30 s), and Claude allows the call. `check-install.ts` reports it as `warn`.
 - A repo's `.claude/settings.json` with `"disableAllHooks": true` turns off the Claude guard there. Read an untrusted repo's settings before you trust the folder.
 - A repo with its own `core.hooksPath` (husky, lefthook) skips the global git hook. `git commit --no-verify` typed by a human skips it too.
 - While the global `core.hooksPath` is set, repo hooks under names without a wrapper (for example `push-to-checkout`, `reference-transaction`) do not run.

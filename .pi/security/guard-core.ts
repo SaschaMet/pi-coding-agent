@@ -83,7 +83,9 @@ function credentialCommandRegex(call: ToolCall, policy: Policy): RegExp {
 	return new RegExp(
 		[
 			BOUNDARY_BEFORE + home + "/(?:" + homeEntries + ")" + BOUNDARY_AFTER,
-			String.raw`[\w.~/-]*[\w-]\.(?:` + extensions + ")" + BOUNDARY_AFTER,
+			// No path prefix: it may be empty, so it never decides a match, and on a long
+			// run of path characters it made each start position rescan the run.
+			String.raw`[\w-]\.(?:` + extensions + ")" + BOUNDARY_AFTER,
 			BOUNDARY_BEFORE + "(?:" + dirs + ")/",
 		].join("|"),
 		"i",
@@ -318,7 +320,8 @@ function shellDashC(words: string[]): string | undefined {
 	for (let i = start + 1; i < words.length; i++) {
 		const arg = words[i];
 		if (arg === "-o" || arg === "+o") i++;
-		else if (/^-[a-zA-Z]*c[a-zA-Z]*$/.test(arg)) return words[i + 1] ?? "";
+		// Lookahead form: `^-[a-zA-Z]*c[a-zA-Z]*$` backtracks once per `c` and is quadratic on one long word.
+		else if (/^-(?=[a-zA-Z]*c)[a-zA-Z]*$/.test(arg)) return words[i + 1] ?? "";
 		else if (!/^[-+]/.test(arg)) return undefined;
 	}
 	return undefined;
@@ -332,49 +335,71 @@ function invokesGit(commands: string[][], depth: number): boolean {
 	});
 }
 
-function envDropsHome(args: string[]): boolean {
-	for (let i = 0; i < args.length; i++) {
-		const arg = args[i];
-		if (arg === "-" || arg === "--ignore-environment" || /^-[a-z]*i[a-z]*$/.test(arg)) return true;
-		if (arg === "-uHOME" || arg === "--unset=HOME") return true;
-		if (arg === "-u" || arg === "--unset") {
-			if (args[i + 1] === "HOME") return true;
-			i++;
-		} else if (!arg.startsWith("-")) return false;
+/**
+ * `dropsHome[j]`: the `env` arguments starting at word j drop HOME (`-i`, `-`, `-u HOME`).
+ * One backward pass, because a run of dash words such as `-/env` would otherwise be
+ * rescanned once per `env`.
+ */
+function envDropsHomeFrom(words: string[]): boolean[] {
+	const dropsHome = new Array<boolean>(words.length + 2).fill(false);
+	for (let j = words.length - 1; j >= 0; j--) {
+		const arg = words[j];
+		if (arg === "-" || arg === "--ignore-environment" || /^-(?=[a-z]*i)[a-z]*$/.test(arg)) dropsHome[j] = true;
+		else if (arg === "-uHOME" || arg === "--unset=HOME") dropsHome[j] = true;
+		else if (arg === "-u" || arg === "--unset") dropsHome[j] = words[j + 1] === "HOME" || dropsHome[j + 2];
+		else dropsHome[j] = arg.startsWith("-") && dropsHome[j + 1];
 	}
-	return false;
+	return dropsHome;
 }
 
 // Without HOME, git cannot find ~/.gitconfig and so skips the global core.hooksPath.
 function hidesHome(commands: string[][]): boolean {
-	return commands.some((words) =>
-		words.some(
+	return commands.some((words) => {
+		const lastHome = words.lastIndexOf("HOME");
+		let dropsHome: boolean[] | undefined;
+		return words.some(
 			(word, i) =>
 				/^HOME=/.test(word) ||
-				(word === "unset" && words.slice(i + 1).includes("HOME")) ||
-				(baseName(word) === "env" && envDropsHome(words.slice(i + 1))),
-		),
-	);
+				(word === "unset" && lastHome > i) ||
+				(baseName(word) === "env" && (dropsHome ??= envDropsHomeFrom(words))[i + 1]),
+		);
+	});
 }
 
 function normalizeRmTarget(target: string, home: string): string {
 	let normalized = target.replace(/^\$\{?HOME\}?(?=\/|$)/, "~");
 	if (normalized === home || normalized.startsWith(home + "/")) normalized = "~" + normalized.slice(home.length);
-	return normalized.length > 1 ? normalized.replace(/\/+$/, "") || "/" : normalized;
+	if (normalized.length <= 1) return normalized;
+	// A loop, not `/\/+$/`: that regex is quadratic on a long run of `/` inside a word,
+	// and this runs on every word of the command.
+	let end = normalized.length;
+	while (end > 0 && normalized[end - 1] === "/") end--;
+	return normalized.slice(0, end) || "/";
 }
 
 function rmDecision(words: string[], call: ToolCall, policy: Policy): Decision {
 	const flag = new RegExp(policy.rmFlag);
 	const dangerous = new RegExp(policy.rmDangerousTarget);
+	// A dangerous target starts with `/` or `~`, never `-`, so an `rm`'s first dangerous
+	// target is simply the first dangerous word after it. One backward pass finds them all.
+	const nextDanger = new Array<number>(words.length + 1).fill(-1);
+	for (let i = words.length - 1; i >= 0; i--) {
+		nextDanger[i] = dangerous.test(normalizeRmTarget(words[i], call.home)) ? i : nextDanger[i + 1];
+	}
+	// A later `rm` with no `--` before it sees a subset of the earlier one's flags and
+	// targets, so only the first `rm` after the start or after each `--` needs a check.
+	let covered = false;
 	for (let start = 0; start < words.length; start++) {
-		if (baseName(words[start]) !== "rm") continue;
-		const args = words.slice(start + 1);
-		const endOfFlags = args.indexOf("--");
-		const flags = (endOfFlags === -1 ? args : args.slice(0, endOfFlags)).filter((arg) => arg.startsWith("-"));
-		const targets = args.filter((arg, index) => (endOfFlags !== -1 && index > endOfFlags) || !arg.startsWith("-"));
-		if (!flags.some((f) => flag.test(f))) continue;
-		const hit = targets.find((target) => dangerous.test(normalizeRmTarget(target, call.home)));
-		if (hit) return deny(`Destructive delete of '${hit}' is blocked. Delete a narrower path.`);
+		if (words[start] === "--") covered = false;
+		if (covered || baseName(words[start]) !== "rm") continue;
+		covered = true;
+		const hit = nextDanger[start + 1];
+		if (hit === -1) continue;
+		let forced = false;
+		for (let i = start + 1; i < words.length && words[i] !== "--" && !forced; i++) {
+			forced = words[i].startsWith("-") && flag.test(words[i]);
+		}
+		if (forced) return deny(`Destructive delete of '${words[hit]}' is blocked. Delete a narrower path.`);
 	}
 	return ALLOW;
 }
@@ -625,65 +650,86 @@ function commandStarts(words: string[]): number[] {
 	return wraps ? words.map((_, i) => i).slice(start) : [start];
 }
 
-// The helpers below take the word list plus a start index instead of a copy,
-// and stop scanning at the first non-option word: every word after a wrapper
-// is a start, so a scan to the end of the command per start is quadratic.
-// A safe flag or format after a name is therefore not seen, which denies.
-
-function onlyFlagsFrom(words: string[], from: number): boolean {
-	for (let i = from; i < words.length; i++) if (!words[i].startsWith("-")) return false;
-	return true;
+/**
+ * Per-command lookups for the dump checks, each indexed by the word to start from and
+ * built in one backward pass. Every word after a wrapper is a command start, so scanning
+ * forward from each start is quadratic on a run of dash words such as `sudo -/env … x`
+ * (`baseName("-/env")` is `env`, and it starts with `-`, so a forward scan does not stop).
+ */
+interface DumpScan {
+	/** The last word that does not start with `-`; -1 when every word does. */
+	lastNonFlag: number;
+	/** `env` arguments from here hold only options and `NAME=value` words. */
+	envOnly: boolean[];
+	/** The `docker inspect` format given in the run of options from here. */
+	format: (string | undefined)[];
+	/** A safe `docker compose config` flag sits in the run of options from here. */
+	safeCompose: boolean[];
+	/** The first word after docker or compose options from here. */
+	dockerSkip: number[];
+	composeSkip: number[];
 }
 
-function envOnlySetsVariables(words: string[], from: number): boolean {
-	for (let i = from; i < words.length; i++) {
-		if (ENV_OPTIONS_WITH_VALUE.has(words[i])) i++;
-		else if (!words[i].startsWith("-") && !isAssignment(words[i])) return false;
+function scanForDumps(words: string[]): DumpScan {
+	const n = words.length;
+	const isOption = (j: number): boolean => j < n && words[j].startsWith("-");
+	const skipOptions = (withValue: Set<string>): number[] => {
+		const next = Array.from({ length: n + 2 }, (_, j) => j);
+		for (let j = n - 1; j >= 0; j--) if (isOption(j)) next[j] = next[j + (withValue.has(words[j]) ? 2 : 1)];
+		return next;
+	};
+	let lastNonFlag = n - 1;
+	while (lastNonFlag >= 0 && isOption(lastNonFlag)) lastNonFlag--;
+	const envOnly = new Array<boolean>(n + 2).fill(true);
+	const format = new Array<string | undefined>(n + 1).fill(undefined);
+	const safeCompose = new Array<boolean>(n + 1).fill(false);
+	for (let j = n - 1; j >= 0; j--) {
+		const word = words[j];
+		envOnly[j] = ENV_OPTIONS_WITH_VALUE.has(word) ? envOnly[j + 2] : (word.startsWith("-") || isAssignment(word)) && envOnly[j + 1];
+		if (!word.startsWith("-")) continue;
+		if (word === "-f" || word === "--format") format[j] = words[j + 1] ?? "";
+		else if (word.startsWith("--format=")) format[j] = word.slice("--format=".length);
+		else if (/^-f./.test(word)) format[j] = word.slice(2);
+		else format[j] = format[j + 1];
+		safeCompose[j] = COMPOSE_CONFIG_SAFE_FLAGS.has(word.split("=")[0]) || safeCompose[j + 1];
 	}
-	return true;
+	return {
+		lastNonFlag,
+		envOnly,
+		format,
+		safeCompose,
+		dockerSkip: skipOptions(DOCKER_OPTIONS_WITH_VALUE),
+		composeSkip: skipOptions(COMPOSE_OPTIONS_WITH_VALUE),
+	};
 }
 
-function inspectFormat(words: string[], from: number): string | undefined {
-	for (let i = from; i < words.length && words[i].startsWith("-"); i++) {
-		const word = words[i];
-		if (word === "-f" || word === "--format") return words[i + 1] ?? "";
-		if (word.startsWith("--format=")) return word.slice("--format=".length);
-		if (/^-f./.test(word)) return word.slice(2);
-	}
-	return undefined;
-}
-
-function composeDump(words: string[], from: number): string | undefined {
-	let i = from;
-	while (i < words.length && words[i].startsWith("-")) i += COMPOSE_OPTIONS_WITH_VALUE.has(words[i]) ? 2 : 1;
+function composeDump(words: string[], from: number, scan: DumpScan): string | undefined {
+	const i = scan.composeSkip[from];
 	const subcommand = words[i];
 	if (subcommand !== "config" && subcommand !== "convert") return undefined;
-	for (let j = i + 1; j < words.length && words[j].startsWith("-"); j++) {
-		if (COMPOSE_CONFIG_SAFE_FLAGS.has(words[j].split("=")[0])) return undefined;
-	}
-	return `docker compose ${subcommand}`;
+	return scan.safeCompose[i + 1] ? undefined : `docker compose ${subcommand}`;
 }
 
-function dockerDump(words: string[], from: number): string | undefined {
-	let i = from;
-	while (i < words.length && words[i].startsWith("-")) i += DOCKER_OPTIONS_WITH_VALUE.has(words[i]) ? 2 : 1;
-	if (words[i] === "compose") return composeDump(words, i + 1);
+function dockerDump(words: string[], from: number, scan: DumpScan): string | undefined {
+	const i = scan.dockerSkip[from];
+	if (words[i] === "compose") return composeDump(words, i + 1, scan);
 	const inspect = words[i] === "container" ? i + 1 : i;
 	if (words[inspect] !== "inspect") return undefined;
-	const format = inspectFormat(words, inspect + 1);
+	const format = scan.format[inspect + 1];
 	const showsEnv = format === undefined || /config|env/i.test(format) || !SAFE_INSPECT_FORMAT_RE.test(format);
 	return showsEnv ? "docker inspect" : undefined;
 }
 
-function dumpAt(words: string[], start: number): string | undefined {
+function dumpAt(words: string[], start: number, scan: DumpScan): string | undefined {
 	const name = baseName(words[start]);
 	const from = start + 1;
-	if (name === "printenv" && onlyFlagsFrom(words, from)) return "printenv";
-	if (name === "env" && envOnlySetsVariables(words, from)) return "env";
-	if (VARIABLE_LISTERS.has(name) && onlyFlagsFrom(words, from)) return name;
+	const onlyFlags = scan.lastNonFlag < from;
+	if (name === "printenv" && onlyFlags) return "printenv";
+	if (name === "env" && scan.envOnly[from]) return "env";
+	if (VARIABLE_LISTERS.has(name) && onlyFlags) return name;
 	if (name === "set" && from === words.length) return "set";
-	if (name === "docker") return dockerDump(words, from);
-	if (name === "docker-compose") return composeDump(words, from);
+	if (name === "docker") return dockerDump(words, from, scan);
+	if (name === "docker-compose") return composeDump(words, from, scan);
 	return undefined;
 }
 
@@ -692,8 +738,9 @@ function dumpsEnvironment(words: string[], tool: string): string | undefined {
 	if (words.some((word) => /debug:dotenv/i.test(word))) return "debug:dotenv";
 	if (words.some(readsProcEnviron)) return "/proc/…/environ";
 	if (tool === "powershell" && words.some((word) => POWERSHELL_ENV_DRIVE_RE.test(word))) return "env:";
+	const scan = scanForDumps(words);
 	for (const start of commandStarts(words)) {
-		const dump = dumpAt(words, start);
+		const dump = dumpAt(words, start, scan);
 		if (dump) return dump;
 	}
 	return undefined;

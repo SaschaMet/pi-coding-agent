@@ -5,7 +5,8 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const SCRIPT = path.resolve(import.meta.dirname, "../.pi/security/check-install.ts");
-const GUARD_COMMAND = 'node "$HOME/.pi/agent/security/guard-cli.ts" || exit 2';
+const GUARD_COMMAND = `/usr/bin/perl -e 'alarm shift; exec @ARGV' 25 node "$HOME/.pi/agent/security/guard-cli.ts" || exit 2`;
+const UNLIMITED_GUARD_COMMAND = 'node "$HOME/.pi/agent/security/guard-cli.ts" || exit 2';
 const SECRET_MARKER = "settings-content-marker-7f3a";
 
 let root: string;
@@ -157,6 +158,25 @@ describe("check-install reports a missing guard", () => {
 		const result = runCheck();
 		expectMissing(result, "claude-hook");
 		expect(result.stdout + result.stderr).not.toContain(SECRET_MARKER);
+	});
+
+	it("warns, without failing, when a guard hook has no time limit", () => {
+		const hook = { type: "command", command: UNLIMITED_GUARD_COMMAND, timeout: 30 };
+		const settings = claudeSettings({ hooks: { PreToolUse: [{ matcher: "*", hooks: [hook] }], UserPromptSubmit: [{ hooks: [hook] }] } });
+		writeFile(path.join(home, ".claude/settings.json"), settings);
+		const result = runCheck();
+		expect(line(result.stdout, "claude-hook")).toMatch(/^warn .*time limit/);
+		expect(result.status).toBe(0);
+	});
+
+	it("warns when the time limit cannot block because `|| exit 2` is missing", () => {
+		const command = `/usr/bin/perl -e 'alarm shift; exec @ARGV' 25 node "$HOME/.pi/agent/security/guard-cli.ts"`;
+		const hook = { type: "command", command, timeout: 30 };
+		const settings = claudeSettings({ hooks: { PreToolUse: [{ matcher: "*", hooks: [hook] }], UserPromptSubmit: [{ hooks: [hook] }] } });
+		writeFile(path.join(home, ".claude/settings.json"), settings);
+		const result = runCheck();
+		expect(line(result.stdout, "claude-hook")).toMatch(/^warn .*time limit/);
+		expect(result.status).toBe(0);
 	});
 
 	it("skips the Claude check when no settings file exists", () => {
