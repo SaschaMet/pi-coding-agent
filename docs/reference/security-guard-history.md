@@ -105,6 +105,7 @@ Grill answered by the orchestrator for the user (human override); the user appro
 - Legacy diff: 99 cases; after the four fixes only 7 accepted differences remained (4 legacy false positives, 3 intended `rm` narrowings).
 - Live, with only the new hook: 7 dangerous Bash commands blocked, the control ran, nothing leaked, nothing pushed; a prompt with a fake key never reached the model.
 - Repo setup: `pre-commit install` refuses while `core.hooksPath` is set and installs with the prefix (pre-commit 4.6.2); `graphify hook install` with the prefix writes into `.git/hooks/` and leaves the global wrappers unchanged; after the sync, PI and Claude both blocked `GIT_CONFIG_GLOBAL=/dev/null git commit` with 0 commits created; `check-install.ts` prints six `ok` lines here and two `missing` lines with an empty global config.
+- Env guard hardening: 1224 tests before, 1452 after (58 files), all green; typecheck and smoke green; two fresh-context reviews (10 + 2 findings, all fixed with test rows). After the sync, a fresh pi session and a fresh Claude Code session both blocked `printenv` with the env-dump reason and ran `grep -rn "process\.env" src`.
 
 ## Incidents
 
