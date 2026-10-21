@@ -19,7 +19,7 @@ One policy now protects PI, Claude Code, and every git commit on this machine:
 | `433ce0a` | Gaps found against the legacy Claude hooks: pipe-to-shell across pipes, exfil via rsync/scp/sftp/socat/telnet, push targets built at run time, `~<user>` homes as `rm` targets. |
 | `edef56d` | Reference doc on repo setup with the global guard. |
 | `c696c24` | Bypass fixes (hiding or dropping the git config, `sh -c` wrappers), `check-install.ts`, skill and graphify instructions, this record. |
-| (pending) | Env guard hardening: shell `.env` check by expanded word (quotes, braces, unquoted globs, `find` patterns), env-dump block, regex searches with `\.env` allowed in bash. |
+| `de1d2e6` | Env guard hardening: shell `.env` check by expanded word (quotes, braces, unquoted globs, `find` patterns), env-dump block, regex searches with `\.env` allowed in bash. |
 
 ## Components
 
