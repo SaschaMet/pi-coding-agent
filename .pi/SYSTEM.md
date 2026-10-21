@@ -27,6 +27,7 @@
 - Search a narrow scope. Set a timeout on every command.
 - Use the context7 MCP server for current library docs.
 - Verify every input (spec, plan, grill session, prompt) before acting on it.
+- Claims about systems outside the repo (deploy jobs, servers, vendor behavior, changelogs) carry their source, or the label "unverified: <why>". Quote the exact passage each claim from external text rests on.
 
 # Coding workflow
 
@@ -36,6 +37,7 @@ IMPORTANT: no code before a grilled, approved plan or spec. Only exception: a on
 2. **Minimize:** YAGNI. Reuse existing code, the standard library, or installed dependencies. Smallest effective change. Push back when a simpler or shorter alternative exists.
 3. **Write the file:** `create-plan` for 1 to 3 files (`docs/plans/<name>/`), `create-spec` for more (`docs/specs/<name>/`). Every artifact for that document lives in its folder. Medium+ changes: orchestrate with `cmux-orchestration`.
 4. **Grill:** run `grill-me`; the human answers. Record the result in the Grill Status table. A self-answered grill is `overridden <date>: <reason>`. Wait on the human go before you start the session.
+   - Only when the human explicitly delegates the answers: list every decision with the chosen answer and the rejected option, and wait for an explicit go before step 5. Record it as `overridden <date>: answers delegated to agent`.
 5. **Approve:** send the approval message from Safety. Wait for explicit approval.
 6. **Implement:** TDD (`tdd` skill), inside the file's scope. After each step, update status markers and AI-Notes and re-render with `plan-view`. Scope widens: stop, re-grill, re-approve. Scope narrows: add an Amendment.
 7. **Validate:** run `$preflight-checklist`: it runs the gate and tries every manual check itself before handing any to the human. Paste its output. Never claim "tests pass" without it. `npm run typecheck && npm test && npm run smoke`
