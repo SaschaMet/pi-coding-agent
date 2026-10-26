@@ -66,6 +66,7 @@ its rules — that discipline is what keeps two skills from contradicting each o
 | Deliberately disposable code | `prototype` |
 | Multi-session planning of foggy efforts as decision-ticket maps | `wayfinder` |
 | Complete, untruncated output | `output-skill` |
+| Stick-figure animation from a JSON scene | `stick-animation` |
 
 Three cross-family boundaries worth stating once:
 
@@ -245,6 +246,14 @@ Human setup, once per machine, in a normal terminal:
 2. Add `. "$HOME/.pi/agent/skill-library/impeccable/local/offline.sh"` to `~/.zshrc` and open a new terminal.
 
 Without step 2 the skill refuses to run its launcher and reads `PRODUCT.md` / `DESIGN.md` directly instead.
+
+### Animation
+
+Source: written locally, 2026-10-26, from a throwaway prototype. Python 3 + Pillow + ffmpeg; no browser, no network. Tested by `test/stick-animation.test.ts`.
+
+| Skill | What it does |
+| --- | --- |
+| `stick-animation` | Turns a described motion into a JSON scene of key poses and renders it to MP4/GIF, with key-pose and onion-skin images the agent inspects before delivering. One 2D side-view figure plus weight plates. |
 
 ## Adding a new skill
 

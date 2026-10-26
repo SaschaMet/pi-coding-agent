@@ -1,0 +1,42 @@
+{
+  "canvas": [640, 360],
+  "fps": 30,
+  "ground": 312,
+  "mat": [100, 340],
+  "props": [{ "id": "plate", "kind": "plate", "r": 15, "at": [500, 297] }],
+  "timeline": [
+    { "dur": 0, "pose": { "type": "plank", "h": 60, "toe_x": 150 }, "label": "PUSH-UPS" },
+    { "dur": 0.5, "pose": { "type": "plank", "h": 60 }, "pin": ["hands", "feet"], "label": "PUSH-UPS" },
+    {
+      "repeat": 3,
+      "keys": [
+        { "dur": 0.6, "pose": { "type": "plank", "h": 17 }, "pin": ["hands", "feet"], "label": "PUSH-UPS {i}/{n}" },
+        { "dur": 0.55, "pose": { "type": "plank", "h": 60 }, "pin": ["hands", "feet"], "label": "PUSH-UPS {i}/{n}" }
+      ]
+    },
+    { "dur": 0.5, "pose": { "type": "pike" }, "pin": ["hands", "feet"], "label": "GET UP" },
+    { "dur": 0.45, "pose": { "type": "crouch" }, "pin": ["hands"], "label": "GET UP" },
+    { "dur": 0.7, "pose": { "type": "stand" }, "label": "WALK" },
+    { "walk": { "to_x": 470, "step": 46, "step_dur": 0.36 }, "label": "WALK" },
+    { "dur": 0.7, "pose": { "type": "squat", "x": 470, "hands": "prop:plate" }, "label": "DEADLIFT" },
+    { "dur": 0.25, "pose": { "type": "squat", "x": 470, "hands": "prop:plate" }, "grab": "plate", "label": "DEADLIFT" },
+    { "dur": 0.8, "pose": { "type": "stand", "x": 470, "hands": [8, 58] }, "label": "CURLS" },
+    {
+      "repeat": 3,
+      "keys": [
+        { "dur": 0.55, "pose": { "type": "stand", "x": 470, "hands": [17, 4], "torso": -91 }, "label": "CURLS {i}/{n}" },
+        { "dur": 0.5, "pose": { "type": "stand", "x": 470, "hands": [8, 58] }, "label": "CURLS {i}/{n}" }
+      ]
+    },
+    { "dur": 0.55, "pose": { "type": "stand", "x": 470, "hands": [13, -3] }, "label": "PRESS" },
+    {
+      "repeat": 3,
+      "keys": [
+        { "dur": 0.6, "pose": { "type": "stand", "x": 470, "hands": [3, -60], "torso": -90 }, "label": "PRESS {i}/{n}" },
+        { "dur": 0.55, "pose": { "type": "stand", "x": 470, "hands": [13, -3] }, "label": "PRESS {i}/{n}" }
+      ]
+    },
+    { "dur": 0.6, "pose": { "type": "stand", "x": 470, "hands": [3, -60], "torso": -90 }, "label": "DONE!" },
+    { "dur": 0.9, "pose": { "type": "stand", "x": 470, "hands": [3, -60], "torso": -90 }, "label": "DONE!" }
+  ]
+}
