@@ -59,3 +59,19 @@ describe("artifact folder rules", () => {
         expect(subagentMd).toContain("Never write into `docs/specs/<name>/` or `docs/plans/<name>/`");
     });
 });
+
+describe("plain language rule", () => {
+    // SYSTEM.md is the only rule text every session loads; the eli5 skill is hidden from the model.
+    it("SYSTEM.md carries the high-school ELI5 rule itself", () => {
+        expect(systemMd).toContain("high-school level");
+        expect(systemMd).toContain("define each once");
+        expect(systemMd).not.toMatch(/eli5\/SKILL|`eli5` skill/);
+        // "Jargon only when needed" is what made answers too thin to act on.
+        expect(systemMd).not.toContain("Use jargon only when");
+    });
+
+    it("SYSTEM.md asks every human-facing plan step for what, why, and how we check", () => {
+        expect(systemMd).toContain("Every plan and next-steps list a human reads");
+        expect(systemMd).toContain("what happens, why, and how we check it");
+    });
+});

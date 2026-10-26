@@ -33,15 +33,53 @@ of lists — changes what the guard allows, with no compile error. Change the pa
 |---|--------|
 | 1 | Not run |
 
-## In Plain Words
+## TLDR
 
-- **What we are doing:** {one sentence}
-- **Why:** {one sentence}
-- **What could break:** {one sentence}
-- **How we will know it worked:** {one sentence}
+> For humans and stakeholders: this section and Changes at a Glance are enough to approve the spec. Sections 1-11 are the implementer's contract and stay fully detailed.
+> High-school level: `.pi/skills/eli5/SKILL.md`, section _Style rules_. Define every term on first use, including acronyms this document defines later.
+> As short as the change allows, enough to decide. A one-behavior change may merge "What and why" with "How it works"; "What could break" and "Decisions for you" may say "None." with a one-clause reason.
 
-> Four lines, one sentence each, 20 words maximum per sentence. No jargon, no acronym defined later in
-> this document. Style: `.pi/skills/eli5/SKILL.md`, sections _Style rules_ and _Hard bans_.
+**What and why:** {the change and the problem it solves}
+
+**How it works:** {the mechanism, real terms defined once}
+
+**Steps:** (one line per Execution Step in section 4, same number)
+
+1. {what happens} — {why} — {how we check it}
+
+**What could break:** {and how we undo it}
+
+**How we will know it worked:** {the checks, in plain words}
+
+**Decisions for you:** {one line per item in section 10: question — recommended answer} | None.
+
+## Changes at a Glance
+
+> The only home for diff previews and diagrams.
+> Diff preview: one `diff` block per file per step, real path in a `@@ path` line, up to 3 context lines, at most 40 lines per file. Past 40 lines, show the key hunks and list the rest in one line. No preview needs a one-line reason. The preview is a sketch; the acceptance criteria stay the contract.
+> Caption each diff in one line: `Step N — path — what changes`.
+> Diagrams (Medium+: before/after flow; Small: only when a flow changes) are archify JSON files, embedded by a line that holds only an image reference. The page renderer
+> (plan-view) draws these offline; Mermaid blocks stay plain text. File rule: `<doc>.assets/<id>.<type>.json`,
+> `<type>` one of `architecture`, `workflow`, `sequence`, `dataflow`, `lifecycle`. JSON format:
+> `node <skill-library>/archify/bin/archify.mjs guide` (`<skill-library>` is `.pi/skill-library` in this repo,
+> `~/.pi/agent/skill-library` globally). No diagram needed → use the Changed Flows table in 6.1.
+
+**Flow before:**
+
+![Flow before the change](spec-{feature-name}.assets/before.workflow.json)
+
+**Flow after:**
+
+![Flow after the change](spec-{feature-name}.assets/after.workflow.json)
+
+Step 1 — `path/to/file` — {what changes}
+
+```diff
+@@ path/to/file
+ context line
+- old line
++ new line
+```
 
 ## 1. Intent
 One paragraph for what changes and why now.
@@ -71,19 +109,13 @@ One paragraph for what changes and why now.
 ## 4. Execution Steps
 
 > Status markers: `[ ]` idle · `[wip]` in progress · `[x]` done · `[f]` failed. Only the owner session (the one that armed this document) sets them; workers report updates in their final report.
-> Diff preview: one `diff` block per file, real path in a `@@ path` line, up to 3 context lines, at most 40 lines per file. Past 40 lines, show the key hunks and list the rest in one line. The preview is a sketch; the acceptance criteria stay the contract.
+> Diffs live in Changes at a Glance, captioned with the same step number.
 > Validate loop: run the current step's Validate commands. Do not start the next step until all pass. After 2 failed fixes on one command, mark it `[f]`, stop, and report.
 
 ### Step 1: ...
 - Files: `path/to/file`
 - Change: ...
-- Diff preview:
-  ```diff
-  @@ path/to/file
-   context line
-  - old line
-  + new line
-  ```
+- Diff: Changes at a Glance → `Step 1 — path/to/file`
 - Guardrails: ...
 - Validate:
   - [ ] `command` — expected result
@@ -91,13 +123,7 @@ One paragraph for what changes and why now.
 ### Step 2: ...
 - Files: `path/to/file`
 - Change: ...
-- Diff preview:
-  ```diff
-  @@ path/to/file
-   context line
-  - old line
-  + new line
-  ```
+- Diff: Changes at a Glance → `Step 2 — path/to/file`
 - Guardrails: ...
 - Validate:
   - [ ] `command` — expected result
@@ -117,19 +143,7 @@ One paragraph for what changes and why now.
 
 ### 6.1 Data Flow Changes
 
-> Diagrams are archify JSON files, embedded by a line that holds only an image reference. The page renderer
-> (plan-view) draws these offline; Mermaid blocks stay plain text. File rule: `<doc>.assets/<id>.<type>.json`,
-> `<type>` one of `architecture`, `workflow`, `sequence`, `dataflow`, `lifecycle`. JSON format:
-> `node <skill-library>/archify/bin/archify.mjs guide` (`<skill-library>` is `.pi/skill-library` in this repo,
-> `~/.pi/agent/skill-library` globally). No diagram needed → use a table.
-
-**Before:**
-
-![Flow before the change](spec-{feature-name}.assets/before.workflow.json)
-
-**After:**
-
-![Flow after the change](spec-{feature-name}.assets/after.workflow.json)
+> Before/after diagrams: Changes at a Glance.
 
 **Changed Flows:**
 

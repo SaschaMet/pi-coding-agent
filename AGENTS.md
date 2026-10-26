@@ -18,7 +18,7 @@ Project-local PI coding agent "parity stack". A git-tracked config + runtime tha
 
 Durable rules, distilled from `.pi/SYSTEM.md` (the single origin — read it for the full source, do not duplicate):
 
-- Communication: always English, ELI5, short concise bullets, no fluff/hedging, exact terms.
+- Communication: always English, ELI5 = high-school level (core rule in `.pi/SYSTEM.md`), short concise bullets, no fluff/hedging, exact terms.
 - Safety: ask approval before destructive ops (`rm -rf`, `git push --force`, `git reset --hard`, `DROP TABLE`, branch deletion). Ambiguous/incomplete/high-risk request → ask first, change nothing.
 - Core: tight scope (smallest change that solves it), reuse before creating (YAGNI), never read `.env` files directly, graphify query is mandatory when `graphify-out/graph.json` exists.
 - Comments: minimal, context only (why, not what); the code should mostly be enough. Never reference other files or tickets.

@@ -40,7 +40,10 @@ Use [references/plan-template.md](references/plan-template.md) as the output tem
 
 - **Metadata** (after the header, before Grill Status): `Created`, `Commits`, `Back refs`. Rules are in the template blockquote.
 - **Grill Status table** (before section 1): the grill-completion readiness gate — initial row `Not run`; the grill-me session writes `done <date>` only after the user's explicit confirmation; a document whose latest row is not `done <date>` or `overridden <date>: <reason>` is not ready for implementation.
-- **In Plain Words** (after Grill Status, before section 1): four lines, one sentence each — what we are doing, why, what could break, how we will know it worked. Written to the eli5 rules ([../eli5/SKILL.md](../eli5/SKILL.md), sections _Style rules_ and _Hard bans_): 20 words per sentence, no jargon. This is the part the user reads to approve the plan. It does not count toward the line limit below.
+- **TLDR** (after Grill Status, before Changes at a Glance): the summary for humans and stakeholders, at high-school level ([../eli5/SKILL.md](../eli5/SKILL.md), section _Style rules_). It holds: what and why, how it works, one line per Change (what happens — why — how we check it), what could break, how we will know it worked, and one line per open decision with the recommended answer. The lines match section 3 and the open decisions one to one. As short as the change allows, enough to decide. The user reads this to approve the plan. It does not count toward the line limit below.
+- **Changes at a Glance** (after TLDR, before section 1): every diff preview and the optional diagram, one caption line per diff. Sections 1-7 stay fully detailed; they are the implementer's contract.
+
+This layout applies to plans created from now on. A plan that still has `## In Plain Words` keeps its layout until the user asks to move it.
 
 1. **What & Why**: one-liner.
 2. **Scope**: modify, forbid, out of scope.
@@ -52,7 +55,7 @@ Use [references/plan-template.md](references/plan-template.md) as the output tem
 
 Then **Amendments** and **AI-Notes**, last, with the template's rules blockquotes. Changes carry status markers (`[ ]`, `[wip]`, `[x]`, `[f]`).
 
-Keep it under 150 lines, not counting In Plain Words, Metadata, Amendments, and AI-Notes. No BDD, no CARDS, no architecture diagrams.
+Keep it under 150 lines, not counting TLDR, Metadata, Amendments, and AI-Notes. No BDD, no CARDS. A diagram is optional, only when a flow changes, and lives only in Changes at a Glance.
 
 ### Plan quality requirements
 
@@ -61,7 +64,7 @@ Keep it under 150 lines, not counting In Plain Words, Metadata, Amendments, and 
 - No vague criteria (`fast`, `better`, `clean`).
 - If the change is irreversible, note the rollback path.
 - Cite graphify findings when they affect scope or risk.
-- **Every change has a diff preview**: one `diff` block per file, real path in a `@@ path` line, up to 3 context lines, at most 40 lines per file; past 40 lines, the key hunks and a one-line list of the rest. No preview needs a one-line reason (new file over 40 lines, generated code, binary). The preview is a sketch, not the contract: if the shipped code behaves differently, the implementer adds a `decision` AI-Note.
+- **Every change has a diff preview** in Changes at a Glance: one `diff` block per file per change, captioned `Change N — path — what changes`, real path in a `@@ path` line, up to 3 context lines, at most 40 lines per file; past 40 lines, the key hunks and a one-line list of the rest. No preview needs a one-line reason (new file over 40 lines, generated code, binary). The preview is a sketch, not the contract: if the shipped code behaves differently, the implementer adds a `decision` AI-Note.
 - **Any decision left to the user carries a recommended answer** and what changes if they pick otherwise. A plan that hands back open choices without a recommendation has moved the work back to the user instead of doing it.
 
 ## Step 4 - Run the quality gate

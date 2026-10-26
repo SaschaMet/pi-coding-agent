@@ -57,7 +57,10 @@ Use [references/spec-template.md](references/spec-template.md) as the output tem
 
 - **Metadata** (after the title block, before Grill Status): `Created`, `Commits`, `Back refs`. Rules are in the template blockquote.
 - **Grill Status table** (before section 1): the grill-completion readiness gate — initial row `Not run`; the grill-me session writes `done <date>` only after the user's explicit confirmation; a document whose latest row is not `done <date>` or `overridden <date>: <reason>` is not ready for implementation.
-- **In Plain Words** (after Grill Status, before section 1): four lines, one sentence each — what we are doing, why, what could break, how we will know it worked. Written to the eli5 rules ([../eli5/SKILL.md](../eli5/SKILL.md), sections _Style rules_ and _Hard bans_): 20 words per sentence, no jargon, no acronym the spec introduces later. This is the part the user reads to approve the spec; sections 1-11 are the part the implementer reads to build it. Required at every size, including Small.
+- **TLDR** (after Grill Status, before Changes at a Glance): the summary for humans and stakeholders, at high-school level ([../eli5/SKILL.md](../eli5/SKILL.md), section _Style rules_). It holds: what and why, how it works, one line per Execution Step (what happens — why — how we check it), what could break, how we will know it worked, and one line per Open Question with the recommended answer. The lines match sections 4 and 10 one to one. Define every term on first use, including acronyms the spec defines later. As short as the change allows, enough to decide. Required at every size, including Small.
+- **Changes at a Glance** (after TLDR, before section 1): every diff preview and diagram, one caption line per diff (`Step N — path — what changes`). TLDR and this section are the part the user reads to approve the spec; sections 1-11 stay fully detailed and are the part the implementer reads to build it.
+
+This layout applies to specs created from now on. A spec that still has `## In Plain Words` keeps its layout until the user asks to move it.
 
 1. **Intent**: what and why.
 2. **Scope**:
@@ -68,7 +71,7 @@ Use [references/spec-template.md](references/spec-template.md) as the output tem
 3. **Acceptance Criteria**: objectively verifiable checklist items. Each behavioral criterion is written once as `Given / When / Then`; static checks stay one line.
 4. **Execution Steps**: implementation sequence and file targets, ordered as vertical slices (see below).
 5. **Invariants and Contracts**: org/domain rules that always apply, plus an optional `CARDS` line per point when it adds a constraint.
-6. **Architecture Impact & Data Flow Changes**: before/after data flow, and blast radius with the dependency table. Required for Medium+ specs. Omit for Small.
+6. **Architecture Impact & Data Flow Changes**: changed flows table, and blast radius with the dependency table; the before/after diagrams sit in Changes at a Glance. Required for Medium+ specs. Omit for Small.
 7. **Manual Verification Checklist**: what a human checks; automated checks live in the steps.
 8. **Risks, One-Way Doors, Rollback**: failure modes and recovery.
 9. **Definition of Done**: traceability from intent -> criteria -> verification.
@@ -94,7 +97,7 @@ Forbidden: ordering steps by stack layer — all migrations, then all services, 
 ### Spec quality requirements
 
 - Prefer concrete, testable language over ambiguous wording.
-- **Every change has a diff preview**: one `diff` block per file, real path in a `@@ path` line, up to 3 context lines, at most 40 lines per file; past 40 lines, the key hunks and a one-line list of the rest. No preview needs a one-line reason (new file over 40 lines, generated code, binary). The preview is a sketch, not the contract: if the shipped code behaves differently, the implementer adds a `decision` AI-Note.
+- **Every change has a diff preview** in Changes at a Glance: one `diff` block per file per step, captioned `Step N — path — what changes`, real path in a `@@ path` line, up to 3 context lines, at most 40 lines per file; past 40 lines, the key hunks and a one-line list of the rest. No preview needs a one-line reason (new file over 40 lines, generated code, binary). The preview is a sketch, not the contract: if the shipped code behaves differently, the implementer adds a `decision` AI-Note.
 - Include exact paths, API names, and expected outputs.
 - Grade outcomes, not implementation paths: acceptance criteria should describe observable behavior.
 - Mark any irreversible change as a one-way door.

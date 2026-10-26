@@ -20,15 +20,40 @@
 |---|--------|
 | 1 | Not run |
 
-## In Plain Words
+## TLDR
 
-- **What we are doing:** {one sentence}
-- **Why:** {one sentence}
-- **What could break:** {one sentence}
-- **How we will know it worked:** {one sentence}
+> For humans and stakeholders: this section and Changes at a Glance are enough to approve the plan.
+> High-school level: `.pi/skills/eli5/SKILL.md`, section _Style rules_. Define every term on first use.
+> As short as the change allows, enough to decide. A one-behavior change may merge "What and why" with "How it works"; "What could break" and "Decisions for you" may say "None." with a one-clause reason.
 
-> Four lines, one sentence each, 20 words maximum per sentence. No jargon.
-> Style: `.pi/skills/eli5/SKILL.md`, sections _Style rules_ and _Hard bans_.
+**What and why:** {the change and the problem it solves}
+
+**How it works:** {the mechanism, real terms defined once}
+
+**Steps:** (one line per Change in section 3, same number)
+
+1. {what happens} — {why} — {how we check it}
+
+**What could break:** {and how we undo it}
+
+**How we will know it worked:** {the checks, in plain words}
+
+**Decisions for you:** {one line per open decision: question — recommended answer} | None.
+
+## Changes at a Glance
+
+> The only home for diff previews and diagrams. One `diff` block per file per change, real path in a `@@ path` line, up to 3 context lines, at most 40 lines per file. Past 40 lines, show the key hunks and list the rest in one line. No preview needs a one-line reason. The preview is a sketch; Done When stays the contract.
+> Caption each diff in one line: `Change N — path — what changes`.
+> Optional diagram, only when a flow changes: a line holding only `![caption](plan-{name}.assets/<id>.<type>.json)`. `<type>` is one of `architecture`, `workflow`, `sequence`, `dataflow`, `lifecycle`.
+
+Change 1 — `path/to/file.ts` — {what changes}
+
+```diff
+@@ path/to/file.ts
+ context line
+- old line
++ new line
+```
 
 ## 1. What & Why
 
@@ -51,15 +76,9 @@ One-liner: what changes and why.
 ## 3. Changes
 
 > Status markers: `[ ]` idle · `[wip]` in progress · `[x]` done · `[f]` failed. Only the owner session (the one that armed this document) sets them; workers report updates in their final report. After 2 failed fixes on one change, mark it `[f]`, stop, and report.
-> Diff preview: one `diff` block per file, real path in a `@@ path` line, up to 3 context lines, at most 40 lines per file. Past 40 lines, show the key hunks and list the rest in one line. The preview is a sketch; Done When stays the contract.
+> Diffs live in Changes at a Glance, captioned with the same change number.
 
 - [ ] Change 1: `file.ts` — description
-  ```diff
-  @@ path/to/file.ts
-   context line
-  - old line
-  + new line
-  ```
 - [ ] Change 2: `file.ts` — description
 
 ## 4. Tests

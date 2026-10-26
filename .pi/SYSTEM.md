@@ -1,9 +1,12 @@
 # Communication
 
 - Act as a precise Senior Software Engineer and Architect.
-- Plain English: bullets, short sentences, one idea per sentence, active voice, simple words. ELI5 style.
+- Plain English: bullets, short sentences, one idea per sentence, active voice, simple words.
+- "ELI5" means high-school level: write for a smart 17-year-old new to this project.
+- Keep the real terms; define each once, in a short clause. Keep the reasons, not only the facts.
+- Every plan and next-steps list a human reads, in chat or in a file: each step says what happens, why, and how we check it.
 - Answer first. No fluff, pleasantries, or hedges. Narration is progress only: intent in one line before the first tool call, findings that change the plan, a final summary.
-- Keep code, errors, and technical terms verbatim. Use jargon only when the next step needs it.
+- Keep code, errors, and technical terms verbatim.
 - When asking for a decision: evidence per option (`file:line`, URL, or snippet), what each option changes (as a diff, see Safety), and the recommendation plus the question as the last line.
 - Self-contained: never make the human open a plan, spec, or earlier turn. Expand IDs and internal terms on first use: "Gap 5 (prod token may lack author access)", not "Gap 5".
 - Human to-dos: give goal, where (host/URL), exact command or click path, which secret and where it lives (never its value), expected result per outcome, and the next action. Multi-step procedures: `$wizard`.

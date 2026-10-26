@@ -5,6 +5,8 @@ import { parse } from "yaml";
 
 const skillDir = path.join(process.cwd(), ".pi", "skills", "create-spec");
 const skillPath = path.join(skillDir, "SKILL.md");
+const templatePath = path.join(skillDir, "references", "spec-template.md");
+const checklistPath = path.join(skillDir, "references", "spec-quality-checklist.md");
 
 function readSkill(): { text: string; name: string; description: string } {
     expect(fs.existsSync(skillPath), `${skillPath} is missing`).toBe(true);
@@ -59,5 +61,40 @@ describe("create-spec skill", () => {
         for (const target of new Set(targets)) {
             expect(fs.existsSync(path.resolve(skillDir, target)), `${target} is missing`).toBe(true);
         }
+    });
+
+    // Humans read the top of the page; the implementer's contract follows below.
+    it("puts TLDR and Changes at a Glance before the numbered details", () => {
+        const template = fs.readFileSync(templatePath, "utf-8");
+        const order = ["## Metadata", "## Grill Status", "## TLDR", "## Changes at a Glance", "## 1. Intent", "## Amendments", "## AI-Notes"];
+        const positions = order.map((heading) => template.indexOf(heading));
+        expect(positions.every((position) => position >= 0)).toBe(true);
+        expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+        expect(template).not.toContain("## In Plain Words");
+    });
+
+    it("keeps diffs and diagrams inside Changes at a Glance", () => {
+        const template = fs.readFileSync(templatePath, "utf-8");
+        const glance = template.slice(template.indexOf("## Changes at a Glance"), template.indexOf("## 1. Intent"));
+        for (const marker of ["```diff", ".assets/"]) {
+            expect(glance).toContain(marker);
+            expect(template.split(marker).length).toBe(glance.split(marker).length);
+        }
+        expect(template.slice(template.indexOf("### 6.1"))).toContain("**Changed Flows:**");
+    });
+
+    // The user rejected numeric caps on plain-language text.
+    it("sets no sentence counts in the TLDR", () => {
+        expect(fs.readFileSync(templatePath, "utf-8")).not.toMatch(/\d+(-\d+)? sentences?|20 words/);
+    });
+
+    it("checks that the TLDR matches the numbered sections and exempts old documents", () => {
+        const checklist = fs.readFileSync(checklistPath, "utf-8");
+        expect(checklist).toContain("## TLDR");
+        expect(checklist).toContain("## Changes at a Glance");
+        expect(checklist).toContain("one to one");
+        expect(checklist).toContain("one diff per");
+        expect(checklist).toContain("No sentence or word counts in the TLDR");
+        expect(checklist).toContain("`## In Plain Words` keeps its layout");
     });
 });

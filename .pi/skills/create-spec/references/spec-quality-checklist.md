@@ -15,13 +15,24 @@ Use this gate before finalizing a spec.
 - [ ] Each of these sections keeps its rules blockquote from the template.
 - [ ] No new heading contains the word `Scope`.
 
-## In Plain Words
+## TLDR
 
-- [ ] The section exists, between the Grill Status table and section 1.
-- [ ] Four lines: what we are doing, why, what could break, how we will know it worked.
-- [ ] One sentence per line, 20 words maximum, active voice.
-- [ ] No jargon, no acronym that this document defines later, no internal vocabulary.
-- [ ] A reader who opens only this section knows whether to approve the spec.
+- [ ] A spec that still has `## In Plain Words` keeps its layout: skip the TLDR and Changes at a Glance checks for it.
+- [ ] The section exists, between the Grill Status table and Changes at a Glance.
+- [ ] Written at high-school level: real terms defined once, reasons kept, no internal vocabulary, no acronym left undefined.
+- [ ] It holds what and why, how it works, steps, what could break, how we will know it worked, and decisions for you. A one-behavior spec may merge the first two; empty parts say "None." with a reason.
+- [ ] One step line per Execution Step, same number, each with what happens, why, and how we check it.
+- [ ] One line per Open Question, each with the recommended answer.
+- [ ] Step lines and decision lines match sections 4 and 10 one to one.
+- [ ] No sentence or word counts in the TLDR.
+- [ ] A reader of TLDR and Changes at a Glance alone knows whether to approve the spec.
+
+## Changes at a Glance
+
+- [ ] The section exists, between TLDR and section 1.
+- [ ] Every diff preview and diagram in the spec sits here, none in the Execution Steps or section 6.
+- [ ] Each diff has a caption line: `Step N — path — what changes`. A file changed in two steps gets one diff per step.
+- [ ] Medium+ specs show before/after flow diagrams here, or a one-line reason why the Changed Flows table is enough.
 
 ## 1. Intent
 
@@ -66,7 +77,7 @@ Use this gate before finalizing a spec.
 
 ## 6. Architecture Impact (Medium+)
 
-- [ ] Data flow diagram shows before/after states.
+- [ ] Before/after states are shown in Changes at a Glance (diagram) or in the Changed Flows table.
 - [ ] Changed flows are itemized with impact notes.
 - [ ] Blast radius identifies direct and transitive dependents.
 - [ ] New dependencies are listed with fallback behavior.
@@ -83,7 +94,7 @@ Use this gate before finalizing a spec.
 ## 8. Handoff Clarity
 
 - [ ] Implementation steps identify exact file targets.
-- [ ] Every change has a diff preview within 40 lines per file, or a one-line reason why not.
+- [ ] Every change has a diff preview in Changes at a Glance within 40 lines per file, or a one-line reason why not.
 - [ ] Verifier can validate without hidden assumptions.
 - [ ] Open questions are isolated from approved requirements.
 - [ ] Every open question carries a recommended answer and the consequence of choosing otherwise.

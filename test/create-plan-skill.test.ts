@@ -6,6 +6,7 @@ import { parse } from "yaml";
 const skillDir = path.join(process.cwd(), ".pi", "skills", "create-plan");
 const skillPath = path.join(skillDir, "SKILL.md");
 const checklistPath = path.join(skillDir, "references", "plan-quality-checklist.md");
+const templatePath = path.join(skillDir, "references", "plan-template.md");
 
 function readSkill(): { text: string; name: string; description: string } {
     expect(fs.existsSync(skillPath), `${skillPath} is missing`).toBe(true);
@@ -80,5 +81,44 @@ describe("create-plan skill", () => {
     it("keeps the graphify gate before Step 2", () => {
         const { text } = readSkill();
         expect(text).toContain("Do not proceed to Step 2");
+    });
+
+    // Humans read the top of the page; the implementer's contract follows below.
+    it("puts TLDR and Changes at a Glance before the numbered details", () => {
+        const template = fs.readFileSync(templatePath, "utf-8");
+        const order = ["## Metadata", "## Grill Status", "## TLDR", "## Changes at a Glance", "## 1.", "## Amendments", "## AI-Notes"];
+        const positions = order.map((heading) => template.indexOf(heading));
+        expect(positions.every((position) => position >= 0)).toBe(true);
+        expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+        expect(template).not.toContain("## In Plain Words");
+    });
+
+    it("keeps every diff preview inside Changes at a Glance", () => {
+        const template = fs.readFileSync(templatePath, "utf-8");
+        const glance = template.slice(template.indexOf("## Changes at a Glance"), template.indexOf("## 1."));
+        expect(glance).toContain("```diff");
+        expect(template.split("```diff").length).toBe(glance.split("```diff").length);
+    });
+
+    it("allows diagrams in plans", () => {
+        expect(readSkill().text).not.toContain("no architecture diagrams");
+        expect(readSkill().text).toContain("only when a flow changes");
+        expect(readSkill().text).toContain("not counting TLDR");
+        expect(fs.readFileSync(checklistPath, "utf-8")).not.toMatch(/architecture diagrams/);
+    });
+
+    // The user rejected numeric caps on plain-language text.
+    it("sets no sentence counts in the TLDR", () => {
+        expect(fs.readFileSync(templatePath, "utf-8")).not.toMatch(/\d+(-\d+)? sentences?/);
+    });
+
+    it("checks that the TLDR matches the numbered sections and exempts old documents", () => {
+        const checklist = fs.readFileSync(checklistPath, "utf-8");
+        expect(checklist).toContain("## TLDR");
+        expect(checklist).toContain("## Changes at a Glance");
+        expect(checklist).toContain("one to one");
+        expect(checklist).toContain("one diff per");
+        expect(checklist).toContain("No sentence or word counts in the TLDR");
+        expect(checklist).toContain("`## In Plain Words` keeps its layout");
     });
 });

@@ -35,10 +35,27 @@ describe("eli5 skill", () => {
     });
 
     // Other skills link to these headings by name.
-    it("keeps the headings other skills link to", () => {
+    it("keeps the headings other skills link to and drops the hard bans", () => {
         const { text } = readSkill();
         expect(text).toContain("## Style rules");
-        expect(text).toContain("## Hard bans");
+        expect(text).not.toContain("## Hard bans");
         expect(text).toContain("## Used by other skills");
+    });
+
+    it("defines ELI5 as high-school level without word or line caps", () => {
+        const { text } = readSkill();
+        expect(text).toContain("high-school level");
+        expect(text).not.toMatch(/Maximum 20 words|at most 10 lines/);
+    });
+
+    // SYSTEM.md owns the core rule; the skill only adds to it.
+    it("builds its style rules on the SYSTEM.md rule", () => {
+        const styleRules = readSkill().text.split("## Style rules")[1] ?? "";
+        expect(styleRules.trimStart().startsWith("Base: the ELI5 rule in `.pi/SYSTEM.md`")).toBe(true);
+    });
+
+    it("keeps the no re-paste rule for re-pitches", () => {
+        const procedure = readSkill().text.split("## Procedure")[1]?.split("## Style rules")[0] ?? "";
+        expect(procedure).toContain("re-paste");
     });
 });

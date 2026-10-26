@@ -1,38 +1,33 @@
 ---
 name: eli5
-description: Use this skill when the user did not understand the last message, says they are lost, or asks to hear it in simpler terms. Stop the task and re-pitch the last message from scratch in plain language (ELI5 / ASD-STE100 Simplified Technical English), with the context that led to it. Do not use to summarize a long result, to shorten output on request, or to translate.
+description: Use this skill when the user did not understand the last message, says they are lost, or asks to hear it in simpler terms. Stop the task and re-pitch the last message from scratch at high-school level (what "ELI5" means in this repo), with the context that led to it. Do not use to summarize a long result, to shorten output on request, or to translate.
 disable-model-invocation: true
 ---
 
 # ELI5
+
+"ELI5" is the word people use to ask for a simpler explanation. Here it means **high-school level**: write for a smart 17-year-old who is new to this project. Too simple loses the meaning; too dense loses the reader. Keep the real terms and the reasons, and explain them.
 
 Re-pitch the last message from scratch.
 
 ## Procedure
 
 1. **Stop.** Pause the task. Open no new topics. Run no tools unless a fact is missing.
-2. **State where things are at.** One or two sentences: what the task is, where you stopped.
-3. **Re-pitch, do not re-format.** Rewrite the last message, do not reword it. Simpler content, not just simpler words. Keep only what the next step needs. Add the context that led to it.
-4. **Stay true.** Simpler must not mean wrong. If a detail cannot be both simple and correct, drop it and say so in one line: "There is more detail here. I left it out for now."
-5. **Check it landed.** End with one yes/no question about the explanation. Nothing else.
+2. **State where things are at.** What the task is, and where you stopped.
+3. **Re-pitch, do not re-format.** Rewrite the last message from scratch, not just with easier words. Keep what the next step needs. Add the context that led to it, and an example or a missing reason when it helps. Do not re-paste the same code block; say what it does.
+4. **Stay true.** Simpler must not mean wrong. If a detail cannot be both simple and correct, keep it correct and explain it.
+5. **Check it landed.** End with one yes/no question about the explanation.
 
 ## Style rules
 
-- One idea per sentence. Maximum 20 words per sentence.
-- Active voice. Present tense where possible.
-- Simple words: "use" not "utilize", "start" not "commence", "so" not "consequently".
-- Positive form: "the guard blocks writes outside the scope", not "the guard does not allow writes outside the scope".
-- Same word for the same thing every time. Never switch synonyms.
-- Jargon only when the next step needs it. Define it once, in a short clause: "a rebase (replaying your commits on top of the new base)".
-- Whole output is at most 10 lines, and always shorter than the message that failed.
+Base: the ELI5 rule in `.pi/SYSTEM.md` › Communication (high-school level, real terms defined once, reasons kept, what/why/check per step). These rules add to it:
 
-## Hard bans
-
-- No apology. No "sorry that was unclear". No account of why the last message failed.
-- No idioms, no metaphors, no analogies, no hedges.
-- No tables, no headings, no bullet nesting deeper than one level.
-- No re-pasting the same code block. Describe what it does instead.
-- No new information that was not in the failed message, except the context from step 3.
+- Use concrete names: the file, the command, the exact error text.
+- Same word for the same thing every time.
+- A short-clause definition looks like this: "a rebase (replaying your commits on top of the new base)".
+- Examples help. An analogy is fine while it stays correct.
+- Tables, headings, lists, and code blocks are fine when they make the text easier to follow.
+- No fluff: no apology, no hedge, no account of why an earlier message failed.
 
 ## If it still does not land
 
@@ -45,7 +40,7 @@ A second ELI5 request, or a "no" to the check question, means it did not land. G
 
 ## Used by other skills
 
-The **Style rules** and **Hard bans** above are the single origin for plain language in `.pi/skills/`. Other skills link here instead of restating them. When a skill says "written to the eli5 rules", it means those two sections, and nothing else in this file.
+The **Style rules** above, on top of the SYSTEM.md rule, are the single origin for plain language in `.pi/skills/`. Other skills link here instead of restating them. When a skill says "written to the eli5 rules" or "eli5 style", it means that section, and nothing else in this file.
 
 Skills that link here: `../grill-me/references/summary-template.md`, `../create-spec/SKILL.md`, `../create-plan/SKILL.md`.
 
@@ -58,7 +53,7 @@ Failed message:
 Re-pitch:
 
 > We are adding the login fix. I stopped before editing any file.
-> A guard decides which files I am allowed to edit. It reads that list from the spec file.
-> The list was changed after the guard read it. So the guard now holds the old list.
-> You need to reload it. Run `/scope off`, then `/scope docs/specs/login/spec-login.md`.
+> A guard (a check that runs before every file write) decides which files I may edit. It reads that list from the Scope section of the spec, `docs/specs/login/spec-login.md`, at the moment the spec is written.
+> The grill session changed the Scope list after the guard read it. So the guard still holds the old list, and it would block files the new list allows.
+> To reload it, run `/scope off`, then `/scope docs/specs/login/spec-login.md`. The guard then reads the new list.
 > Does that make sense?

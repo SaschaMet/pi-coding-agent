@@ -14,12 +14,24 @@ Use this gate before finalizing a plan.
 - [ ] `## Amendments` and `## AI-Notes` exist, in that order, after Done When; AI-Notes is the last section.
 - [ ] No new heading contains the word `Scope`.
 
-## In Plain Words
+## TLDR
 
-- [ ] The section exists, between the Grill Status table and section 1.
-- [ ] Four lines: what we are doing, why, what could break, how we will know it worked.
-- [ ] One sentence per line, 20 words maximum, no jargon.
-- [ ] A reader who opens only this section knows whether to approve the plan.
+- [ ] A plan that still has `## In Plain Words` keeps its layout: skip the TLDR and Changes at a Glance checks for it.
+- [ ] The section exists, between the Grill Status table and Changes at a Glance.
+- [ ] Written at high-school level: real terms defined once, reasons kept, no internal vocabulary.
+- [ ] It holds what and why, how it works, steps, what could break, how we will know it worked, and decisions for you. A one-behavior plan may merge the first two; empty parts say "None." with a reason.
+- [ ] One step line per Change in section 3, same number, each with what happens, why, and how we check it.
+- [ ] One line per open decision, each with a recommended answer.
+- [ ] Step lines and decision lines match section 3 and the open decisions one to one.
+- [ ] No sentence or word counts in the TLDR.
+- [ ] A reader of TLDR and Changes at a Glance alone knows whether to approve the plan.
+
+## Changes at a Glance
+
+- [ ] The section exists, between TLDR and section 1.
+- [ ] Every diff preview in the plan sits here, none in section 3.
+- [ ] Each diff has a caption line: `Change N — path — what changes`. A file changed by two Changes gets one diff per Change.
+- [ ] A diagram appears only when a flow changes, and only here.
 
 ## 1. Graphify
 
@@ -38,7 +50,7 @@ Use this gate before finalizing a plan.
 - [ ] Each change names the exact file.
 - [ ] Each change has a description.
 - [ ] No vague wording (`refactor`, `cleanup`, `improve`).
-- [ ] Every change has a diff preview within 40 lines per file, or a one-line reason why not.
+- [ ] Every change has a diff preview in Changes at a Glance within 40 lines per file, or a one-line reason why not.
 
 ## 4. Tests
 
@@ -64,6 +76,6 @@ Use this gate before finalizing a plan.
 
 ## 8. Size Check
 
-- [ ] Plan is under 150 lines, excluding the In Plain Words, Metadata, Amendments, and AI-Notes sections.
-- [ ] No BDD, CARDS, or architecture diagrams.
+- [ ] Plan is under 150 lines, excluding the TLDR, Metadata, Amendments, and AI-Notes sections.
+- [ ] No BDD or CARDS.
 - [ ] If the change spans more than 3 files or multiple modules, escalated to `$create-spec`.
