@@ -138,6 +138,11 @@ describe("slop-check.mjs", () => {
         expect(run.stdout).toMatch(/S15/);
     });
 
+    it("flags filler and doublets from the compression reference", () => {
+        expect(check(["--lang", "en", "--stdin"], "It is generally fine.").stdout).toMatch(/S15/);
+        expect(check(["--lang", "en", "--stdin"], "Read any and all notes.").stdout).toMatch(/compression phrase/);
+    });
+
     it("ignores fenced code, inline code, and HTML comments", () => {
         const text = [
             "Use `Let's dive in` as the bad example.",

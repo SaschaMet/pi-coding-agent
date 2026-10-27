@@ -12,7 +12,7 @@ Re-pitch the last message from scratch.
 
 ## Procedure
 
-1. **Stop.** Pause the task. Open no new topics. Run no tools unless a fact is missing.
+1. **Stop.** Pause the task. Open no new topics. Run a tool only to fetch a missing fact.
 2. **State where things are at.** What the task is, and where you stopped.
 3. **Re-pitch, do not re-format.** Rewrite the last message from scratch, not just with easier words. Keep what the next step needs. Add the context that led to it, and an example or a missing reason when it helps. Do not re-paste the same code block; say what it does.
 4. **Stay true.** Simpler must not mean wrong. If a detail cannot be both simple and correct, keep it correct and explain it.
@@ -20,10 +20,11 @@ Re-pitch the last message from scratch.
 
 ## Style rules
 
-Base: the ELI5 rule in `.pi/SYSTEM.md` › Communication (high-school level, real terms defined once, reasons kept, what/why/check per step). These rules add to it:
+Base: the ELI5 rule in `.pi/SYSTEM.md` › Communication (high-school level, compressed, real terms defined once, reasons kept, what/why/check per step). These rules add to it:
 
 - Use concrete names: the file, the command, the exact error text.
 - Same word for the same thing every time.
+- Compression word lists and examples: `../deslop/references/compression.md`.
 - A short-clause definition looks like this: "a rebase (replaying your commits on top of the new base)".
 - Examples help. An analogy is fine while it stays correct.
 - Tables, headings, lists, and code blocks are fine when they make the text easier to follow.
@@ -40,9 +41,9 @@ A second ELI5 request, or a "no" to the check question, means it did not land. G
 
 ## Used by other skills
 
-The **Style rules** above, on top of the SYSTEM.md rule, are the single origin for plain language in `.pi/skills/`. Other skills link here instead of restating them. When a skill says "written to the eli5 rules" or "eli5 style", it means that section, and nothing else in this file.
+The **Style rules** above, on top of the SYSTEM.md rule, are the single origin for plain language in `.pi/skills/`. Other skills link here instead of restating them. When a skill says "written to the eli5 rules" or "eli5 style", it means that section only.
 
-Skills that link here: `../grill-me/references/summary-template.md`, `../create-spec/SKILL.md`, `../create-plan/SKILL.md`.
+Skills that link here: `../grill-me/SKILL.md`, `../grill-me/references/question-format.md`, `../grill-me/references/summary-template.md`, `../create-spec/SKILL.md`, `../create-plan/SKILL.md`, `../pr-quiz/SKILL.md`, `../youtube-transcript/SKILL.md`.
 
 ## Example
 

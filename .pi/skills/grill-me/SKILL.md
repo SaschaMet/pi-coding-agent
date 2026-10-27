@@ -100,7 +100,7 @@ Ask the whole frontier. Wait for the answers. Recompute the frontier. Repeat.
 
 **Send this before the first question. Never bundle it with round 1.** You have just spent four silent steps building a model of the plan; the user has not seen any of it. Questions that arrive before this brief land on someone who does not yet know which plan you read or what you think is at stake.
 
-Plain words: active voice, simple words, no jargon, no hedges.
+Plain words: the [eli5 Style rules](../eli5/SKILL.md), no hedges.
 
 ```
 **Before we start**
@@ -181,10 +181,10 @@ This round decides: the reload steps that decide whether the new policy and rout
 
 ### Rules
 
-- **One round at a time, the full frontier in it.** Never drip-feed a frontier across rounds, and never ask a node whose prerequisite is still open.
+- **One round at a time, the full frontier in it.** Never drip-feed a frontier across rounds. Ask a node only once its prerequisites are settled.
 - Number the questions within a round. Order by tier: `[Critical]` first, highest impact within the tier first, then `[High]`, then `[Medium]` — Medium only once no Critical or High node is open.
 - **Every question is one full block in chat**, in the shape of _The question block_ above. **Do not use a structured question tool, even when the harness offers one** — its dialog hides the explanation and caps the options. The user answers in chat, for example `1A 2B 3D: <note>`.
-- **Style**: active voice, simple words, one idea per sentence, no metaphors, no hedges. Use the plan's and the user's own terms; define any other term once, in a short clause. No line cap and no word cap — bold part labels and lettered options are the layout. An explanation still fails if its nouns are unexplained.
+- **Style**: the [eli5 Style rules](../eli5/SKILL.md), no metaphors, no hedges. Use the plan's and the user's own terms; define any other term once, in a short clause. No line cap and no word cap — bold part labels and lettered options are the layout. An explanation still fails if its nouns are unexplained.
 - **The explanation is about the decision, never about you.** Do not narrate your process, justify why you are asking, or account for what you did or did not notice earlier. Strip every sentence whose subject is you or the grilling.
 - **Every option earns its own description**: what it does, what it costs, what it rules out. If two options read the same, you have not finished writing them.
 - **Every question carries your recommended answer**: the option, why it beats _the specific runner-up_, and when it would be the wrong call.

@@ -43,11 +43,11 @@ const RULES = {
         { id: "S2 colon reveal?", hard: false, re: /[a-z)] ?: [\p{L}0-9]/u },
         { id: "S13 slop word", hard: false, re: words(
             "delve|tapestry|testament|leverag\\w*|seamless\\w*|robust|unlock\\w*|empower\\w*|game[- ]changer|transformative|elevate\\w*|realm|landscape|synergy|cutting[- ]edge|pivotal|crucial|vibrant|holistic|moving forward") },
-        { id: "S15 hedge", hard: false, re: words("very|really|actually|basically|essentially|truly|quite|arguably") },
+        { id: "S15 hedge", hard: false, re: words("very|really|actually|basically|essentially|truly|quite|arguably|generally|practically|virtually|particularly") },
         { id: "S22 engagement bait", hard: false, re: words(
             "what[’']s your take|what do you think\\?|thoughts\\?|let me know your thoughts|drop a comment|agree\\?") },
         { id: "compression phrase", hard: false, re: words(
-            "in order to|due to the fact that|at this point in time|in terms of|for the purpose of|a number of|is able to|make a decision|each and every|first and foremost|end result|past experience|future plans") },
+            "in order to|due to the fact that|at this point in time|in terms of|for the purpose of|a number of|is able to|make a decision|each and every|first and foremost|end result|past experience|future plans|any and all|fully and completely|true and accurate|free gift|in the event that|despite the fact that|in size|in shape|in nature") },
     ],
     de: [
         { id: "S4 stock opener", hard: true, re: words(

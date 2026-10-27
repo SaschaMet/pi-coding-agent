@@ -43,7 +43,7 @@ Slop is a sentence written for its sound, with no fact behind it. Fixing the sur
 |---|---|---|
 | S13 | Abstract or inflated words instead of the observation: leverage, seamless, robust, unlock, empower, transformative, landscape, delve · Klarheit, Potenzial, Mehrwert, Hebel, nahtlos, ganzheitlich | Name what was seen: the page, the field, the number. |
 | S14 | Zombie nouns: "perform an analysis of" · „die Durchführung der Anpassung“ | Actor as subject, action as verb: "analyse", „ich passe an“. |
-| S15 | Hedges and intensifiers: very, really, actually, basically, quite · sehr, wirklich, durchaus, ziemlich, äußerst | Delete, or give the number. |
+| S15 | Hedges and intensifiers: very, really, actually, basically, quite, generally, practically, virtually, particularly · sehr, wirklich, durchaus, ziemlich, äußerst | Delete, or give the number. |
 | S16 | Meta-discourse: "as we'll see", "it's worth noting that", "it is important to understand" · „im Folgenden“, „wie bereits erwähnt“ | Start with the matter. |
 | S17 | A fact stated without its observer, where the text already names one | Keep the writer's framing. Never add an observer ("I found", „ich habe gesehen“) the writer did not state. |
 

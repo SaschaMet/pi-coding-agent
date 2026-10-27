@@ -4,7 +4,7 @@
 
 - The idea · 1. Cut filler · 2. Cut doublets · 3. Cut implied words · 4. Use the exact word · 5. Write in the positive · Classification
 
-Read only when the user asks to tighten, shorten, or improve a text. Not in review or author mode.
+Read in improve and author mode. Not in review mode.
 
 ## The idea
 
@@ -17,16 +17,16 @@ Five techniques: three cut, two replace. Keep the honest qualifiers from the kee
 
 ## 1. Cut filler
 
-Delete; do not replace.
+Spoken habits, like clearing your throat before you speak. Delete them.
 
-- EN: really, actually, basically, just, simply, very, quite, certain, various, particular, individual
+- EN: really, actually, basically, just, simply, very, quite, certain, various, particularly, individual, generally, given, practically, virtually
 - DE: eigentlich, quasi, irgendwie, relativ, wirklich, grundsätzlich, im Grunde, praktisch, letztendlich, tatsächlich, durchaus, sozusagen, ziemlich, bestimmte, gewisse, diverse
 
-**Keep:** quantified uncertainty ("usually", „meist“) and softeners that carry politeness in direct messages („gerade“, „noch“).
+**Keep:** quantified uncertainty ("usually", „meist“), softeners that carry politeness in direct messages („gerade“, „noch“), and "given" when it means "because of".
 
 ## 2. Cut doublets
 
-Two words for one meaning. Keep the stronger one.
+Two words for one meaning, often a French or Latin word paired with its Anglo-Saxon twin. Keep the stronger one.
 
 | EN | Keep | DE | Keep |
 |---|---|---|---|
@@ -36,6 +36,8 @@ Two words for one meaning. Keep the stronger one.
 | full and complete | complete | Sinn und Zweck | Zweck |
 | any and all | all | klar und deutlich | klar |
 | help and assist | help | Hilfe und Unterstützung | Hilfe |
+| fully and completely | completely | ganz und gar | ganz |
+| true and accurate | accurate | Fug und Recht | Recht |
 
 A gendered pair ("Kundinnen und Kunden") is not a doublet. Use the form the text already uses.
 
@@ -50,7 +52,10 @@ A word whose meaning another word already carries.
 | future plans | plans | zukünftige Pläne | Pläne |
 | past experience | experience | vorherige Erfahrung | Erfahrung |
 | free gift | gift | kostenloses Geschenk | Geschenk |
-| end result | result | Endergebnis | Ergebnis |
+| end result, ultimate result | result | Endergebnis | Ergebnis |
+| upcoming trends you anticipate | upcoming trends | erwartete künftige Trends | Trends |
+| totally transform | transform | völlig verändern | verändern |
+| suddenly astonish | astonish | plötzlich überraschen | überraschen |
 | plan ahead | plan | im Voraus planen | planen |
 | completely new | new | bereits schon | bereits |
 
@@ -64,17 +69,28 @@ Exception: a modifier that distinguishes stays. "free trial" names an offer that
 | of great importance | important | von großer Bedeutung | wichtig |
 | the area of marketing | marketing | der Bereich Marketing | Marketing |
 | in a logical manner | logically | im Rahmen des Gesprächs | im Gespräch |
+| large in size, round in shape | large, round | von runder Form | rund |
+| intuitive in nature | intuitive | intuitiver Natur | intuitiv |
 
 Area, topic, process, measure, aspect, situation · Bereich, Thema, Rahmen, Prozess, Maßnahme, Aspekt are the usual carriers. Each one is also a hint to name the concrete thing.
+
+**General implications**: the repeated meaning is spread across several words, so no single word stands out. Read the phrase as one idea and rewrite it.
+
+> "attempting to learn the conventions for writing the art of poetry" → "learning the conventions of poetry"
+> „der Versuch, die Regeln für das Schreiben der Kunst der Lyrik zu erlernen“ → „die Regeln der Lyrik lernen“
 
 ## 4. Use the exact word
 
 One precise word for a long phrase. In German the main source is Nominalstil: a verb turned into a noun and propped up by a weak verb.
 
+**Find them:** look past the words to the ideas. Many words carrying few ideas means one word can replace them.
+
 | EN | Exact | DE | Exact |
 |---|---|---|---|
 | due to the fact that | because | aufgrund der Tatsache, dass | weil |
-| in spite of the fact that | although | trotz der Tatsache, dass | obwohl |
+| in spite of / despite the fact that | although | trotz der Tatsache, dass | obwohl |
+| concerning the matter of | about | was die Frage … betrifft | zu |
+| thoroughly review what you have written | revise | das Geschriebene gründlich durchsehen | überarbeiten |
 | in the event that | if | für den Fall, dass | falls |
 | with regard to, in terms of | about, for | in Bezug auf, hinsichtlich | zu, bei |
 | at this point in time | now | zum jetzigen Zeitpunkt | jetzt |
@@ -96,11 +112,13 @@ Every negation makes the reader flip the meaning back.
 | did not remember | forgot | nicht berücksichtigen | auslassen |
 | not more than | at most | nicht mehr als | höchstens |
 | not later than | by | nicht später als | spätestens |
+| not include | omit | nicht erlauben | verbieten |
+| not allow | prevent | nicht beachten | ignorieren |
 
-Stacked negatives with hidden ones (without, unless, fail to · ohne, außer, fehlen) are the worst case:
+The worst case is a plain negative stacked with hidden ones (fail, without, unless, deny, prevent, lack · ohne, außer, fehlen, verhindern, verweigern), often wrapped in passive voice or a verb turned into a noun:
 
-> "Cancellation is not possible without prior notice unless it occurs not later than 24 hours before."
-> → "If you need to cancel, tell us at least 24 hours ahead."
+> "There should be no submission of payments without notification of this office unless the payment does not exceed $100."
+> → "If you are paying more than $100, notify this office."
 
 **Keep the negative when it is the point:** refusals ("We can't promise rankings"), warnings, and legal precision. Turning a refusal into a positive changes a refusal into a promise.
 

@@ -13,7 +13,7 @@ How to write a question so the user can decide from it alone. Read before the fi
 ## The four-part explanation
 
 Every question carries all four, in this order, inside the block from `SKILL.md` Step 5, _The question
-block_. Style: active voice, simple words, one idea per sentence, no metaphors, no hedges. No line cap
+block_. Style: the eli5 Style rules (`../../eli5/SKILL.md`), no metaphors, no hedges. No line cap
 and no word cap — complete beats concise.
 
 1. **What the plan says now** — the anchor. Name the section, file, or line the question attacks, and

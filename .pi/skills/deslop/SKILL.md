@@ -9,13 +9,13 @@ Find the **slop** in a text and take it out. Slop is a sentence written for its 
 
 ## Goal
 
-Same process every run: diagnose, fix what keeps the meaning, propose what changes it, check mechanically. The output says what the input said, in fewer and plainer words, and contains nothing the writer did not supply.
+Same process every run: diagnose, fix what keeps the meaning, propose what changes it, check mechanically. The output says what the input said, in fewer and plainer words, and contains only what the writer supplied.
 
 ## Definition of Done
 
 - The check script prints CLEAN for every language in the text, or each remaining `✗` line is reported as a false positive. In review mode, its hits on the input are reported instead.
-- Nothing was added that was not in the input or supplied by the user.
-- Every substance-level change was proposed, not applied, unless the user approved it.
+- Every claim in the output comes from the input or the user.
+- Substance-level changes were proposed; only the ones the user approved were applied.
 - The reader's next step is at least as clear as before.
 - The output follows the mode's shape (Output section).
 
@@ -47,11 +47,11 @@ Sort every edit before you make it. **When in doubt, it is substance-level.**
 
 ## Workflow
 
-Each step ends on a condition you can check. Do not start the next step before it is met.
+Each step ends on a condition you can check. Start the next step only when it is met.
 
 ### 1. Brief
 
-Settle five things. Ask only what you cannot read off the text and its context.
+Settle five things. Ask only what the text and its context leave open.
 
 | Question | Default |
 |---|---|
@@ -70,7 +70,7 @@ A fault high on the list makes the ones below it irrelevant.
 1. **Point and claims:** one central claim? If not, that is a substance finding. Every number or result the text gives no source for gets a numbered proposal asking for the source. Keep it as written; never delete it, and never pass it silently.
 2. **Structure:** Skim Test: read only the first line of each section; that skeleton must tell the story.
 3. **Slop:** read `references/slop.md` and walk S1–S22. Apply each "fine when" line before you flag.
-4. **Compression** (improve mode only): read `references/compression.md`. Count ideas, not words.
+4. **Compression** (improve and author mode): read `references/compression.md`. Count ideas, not words.
 5. **Concrete over abstract:** each abstract noun replaced by what was seen, if the text says what that was. If it does not, that is a gap, not an invention.
 
 *Done when:* every finding is written down and classified text-level or substance-level.
@@ -87,7 +87,7 @@ Apply the text-level findings. Number the substance-level ones, unapplied, each 
 
 Only approved items and text-level fixes. Structure first, then paragraphs, then sentences. Keep the writer's register and every keep-list item. For a named file, show the change as a `diff` block and apply it on the user's go.
 
-*Done when:* every approved item is done and no unapproved item was touched.
+*Done when:* every approved item is done, and only approved items changed.
 
 ### 5. Check
 
@@ -106,7 +106,7 @@ node <skill-dir>/scripts/slop-check.mjs --lang en|de <file>     # or: --stdin fo
 For prose you drafted and have not sent: a PR description, a plan, a release note.
 
 - Skip the brief and the gate. Ask no questions.
-- Read `references/slop.md`. Apply text-level fixes directly. Run the step 5 check.
+- Read `references/slop.md` and `references/compression.md`. Apply text-level fixes directly. Run the step 5 check.
 - Wording only: never add, remove, or question a claim, and never insert a gap marker. Facts belong to the skill that drafted the text.
 - Keep bullets as bullets, and inline code, paths, and commands exactly as written.
 
@@ -115,7 +115,7 @@ For prose you drafted and have not sent: a PR description, a plan, a release not
 - **Compression is not shortness.** A long sentence where every word carries an idea stays. Chopping it into stubs creates S9 staccato.
 - **Do not swap one slop word for another.** "optimise" for "improve" is a synonym, not a fix. Name the concrete thing, or cut.
 - **Qualifiers and refusals are the honest part.** "usually", "in most cases", "We can't promise X" stay. Cutting them turns an estimate into a promise.
-- **Do not over-correct.** A text with no slop gets no rewrite. Say so and return it unchanged.
+- **Do not over-correct.** Return a clean text unchanged, and say so.
 - **A rule firing on clearly right text is a false positive.** Leave the text, and name the rule and the line in Findings so the rule can be fixed.
 - **Keep the register.** du stays du, Sie stays Sie, contractions stay contractions. Changing it is substance-level.
 - **German quotes, dashes, and "!" are voice choices.** Change them only when a voice guide says so.
@@ -125,7 +125,7 @@ For prose you drafted and have not sent: a PR description, a plan, a release not
 | File | Read it when |
 |---|---|
 | [references/slop.md](references/slop.md) | Every mode, at diagnose step 3 and in author mode |
-| [references/compression.md](references/compression.md) | Improve mode only, at diagnose step 4. Not in review or author mode |
+| [references/compression.md](references/compression.md) | Improve and author mode, at diagnose step 4. Not in review mode |
 | [scripts/slop-check.mjs](scripts/slop-check.mjs) | Run it at step 5. `--help` lists the options |
 
 ## Output

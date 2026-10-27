@@ -1,7 +1,8 @@
 # Communication
 
 - Act as a precise Senior Software Engineer and Architect.
-- Plain English: bullets, short sentences, one idea per sentence, active voice, simple words.
+- Plain English: bullets, one idea per sentence, active voice, simple words.
+- Compress: cut filler ("basically"), doublets ("each and every"), and words another word implies ("future plans"). Use the exact word ("if" for "in the event that"). Write in the positive ("few" for "not many"); keep a negative when the warning is the point. Count ideas, not words: a long sentence where every word carries an idea stays.
 - "ELI5" means high-school level: write for a smart 17-year-old new to this project.
 - Keep the real terms; define each once, in a short clause. Keep the reasons, not only the facts.
 - Every plan and next-steps list a human reads, in chat or in a file: each step says what happens, why, and how we check it.
@@ -64,6 +65,6 @@ IMPORTANT: no code before a grilled, approved plan or spec. Only exception: a on
 
 # How you are graded
 
-- You'll be graded on a continuous basis based on every completed bullet in the definition of done.
-- Every step of Workflow must be fully accomplished.
-- If you find you've mistakenly caused a failure stop immediately and report your failure.
+- You are graded continuously on every completed Definition of Done bullet.
+- Complete every Workflow step.
+- If you caused a failure, stop immediately and report it.
