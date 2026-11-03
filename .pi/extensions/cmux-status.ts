@@ -124,7 +124,9 @@ export default function cmuxStatusExtension(pi: ExtensionAPI): void {
     // Last tab text sent, so an unchanged list costs no set-status call.
     let lastTabs = "";
 
-    const refreshTabs = (): void => {
+    // force: another pi session in this workspace may have cleared the shared
+    // pill on its shutdown, so an unchanged text still has to be re-sent.
+    const refreshTabs = (force = false): void => {
         const workspaceId = process.env.CMUX_WORKSPACE_ID;
         if (!workspaceId) return;
         runCmuxTask(async () => {
@@ -132,7 +134,7 @@ export default function cmuxStatusExtension(pi: ExtensionAPI): void {
                 timeout: EXEC_TIMEOUT_MS,
             });
             const text = tabNames(tree.stdout, workspaceId).join(TAB_SEPARATOR);
-            if (!text || text === lastTabs) return;
+            if (!text || (!force && text === lastTabs)) return;
             await pi.exec(
                 "cmux",
                 ["set-status", TABS_KEY, text, "--icon", "rectangle.stack", "--workspace", workspaceId],
@@ -192,7 +194,7 @@ export default function cmuxStatusExtension(pi: ExtensionAPI): void {
         if (!active(ctx)) return;
         agentRunning = false;
         setState(pi, "idle");
-        refreshTabs();
+        refreshTabs(true);
     });
 
     pi.on("session_shutdown", async (_event, ctx) => {

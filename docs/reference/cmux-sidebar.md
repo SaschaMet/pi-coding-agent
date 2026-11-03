@@ -41,7 +41,7 @@ The pi extension `cmux-status` runs `cmux set-status` only inside a live cmux te
 | `pi-<surface id>` | `idle` | `moon.zzz` | `#8e8e93` | Session start, agent end |
 | `pi-<surface id>` | `working` | `sparkle` | `#ff9500` | Agent start, after a UI prompt closes during a run |
 | `pi-<surface id>` | `needs input` | `bell.fill` | `#ff3b30` | A UI prompt opens during a run (also flashes the pane and sends a notification) |
-| `pi-tabs` (per workspace) | tab titles joined with ` · ` | `rectangle.stack` | — | Session start, agent end, after `set_pane_title`; sent only when the text changes |
+| `pi-tabs` (per workspace) | tab titles joined with ` · ` | `rectangle.stack` | — | Session start and after `set_pane_title` when the text changed; every agent end, even unchanged |
 
 On session shutdown the extension runs `cmux clear-status pi-<surface id>` and `cmux clear-status pi-tabs --workspace <id>`. Another pi session in the same workspace restores `pi-tabs` on its next agent end.
 

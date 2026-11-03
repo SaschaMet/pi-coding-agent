@@ -265,7 +265,17 @@ describe("cmux sidebar pills", () => {
             expect(tabCalls(execSpy)).toEqual([tabsArgs("a · b · c")]);
         });
 
-        it("AC3: sends the tab pill only when its text changes", async () => {
+        it("AC3: session_start and set_pane_title send the tab pill only when its text changes", async () => {
+            enterCmux();
+            const pi = register();
+            const execSpy = mockExec(pi, () => treeJson([["a", "b"], ["c"]]));
+            await fire(pi, "session_start");
+            await pi.tools.get("set_pane_title")!.execute("id", { title: "a" }, undefined, undefined, { mode: "tui" });
+            await flush();
+            expect(tabCalls(execSpy)).toEqual([tabsArgs("a · b · c")]);
+        });
+
+        it("AC3: agent_end re-sends an unchanged tab pill, restoring it after another session in the workspace cleared it", async () => {
             enterCmux();
             const pi = register();
             let tree = treeJson([["a", "b"], ["c"]]);
@@ -273,13 +283,12 @@ describe("cmux sidebar pills", () => {
             await fire(pi, "session_start");
             await fire(pi, "agent_start");
             await fire(pi, "agent_end");
-            expect(argsOf(execSpy).filter((a) => a[0] === "tree").length).toBe(2);
-            expect(tabCalls(execSpy)).toEqual([tabsArgs("a · b · c")]);
+            expect(tabCalls(execSpy)).toEqual([tabsArgs("a · b · c"), tabsArgs("a · b · c")]);
 
             tree = treeJson([["a", "renamed"], ["c"]]);
             await fire(pi, "agent_start");
             await fire(pi, "agent_end");
-            expect(tabCalls(execSpy)).toEqual([tabsArgs("a · b · c"), tabsArgs("a · renamed · c")]);
+            expect(tabCalls(execSpy).at(-1)).toEqual(tabsArgs("a · renamed · c"));
         });
 
         it("AC3: set_pane_title refreshes the tab names after rename-tab", async () => {
