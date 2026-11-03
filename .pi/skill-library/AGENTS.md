@@ -17,7 +17,7 @@ Manual, on-demand skill store. Skills here are **not** auto-discovered and cost 
 | Description in every session's context | yes                      | no             |
 | Invoked by                             | the agent, automatically | you, by name   |
 
-The whole point: the 26 skills here add **zero** tokens to a session that does not use them. Move a skill to `../skills/` only when you want it triggered without asking.
+The whole point: the 30 skills here add **zero** tokens to a session that does not use them. Move a skill to `../skills/` only when you want it triggered without asking.
 
 ## How an agent uses a skill from here
 
@@ -152,6 +152,15 @@ Source: project-local `.pi/skills/`, moved to the library 2026-09-23.
 | Skill       | What it does                                                                                                                      |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `wayfinder` | Charts an effort too big for one session as a map of decision tickets, resolves them one per session, hands off to `create-spec`. |
+
+### Review
+
+Source: project-local `.pi/skills/`, moved to the library 2026-10-30.
+
+| Skill         | What it does                                                                                |
+| ------------- | ------------------------------------------------------------------------------------------- |
+| `pr-quiz`     | Quizzes the user on a PR, branch, or diff as a whiteboard defense of what changed and why.  |
+| `visual-diff` | Builds one offline HTML page that explains a change set beside its real highlighted diff.   |
 
 ### Architecture diagrams
 

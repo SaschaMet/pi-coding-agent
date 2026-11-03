@@ -43,7 +43,7 @@ A second ELI5 request, or a "no" to the check question, means it did not land. G
 
 The **Style rules** above, on top of the SYSTEM.md rule, are the single origin for plain language in `.pi/skills/`. Other skills link here instead of restating them. When a skill says "written to the eli5 rules" or "eli5 style", it means that section only.
 
-Skills that link here: `../grill-me/SKILL.md`, `../grill-me/references/question-format.md`, `../grill-me/references/summary-template.md`, `../create-spec/SKILL.md`, `../create-plan/SKILL.md`, `../pr-quiz/SKILL.md`, `../youtube-transcript/SKILL.md`.
+Skills that link here: `../grill-me/SKILL.md`, `../grill-me/references/question-format.md`, `../grill-me/references/summary-template.md`, `../create-spec/SKILL.md`, `../create-plan/SKILL.md`, `../youtube-transcript/SKILL.md`.
 
 ## Example
 

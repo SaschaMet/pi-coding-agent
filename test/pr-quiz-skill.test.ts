@@ -3,7 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
-const skillDir = path.join(process.cwd(), ".pi", "skills", "pr-quiz");
+const skillDir = path.join(process.cwd(), ".pi", "skill-library", "pr-quiz");
 const skillPath = path.join(skillDir, "SKILL.md");
 
 function readSkill(): { text: string; name: string; description: string } {

@@ -11,7 +11,7 @@ The project-local PI config tree — the source of truth for the global PI runti
 - `.pi/settings.json` — local PI settings (tool-layer `ignorePatterns`, etc.).
 - `.pi/SYSTEM.md` — durable agent rules (single origin; referenced by root `AGENTS.md`). Copied to `~/.claude/CLAUDE.md` on sync.
 - `.pi/agents/` — subagent role definitions (`generic-readonly`, `generic-worker`) for `@tintinweb/pi-subagents`.
-- `.pi/skills/` — project-local skills (`create-spec`, `code-review`, `graphify`, `init-project`, `add-coding-standard`, `obsidian-search`, `visual-diff`, …).
+- `.pi/skills/` — project-local skills (`create-spec`, `code-review`, `graphify`, `obsidian-search`, `eli5`, …).
 - `.pi/extensions/` — quality-gate + boundary-guard extensions (see child).
 - `.pi/security/` — the shared security policy (`policy.ts`), its pure evaluator (`guard-core.ts`), the Claude hook and git pre-commit CLI (`guard-cli.ts`), the read-only install check (`check-install.ts`), the global git hook dispatcher (`git-hooks/`), and the global git ignore file. Synced to `~/.pi/agent/security/`; see `docs/reference/gates-and-guards.md`.
 - `.pi/local-packages/` — local extensions loaded as `packages` entries in `settings.json`, for ones that must run before npm packages (`pii-redaction.ts`, before noheadroom).

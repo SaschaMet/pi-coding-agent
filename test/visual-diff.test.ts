@@ -6,7 +6,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
-const SKILL_DIR = path.join(import.meta.dirname, "..", ".pi", "skills", "visual-diff");
+const SKILL_DIR = path.join(import.meta.dirname, "..", ".pi", "skill-library", "visual-diff");
 const SCRIPT = path.join(SKILL_DIR, "scripts", "visual-diff.mjs");
 
 // Built at runtime so no tool command line carries the env dotfile literal.
