@@ -43,7 +43,9 @@ const GREP_LOOP_RESULT =
     "=== AC3: Documented filter params vs backoffice-sent (research \u00a75) ===\n\n--- /internal/contracts (backoffice sends 17 keys) ---\nfilters[buyer]\nfilters[end]\n\n--- /internal/xml-files (backoffice sends 8 keys) ---\nfilters[from]\nfilters[partnerSlug]\nfilters[to]\n";
 
 // Real loop from the same session: a wrong flag, re-run 22 times with the same error.
-const SPLIT_LOOP_COMMAND = "cmux new-split --direction right --workspace workspace:1000110016 --label verify-internal-openapi-r2 2>&1";
+// The recorded literal workspace ref is now stopped by the cmux guard at call one, so the replay uses the caller's own.
+const SPLIT_LOOP_RECORDED = "cmux new-split --direction right --workspace workspace:1000110016 --label verify-internal-openapi-r2 2>&1";
+const SPLIT_LOOP_COMMAND = SPLIT_LOOP_RECORDED.replace("workspace:1000110016", '"$CMUX_WORKSPACE_ID"');
 const SPLIT_LOOP_RESULT = "Error: new-split requires a direction\n\n\nCommand exited with code 1";
 
 describe("tool-guards: repeat guard", () => {
@@ -188,6 +190,25 @@ describe("tool-guards: cmux target guard", () => {
         ['cmux send --surface `cat ref.txt` hi'],
         ['cmux send --surface surface:1 --surface "$W" hi'],
         ['cmux \\\n  send --surface "$W" hi'],
+        ['cmux paste --surface "$W" x'],
+        ["cmux paste x"],
+        ["cmux paste-buffer --name b"],
+        ['cmux send-panel --panel "$P" x'],
+        ["cmux send-key-panel enter"],
+        ['cmux paste --surface surface:1 --window "$WIN" x'],
+        ['printf x | cmux paste --surface "$W" -'],
+        ["cmux --id-format refs paste x"],
+        ["cmux --json send x"],
+        ['cmux --socket /s send --surface "$W" x'],
+        ["cmux paste -- --surface surface:2"],
+        ['echo "$(cmux paste x)"'],
+        ['X="$(cmux send x)"'],
+        ['cmux send --surface surface:2 "$(cmux paste x)"'],
+        ['"cmux" paste x'],
+        ["'cmux' paste x"],
+        ["c\\mux paste x"],
+        ["cmux $(echo send) x"],
+        ['cmux "$VERB" --surface surface:1 x'],
     ])("blocks an untraceable target: %s", async (command) => {
         expect((await bash(command))?.block).toBe(true);
     });
@@ -205,6 +226,16 @@ describe("tool-guards: cmux target guard", () => {
         ['timeout 5 cmux send --surface "${W:?}" hi'],
         ['cmux send --workspace "${WS:?}" \\\n  --surface "${W1:?}" "task"'],
         ['cmux send --surface surface:3 "later run: cmux send --surface $W"'],
+        ['cmux paste --surface "${W:?}" --submit x'],
+        ['cmux send-panel --panel surface:2 "echo hi\\n"'],
+        ["printf x | cmux paste --surface surface:3 -"],
+        ["cmux --id-format refs send --surface surface:3 x"],
+        ['cmux paste --surface surface:2 -- --surface "$W"'],
+        ['cmux send --surface surface:2 "built on $(date)"'],
+        ['echo "$(cmux send --surface surface:2 x)"'],
+        ["timeout 10 cmux send --help 2>&1 | head -40"],
+        ["cmux paste --help"],
+        ["for v in paste paste-buffer send-panel; do cmux $v --help | head -5; done"],
     ])("allows a safe target: %s", async (command) => {
         expect(await bash(command)).toBeUndefined();
     });
@@ -215,4 +246,106 @@ describe("tool-guards: cmux target guard", () => {
             expect(await bash(command)).toBeUndefined();
         },
     );
+
+    it.each([
+        ['cmux new-split --workspace "$WS" right --surface "$LAST" --json'],
+        ['W1=$(cmux new-split right --json | jq -r .surface_ref); cmux new-split --workspace "${WS:?}" down --surface "$W1"'],
+        ['cmux new-pane --workspace "$WS" --type terminal --direction right --focus false'],
+        ['cmux new-surface --pane "$P" --type terminal'],
+        ['cmux new-split right --window "$WIN"'],
+        ['cmux new-split --workspace "" right'],
+        ['cmux new-workspace --name "grill" --cwd "$PWD" --command "pi --no-session" --focus false'],
+        ['cmux workspace create --name "pi-team" --cwd "$PWD" --layout "$LAYOUT"'],
+        ['timeout 5 cmux --id-format refs new-workspace'],
+        ['cmux new-split --workspace "${WS:?}" right --surface "${LAST:?}" --json'],
+        ['cmux new-pane --workspace "${WS:?}" --type browser --url https://example.com --focus false'],
+        ["cmux new-split right --workspace workspace:2"],
+        ["cmux new-split right --window window:1"],
+        ['cmux new-split --workspace "$CMUX_WORKSPACE_IDX" right'],
+        ["cmux workspace --window window:1 create"],
+        ["cmux workspace --json create"],
+        ["cmux new-workspace --name --help"],
+        ['bash -lc "cmux new-workspace"'],
+        ['eval "cmux new-workspace"'],
+        ["cmux move-tab-to-new-workspace --surface surface:3"],
+        ["cmux new-window"],
+        ["cmux ssh host"],
+        ["cmux mosh host"],
+        ["cmux ."],
+        ["cmux /tmp"],
+        ["cmux move-surface --surface surface:1 --pane pane:9"],
+        ["cmux split-off --surface surface:3 right --workspace workspace:2"],
+        ["cmux drag-surface-to-split --surface surface:3 right --workspace workspace:2"],
+        ["cmux browser open https://example.com --workspace workspace:2"],
+        ["cmux markdown open notes.md --workspace workspace:2"],
+        ["cmux open notes.md --workspace workspace:2"],
+        ["cmux diff --staged --workspace workspace:2"],
+        ["cmux ssh-session-attach --session-id 1 --workspace workspace:2"],
+        ["cmux tab-action --action move-to-new-workspace --surface surface:3"],
+        ["cmux tab-action --action new-terminal-right --workspace workspace:3"],
+        ["cmux browser open-split https://example.com --workspace workspace:2"],
+        ["cmux browser new https://example.com --window window:2"],
+        ["cmux join-pane --target-pane pane:9 --surface surface:4"],
+        ["cmux swap-pane --pane pane:1 --target-pane pane:9"],
+        ["cmux break-pane --surface surface:4"],
+        ["cmux rpc workspace.create {}"],
+        ["cmux vm open dev"],
+        ["cmux tmux attach foo"],
+        ["cmux local-tmux attach foo"],
+        ["cmux recover --session abc"],
+        ["cmux restore-session"],
+        ["cmux vault fork --agent a --session s --turn 3 --open"],
+        ["cmux session move id --to host"],
+        ["cmux move-workspace-to-window --workspace workspace:2 --window window:2"],
+        ["timeout 5 cmux ."],
+        ["env FOO=1 cmux ~/projects/app"],
+    ])("blocks a pane that may open outside the caller's workspace: %s", async (command) => {
+        const verdict = await bash(command);
+        expect(verdict?.block).toBe(true);
+        expect(verdict?.reason).toMatch(/^\[CMUX\]/);
+    });
+
+    it.each([
+        ["cmux new-split right"],
+        ['cmux new-split right --surface "$CMUX_SURFACE_ID" --json'],
+        ['cmux new-split --workspace "$CMUX_WORKSPACE_ID" right --surface "${LAST:?}" --json'],
+        ['cmux new-split --workspace "$CMUX_WORKSPACE_ID" down --surface surface:12'],
+        ['cmux new-pane --workspace "${CMUX_WORKSPACE_ID}" --type browser --url https://example.com --focus false'],
+        ["cmux new-surface --pane pane:3 --type terminal"],
+        ["cmux split-off --surface surface:3 right"],
+        ["cmux open notes.md"],
+        ["cmux markdown open notes.md"],
+        ["cmux browser open https://example.com"],
+        ["cmux diff --staged"],
+        ["cmux workspace list --json"],
+        ["cmux tree --workspace workspace:2"],
+        ["cmux send --workspace workspace:2 --surface surface:5 x"],
+        ['cmux send --surface "$CMUX_PANEL_ID" x'],
+        ['grep -rln "cmux" .pi/extensions .pi/local-packages'],
+        ["cmux tab-action --action rename --tab tab:3 --title review"],
+        ["cmux browser snapshot --surface surface:3"],
+        ["cmux vault fork --agent a --session s --turn 3"],
+        ["cmux session list"],
+        ["timeout 5 grep cmux ./notes.md"],
+        ['grep -n "cmux" ./SKILL.md | head -20'],
+        ["cmux new-workspace --help"],
+        ["cmux workspace list"],
+        ['cmux workspace close --workspace "$WS"'],
+    ])("allows a pane that stays in the caller's workspace: %s", async (command) => {
+        expect(await bash(command)).toBeUndefined();
+    });
+
+    it("names the split recipe when a new workspace is blocked", async () => {
+        const verdict = await bash("cmux new-workspace --name x");
+        expect(verdict?.reason).toContain('cmux new-split right --surface "$CMUX_SURFACE_ID"');
+    });
+
+    it("stops the recorded new-split loop at its first call", async () => {
+        expect((await bash(SPLIT_LOOP_RECORDED))?.block).toBe(true);
+    });
+
+    it("names the caller's workspace when a split targets another one", async () => {
+        const verdict = await bash("cmux new-split right --workspace workspace:2");
+        expect(verdict?.reason).toContain('--workspace "$CMUX_WORKSPACE_ID"');
+    });
 });

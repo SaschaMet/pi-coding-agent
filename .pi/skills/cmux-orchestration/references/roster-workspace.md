@@ -1,8 +1,8 @@
 # Roster Workspace
 
-Read when the user asks for a separate tab or the fleet is large, and `.cmux/cmux.json` exists in the current directory.
+Read only when the user explicitly asks for a separate tab and `.cmux/cmux.json` exists in the current directory.
 
-**Alternative: dedicated workspace** (when the user asks for a separate tab or the fleet is large). Use this recipe only when `.cmux/cmux.json` exists in the current directory (`test -f .cmux/cmux.json`). Otherwise use the split recipe in `SKILL.md`. `.cmux/cmux.json` is the single roster source (`commands[]` → named workspace layout, currently `pi Team`: 2 panes each running `npm run agent`). After editing it: `cmux config doctor` (validate, no socket needed) then `cmux reload-config`.
+**The user runs step 1, not the agent.** A guard blocks agents from creating a workspace, because it opens outside the caller's workspace and its sidebar group. Hand the user the command below; after they confirm, the agent continues with steps 2 and 3. Use this recipe only when `.cmux/cmux.json` exists in the current directory (`test -f .cmux/cmux.json`). Otherwise use the split recipe in `SKILL.md`. `.cmux/cmux.json` is the single roster source (`commands[]` → named workspace layout, currently `pi Team`: 2 panes each running `npm run agent`). After editing it: `cmux config doctor` (validate, no socket needed) then `cmux reload-config`.
 
 ```bash
 # 1. extract the layout from the roster and boot it (workspace create has NO --json flag)

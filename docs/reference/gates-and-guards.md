@@ -240,9 +240,16 @@ Logic in `lib/tool-guards.ts`. Runs on every model.
 
 ### cmux target guard
 
-- Checks every `cmux send` / `cmux send-key` in a `bash` command, whatever wraps it (`timeout 5`, `sudo`, `(…)`, `$(…)`, `\cmux`, a path to the binary, `bash -c "…"`), and every send when one segment holds several. Skipped: text printed by `echo` or `printf`. Line continuations (`\` + newline) are joined first.
+- Guarded verbs (all type into a pane): `send`, `send-key`, `paste`, `paste-buffer` (target flag `--surface`), and `send-panel`, `send-key-panel` (target flag `--panel`). `paste-buffer` without `--surface` goes to the focused pane.
+- Checks every guarded `cmux` verb in a `bash` command, whatever wraps it (`timeout 5`, `sudo`, `(…)`, `$(…)`, `\cmux`, a path to the binary, `bash -c "…"`), and every send when one segment holds several. Skipped: text printed by `echo` or `printf`. Line continuations (`\` + newline) are joined first.
 - Every occurrence of a repeated flag is checked. A backtick value counts as a variable.
-- `--surface` is required. It and `--workspace` (when given) must be a literal ref (`surface:12`), a `$CMUX_*` variable, or `${VAR:?}` / `${1:?}`, which makes bash stop when the value is empty. Plain `$W`, `$1`, `$(…)`, and empty values are blocked with a `[CMUX]` reason that shows the rewrite.
+- Global options before the verb are skipped (`cmux --socket /s send …`). Flags end at `--`, so text after it never counts as a target. A quoted or backslashed `cmux` (`"cmux"`, `c\mux`) counts as cmux.
+- A command substitution is checked on its own, even inside double quotes or an `echo`: `echo "$(cmux paste x)"` is blocked.
+- A computed verb (`cmux $v …`) is blocked, because it may expand to a typing verb. `--help` always passes.
+- Pane placement: verbs that open a pane (`new-split`, `new-pane`, `new-surface`, `split-off`, `drag-surface-to-split`, `open`, `diff`, `markdown`, `browser open`, `ssh-session-attach`) work only in the caller's workspace: `--workspace` left out or `$CMUX_WORKSPACE_ID`, no `--window`. `--surface`, `--panel`, `--pane` follow the target rule.
+- Leaving the workspace is blocked: `new-workspace`, `workspace create`, `new-window`, `move-tab-to-new-workspace`, `move-surface`, `move-workspace-to-window`, `join-pane`, `swap-pane`, `break-pane`, `ssh`, `ssh-tmux`, `mosh`, `mosh-tmux`, `tmux`, `local-tmux`, `local-zellij`, `vm`, `recover`, `restore-session`, `rpc`, `session move`, `vault … --open`, `tab-action --action move-to-new-workspace`, and `cmux <path>` (when cmux starts the command, also behind `timeout`/`env`/`sudo`). `tab-action --action new-…` and `browser open|open-split|new` count as opening a pane. This is a denylist: a future cmux verb that leaves the workspace passes until added. A new workspace opens outside the caller's workspace and its sidebar group, so only the user creates one.
+- `$CMUX_*` means the four id variables: `CMUX_SURFACE_ID`, `CMUX_WORKSPACE_ID`, `CMUX_PANEL_ID`, `CMUX_TAB_ID`. `bash -lc "…"` and `eval …` are checked like `bash -c`.
+- The verb's target flag is required. It, `--workspace` and `--window` (when given) must be a literal ref (`surface:12`), a `$CMUX_*` variable, or `${VAR:?}` / `${1:?}`, which makes bash stop when the value is empty. Plain `$W`, `$1`, `$(…)`, and empty values are blocked with a `[CMUX]` reason that shows the rewrite.
 - Why: each bash call is a fresh shell, so a variable set in an earlier call is empty, and `cmux send --surface ""` types into the user's focused pane.
 - Heredoc bodies are skipped before the check. Blocked: a heredoc with no end tag, a `cmux send` inside a heredoc body, and here-strings (`<<<`).
 

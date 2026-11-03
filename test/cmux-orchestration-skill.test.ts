@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
+import { checkCmuxSurface } from "../.pi/extensions/lib/tool-guards.ts";
 
 const skillDir = path.join(process.cwd(), ".pi", "skills", "cmux-orchestration");
 const skillPath = path.join(skillDir, "SKILL.md");
@@ -160,6 +161,40 @@ describe("cmux-orchestration skill", () => {
         // The pi TUI left-pads every rendered line, so a bare `^` would never match.
         expect(text).toContain("'^[[:space:]]*(NEEDS_UNSANDBOXED|NEEDS_DOMAIN): '");
         expect(text).toContain("'^[[:space:]]*(bash blocked: sandbox unavailable|Refusing to run with the built-in defaults)'");
+    });
+
+    it("states the cmux target rule and the fresh-shell cause", () => {
+        const { text } = readSkill();
+        expect(text).toMatch(/fresh shell/i);
+        expect(text).toContain("a literal ref, a `$CMUX_*` variable, or `${VAR:?}`");
+        expect(text).toMatch(/new-split takes the direction as a bare word/);
+        expect(text).toMatch(/shorter than the bash tool timeout/);
+    });
+
+    it("spawns every pane in the caller's workspace, never a new workspace", () => {
+        const { text } = readSkill();
+        expect(text).not.toMatch(/create a workspace, then/);
+        expect(text).toContain("Every pane you open stays in the caller's workspace (`$CMUX_WORKSPACE_ID`)");
+        expect(text).toMatch(/new workspace.{0,120}only on the user's explicit request/is);
+    });
+
+    // The skill must never teach a form the cmux guard blocks.
+    it("writes every cmux send target in a form the cmux guard accepts", () => {
+        const { text } = readSkill();
+        const snippets: string[] = [];
+        let inFence = false;
+        for (const line of text.split("\n")) {
+            if (line.startsWith("```")) {
+                inFence = !inFence;
+                continue;
+            }
+            if (!/cmux (send|paste|new-split|new-pane)/.test(line)) continue;
+            if (inFence) snippets.push(line);
+            // A bare `cmux send` in prose names the verb; only commands with flags are recipes.
+            else for (const m of line.matchAll(/`([^`]*cmux (?:send|paste|new-split|new-pane)[^`]*--[^`]*)`/g)) snippets.push(m[1]);
+        }
+        expect(snippets.length).toBeGreaterThan(5);
+        for (const snippet of snippets) expect(checkCmuxSurface(snippet), snippet).toBeUndefined();
     });
 
     it("auto-approves a grill worker's start prompt and closes its pane afterwards", () => {
