@@ -67,6 +67,7 @@ its rules — that discipline is what keeps two skills from contradicting each o
 | Multi-session planning of foggy efforts as decision-ticket maps | `wayfinder` |
 | Complete, untruncated output | `output-skill` |
 | Stick-figure animation from a JSON scene | `stick-animation` |
+| MOCO time booking and hour queries | `moco-timesheet` |
 
 Three cross-family boundaries worth stating once:
 
@@ -254,6 +255,14 @@ Source: written locally, 2026-10-26, from a throwaway prototype. Python 3 + Pill
 | Skill | What it does |
 | --- | --- |
 | `stick-animation` | Turns a described motion into a JSON scene of key poses and renders it to MP4/GIF, with key-pose and onion-skin images the agent inspects before delivering. One 2D side-view figure plus weight plates. |
+
+### Time tracking
+
+Source: written locally, 2026-11-03. Node 24, stdlib only; network only to `<subdomain>.mocoapp.com`. Tested by `test/moco-timesheet.test.ts`.
+
+| Skill | What it does |
+| --- | --- |
+| `moco-timesheet` | Book your MOCO time (one entry or a batch of up to 20, after a preview and your approval) and read your hours via the MOCO REST API. |
 
 ## Adding a new skill
 
