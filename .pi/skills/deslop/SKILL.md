@@ -1,6 +1,6 @@
 ---
 name: deslop
-description: Removes AI slop from prose (never from code) and tightens it. Finds formulaic patterns (contrast and colon reveals, stock openers, filler, hedges, reflex triplets), fixes what keeps the meaning, proposes what changes it, and never invents content. Use when the user asks to deslop, de-AI, or humanize a text, to tighten or shorten a draft, or whether a draft sounds AI-written, in English or German, and before you hand over prose you wrote for a reader, such as a PR description, release note, or plan. If a project skill owns the text's voice or audience, use that skill instead. Not for code cleanup, diffs, commit messages, or translation; to re-explain your own last message use eli5.
+description: Removes AI slop from prose and tightens it, keeping the meaning and adding nothing. Use when the user asks to deslop, de-AI, humanize, tighten, or shorten a text in English or German, or asks whether it sounds AI-written, and before handing over prose you wrote for a reader (PR description, release note, plan). Not for code, diffs, commit messages, translation, or text whose voice a project skill owns.
 ---
 
 # Deslop
