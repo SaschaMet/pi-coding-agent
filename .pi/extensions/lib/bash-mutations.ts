@@ -15,7 +15,7 @@ const BASH_MUTATION_METACHARS = /[$(){}<>&;"'`\\|]/;
 const REDIRECT_TARGETS = new Set([">", ">>", "2>", "&>"]);
 const MUTATION_COMMANDS = new Set(["touch", "tee", "mkdir", "mv", "rm", "ln"]);
 
-type Token = { value: string; quoted: boolean };
+export type Token = { value: string; quoted: boolean };
 
 /**
  * Quote-aware single-pass tokenizer. Splits the whole command into segments on
@@ -24,7 +24,7 @@ type Token = { value: string; quoted: boolean };
  * containing an unquoted `<<`: a heredoc body cannot be told apart from real
  * arguments, so the whole command is skipped rather than misread.
  */
-function tokenizeCommand(command: string): Token[][] | null {
+export function tokenizeCommand(command: string): Token[][] | null {
     const segments: Token[][] = [];
     let currentSegment: Token[] = [];
     let current = "";

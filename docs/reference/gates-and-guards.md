@@ -11,6 +11,8 @@ How the quality gates and path guards in `.pi/extensions/` decide. Source of tru
 | `write-boundary-guard.ts` | Before `write`, `edit` | Limits writes to the armed spec or plan scope. | Blocked once armed. Open while not armed. |
 | `security-guard.ts` | Before every tool call, and on each prompt (`input`) | Blocks `.env` and credential paths, dangerous shell commands, protected-branch and force pushes, hook bypasses, and secrets in prompts. Shares one policy with the Claude hook and the global git hook. | Blocked, and prompts dropped |
 | `sandbox-bash.ts` | Every `bash` call and every user `!` command | Runs the command inside an OS sandbox (`srt`): limits file reads/writes, network, and env vars. | Blocked (bash refuses to run) |
+| `tool-guards.ts` | Before every tool call; records every tool result | Blocks a call that keeps returning the same result, and a `cmux send` whose target pane is not traceable. | Blocked |
+| `degenerate-output.ts` | After each `iqRouter` reply (`message_end`) and before the run settles | Replaces an unreadable final reply with a notice, keeps the original in a hidden entry, warns, and retries once per run. | Continue (reply kept) |
 | `model-whitelist.ts` | At startup | Shows only the OpenRouter models listed in `models.json`. | No-op |
 | `subagent-delegation-policy.ts` | On input and before each agent start | Routes explicit delegation requests to the `Agent` tool. Adds delegation rules. | Continue |
 | `subagent-rules-injection.ts` | Before a subagent starts | Adds `.pi/SYSTEM.md` to a subagent that lacks it. | Continue |
@@ -223,6 +225,41 @@ Accepted risks:
 
 Rollback: delete `.pi/extensions/sandbox-bash.ts` (and any manual global copy), or start pi with `--no-sandbox`.
 
+## Tool guards (`tool-guards.ts`)
+
+Logic in `lib/tool-guards.ts`. Runs on every model.
+
+### Repeat guard
+
+- Identical means: same tool, same input (key order ignored), and the same result text and error flag as the call before, with no other call in between.
+- After 2 identical results, the 3rd identical call is blocked with a `[LOOP]` reason.
+- Issued once more, it is blocked with `terminate: true` and the run is aborted (`ctx.abort()`), as if the user pressed Escape. `terminate` alone does not end a batch whose sibling calls lack it.
+- A poll whose output changes is never blocked.
+- State resets when the run settles (`agent_settled`). `agent_start` also fires on internal continues, so it does not reset.
+- Known gap: identical calls inside one parallel batch are not counted, because every `tool_call` of a batch fires before any `tool_result`.
+
+### cmux target guard
+
+- Checks every `cmux send` / `cmux send-key` in a `bash` command, whatever wraps it (`timeout 5`, `sudo`, `(…)`, `$(…)`, `\cmux`, a path to the binary, `bash -c "…"`), and every send when one segment holds several. Skipped: text printed by `echo` or `printf`. Line continuations (`\` + newline) are joined first.
+- Every occurrence of a repeated flag is checked. A backtick value counts as a variable.
+- `--surface` is required. It and `--workspace` (when given) must be a literal ref (`surface:12`), a `$CMUX_*` variable, or `${VAR:?}` / `${1:?}`, which makes bash stop when the value is empty. Plain `$W`, `$1`, `$(…)`, and empty values are blocked with a `[CMUX]` reason that shows the rewrite.
+- Why: each bash call is a fresh shell, so a variable set in an earlier call is empty, and `cmux send --surface ""` types into the user's focused pane.
+- Heredoc bodies are skipped before the check. Blocked: a heredoc with no end tag, a `cmux send` inside a heredoc body, and here-strings (`<<<`).
+
+Rollback: delete `tool-guards.ts` and `lib/tool-guards.ts`, then `npm run pi:sync-global`.
+
+## Degenerate output (`degenerate-output.ts`)
+
+Logic in `lib/degenerate-output.ts`. Acts only when the session model's provider is `iqRouter`, whose serving stack produced garbage replies; other providers are never touched.
+
+- Judged: final replies only (`stopReason` `stop`, no tool call). Errors, aborts, length stops, and replies with tool calls pass through.
+- Garbage: a leaked chat-template marker (`<|im_start|>`, `<|im_end|>`, `<|endoftext|>`, `</parameter`, `<tool_call>`) outside backtick code, or a reply with no visible text.
+- On garbage: the reply is replaced by `[Reply discarded: …]`, the original content is stored in a hidden `custom` entry (`degenerate-output`, never sent to the model), the user is warned, and one hidden retry message continues the run.
+- At most one retry per run. State resets on `agent_settled`, because `agent_start` also fires on the retry's own continue. A second garbage reply in the run shows an error and stops.
+- Cache skip: after a retry is scheduled, every `iqRouter` request carries a random `cache_salt` until the next assistant reply arrives, so the server recomputes the prompt instead of reusing a cached entry. An auto-compaction request in between gets one too. Whether iqRouter, vLLM, and LMCache honour the field is checked live: the retried reply's `usage.cacheRead` must be near 0.
+
+Rollback: delete `degenerate-output.ts` and `lib/degenerate-output.ts`, then `npm run pi:sync-global`.
+
 ## Bash mutation detection
 
 `lib/bash-mutations.ts` finds paths a `bash` command plausibly changed. It feeds `bash_mutations_disclosed`.
@@ -295,4 +332,6 @@ Each behavior above is pinned by a test. Change a guard only together with its t
 - `test/guard-check-skill-text.test.ts`
 - `test/sync-pi-config.test.ts` (file modes and the policy check before push)
 - `test/sandbox-bash.test.ts`
+- `test/tool-guards.test.ts`
+- `test/degenerate-output.test.ts`
 - `test/sandbox-bash.integration.test.ts` (real `srt`; skips with `SKIPPED:` when `srt` is missing or it runs inside the sandbox)
