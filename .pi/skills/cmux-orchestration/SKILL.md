@@ -37,15 +37,21 @@ After a worker reports ready, read its model line once and report it to the user
 cmux read-screen --surface "$W" --scrollback --lines 60 | grep -oE '[A-Za-z0-9._-]+/[A-Za-z0-9._-]+:[a-z]+' | tail -1
 ```
 
-Compare against the requested model. On mismatch: report it, do not silently accept — the user decides whether to respawn on the requested model (see the respawn rule under Dynamic workers).
+Compare against the requested model. On mismatch: report it, do not silently accept. Apply the fallback rule under **Boot the Team**.
 
 ## Boot the Team
 
-**Worker boot command: `pi --no-session --model iqRouter/grunt:high`.** It works in any repo. `--no-session` keeps the worker's session unsaved, so it cannot resume the orchestrator's session. `npm run agent` and `--new-session` exist only in the pi-coding-agent repo: elsewhere npm fails with `ENOENT` and `pi` rejects `--new-session`.
+**Worker boot command: `pi --no-session --model "$WORKER_MODEL"`.** It works in any repo. `--no-session` keeps the worker's session unsaved, so it cannot resume the orchestrator's session. `npm run agent` and `--new-session` exist only in the pi-coding-agent repo: elsewhere npm fails with `ENOENT` and `pi` rejects `--new-session`.
 
-**Model default: every new pane/agent boots on `iqRouter/grunt:high` unless the user names another model.**
+**Model default: every new pane/agent boots on the orchestrator's own model and thinking level, unless the user names another model.** Read it once from your own pane footer; never hard-code a model id:
 
-**Private sessions:** when this session runs with `--private` (or the user says the work is private), append `--private` to every worker boot command: `pi --no-session --model iqRouter/grunt:high --private`. Workers are separate processes and start with redaction off. Start the analyzer first with `npm run presidio:up`. In the pi-coding-agent repo, `npm run agent:private -- --new-session` is the equivalent.
+```bash
+WORKER_MODEL=$(cmux read-screen --surface "$CMUX_SURFACE_ID" --lines 15 | grep -oE '[A-Za-z0-9._-]+/[A-Za-z0-9._-]+:[a-z]+' | tail -1)
+```
+
+**Fallback:** only when `WORKER_MODEL` comes back empty, the worker fails to boot, or its model backend errors (e.g. 503 busy, unknown model), respawn that worker once on `iqRouter/grunt:high` and tell the user. If the fallback fails too, report and ask.
+
+**Private sessions:** when this session runs with `--private` (or the user says the work is private), append `--private` to every worker boot command: `pi --no-session --model "$WORKER_MODEL" --private`. Workers are separate processes and start with redaction off. Start the analyzer first with `npm run presidio:up`. In the pi-coding-agent repo, `npm run agent:private -- --new-session` is the equivalent.
 
 **Every pane you open stays in the caller's workspace (`$CMUX_WORKSPACE_ID`), so it stays in the user's sidebar group.** Never create, leave, or move between workspaces or windows; a separate workspace is the user's step, on their explicit request.
 
@@ -59,7 +65,7 @@ LAST="${CMUX_SURFACE_ID:-$(cmux identify --json | jq -r .caller.surface_ref)}"  
 W1=$(cmux new-split --workspace "$CMUX_WORKSPACE_ID" right --surface "${LAST:?}" --json | jq -r .surface_ref)
 W2=$(cmux new-split --workspace "$CMUX_WORKSPACE_ID" down  --surface "${W1:?}"  --json | jq -r .surface_ref)
 # worker N: alternate right/down, anchored at W_(N-1)
-cmux send --workspace "${WS:?}" --surface "${W1:?}" "pi --no-session --model iqRouter/grunt:high"
+cmux send --workspace "${WS:?}" --surface "${W1:?}" "pi --no-session --model $WORKER_MODEL"
 cmux send-key --workspace "${WS:?}" --surface "${W1:?}" enter   # boot first: split surfaces are bare shells
 ```
 
@@ -95,6 +101,19 @@ ts() { local e=$(( $(date +%s) - T0 )); if [ -n "${BUDGET:-}" ]; then echo "[tim
 
 ```bash
 for S in $S1 $S2; do cmux send --surface "${S:?}" "You are a cmux worker. $TASK $(ts)"; cmux send-key --surface "${S:?}" enter; done
+```
+
+**Confirm every dispatch (mandatory).** A task typed into a pane whose terminal is still starting, or whose pi is still loading, can lose its Enter: the text sits in the input box and the worker never starts (verified: a grill worker idled 25 minutes while the orchestrator waited on its token). Boot first and wait until the pane footer shows the model line; then send the task; then, within 15 seconds, read the screen and confirm the worker is busy (`Working…` or `Thinking…`). If it is not, press Enter once and check again; still idle → report to the user. Never start a `wait_or_prompt` before this check passes.
+
+```bash
+confirm_dispatch() {   # $1 = worker surface; exit 0 = busy, 1 = still idle after one extra Enter
+  for attempt in 1 2; do
+    sleep 8
+    cmux read-screen --workspace "$WS" --surface "$1" --lines 15 | grep -qE 'Working…|Thinking…' && return 0
+    [ "$attempt" = 1 ] && cmux send-key --workspace "${WS:?}" --surface "${1:?}" enter
+  done
+  return 1
+}
 ```
 
 **Completion: pick one.** Default: rendezvous.
@@ -139,12 +158,15 @@ wait_or_prompt() {   # $1 = token, $2 = worker surface; exit 0 = signalled, 2 = 
     if printf '%s\n' "$SCR" | grep -qE '^[[:space:]]*(NEEDS_UNSANDBOXED|NEEDS_DOMAIN): ' || printf '%s\n' "$SCR" | grep -qE '^[[:space:]]*(bash blocked: sandbox unavailable|Refusing to run with the built-in defaults)'; then
       echo "SANDBOX STOP on $2"; printf '%s\n' "$SCR" | tail -15; return 3
     fi
+    # Idle without having signalled: a lost Enter, or the worker stopped early. Four idle slices in a row (about a minute) → report.
+    if printf '%s\n' "$SCR" | grep -qE 'Working…|Thinking…'; then IDLE=0; else IDLE=$((${IDLE:-0} + 1)); fi
+    if [ "${IDLE:-0}" -ge 4 ]; then echo "IDLE on $2"; printf '%s\n' "$SCR" | tail -15; IDLE=0; return 4; fi
   done
   return 1
 }
 ```
 
-Run it in the background. On exit 2, show the prompt to the user at once and let them decide. On exit 3, follow **Unsandboxed one-shot** (`NEEDS_UNSANDBOXED:`) or relay the line to the user (`NEEDS_DOMAIN:`, `bash blocked`). Do not answer a permission prompt for them unless they have said to. Standing exception: a grill worker's start prompt (see below). Keep the task file and the report file on different paths (`<task>.task.md` vs `<task>.md`) — verified: a shared path made workers overwrite their own task file with the report.
+Run it in the background. On exit 4 (idle), read the screen: an unsent task in the input box → press Enter and wait again; a finished worker that forgot to signal → read its report file. On exit 2, show the prompt to the user at once and let them decide. On exit 3, follow **Unsandboxed one-shot** (`NEEDS_UNSANDBOXED:`) or relay the line to the user (`NEEDS_DOMAIN:`, `bash blocked`). Do not answer a permission prompt for them unless they have said to. Standing exception: a grill worker's start prompt (see below). Keep the task file and the report file on different paths (`<task>.task.md` vs `<task>.md`) — verified: a shared path made workers overwrite their own task file with the report.
 
 **TDD gate (every code task) — the orchestrator enforces Red, not the worker:** a rule in `.pi/SYSTEM.md` alone does not hold (verified: a worker with the TDD rule loaded wrote source before tests). Split each code task into two dispatches:
 
@@ -189,7 +211,7 @@ Composition is a per-task decision. State it at boot and at every dynamic spawn 
 | Research for your own context                                 | in-process subagent; report the result in this conversation (conversation counts as visible)                                           |
 | Mixed                                                         | minimal set that covers verification                                                                                                   |
 
-**Dynamic workers:** to exceed the roster's 2, join the existing workspace: `cmux new-split --workspace "$CMUX_WORKSPACE_ID" right --surface <ref>`. A split surface is a **bare shell** (layout `command` does not auto-run) — first send the worker boot command (see **Boot the Team**), wait for it to come up, then send the task. If a worker's model backend errors (e.g. 503 busy), report it and ask the user which model to respawn on — do not pick a fallback yourself.
+**Dynamic workers:** to exceed the roster's 2, join the existing workspace: `cmux new-split --workspace "$CMUX_WORKSPACE_ID" right --surface <ref>`. A split surface is a **bare shell** (layout `command` does not auto-run) — first send the worker boot command (see **Boot the Team**), wait for it to come up, then send the task. If a worker's model backend errors (e.g. 503 busy), follow the fallback rule under **Boot the Team**.
 
 **Creation recipes (additive only, never steal focus):**
 
