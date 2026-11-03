@@ -1,12 +1,23 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import cmuxStatusExtension from "../.pi/extensions/cmux-status.ts";
 import { asExtensionAPI, createFakePi } from "./helpers/fake-pi.ts";
 
 const SURFACE_ID = "TEST-SURFACE-1";
 const OK_EXEC = { stdout: "", stderr: "", code: 0, killed: false };
+const ENV_KEYS = ["CMUX_SURFACE_ID", "CMUX_SOCKET_PATH", "CMUX_WORKSPACE_ID"] as const;
+const saved: Record<string, string | undefined> = {};
+let tmpDir = "";
+
+/** Live cmux terminal without a workspace id, so no tab-names refresh joins the calls. */
+function enterCmux(): void {
+    const socket = path.join(tmpDir, "sock");
+    fs.writeFileSync(socket, "");
+    process.env.CMUX_SOCKET_PATH = socket;
+    process.env.CMUX_SURFACE_ID = SURFACE_ID;
+}
 
 type Fake = ReturnType<typeof createFakePi>;
 
@@ -29,10 +40,10 @@ async function fire(
     await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-const RUNNING_ARGS = [
+const WORKING_ARGS = [
     "set-status",
     `pi-${SURFACE_ID}`,
-    "running",
+    "working",
     "--icon",
     "sparkle",
     "--color",
@@ -47,62 +58,56 @@ const NEEDS_INPUT_ARGS = [
     "--color",
     "#ff3b30",
 ];
+const IDLE_ARGS = ["set-status", `pi-${SURFACE_ID}`, "idle", "--icon", "moon.zzz", "--color", "#8e8e93"];
 const OPTS = { timeout: 3000 };
 
 describe("cmux-status extension", () => {
+    beforeEach(() => {
+        for (const k of ENV_KEYS) saved[k] = process.env[k];
+        for (const k of ENV_KEYS) delete process.env[k];
+        tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "cmux-status-"));
+    });
+
     afterEach(() => {
-        delete process.env.CMUX_SURFACE_ID;
+        for (const k of ENV_KEYS) {
+            if (saved[k] === undefined) delete process.env[k];
+            else process.env[k] = saved[k];
+        }
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+        tmpDir = "";
         vi.restoreAllMocks();
     });
 
-    it("sets the per-pane running badge on agent_start in tui mode", async () => {
-        process.env.CMUX_SURFACE_ID = SURFACE_ID;
+    it("sets the per-pane working badge on agent_start in tui mode", async () => {
+        enterCmux();
         const pi = register();
         const execSpy = vi.spyOn(pi, "exec").mockResolvedValue(OK_EXEC);
         await fire(pi, "agent_start", "tui");
         expect(execSpy).toHaveBeenCalledTimes(1);
-        expect(execSpy).toHaveBeenCalledWith(
-            "cmux",
-            [
-                "set-status",
-                `pi-${SURFACE_ID}`,
-                "running",
-                "--icon",
-                "sparkle",
-                "--color",
-                "#ff9500",
-            ],
-            { timeout: 3000 },
-        );
+        expect(execSpy).toHaveBeenCalledWith("cmux", WORKING_ARGS, { timeout: 3000 });
     });
 
-    it("clears the per-pane badge on agent_end in tui mode", async () => {
-        process.env.CMUX_SURFACE_ID = SURFACE_ID;
+    it("sets the per-pane badge to idle on agent_end in tui mode", async () => {
+        enterCmux();
         const pi = register();
         const execSpy = vi.spyOn(pi, "exec").mockResolvedValue(OK_EXEC);
         await fire(pi, "agent_end", "tui");
-        expect(execSpy).toHaveBeenCalledTimes(1);
-        expect(execSpy).toHaveBeenCalledWith(
-            "cmux",
-            ["clear-status", `pi-${SURFACE_ID}`],
-            { timeout: 3000 },
-        );
+        expect(execSpy).toHaveBeenCalledWith("cmux", IDLE_ARGS, { timeout: 3000 });
+        expect(execSpy.mock.calls.some(([, a]) => (a as string[])[0] === "clear-status")).toBe(false);
     });
 
-    it("falls back to the shared key when CMUX_SURFACE_ID is missing", async () => {
+    it("makes no call when CMUX_SURFACE_ID is missing", async () => {
+        enterCmux();
         delete process.env.CMUX_SURFACE_ID;
         const pi = register();
         const execSpy = vi.spyOn(pi, "exec").mockResolvedValue(OK_EXEC);
         await fire(pi, "agent_start", "tui");
-        expect(execSpy).toHaveBeenCalledWith(
-            "cmux",
-            ["set-status", "pi", "running", "--icon", "sparkle", "--color", "#ff9500"],
-            { timeout: 3000 },
-        );
+        await fire(pi, "agent_end", "tui");
+        expect(execSpy).not.toHaveBeenCalled();
     });
 
     it("stays silent in print mode (subagent sessions)", async () => {
-        process.env.CMUX_SURFACE_ID = SURFACE_ID;
+        enterCmux();
         const pi = register();
         const execSpy = vi.spyOn(pi, "exec");
         await fire(pi, "agent_start", "print");
@@ -111,7 +116,7 @@ describe("cmux-status extension", () => {
     });
 
     it("survives a failing cmux exec without throwing", async () => {
-        process.env.CMUX_SURFACE_ID = SURFACE_ID;
+        enterCmux();
         const pi = register();
         vi.spyOn(pi, "exec").mockRejectedValue(new Error("no cmux socket"));
         await expect(fire(pi, "agent_start", "tui")).resolves.toBeUndefined();
@@ -123,11 +128,12 @@ describe("cmux-status extension", () => {
         cmuxStatusExtension(asExtensionAPI(pi));
         expect(pi.handlers.get("agent_start")?.length).toBe(1);
         expect(pi.handlers.get("agent_end")?.length).toBe(1);
+        expect(pi.handlers.get("session_shutdown")?.length).toBe(1);
     });
 
     describe("needs-input indicator", () => {
         it("runs set-status, trigger-flash, notify in order on ui_prompt_start", async () => {
-            process.env.CMUX_SURFACE_ID = SURFACE_ID;
+            enterCmux();
             const pi = register();
             const execSpy = vi.spyOn(pi, "exec").mockResolvedValue(OK_EXEC);
             await fire(pi, "agent_start", "tui");
@@ -145,7 +151,7 @@ describe("cmux-status extension", () => {
         });
 
         it("alerts on every prompt in one run", async () => {
-            process.env.CMUX_SURFACE_ID = SURFACE_ID;
+            enterCmux();
             const pi = register();
             const execSpy = vi.spyOn(pi, "exec").mockResolvedValue(OK_EXEC);
             await fire(pi, "agent_start", "tui");
@@ -158,7 +164,7 @@ describe("cmux-status extension", () => {
         });
 
         it("ignores a late ui_prompt_start after agent_end", async () => {
-            process.env.CMUX_SURFACE_ID = SURFACE_ID;
+            enterCmux();
             const pi = register();
             const execSpy = vi.spyOn(pi, "exec").mockResolvedValue(OK_EXEC);
             await fire(pi, "agent_start", "tui");
@@ -168,8 +174,8 @@ describe("cmux-status extension", () => {
             expect(execSpy).not.toHaveBeenCalled();
         });
 
-        it("keeps the running state on a repeated agent_start", async () => {
-            process.env.CMUX_SURFACE_ID = SURFACE_ID;
+        it("keeps the working state on a repeated agent_start", async () => {
+            enterCmux();
             const pi = register();
             const execSpy = vi.spyOn(pi, "exec").mockResolvedValue(OK_EXEC);
             await fire(pi, "agent_start", "tui");
@@ -179,23 +185,19 @@ describe("cmux-status extension", () => {
             expect(execSpy).toHaveBeenCalledTimes(3);
         });
 
-        it("skips flash and notify when CMUX_SURFACE_ID is unset", async () => {
+        it("makes no prompt calls when CMUX_SURFACE_ID is unset", async () => {
+            enterCmux();
             delete process.env.CMUX_SURFACE_ID;
             const pi = register();
             const execSpy = vi.spyOn(pi, "exec").mockResolvedValue(OK_EXEC);
             await fire(pi, "agent_start", "tui");
-            execSpy.mockClear();
             await fire(pi, "ui_prompt_start", "tui");
-            expect(execSpy).toHaveBeenCalledTimes(1);
-            expect(execSpy).toHaveBeenCalledWith(
-                "cmux",
-                ["set-status", "pi", "needs input", "--icon", "bell.fill", "--color", "#ff3b30"],
-                OPTS,
-            );
+            await fire(pi, "ui_prompt_end", "tui");
+            expect(execSpy).not.toHaveBeenCalled();
         });
 
         it("survives a failing exec on the prompt events", async () => {
-            process.env.CMUX_SURFACE_ID = SURFACE_ID;
+            enterCmux();
             const pi = register();
             const execSpy = vi.spyOn(pi, "exec").mockResolvedValue(OK_EXEC);
             await fire(pi, "agent_start", "tui");
@@ -208,7 +210,7 @@ describe("cmux-status extension", () => {
         });
 
         it("runs execs serially: the second waits for the first", async () => {
-            process.env.CMUX_SURFACE_ID = SURFACE_ID;
+            enterCmux();
             const pi = register();
             let release: (v: typeof OK_EXEC) => void = () => {};
             const execSpy = vi
@@ -222,11 +224,11 @@ describe("cmux-status extension", () => {
             expect(execSpy).toHaveBeenCalledTimes(1);
             release(OK_EXEC);
             await new Promise((resolve) => setTimeout(resolve, 0));
-            expect(execSpy).toHaveBeenCalledTimes(2);
+            expect(execSpy).toHaveBeenNthCalledWith(2, "cmux", IDLE_ARGS, OPTS);
         });
 
-        it("restores the running badge on ui_prompt_end", async () => {
-            process.env.CMUX_SURFACE_ID = SURFACE_ID;
+        it("restores the working badge on ui_prompt_end", async () => {
+            enterCmux();
             const pi = register();
             const execSpy = vi.spyOn(pi, "exec").mockResolvedValue(OK_EXEC);
             await fire(pi, "agent_start", "tui");
@@ -234,11 +236,11 @@ describe("cmux-status extension", () => {
             execSpy.mockClear();
             await fire(pi, "ui_prompt_end", "tui");
             expect(execSpy).toHaveBeenCalledTimes(1);
-            expect(execSpy).toHaveBeenCalledWith("cmux", RUNNING_ARGS, OPTS);
+            expect(execSpy).toHaveBeenCalledWith("cmux", WORKING_ARGS, OPTS);
         });
 
         it("does nothing for prompt events while the agent is idle", async () => {
-            process.env.CMUX_SURFACE_ID = SURFACE_ID;
+            enterCmux();
             const pi = register();
             const execSpy = vi.spyOn(pi, "exec").mockResolvedValue(OK_EXEC);
             await fire(pi, "ui_prompt_start", "tui");
@@ -246,23 +248,22 @@ describe("cmux-status extension", () => {
             expect(execSpy).not.toHaveBeenCalled();
         });
 
-        it("ends with clear-status when agent_end precedes ui_prompt_end", async () => {
-            process.env.CMUX_SURFACE_ID = SURFACE_ID;
+        it("ends idle when agent_end precedes ui_prompt_end", async () => {
+            enterCmux();
             const pi = register();
             const execSpy = vi.spyOn(pi, "exec").mockResolvedValue(OK_EXEC);
             await fire(pi, "agent_start", "tui");
             await fire(pi, "ui_prompt_start", "tui");
             await fire(pi, "agent_end", "tui");
             await fire(pi, "ui_prompt_end", "tui");
-            expect(execSpy).toHaveBeenLastCalledWith(
-                "cmux",
-                ["clear-status", `pi-${SURFACE_ID}`],
-                OPTS,
-            );
+            const badge = execSpy.mock.calls
+                .map(([, a]) => a as string[])
+                .filter((a) => a[1] === `pi-${SURFACE_ID}`);
+            expect(badge[badge.length - 1]).toEqual(IDLE_ARGS);
         });
 
         it("stays silent for prompt events in print mode", async () => {
-            process.env.CMUX_SURFACE_ID = SURFACE_ID;
+            enterCmux();
             const pi = register();
             const execSpy = vi.spyOn(pi, "exec").mockResolvedValue(OK_EXEC);
             await fire(pi, "agent_start", "print");
@@ -281,9 +282,6 @@ describe("cmux-status extension", () => {
 
     describe("set_pane_title tool", () => {
         const WORKSPACE_ID = "TEST-WORKSPACE-1";
-        const ENV_KEYS = ["CMUX_SURFACE_ID", "CMUX_SOCKET_PATH", "CMUX_WORKSPACE_ID"] as const;
-        const saved: Record<string, string | undefined> = {};
-        let tmpDir = "";
 
         const treeJson = (surfaceCounts: number[]): string =>
             JSON.stringify({
@@ -298,27 +296,14 @@ describe("cmux-status extension", () => {
             });
 
         const setupEnv = (): void => {
-            for (const k of ENV_KEYS) saved[k] = process.env[k];
-            tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "cmux-title-"));
-            const socket = path.join(tmpDir, "sock");
-            fs.writeFileSync(socket, "");
-            process.env.CMUX_SOCKET_PATH = socket;
-            process.env.CMUX_SURFACE_ID = SURFACE_ID;
+            enterCmux();
             process.env.CMUX_WORKSPACE_ID = WORKSPACE_ID;
         };
 
-        afterEach(() => {
-            for (const k of ENV_KEYS) {
-                if (saved[k] === undefined) delete process.env[k];
-                else process.env[k] = saved[k];
-            }
-            if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
-            tmpDir = "";
-        });
-
-        /** Start a session and return the registered tool (or undefined). */
+        /** Start a session, let its startup calls drain, and return the registered tool (or undefined). */
         const start = async (pi: Fake, mode = "tui") => {
             await pi.handlers.get("session_start")?.[0]({ type: "session_start" }, { mode, hasUI: false });
+            await new Promise((resolve) => setTimeout(resolve, 0));
             return pi.tools.get("set_pane_title");
         };
         const call = async (tool: NonNullable<Awaited<ReturnType<typeof start>>>, title: string) => {
@@ -409,6 +394,7 @@ describe("cmux-status extension", () => {
             const pi = register();
             const execSpy = mockExec(pi, treeJson([1]));
             const tool = (await start(pi))!;
+            execSpy.mockClear();
             await expect(call(tool, " \u202E-- ")).rejects.toThrow();
             expect(execSpy).not.toHaveBeenCalled();
         });
