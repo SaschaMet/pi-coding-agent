@@ -1,11 +1,12 @@
 /**
  * cmux status indicator extension.
  *
- * Shows a per-pane badge in the cmux sidebar while the top-level agent loop
- * is active: "running" on agent_start, "needs input" (plus flash and
- * notification) while a UI prompt blocks the loop, cleared on agent_end (all
- * outcomes). Uses the cmux CLI via pi.exec; silently no-ops when pi runs
- * outside cmux (no socket → exec fails, fire-and-forget).
+ * Shows a per-pane state pill in the cmux sidebar: "idle" between runs,
+ * "working" while the top-level agent loop is active, "needs input" (plus
+ * flash and notification) while a UI prompt blocks the loop. A second,
+ * workspace-wide pill lists the workspace's tab names. Both pills are removed
+ * on session shutdown. Uses the cmux CLI via pi.exec and runs nothing outside
+ * a live cmux terminal.
  *
  * Also offers a `set_pane_title` tool so the agent can name its tab and,
  * when the pane is alone in its workspace, the workspace. The tool is only
@@ -19,14 +20,19 @@ const CMUX_STATUS_REGISTERED = Symbol.for("pi.extensions.cmux-status.registered"
 
 const EXEC_TIMEOUT_MS = 3000;
 
-/** Per-pane badge key; shared key when the surface id is unknown. */
-const badgeKey = (): string => {
-    const surfaceId = process.env.CMUX_SURFACE_ID;
-    return surfaceId ? `pi-${surfaceId}` : "pi";
-};
+// The cmux gate guarantees a surface id, so the key is always per pane.
+const stateKey = (): string => `pi-${process.env.CMUX_SURFACE_ID}`;
+const TABS_KEY = "pi-tabs";
+const TAB_SEPARATOR = " · ";
 
-// One chain keeps calls in order, so a late "running" cannot overtake a
-// "clear". Nothing awaits it: the agent loop never waits on cmux.
+const STATES = {
+    working: ["working", "--icon", "sparkle", "--color", "#ff9500"],
+    needsInput: ["needs input", "--icon", "bell.fill", "--color", "#ff3b30"],
+    idle: ["idle", "--icon", "moon.zzz", "--color", "#8e8e93"],
+} as const;
+
+// One chain keeps calls in order, so a late "working" cannot overtake an
+// "idle". Only shutdown awaits it: the agent loop never waits on cmux.
 let queue: Promise<unknown> = Promise.resolve();
 
 const runCmux = (pi: ExtensionAPI, args: string[]): void => {
@@ -54,13 +60,27 @@ const sanitizeTitle = (raw: string): string =>
         .slice(0, MAX_TITLE_CHARS)
         .join("");
 
+type CmuxTree = {
+    windows?: Array<{
+        workspaces?: Array<{
+            id?: string;
+            panes?: Array<{ surface_count?: number; surfaces?: Array<{ title?: unknown }> }>;
+        }>;
+    }>;
+};
+
+/** Unparsable output reads as an empty tree: callers then send nothing. */
+const parseTree = (treeJson: string): CmuxTree => {
+    try {
+        return JSON.parse(treeJson) as CmuxTree;
+    } catch {
+        return {};
+    }
+};
+
 /** True when the workspace holds exactly one surface (workers share the orchestrator's workspace). */
 const isOnlySurface = (treeJson: string, workspaceId: string): boolean => {
-    const tree = JSON.parse(treeJson) as {
-        windows?: Array<{
-            workspaces?: Array<{ id?: string; panes?: Array<{ surface_count?: number }> }>;
-        }>;
-    };
+    const tree = parseTree(treeJson);
     for (const win of tree.windows ?? []) {
         for (const ws of win.workspaces ?? []) {
             if (ws.id !== workspaceId) continue;
@@ -71,15 +91,28 @@ const isOnlySurface = (treeJson: string, workspaceId: string): boolean => {
     return false;
 };
 
-const runningArgs = (): string[] => [
-    "set-status",
-    badgeKey(),
-    "running",
-    "--icon",
-    "sparkle",
-    "--color",
-    "#ff9500",
-];
+/** Tab titles of one workspace in pane, then surface order; empty titles dropped. */
+const tabNames = (treeJson: string, workspaceId: string): string[] => {
+    const tree = parseTree(treeJson);
+    for (const win of tree.windows ?? []) {
+        for (const ws of win.workspaces ?? []) {
+            if (ws.id !== workspaceId) continue;
+            return (ws.panes ?? [])
+                .flatMap((pane) => pane.surfaces ?? [])
+                .map((surface) => (typeof surface.title === "string" ? sanitizeTitle(surface.title) : ""))
+                .filter((name) => name.length > 0);
+        }
+    }
+    return [];
+};
+
+const setState = (pi: ExtensionAPI, state: keyof typeof STATES): void => {
+    runCmux(pi, ["set-status", stateKey(), ...STATES[state]]);
+};
+
+// Subagent sessions bind extensions in "print" mode and must not touch the
+// parent's pills; outside a live cmux terminal no cmux process may start.
+const active = (ctx: { mode: string }): boolean => ctx.mode === "tui" && isInsideCmux();
 
 export default function cmuxStatusExtension(pi: ExtensionAPI): void {
     if (isShadowedProjectCopy(import.meta.url)) return;
@@ -88,9 +121,31 @@ export default function cmuxStatusExtension(pi: ExtensionAPI): void {
     guardPi[CMUX_STATUS_REGISTERED] = true;
 
     let agentRunning = false;
+    // Last tab text sent, so an unchanged list costs no set-status call.
+    let lastTabs = "";
+
+    const refreshTabs = (): void => {
+        const workspaceId = process.env.CMUX_WORKSPACE_ID;
+        if (!workspaceId) return;
+        runCmuxTask(async () => {
+            const tree = await pi.exec("cmux", ["tree", "--workspace", workspaceId, "--json"], {
+                timeout: EXEC_TIMEOUT_MS,
+            });
+            const text = tabNames(tree.stdout, workspaceId).join(TAB_SEPARATOR);
+            if (!text || text === lastTabs) return;
+            await pi.exec(
+                "cmux",
+                ["set-status", TABS_KEY, text, "--icon", "rectangle.stack", "--workspace", workspaceId],
+                { timeout: EXEC_TIMEOUT_MS },
+            );
+            lastTabs = text;
+        });
+    };
 
     pi.on("session_start", (_event, ctx) => {
-        if (ctx.mode !== "tui" || !isInsideCmux()) return;
+        if (!active(ctx)) return;
+        setState(pi, "idle");
+        refreshTabs();
         pi.registerTool({
             name: "set_pane_title",
             label: "Set pane title",
@@ -121,46 +176,46 @@ export default function cmuxStatusExtension(pi: ExtensionAPI): void {
                         });
                     });
                 }
+                refreshTabs();
                 return { content: [{ type: "text", text: `Title requested: ${title}` }], details: undefined };
             },
         });
     });
 
     pi.on("agent_start", (_event, ctx) => {
-        // Subagent sessions bind extensions in "print" mode; only the
-        // interactive session should manage the badge.
-        if (ctx.mode !== "tui") return;
+        if (!active(ctx)) return;
         agentRunning = true;
-        runCmux(pi, runningArgs());
+        setState(pi, "working");
     });
 
     pi.on("agent_end", (_event, ctx) => {
-        if (ctx.mode !== "tui") return;
+        if (!active(ctx)) return;
         agentRunning = false;
-        runCmux(pi, ["clear-status", badgeKey()]);
+        setState(pi, "idle");
+        refreshTabs();
+    });
+
+    pi.on("session_shutdown", async (_event, ctx) => {
+        if (!active(ctx)) return;
+        runCmux(pi, ["clear-status", stateKey()]);
+        const workspaceId = process.env.CMUX_WORKSPACE_ID;
+        if (workspaceId) runCmux(pi, ["clear-status", TABS_KEY, "--workspace", workspaceId]);
+        lastTabs = "";
+        // pi may exit right after this handler; stale pills would outlive it.
+        await queue;
     });
 
     // Prompt events can arrive after agent_end, and slash-command dialogs
     // run while idle: only react during a run.
     pi.on("ui_prompt_start", (_event, ctx) => {
-        if (ctx.mode !== "tui" || !agentRunning) return;
-        runCmux(pi, [
-            "set-status",
-            badgeKey(),
-            "needs input",
-            "--icon",
-            "bell.fill",
-            "--color",
-            "#ff3b30",
-        ]);
-        // Without a surface id these would target a pane that is not ours.
-        if (!process.env.CMUX_SURFACE_ID) return;
+        if (!active(ctx) || !agentRunning) return;
+        setState(pi, "needsInput");
         runCmux(pi, ["trigger-flash"]);
         runCmux(pi, ["notify", "--title", "π", "--body", "Needs input"]);
     });
 
     pi.on("ui_prompt_end", (_event, ctx) => {
-        if (ctx.mode !== "tui" || !agentRunning) return;
-        runCmux(pi, runningArgs());
+        if (!active(ctx) || !agentRunning) return;
+        setState(pi, "working");
     });
 }
