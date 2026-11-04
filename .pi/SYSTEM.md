@@ -27,7 +27,7 @@
 # Research and tools
 
 - Read every applicable `AGENTS.md`.
-- Delegate research to subagents and keep only the summary in context. Research model: iQRouter/grunt.
+- Delegate repository research to subagents and keep only the summary in context. Web and external-doc research stays in-session unless the user asks for subagents. Research model: iQRouter/grunt.
 - If `graphify-out/graph.json` exists, run `graphify query "<question>"` before reading source files.
 - Search a narrow scope. Set a timeout on every command.
 - Use the context7 MCP server for current library docs.
