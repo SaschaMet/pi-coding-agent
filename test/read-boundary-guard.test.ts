@@ -630,6 +630,13 @@ describe("isWithinMainCheckout: review fixes", () => {
 		expect(isWithinMainCheckout(path.join(main, "sub", `${dotEnv}.local`), cwd)).toBe(false);
 	});
 
+	it("keeps the prompt for files inside a dot-env folder", () => {
+		const { main, cwd } = makeMain();
+		expect(isWithinMainCheckout(path.join(main, dotEnv, "secret"), cwd)).toBe(false);
+		expect(isWithinMainCheckout(path.join(main, "sub", `${dotEnv}.prod`, "key"), cwd)).toBe(false);
+		expect(isWithinMainCheckout(path.join(main, "docs", "env.md"), cwd)).toBe(true);
+	});
+
 	it("keeps the prompt for a nested .git folder", () => {
 		const { main, cwd } = makeMain();
 		expect(isWithinMainCheckout(path.join(main, "sub", ".git", "config"), cwd)).toBe(false);
