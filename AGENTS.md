@@ -35,6 +35,7 @@ Durable rules, distilled from `.pi/SYSTEM.md` (the single origin — read it for
 - cmux shell: the `pi` on `PATH` is a shim that treats `update` and other subcommands as prompts. Call the real binary (`$(npm prefix -g)/bin/pi`) for `pi update`, `pi list`, and similar.
 - Commits: the graphify git hook can leave a stale `.git/index.lock`. Check `git status` after each commit and retry once if it failed.
 - Debugging: use the extension in `.pi/extensions/debug.ts`; full guide in `.pi/docs/debug-extension-guide.md`.
+- Upgrading graphify or the Headroom proxy: follow `docs/reference/tool-upgrades.md` (save the old upstream skill before upgrading, keep the listed local deviations, sync the `autoStart` guard before the container swap).
 
 ## Verification
 

@@ -11,14 +11,15 @@
 #   docker compose -f headroom-compose.yml down
 #
 # Then in PI: /headroom health  (should report online at http://127.0.0.1:8788)
+# Upgrading the image: docs/reference/tool-upgrades.md.
 #
 # Notes:
 # - HEADROOM_HOST=0.0.0.0 is REQUIRED so the published port reaches the proxy.
 # - One proxy serves ALL providers (it compresses message content, not provider calls),
 #   so OAuth subscriptions (github-copilot, openai-codex) are covered too.
-# - Set the extension's autoStart=false when using Docker (it manages this container, not pip).
-#   CRITICAL: the noheadroom extension's autoStart DEFAULTS TO true — if /health fails while
-#   this container is down, it spawns a NATIVE `headroom proxy` on 8788 (detached, orphaned to
+# - CRITICAL: the noheadroom extension's autoStart DEFAULTS TO true — if
+#   /health fails while this container is down, it spawns a NATIVE
+#   `headroom proxy` on 8788 (detached, orphaned to
 #   launchd, survives across sessions) that then blocks this container's port forever
 #   ("address already in use") and silently serves sessions on headroom's default settings
 #   (dedup ON, no --lossless). The guard is tracked as
@@ -28,45 +29,19 @@
 #   Full writeup + detection commands: noheadroom.README.md section 4 (duplicate native proxy)
 #   and section 5 (running a native proxy with the same features instead of Docker).
 # - Container listens on 8787 (the image default) internally; only the host-side publish
-#   is remapped to 8788. HEADROOM_PORT used to be a trap here: the image's baked-in
-#   HEALTHCHECK hardcoded `curl http://127.0.0.1:8787/readyz`, so bumping the internal
-#   port made the healthcheck fail (curl exit 7) forever while the proxy itself worked
-#   fine. That was live for 5+ days before being caught (Docker showed "unhealthy",
-#   `/health` still answered from the host since the port PUBLISH was correct). Fixed
-#   upstream in v0.40.0 (PR #2436): the healthcheck now reads
-#   `http://127.0.0.1:${HEADROOM_PORT:-8787}/readyz`. We still don't set HEADROOM_PORT —
-#   there is no reason to move the internal port — but it is no longer a footgun.
+#   is remapped to 8788. Leave HEADROOM_PORT unset: there is no reason to
+#   move the internal port.
 
 services:
   headroom:
-    # Pinned to a tagged release. This was previously :main, tracked deliberately to get
-    # HEADROOM_COMPRESS_ALLOW_REMOTE (merged 2026-07-21, commit 1329ed7, PR #2458), which
-    # wasn't in any tagged release then (confirmed absent from v0.32.0). That feature has
-    # since shipped in tagged releases — still present at v0.41.0 (headroom/proxy/server.py),
-    # so per the note above we re-pin to a tag instead of tracking the moving :main branch.
-    # Re-verified inside image 0.42.0 (2026-11-04) that the
-    # command/entrypoint/env assumptions
-    # below still hold: entrypoint `headroom proxy`, baked-in HEALTHCHECK on ${HEADROOM_PORT:-8787}
-    # /readyz, nonroot /home/nonroot/.headroom volume, and every env var + CLI flag still exists.
-    # NOTE: v0.38.0 adds a gateway turn contract to /v1/compress (PR #3605) — non-breaking
-    # for requests without a top-level `gateway` object (the noheadroom extension never
-    # sends one); kill switch HEADROOM_GATEWAY_CONTRACT=0 if it misbehaves.
-    # v0.39.0 (PR #3715) re-guards /v1/compress with require_loopback_or_container_gateway,
-    # which admits the Docker bridge gateway when the Host header is loopback. That is a
-    # second path to the same place — HEADROOM_COMPRESS_ALLOW_REMOTE below still exists and
-    # still short-circuits the guard entirely, so that line stays as the explicit opt-out.
-    # v0.40.0 (PR #3852) is why HEADROOM_ALLOW_UNAUTHENTICATED_BIND appears below — without
-    # it this container refuses to start. See the comment on that variable.
-    # v0.40.0 also renames HEADROOM_LICENSE_KEY to HEADROOM_LICENSE and makes cloud usage
-    # reporting opt-in (PR #3857, flagged breaking upstream). No-op here: we set no licence,
-    # so the proxy runs the OSS path and starts no reporter.
-    # Verified on image 0.42.0 against a captured 0.41.0 reply: a real
-    # POST /v1/compress returns the same reply keys, and the noheadroom
-    # extension's own round-trip lands (answered from the 0.42.0 container).
-    # v0.42.0 (PR #4235) makes HEADROOM_TELEMETRY=off also stop the
-    # anonymous beacon; PR #4467 only adds savings reporting on /v1/compress.
-    # Re-confirm that round-trip after the NEXT bump.
-    # Docker tag drops the `v` that the GitHub release tag carries: release v0.41.0 == image 0.41.0.
+    # Pinned to a tagged release, never :main or :latest. The image's
+    # entrypoint is `headroom proxy`, its HEALTHCHECK reads
+    # ${HEADROOM_PORT:-8787}/readyz, and its state volume is
+    # /home/nonroot/.headroom; the command, env, and log path below rely
+    # on all three. The Docker tag drops the `v` of the GitHub release tag:
+    # release v0.42.0 == image 0.42.0.
+    # Do not switch back to ghcr.io/chopratejas/headroom: the repo moved
+    # orgs and that package is frozen at v0.27.0.
     image: ghcr.io/headroomlabs-ai/headroom:0.42.0
     container_name: headroom
     restart: unless-stopped
@@ -93,13 +68,14 @@ services:
       - "${HOME}/.pi/agent/sessions:/root/.pi/agent/sessions:ro"
     environment:
       HEADROOM_HOST: "0.0.0.0"
-      # REQUIRED from v0.40.0 (PR #3852). Before that, binding a non-loopback address with
-      # no HEADROOM_PROXY_TOKEN only logged a warning. Now bind_policy.py refuses the start
-      # outright (CLI exit 1, run_server exit 2) because an open bind would relay /v1/* to
-      # any peer using the operator's upstream credentials. The proxy cannot see that the
-      # port publish above is 127.0.0.1-only, so this variable is how the operator says so —
-      # it is the documented shape for exactly this setup, not a blanket disable: the
-      # proxy_open_bind warning is still logged and every route gate stays as it was.
+      # Without this the container refuses to start: bind_policy.py stops a
+      # non-loopback bind that has no HEADROOM_PROXY_TOKEN (CLI exit 1,
+      # run_server exit 2), because an open bind would relay /v1/* to any
+      # peer using the operator's upstream credentials. The proxy cannot
+      # see that the port publish above is 127.0.0.1-only, so this variable
+      # is how the operator says so — the documented shape for exactly this
+      # setup, not a blanket disable: the proxy_open_bind warning is still
+      # logged and every route gate stays as it was.
       # Drop this line and the container exits at startup; `restart: unless-stopped` turns
       # that into a crash loop, and scripts/headroom-up.sh still exits 0 by design, so PI
       # launches with NO compression and nothing looks broken. The alternative is setting
@@ -130,11 +106,7 @@ services:
       # this by patching loopback_guard.py instead — that disables the peer-IP check for
       # every loopback-gated route in the proxy (admin/runtime-env, settings write, CCR
       # retrieve, etc.), not just this one, and silently stops working on the next bump.
-      #
-      # Live as of v0.37.0 (and :main since 2026-07-21) — was a no-op under the previous
-      # :latest pin (v0.32.0), which predates this feature. Note the CCR retrieve family
-      # (/v1/retrieve*) has NO such override, ever, by design — that gap can't be fixed by
-      # env var regardless of version, :main included.
+      # The CCR retrieve family (/v1/retrieve*) has NO such override.
       HEADROOM_COMPRESS_ALLOW_REMOTE: "1"
       # CCR's Context Tracker otherwise auto-reinjects full original content back into
       # the message stream (relevance-scored, default ON, up to 2x/query) with NO explicit
@@ -148,13 +120,8 @@ services:
       # tool call — never auto-injected. See noheadroom.README.md section 3.
       HEADROOM_NO_CCR_PROACTIVE_EXPANSION: "1"
     # The extension calls /v1/compress, so the proxy runs in token-compression mode.
-    # Verified against :latest (image 0.32.0): entrypoint is `headroom proxy`, so these
-    # flags append to form `headroom proxy --mode token --no-cache`. If a future image
-    # uses a bare `headroom` entrypoint, prepend "proxy": ["proxy","--mode","token","--no-cache"].
-    #
-    # Image moved orgs: the repo transferred from chopratejas/headroom to headroomlabs-ai/headroom
-    # on 2026-06-29 (after v0.28.0). GHCR did not redirect the old package, so
-    # ghcr.io/chopratejas/headroom:latest is frozen at v0.27.0 forever — do not revert this.
+    # These flags append to the `headroom proxy` entrypoint. If a future
+    # image uses a bare `headroom` entrypoint, prepend "proxy".
     # --lossless: format-native lossless compaction for tool outputs (dedup identical/subset
     #   reads, strip line-number scaffolding, collapse stale post-edit reads) instead of the
     #   lossy token-mode rewriting that was silently dropping keywords (if/set/endif/and/=)

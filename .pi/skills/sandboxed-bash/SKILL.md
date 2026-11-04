@@ -11,6 +11,8 @@ Check first: `echo $SANDBOX_RUNTIME` prints `1` → your bash is sandboxed. Empt
 | --- | --- | --- |
 | `Operation not permitted` on `.pi/`, `.env*`, `.git/hooks`, `.git/config` | Protected inside the project | Edits to `.pi/` go through the edit tool inside the armed spec scope, never to get past a block. Ask the human for git config |
 | `Operation not permitted` outside the project | Only the project, `$TMPDIR`, `/tmp`, and `~/.npm` are writable | Write inside the project or `$TMPDIR` |
+| `Failed to connect to 127.0.0.1 port …` | Local ports (e.g. the Headroom proxy on 8788, Docker services) are not reachable | Hand the `curl` / `docker exec` check to the human with the expected output |
+| `uv`/`pipx` fails on `~/.cache/uv` or `~/.local` | Tool installs write outside the writable paths | Hand `uv tool upgrade` / `pipx upgrade` to the human; a `!` shell inside PI is sandboxed too |
 | Host blocked: `CONNECT tunnel failed, response 403` (macOS proxy) or `ENOTFOUND` / "could not resolve host" | Only `registry.npmjs.org` is allowed | Ask the human to add the domain to `~/.pi/agent/sandbox.json`. Never edit it yourself, never go unsandboxed for it |
 | Docker, `gh`, `git push/fetch/pull`, `npm publish`, a listening port | No socket, no tokens, no binding — by design | Unsandboxed one-shot (below) |
 | `bash blocked: sandbox unavailable (<reason>)` | srt missing or wrong version, config, cwd, tool override, settings file | Stop. Tell the human the reason and the fix. Read and edit tools still work |
