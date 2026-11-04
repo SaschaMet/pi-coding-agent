@@ -49,28 +49,24 @@ export default function subagentDelegationPolicy(pi: ExtensionAPI): void {
         return { action: "continue" };
     });
 
-    pi.on("before_agent_start", async (_event, ctx) => {
-        return {
-            message: {
-                customType: "subagent-delegation-policy",
-                display: false,
-                content: [
-                    "[DELEGATION POLICY]",
-                    "- Explicit user delegation request: must call `Agent` from `@tintinweb/pi-subagents`.",
-                    "- Retrieve background results with `get_subagent_result`; steer running agents with `steer_subagent`.",
-                    "- Skill execution requests stay in the current session unless the user explicitly asks for delegation.",
-                    "- Do not delegate implementation or edits by default. Inspect and edit the current project/repository directly for normal coding tasks.",
-                    "- Subagents must inherit the parent model unless the user explicitly requested another model or the invoked skill specifies one.",
-                    "- Research and look-up subagents are the exception: use the research model from `.pi/SYSTEM.md` or the user's explicit instruction (e.g. iQRouter/grunt, or Claude Haiku when running as Claude [thinking level medium]). If neither specifies one, fall back to the current model.",
-                    "- When delegation is explicitly requested, use `generic-readonly` for research/planning/summarization tasks.",
-                    "- When delegation is explicitly requested, use `generic-worker` or built-in `general-purpose` for implementation or file-modifying tasks.",
-                    "- External-doc or web research task: keep it in-session unless the user explicitly asks for subagents.",
-                    "- Repository reconnaissance that feeds a research artifact: delegate the searching to `generic-readonly` and keep only the returned summary in this context.",
-                    "- A skill may direct delegation for drafting a document (spec, research, review notes); follow the skill in that case. This is not implementation.",
-                    "- Keep trivial, localized tasks in-session unless user explicitly asks for delegation.",
-                    ...(inCmuxTui(ctx) ? [CMUX_RULE] : []),
-                ].join("\n"),
-            },
-        };
+    pi.on("before_agent_start", async (event, ctx) => {
+        const policy = [
+            "[DELEGATION POLICY]",
+            "- Explicit user delegation request: must call `Agent` from `@tintinweb/pi-subagents`.",
+            "- Retrieve background results with `get_subagent_result`; steer running agents with `steer_subagent`.",
+            "- Skill execution requests stay in the current session unless the user explicitly asks for delegation.",
+            "- Do not delegate implementation or edits by default. Inspect and edit the current project/repository directly for normal coding tasks.",
+            "- Subagents must inherit the parent model unless the user explicitly requested another model or the invoked skill specifies one.",
+            "- Research and look-up subagents are the exception: use the research model from `.pi/SYSTEM.md` or the user's explicit instruction (e.g. iQRouter/grunt, or Claude Haiku when running as Claude [thinking level medium]). If neither specifies one, fall back to the current model.",
+            "- When delegation is explicitly requested, use `generic-readonly` for research/planning/summarization tasks.",
+            "- When delegation is explicitly requested, use `generic-worker` or built-in `general-purpose` for implementation or file-modifying tasks.",
+            "- External-doc or web research task: keep it in-session unless the user explicitly asks for subagents.",
+            "- Repository reconnaissance that feeds a research artifact: delegate the searching to `generic-readonly` and keep only the returned summary in this context.",
+            "- A skill may direct delegation for drafting a document (spec, research, review notes); follow the skill in that case. This is not implementation.",
+            "- Keep trivial, localized tasks in-session unless user explicitly asks for delegation.",
+            ...(inCmuxTui(ctx) ? [CMUX_RULE] : []),
+        ].join("\n");
+        // A section, not a forced prompt: the Claude bridge forwards sections, and an unchanged one is sent once.
+        event.systemPromptOptions.sections.delegation_policy = policy;
     });
 }
