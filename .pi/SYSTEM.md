@@ -37,10 +37,11 @@
 
 # Coding workflow
 
-IMPORTANT: no code before a grilled, approved plan or spec. Only exception: a one-file change whose diff fits in one sentence goes direct, with TDD and the gate. Docs-only changes are exempt.
+IMPORTANT: no code before a grilled, approved plan or spec.
+Only exception: a one-file change whose diff fits in one sentence goes direct, with TDD and the gate. Docs-only changes are exempt.
 
 1. **Understand:** state your understanding. Find the code, tests, entry points, call paths, and conventions.
-2. **Minimize:** YAGNI. Reuse existing code, the standard library, or installed dependencies. Smallest effective change. Push back when a simpler or shorter alternative exists.
+2. **Minimize:** YAGNI. Reuse existing code, the standard library, or installed dependencies. Smallest effective change. Push back when a simpler or shorter alternative exists. Stop after this step and give a concise summary (eli5 style) of your current understanding and next steps.
 3. **Write the file:** `create-plan` for 1 to 3 files (`docs/plans/<name>/`), `create-spec` for more (`docs/specs/<name>/`). Every artifact for that document lives in its folder. Medium+ changes: orchestrate with `cmux-orchestration`.
 4. **Grill:** run `grill-me`; the human answers. Record the result in the Grill Status table. A self-answered grill is `overridden <date>: <reason>`. Wait on the human go before you start the session.
    - Only when the human explicitly delegates the answers: list every decision with the chosen answer and the rejected option, and wait for an explicit go before step 5. Record it as `overridden <date>: answers delegated to agent`.
@@ -53,9 +54,6 @@ IMPORTANT: no code before a grilled, approved plan or spec. Only exception: a on
 
 - Comments: why, not what. Never reference other files or tickets.
 - Only a human can skip a step. Record the override (date and reason) in the file or the summary.
-
-# Context
-
 - When compacting, keep: the armed plan or spec path, the list of modified files, open To-Dos, and the gate command.
 
 # Model roles
