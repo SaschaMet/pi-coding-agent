@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -101,6 +102,37 @@ describe("applyPatch", () => {
 
     it("does not write when the package is absent", () => {
         expect(applyPatch(agentDir, patchFile)).toBe("absent");
+    });
+});
+
+describe("repo config around the package", () => {
+    let marker: string;
+
+    const plantFilter = () => {
+        marker = path.join(agentDir, "..", path.basename(agentDir) + "-marker");
+        execFileSync("git", ["init", "-q", agentDir]);
+        execFileSync("git", ["-C", agentDir, "config", "filter.x.clean", `sh -c 'touch ${marker}; cat'`]);
+        fs.writeFileSync(path.join(agentDir, ".gitattributes"), "* filter=x\n");
+    };
+
+    afterEach(() => fs.rmSync(marker, { force: true }));
+
+    it("does not run a planted repo filter while checking", () => {
+        plantFilter();
+        writePkg("one\ntwo\nthree\n");
+        expect(checkPatch(agentDir, patchFile).state).toBe("needed");
+        expect(fs.existsSync(marker)).toBe(false);
+        writePkg("one\nTWO\nthree\n");
+        expect(checkPatch(agentDir, patchFile).state).toBe("applied");
+        expect(fs.existsSync(marker)).toBe(false);
+    });
+
+    it("does not run a planted repo filter while applying", () => {
+        plantFilter();
+        writePkg("one\ntwo\nthree\n");
+        expect(applyPatch(agentDir, patchFile)).toBe("applied");
+        expect(fs.readFileSync(target, "utf8")).toBe("one\nTWO\nthree\n");
+        expect(fs.existsSync(marker)).toBe(false);
     });
 });
 
