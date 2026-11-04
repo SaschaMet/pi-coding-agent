@@ -1,5 +1,5 @@
 Purpose: subagents forward the read guard's "Allow <tool> outside current directory?" question (Yes/No or its session-grant options) to the parent's pane while the parent is busy (named, 10-minute timeout, closes on idle or abort); every other dialog stays refused and every other UI call stays silent.
-Reviewed-Version: 0.23.0
+Reviewed-Version: 0.23.1
 --- a/src/agent-runner.ts
 +++ b/src/agent-runner.ts
 @@ -6,7 +6,7 @@

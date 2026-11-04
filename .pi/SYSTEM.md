@@ -61,10 +61,11 @@ IMPORTANT: no code before a grilled, approved plan or spec. Only exception: a on
 # Model roles
 
 - Defaults, unless the repo's `AGENTS.md`, `SYSTEM.md`, or a skill assigns a model to a role (that wins; a `settings.json` default model does not count). Provider: `claude-bridge`.
-  - Lead / orchestrator: `claude-opus-5-5`, thinking medium. Plans, grills, synthesis.
-  - Reviews, grill workers, security checks: `claude-opus-5-5`, thinking medium.
-  - Implementation agents: `claude-sonnet-5-5`, thinking medium. Code and file edits from an approved plan.
+  - Lead / orchestrator: `claude-opus-5-5` or `claude-sonnet-5-5`, thinking medium. Plans, grills, synthesis.
+  - Reviews, grill workers, security checks: `claude-opus-5-5` or `claude-sonnet-5-5`, thinking medium.
+  - Implementation agents: `claude-sonnet-5-5` or `claude-haiku-5-5`, thinking medium. Code and file edits from an approved plan.
   - Research agents: `claude-haiku-5-5`, thinking low for lookups, file location, digests, and summaries; medium for multi-step research that feeds a research doc, spec, or plan.
+- Lead / orchestrator can choose the model depending on the task. Stronger models for harder tasks, or if a model could not achieve its goal.
 - `Agent` tool: pass `model: "claude-bridge/<id>"` and `thinking`. cmux workers: `--model claude-bridge/<id>:<level>`.
 - Role model unavailable (unknown model, boot error, 503): retry once on `iqRouter/grunt:high` and tell the user.
 
