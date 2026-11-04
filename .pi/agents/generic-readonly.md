@@ -1,6 +1,7 @@
 ---
 description: Read-only delegated agent for research, planning, and summarization tasks.
-tools: read, bash, grep, find, ls
+tools: read, bash, grep, find, ls, ext:sandbox-bash
+skills: false
 prompt_mode: replace
 ---
 
