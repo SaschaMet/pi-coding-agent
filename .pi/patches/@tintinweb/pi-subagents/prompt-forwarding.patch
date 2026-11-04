@@ -1,4 +1,4 @@
-Purpose: subagents forward the read guard's "Allow <tool> outside current directory?" question to the parent's pane while the parent is busy (named, 10-minute timeout, closes on idle or abort); every other dialog stays refused and every other UI call stays silent.
+Purpose: subagents forward the read guard's "Allow <tool> outside current directory?" question (Yes/No or its session-grant options) to the parent's pane while the parent is busy (named, 10-minute timeout, closes on idle or abort); every other dialog stays refused and every other UI call stays silent.
 Reviewed-Version: 0.23.0
 --- a/src/agent-runner.ts
 +++ b/src/agent-runner.ts
@@ -11,16 +11,26 @@ Reviewed-Version: 0.23.0
  import {
    type AgentSession,
    type AgentSessionEvent,
-@@ -497,6 +497,92 @@
+@@ -495,6 +495,99 @@
+ export interface ToolActivity {
+   type: "start" | "end";
    toolName: string;
- }
- 
++}
++
 +// Local patch: only the read guard's question may reach the parent, at any nesting depth.
-+// The whole title, the session-name prefixes and the Yes/No options must match, because a
++// The whole title, the session-name prefixes and the guard's options must match, because a
 +// model-written question (ask_user_question's select fallback) can copy any single line.
 +const FORWARDED_TITLE =
 +  /^(\[[A-Za-z0-9._-]+(#[0-9a-f]{8})?\] )*Allow \S+ outside current directory\?\n\nPath: [^\n]*\nCWD: [^\n]*$/;
-+const FORWARDED_OPTIONS = ["Yes", "No"];
++// The guard asks Yes/No, or Yes once / this file / an optional directory / No.
++const FORWARDED_DIR_OPTION = /^Yes, everything under [^\n]+ for the session$/;
++const isGuardOptions = (o: string[]) =>
++  (o.length === 2 && o[0] === "Yes" && o[1] === "No") ||
++  ((o.length === 3 || o.length === 4) &&
++    o[0] === "Yes, once" &&
++    o[1] === "Yes, this file for the session" &&
++    o[o.length - 1] === "No" &&
++    (o.length === 3 || FORWARDED_DIR_OPTION.test(o[2])));
 +// An unanswered forwarded question resolves as "no answer", which the guard treats as No.
 +const SUBAGENT_PROMPT_TIMEOUT_MS = 10 * 60_000;
 +const IDLE_POLL_MS = 1_000;
@@ -50,8 +60,7 @@ Reviewed-Version: 0.23.0
 +    select: async (title, options, opts) => {
 +      const guardShaped =
 +        FORWARDED_TITLE.test(title) &&
-+        options.length === FORWARDED_OPTIONS.length &&
-+        options.every((option, i) => option === FORWARDED_OPTIONS[i]);
++        isGuardOptions(options);
 +      if (!guardShaped || parentIdle()) return undefined;
 +      const signals = [signal, opts?.signal].filter((s): s is AbortSignal => s !== undefined);
 +      if (signals.some((s) => s.aborted)) return undefined;
@@ -99,12 +108,10 @@ Reviewed-Version: 0.23.0
 +    getToolsExpanded: () => false,
 +    setToolsExpanded: () => {},
 +  };
-+}
-+
+ }
+ 
  export interface RunOptions {
-   /** ExtensionAPI instance — used for pi.exec() instead of execSync. */
-   pi: ExtensionAPI;
-@@ -1286,15 +1372,16 @@
+@@ -1286,15 +1379,16 @@
    const { session } = await runInChildSessionContext(() => createAgentSession(sessionOpts));
  
    const baseSessionName = agentConfig?.name ?? type;

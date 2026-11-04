@@ -79,8 +79,23 @@ export function resolvePathWithRealAncestor(candidate: string): string {
    return absolute;
 }
 
+/**
+ * pi's file tools strip a leading `@` and decode `file://` URLs before opening a path; the
+ * guards must check that same path, or `@../x` passes as a folder named `@..` inside cwd.
+ */
+function normalizeLikePiTools(inputPath: string): string {
+   const stripped = inputPath.startsWith("@") ? inputPath.slice(1) : inputPath;
+   if (!stripped.startsWith("file://")) return expandHomePath(stripped);
+   try {
+      return fileURLToPath(stripped);
+   } catch {
+      // pi's tool throws on the same URL, so nothing is opened either way.
+      return stripped;
+   }
+}
+
 export function resolveInputPath(inputPath: string, cwd: string): string {
-   const normalizedInputPath = expandHomePath(inputPath);
+   const normalizedInputPath = normalizeLikePiTools(inputPath);
    return resolvePathWithRealAncestor(
       path.isAbsolute(normalizedInputPath)
          ? normalizedInputPath

@@ -285,7 +285,7 @@ describe("read boundary guard", () => {
 				hasUI: true,
 				cwd: tmp,
 				ui: {
-					select: async () => "Yes",
+					select: async () => "Yes, once",
 				},
 			},
 		);
@@ -318,7 +318,7 @@ describe("read boundary guard", () => {
 				hasUI: true,
 				cwd: tmp,
 				ui: {
-					select: async () => "Yes",
+					select: async () => "Yes, once",
 				},
 			},
 		);

@@ -89,6 +89,30 @@ describe.skipIf(!installed)("subagent prompt forwarding", () => {
 		expect(parent.select).not.toHaveBeenCalled();
 	});
 
+	it("forwards the guard's session-grant options, with and without the directory option", async () => {
+		const parent = fakeParent("Yes, this file for the session");
+		const ui = promptOnlyUI(parent, NAME, () => false);
+		const withDir = ["Yes, once", "Yes, this file for the session", "Yes, everything under /elsewhere for the session", "No"];
+		const withoutDir = ["Yes, once", "Yes, this file for the session", "No"];
+		await expect(ui.select(GUARD_TITLE, withDir)).resolves.toBe("Yes, this file for the session");
+		await expect(ui.select(GUARD_TITLE, withoutDir)).resolves.toBe("Yes, this file for the session");
+		expect(parent.select).toHaveBeenCalledTimes(2);
+	});
+
+	it("refuses session-grant options that are reordered, padded or carry a foreign third option", async () => {
+		const parent = fakeParent("Yes, once");
+		const ui = promptOnlyUI(parent, NAME, () => false);
+		for (const options of [
+			["Yes, this file for the session", "Yes, once", "No"],
+			["Yes, once", "Yes, this file for the session", "Run rm -rf for the session", "No"],
+			["Yes, once", "Yes, this file for the session", "Yes, everything under /a for the session", "No", "Maybe"],
+			["Yes, once", "No"],
+		]) {
+			await expect(ui.select(GUARD_TITLE, options)).resolves.toBeUndefined();
+		}
+		expect(parent.select).not.toHaveBeenCalled();
+	});
+
 	it("refuses a guard-shaped question whose options are not the guard's Yes and No", async () => {
 		const parent = fakeParent("1. Yes");
 		const ui = promptOnlyUI(parent, NAME, () => false);
