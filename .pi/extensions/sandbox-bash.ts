@@ -1,8 +1,10 @@
+import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { Type } from "@earendil-works/pi-ai";
 import {
 	type BashOperations,
 	type BashSpawnHook,
@@ -13,16 +15,26 @@ import {
 	getAgentDir,
 } from "@earendil-works/pi-coding-agent";
 import { isShadowedProjectCopy } from "./lib/extension-helpers.ts";
+import { runGitWorktree } from "./lib/git-worktree.ts";
 import {
 	buildSrtSettings,
+	canonicalPath,
 	checkCwd,
+	findBinary,
 	findSrt,
+	gitPointerLiterals,
+	gitTreeDenies,
+	globalGitConfigDenies,
 	linkedWorktreeGitWrites,
 	loadSandboxConfig,
+	nonRepoDenies,
+	resolvePaths,
 	SRT_VERSION,
 	sameRealPath,
 	type SrtSettings,
 	secretEnvNames,
+	currentConfigValue,
+	submoduleConfigNeeded,
 	wrapCommand,
 } from "./lib/sandbox-bash.ts";
 
@@ -40,7 +52,15 @@ type State =
 	| { kind: "pending" }
 	| { kind: "off" }
 	| { kind: "blocked"; reason: string }
-	| { kind: "active"; srtPath: string; settingsPath: string; settings: SrtSettings; envNames: string[] };
+	| {
+			kind: "active";
+			srtPath: string;
+			settingsPath: string;
+			settings: SrtSettings;
+			envNames: string[];
+			common: string | undefined;
+			literals: string[];
+	  };
 
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
@@ -110,15 +130,60 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 		};
 	};
 
+	// The git_worktree tool runs outside the sandbox, so it must not overlap a sandboxed command that could be swapping paths under it.
+	let bashRunning = 0;
+	const counted = async <T>(run: () => Promise<T>): Promise<T> => {
+		bashRunning++;
+		try {
+			return await run();
+		} finally {
+			bashRunning--;
+		}
+	};
+
 	const inner = createBashToolDefinition(process.cwd(), { spawnHook });
 	pi.registerTool({
 		...inner,
 		label: "bash (sandboxed)",
 		promptGuidelines: [...(inner.promptGuidelines ?? []), GUIDELINE],
 		async execute(toolCallId, params, signal, onUpdate, ctx) {
-			const current = checkSettingsFile(await currentState(), ctx);
+			const current = refreshPointerLiterals(checkSettingsFile(await currentState(), ctx), ctx);
 			if (current.kind === "blocked") throw new Error(blockedMessage(current.reason));
-			return inner.execute(toolCallId, params, signal, onUpdate, ctx);
+			return counted(() => inner.execute(toolCallId, params, signal, onUpdate, ctx));
+		},
+	});
+
+	pi.registerTool({
+		name: "git_worktree",
+		label: "git worktree (trusted)",
+		executionMode: "sequential",
+		description:
+			"Create or remove a git worktree under a checkout's .worktrees/ folder on a handsoff/ or hill-climb/ branch. Use it because bash cannot write git pointer files in the sandbox.",
+		parameters: Type.Object(
+			{
+				action: Type.Union([Type.Literal("add"), Type.Literal("remove")]),
+				path: Type.String(),
+				branch: Type.Optional(Type.String()),
+				base: Type.Optional(Type.String()),
+			},
+			{ additionalProperties: false },
+		),
+		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+			if (bashRunning > 0) throw new Error("git_worktree refused: a sandboxed bash command is running");
+			const writable = resolvePaths(loadSandboxConfig(getAgentDir()).filesystem.allowWrite, {
+				cwd: ctx.cwd,
+				home: os.homedir(),
+				tmpdir: os.tmpdir(),
+			});
+			const realGit = findBinary("git", process.env.PATH ?? "", writable);
+			if (!realGit) throw new Error("git_worktree: git not found on PATH outside writable folders");
+			const result = runGitWorktree(params, { cwd: ctx.cwd, realGit });
+			if (result.refused) throw new Error(`git_worktree refused:\n${result.refused.join("\n")}`);
+			if (!result.ok) throw new Error(`git exited ${result.exitCode}\n${result.stderr}`);
+			return {
+				content: [{ type: "text", text: `exit 0\n${result.stdout}${result.stderr}` }],
+				details: { exitCode: result.exitCode, gitArgs: result.gitArgs },
+			};
 		},
 	});
 
@@ -126,15 +191,17 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 		const local = createLocalBashOperations();
 		return {
 			exec: (command, cwd, options) =>
-				local.exec(wrapCommand(command, active.settingsPath, active.srtPath), cwd, {
-					...options,
-					env: sandboxEnv(options.env),
-				}),
+				counted(() =>
+					local.exec(wrapCommand(command, active.settingsPath, active.srtPath), cwd, {
+						...options,
+						env: sandboxEnv(options.env),
+					}),
+				),
 		};
 	}
 
 	pi.on("user_bash", async (_event, ctx) => {
-		const current = checkSettingsFile(await currentState(), ctx);
+		const current = refreshPointerLiterals(checkSettingsFile(await currentState(), ctx), ctx);
 		if (current.kind === "off") return undefined;
 		if (current.kind === "active") return { operations: sandboxedOperations(current) };
 		const reason = current.kind === "blocked" ? current.reason : "sandbox not ready";
@@ -182,6 +249,45 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 		settings.filesystem.allowWrite.push(...git.allowWrite);
 		settings.filesystem.denyWrite.push(...git.denyWrite);
 
+		let common: string | undefined;
+		let repoTop: string | undefined;
+		let literals: string[] = [];
+		if (revParse.code === 0 && !revParse.killed) {
+			const tree = gitTreeDenies(revParse.stdout);
+			if (!tree) {
+				return { kind: "blocked", reason: "a git path holds a glob character (*?[]{}), so srt cannot deny it by name; use a checkout path without one" };
+			}
+			if (tree.length > 0) {
+				const lines = revParse.stdout.trim().split("\n");
+				common = canonicalPath(lines[1]);
+				repoTop = canonicalPath(lines[2]);
+				const found = gitPointerLiterals(common);
+				if (!found) return { kind: "blocked", reason: `cannot list the git pointer files under ${common}` };
+				literals = found;
+				settings.filesystem.denyWrite.push(...tree, ...literals);
+			}
+		} else {
+			const tmpRoots = resolvePaths(["$TMPDIR", "/tmp", "~/.npm"], { cwd: ctx.cwd, home, tmpdir: os.tmpdir() });
+			settings.filesystem.denyWrite.push(...nonRepoDenies(canonicalPath(ctx.cwd), settings.filesystem.allowWrite, tmpRoots));
+		}
+
+		const globalGit = globalGitConfigDenies({
+			home,
+			xdgConfigHome: process.env.XDG_CONFIG_HOME || undefined,
+			writableRoots: settings.filesystem.allowWrite,
+			repoTop,
+			gitConfigGlobal: process.env.GIT_CONFIG_GLOBAL || undefined,
+			extraFiles: common ? [path.join(common, "config")] : [],
+		});
+		if ("blocked" in globalGit) return { kind: "blocked", reason: globalGit.blocked };
+		settings.filesystem.denyWrite.push(...globalGit.denyWrite);
+
+		if (common) {
+			// Git status then never enters a nested repo a session staged as a gitlink, whose config could run a command outside the sandbox.
+			const problem = setSubmoduleConfig(common, settings.filesystem.allowWrite, ctx);
+			if (problem) return { kind: "blocked", reason: problem };
+		}
+
 		const srtPath = findSrt(process.env.PATH ?? "", settings.filesystem.allowWrite);
 		if (!srtPath) {
 			return {
@@ -206,7 +312,92 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 			fs.rmSync(settingsPath, { force: true });
 			return { kind: "blocked", reason: `srt probe failed (exit ${probe.code}): ${probe.stderr.trim().slice(0, 200)}` };
 		}
-		return { kind: "active", srtPath, settingsPath, settings, envNames };
+		return { kind: "active", srtPath, settingsPath, settings, envNames, common, literals };
+	}
+
+	function setSubmoduleConfig(common: string, writableRoots: readonly string[], ctx: ExtensionContext): string | undefined {
+		const file = path.join(common, "config");
+		try {
+			if (!fs.lstatSync(file).isFile()) return `${file} is not a regular file`;
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== "ENOENT") return `cannot inspect ${file}: ${errorMessage(error)}`;
+		}
+		let text = "";
+		try {
+			text = fs.readFileSync(file, "utf8");
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== "ENOENT") return `cannot read ${file}: ${errorMessage(error)}`;
+		}
+		const needed = submoduleConfigNeeded(text);
+		if (needed.length === 0) return undefined;
+		// git swaps the file through a lock, so a read-only config would be replaced without error.
+		try {
+			fs.accessSync(file, fs.constants.W_OK);
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== "ENOENT") return `cannot set ${needed[0][0]} in ${file}: not writable`;
+		}
+		const realGit = findBinary("git", process.env.PATH ?? "", writableRoots);
+		if (!realGit) return `git not found outside writable folders; cannot set ${needed[0][0]} in ${file}`;
+		for (const [key, value] of needed) {
+			const result = spawnSync(realGit, ["config", "--file", file, key, value], {
+				env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1" },
+				encoding: "utf8",
+				timeout: PROBE_TIMEOUT_MS,
+			});
+			if (result.error || result.status !== 0) {
+				return `cannot set ${key} in ${file}: ${(result.error?.message ?? result.stderr ?? "").trim().slice(0, 200)}`;
+			}
+		}
+		const changes = needed.map(([key, value]) => `${key} ${currentConfigValue(text, key) ?? "unset"} -> ${value}`);
+		const notice = `sandbox: set git config in ${file}: ${changes.join(", ")} (git status then never enters a nested repo)`;
+		ctx.ui?.notify(notice, "info");
+		if (!ctx.hasUI) process.stderr.write(`${notice}\n`);
+		return undefined;
+	}
+
+	// A worktree created mid-session (by git_worktree or another session) gets the same rename
+	// protection before the next command runs.
+	function refreshPointerLiterals(snapshot: State, ctx: ExtensionContext | undefined): State {
+		if (snapshot.kind !== "active" || !snapshot.common) return snapshot;
+		let current = snapshot;
+		let common = snapshot.common;
+		if (state !== snapshot) {
+			// A parallel command may already have refreshed the literals; only a different settings
+			// file or a non-active state means a real restart.
+			if (state.kind !== "active" || state.settingsPath !== snapshot.settingsPath || !state.common) {
+				return { kind: "blocked", reason: "sandbox is restarting" };
+			}
+			current = state;
+			common = state.common;
+		}
+		try {
+			const found = gitPointerLiterals(common);
+			if (!found) {
+				state = { kind: "blocked", reason: `cannot list the git pointer files under ${common}` };
+				if (ctx) report(ctx);
+				return state;
+			}
+			// A removed worktree's folder may still hold its pointer file, so literals are never dropped.
+			const old = new Set(current.literals);
+			const next = [...new Set([...current.literals, ...found])].sort();
+			if (next.length === old.size) return current;
+			const settings: SrtSettings = {
+				...current.settings,
+				filesystem: {
+					...current.settings.filesystem,
+					denyWrite: [...current.settings.filesystem.denyWrite.filter((entry) => !old.has(entry)), ...next],
+				},
+			};
+			const temp = `${current.settingsPath}.tmp`;
+			fs.writeFileSync(temp, JSON.stringify(settings, null, 2), { mode: 0o600 });
+			fs.renameSync(temp, current.settingsPath);
+			state = { ...current, settings, literals: next };
+			return state;
+		} catch (error) {
+			state = { kind: "blocked", reason: `cannot refresh git pointer protection: ${errorMessage(error)}` };
+			if (ctx) report(ctx);
+			return state;
+		}
 	}
 
 	function removeSettingsFile(): void {

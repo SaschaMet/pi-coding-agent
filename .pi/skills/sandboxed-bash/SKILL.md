@@ -11,12 +11,18 @@ Check first: `echo $SANDBOX_RUNTIME` prints `1` → your bash is sandboxed. Empt
 | --- | --- | --- |
 | `Operation not permitted` on `.pi/`, `.env*`, `.git/hooks`, `.git/config` | Protected inside the project | Edits to `.pi/` go through the edit tool inside the armed spec scope, never to get past a block. Ask the human for git config |
 | `Operation not permitted` on `<repo>/.git/...` from a linked worktree (`cannot lock ref`, `index.lock`) | A linked worktree may write only worktree records, new objects (not `objects/pack`, `objects/info`), and `handsoff/*` / `hill-climb/*` branches | Use one of those branch prefixes; other git writes (other branches, `config`, `gc`) run in the main checkout |
+| `Operation not permitted` on a `.git` file or folder, `commondir`, `gitdir`, `config.worktree`, `.git/modules` | Git pointers and nested repos in the repo tree are read-only in the sandbox: a rewritten pointer would make git outside the sandbox run planted commands | Make or remove worktrees with the `git_worktree` tool; do not create nested repos or submodules in the repo tree |
+| `Operation not permitted` on `~/.gitconfig`, `~/.config/git/`, or a file a global git config includes | Global git settings are read-only in the sandbox | Ask the human |
 | `Operation not permitted` outside the project | Only the project, `$TMPDIR`, `/tmp`, and `~/.npm` are writable | Write inside the project or `$TMPDIR` |
 | `Failed to connect to 127.0.0.1 port …` | Local ports (e.g. the Headroom proxy on 8788, Docker services) are not reachable | Hand the `curl` / `docker exec` check to the human with the expected output |
 | `uv`/`pipx` fails on `~/.cache/uv` or `~/.local` | Tool installs write outside the writable paths | Hand `uv tool upgrade` / `pipx upgrade` to the human; a `!` shell inside PI is sandboxed too |
 | Host blocked: `CONNECT tunnel failed, response 403` (macOS proxy) or `ENOTFOUND` / "could not resolve host" | Only `registry.npmjs.org` is allowed | Ask the human to add the domain to `~/.pi/agent/sandbox.json`. Never edit it yourself, never go unsandboxed for it |
 | Docker, `gh`, `git push/fetch/pull`, `npm publish`, a listening port | No socket, no tokens, no binding — by design | Unsandboxed one-shot (below) |
 | `bash blocked: sandbox unavailable (<reason>)` | srt missing or wrong version, config, cwd, tool override, settings file | Stop. Tell the human the reason and the fix. Read and edit tools still work |
+
+At start, the sandbox sets `diff.ignoreSubmodules = all` and `status.submoduleSummary = false` in the repo's git config (an info notice shows old and new values), so `git status` never enters a nested repo a session staged as a gitlink.
+
+Still open: a git repo a session builds outside the repo tree (under `$TMPDIR` or `/tmp`) can carry a planted config. Do not run git by hand in such a folder. Before running git yourself in a run worktree, run `npx tsx scripts/git-pointer-check.ts <main checkout>` (in this repo) and expect `ok`. Do not use `isolation: worktree` for subagents in this repo: its unsandboxed `git add -A` enters a nested repo a session planted.
 
 ## Unsandboxed one-shot
 

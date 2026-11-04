@@ -6,14 +6,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import sandboxBashExtension from "../.pi/extensions/sandbox-bash.ts";
 import {
 	DEFAULT_CONFIG,
+	anyCase,
 	buildSrtSettings,
 	checkCwd,
 	findSrt,
+	globalGitConfigDenies,
+	gitPointerLiterals,
+	gitTreeDenies,
 	linkedWorktreeGitWrites,
 	loadSandboxConfig,
+	nonRepoDenies,
 	resolvePaths,
 	secretEnvNames,
 	shellQuote,
+	submoduleConfigNeeded,
 	wrapCommand,
 } from "../.pi/extensions/lib/sandbox-bash.ts";
 import { asExtensionAPI, createFakePi, createFakeUi } from "./helpers/fake-pi.ts";
@@ -213,11 +219,11 @@ describe("linkedWorktreeGitWrites", () => {
 		return { common, gitDir, cwd, revParse: `${gitDir}\n${common}\n${cwd}\n`, vars: { cwd, home: "/Users/h", tmpdir } };
 	}
 
-	it("opens worktree records, objects and the run branch prefixes, and keeps packs closed", () => {
-		const { common, revParse, vars } = linkedRepo();
+	it("opens its own worktree record, objects and the run branch prefixes, and keeps packs closed", () => {
+		const { common, gitDir, revParse, vars } = linkedRepo();
 		expect(linkedWorktreeGitWrites(revParse, vars)).toEqual({
 			allowWrite: [
-				path.join(common, "worktrees"),
+				gitDir,
 				path.join(common, "objects"),
 				path.join(common, "refs", "heads", "handsoff"),
 				path.join(common, "logs", "refs", "heads", "handsoff"),
@@ -300,6 +306,330 @@ describe("linkedWorktreeGitWrites", () => {
 		const home = path.join(scratch, "home");
 		const { revParse, vars } = linkedRepo(path.join(home, ".pi", "repo"));
 		expect(linkedWorktreeGitWrites(revParse, { ...vars, home })).toEqual(none);
+	});
+});
+
+// Real git, so the fixtures have exactly the layout git writes.
+const gitIn = (cwd: string, ...args: string[]) =>
+	execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd, encoding: "utf8" });
+// Spelled out here on purpose, so the test does not rely on the helper it checks.
+const ci = (value: string) => value.replace(/[A-Za-z]/g, (c) => `[${c.toLowerCase()}${c.toUpperCase()}]`);
+const REV_PARSE = ["rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir", "--show-toplevel"];
+
+function mainCheckout(dir: string): string {
+	fs.mkdirSync(dir, { recursive: true });
+	gitIn(dir, "init", "-q", "-b", "main");
+	gitIn(dir, "commit", "-q", "--allow-empty", "-m", "base");
+	return fs.realpathSync(dir);
+}
+
+describe("submoduleConfigNeeded", () => {
+	const both: Array<[string, string]> = [
+		["diff.ignoreSubmodules", "all"],
+		["status.submoduleSummary", "false"],
+	];
+
+	it("returns nothing when both settings are already right", () => {
+		expect(submoduleConfigNeeded("[diff]\n\tignoreSubmodules = all\n[status]\n\tsubmoduleSummary = false\n")).toEqual([]);
+	});
+
+	it("returns both pairs for empty text", () => {
+		expect(submoduleConfigNeeded("")).toEqual(both);
+	});
+
+	it("matches keys case-insensitively and accepts quoted values", () => {
+		expect(submoduleConfigNeeded('[DIFF]\n\tIgnoreSubmodules = "all"\n[Status]\n\tSUBMODULESUMMARY = "false"\n')).toEqual([]);
+	});
+
+	it("returns only the missing or wrong setting", () => {
+		expect(submoduleConfigNeeded("[diff]\n\tignoreSubmodules = all\n")).toEqual([both[1]]);
+		expect(submoduleConfigNeeded("[diff]\n\tignoreSubmodules = none\n[status]\n\tsubmoduleSummary = false\n")).toEqual([both[0]]);
+	});
+});
+
+describe("gitTreeDenies", () => {
+	it("denies nested .git entries and the pointer files in a main checkout, in every letter case", () => {
+		const top = mainCheckout(path.join(scratch, "main"));
+		const common = path.join(top, ".git");
+		expect(gitTreeDenies(gitIn(top, ...REV_PARSE))).toEqual([
+			ci(path.join(top, "*", "**", ".git")),
+			ci(path.join(common, "commondir")),
+			ci(path.join(common, "config.worktree")),
+			ci(path.join(common, "modules")),
+			ci(path.join(common, "worktrees", "*", "commondir")),
+			ci(path.join(common, "worktrees", "*", "gitdir")),
+			ci(path.join(common, "worktrees", "*", "config.worktree")),
+			ci(path.join(common, "config")),
+			ci(path.join(common, "hooks")),
+		]);
+	});
+
+	it("denies a .git file anywhere below a linked worktree", () => {
+		const top = mainCheckout(path.join(scratch, "main"));
+		const common = path.join(top, ".git");
+		const wt = path.join(scratch, "wt");
+		gitIn(top, "worktree", "add", "-q", "-b", "side", wt, "HEAD");
+		expect(gitTreeDenies(gitIn(wt, ...REV_PARSE))).toEqual([
+			ci(path.join(fs.realpathSync(wt), "**", ".git")),
+			ci(path.join(common, "commondir")),
+			ci(path.join(common, "config.worktree")),
+			ci(path.join(common, "modules")),
+			ci(path.join(common, "worktrees", "*", "commondir")),
+			ci(path.join(common, "worktrees", "*", "gitdir")),
+			ci(path.join(common, "worktrees", "*", "config.worktree")),
+			ci(path.join(common, "config")),
+			ci(path.join(common, "hooks")),
+		]);
+	});
+
+	it("returns nothing for empty or short input", () => {
+		expect(gitTreeDenies("")).toEqual([]);
+		expect(gitTreeDenies("/a/.git\n/a/.git\n")).toEqual([]);
+	});
+
+	it("returns null when a path holds a glob character", () => {
+		const top = mainCheckout(path.join(scratch, "pro[x]ject"));
+		expect(gitTreeDenies(gitIn(top, ...REV_PARSE))).toBeNull();
+	});
+});
+
+describe("anyCase", () => {
+	it("writes each ASCII letter as a two-letter class and keeps everything else", () => {
+		expect(anyCase("/a/B-c.d_9/*/**/.git")).toBe("/[aA]/[bB]-[cC].[dD]_9/*/**/.[gG][iI][tT]");
+	});
+
+	it("matches the helper in this file", () => {
+		expect(anyCase("/Users/x/Projects/app/.git/commondir")).toBe(ci("/Users/x/Projects/app/.git/commondir"));
+	});
+});
+
+describe("nonRepoDenies", () => {
+	it("denies a .git entry at any depth below a cwd outside the temp folders", () => {
+		expect(nonRepoDenies("/Users/h/Projects", ["/Users/h/Projects"], ["/private/tmp", "/var/folders/x/T"])).toEqual([
+			anyCase("/Users/h/Projects/**/.git"),
+		]);
+	});
+
+	it("adds nothing for a cwd inside a temp folder", () => {
+		expect(nonRepoDenies("/private/tmp/work", ["/private/tmp/work"], ["/private/tmp"])).toEqual([]);
+		expect(nonRepoDenies("/private/tmp", ["/private/tmp"], ["/private/tmp"])).toEqual([]);
+	});
+
+	it("does not treat a folder that only shares a name prefix as inside a temp folder", () => {
+		expect(nonRepoDenies("/private/tmpx/a", ["/private/tmpx/a"], ["/private/tmp"])).toEqual([anyCase("/private/tmpx/a/**/.git")]);
+	});
+});
+
+describe("gitPointerLiterals", () => {
+	// Real file modes; root ignores them.
+	const asUser = process.getuid?.() !== 0;
+	const lock = (target: string, body: () => void) => {
+		const original = fs.statSync(target).mode & 0o777;
+		fs.chmodSync(target, 0o000);
+		try {
+			body();
+		} finally {
+			fs.chmodSync(target, original);
+		}
+	};
+
+	it.skipIf(!asUser)("returns null when the worktrees folder exists but cannot be read", () => {
+		const top = mainCheckout(path.join(scratch, "main"));
+		gitIn(top, "worktree", "add", "-q", "-b", "a", path.join(scratch, "wt-a"), "HEAD");
+		const common = path.join(top, ".git");
+		lock(path.join(common, "worktrees"), () => expect(gitPointerLiterals(common)).toBeNull());
+	});
+
+	it("returns null when the worktrees entry is a file, not a folder", () => {
+		const top = mainCheckout(path.join(scratch, "main"));
+		const common = path.join(top, ".git");
+		fs.writeFileSync(path.join(common, "worktrees"), "x");
+		expect(gitPointerLiterals(common)).toBeNull();
+	});
+
+	it.skipIf(!asUser)("returns null when a record's gitdir file exists but cannot be read", () => {
+		const top = mainCheckout(path.join(scratch, "main"));
+		gitIn(top, "worktree", "add", "-q", "-b", "a", path.join(scratch, "wt-a"), "HEAD");
+		const common = path.join(top, ".git");
+		lock(path.join(common, "worktrees", "wt-a", "gitdir"), () => expect(gitPointerLiterals(common)).toBeNull());
+	});
+
+	it("keeps canonical case in the literals", () => {
+		const top = mainCheckout(path.join(scratch, "main"));
+		const wt = path.join(scratch, "WT-Upper");
+		gitIn(top, "worktree", "add", "-q", "-b", "a", wt, "HEAD");
+		const literals = gitPointerLiterals(path.join(top, ".git")) as string[];
+		expect(literals).toContain(path.join(top, ".git", "worktrees", "WT-Upper", "commondir"));
+		expect(literals).toContain(path.join(fs.realpathSync(wt), ".git"));
+	});
+
+	it("lists the record files and the worktree .git files, sorted", () => {
+		const top = mainCheckout(path.join(scratch, "main"));
+		const common = path.join(top, ".git");
+		const wtA = path.join(scratch, "wt-a");
+		const wtB = path.join(scratch, "wt-b");
+		gitIn(top, "worktree", "add", "-q", "-b", "a", wtA, "HEAD");
+		gitIn(top, "worktree", "add", "-q", "-b", "b", wtB, "HEAD");
+		const expected = [
+			path.join(common, "worktrees", "wt-a", "commondir"),
+			path.join(common, "worktrees", "wt-a", "gitdir"),
+			path.join(fs.realpathSync(wtA), ".git"),
+			path.join(common, "worktrees", "wt-b", "commondir"),
+			path.join(common, "worktrees", "wt-b", "gitdir"),
+			path.join(fs.realpathSync(wtB), ".git"),
+		].sort();
+		expect(gitPointerLiterals(common)).toEqual(expected);
+	});
+
+	it("returns nothing when there are no worktrees", () => {
+		const top = mainCheckout(path.join(scratch, "main"));
+		expect(gitPointerLiterals(path.join(top, ".git"))).toEqual([]);
+	});
+});
+
+describe("globalGitConfigDenies", () => {
+	let home: string;
+	let work: string;
+	beforeEach(() => {
+		home = path.join(scratch, "home");
+		work = path.join(scratch, "w");
+		fs.mkdirSync(home, { recursive: true });
+		fs.mkdirSync(work, { recursive: true });
+	});
+	type Extra = { xdgConfigHome?: string; repoTop?: string; gitConfigGlobal?: string; extraFiles?: string[] };
+	const denies = (extra: Extra = {}) => globalGitConfigDenies({ home, writableRoots: [work, home], ...extra });
+	const denyList = (extra: Extra = {}) => (denies(extra) as { denyWrite: string[] }).denyWrite;
+
+	it("always denies the global config files, and the XDG folder when set", () => {
+		expect(denies()).toEqual({ denyWrite: [path.join(home, ".gitconfig"), path.join(home, ".config", "git")] });
+		const xdg = path.join(scratch, "xdg");
+		expect(denyList({ xdgConfigHome: xdg })).toHaveLength(3);
+		expect(denyList({ xdgConfigHome: xdg })).toContain(path.join(xdg, "git"));
+	});
+
+	it("denies include, includeIf and hooksPath targets inside a writable root", () => {
+		fs.writeFileSync(
+			path.join(home, ".gitconfig"),
+			`[include]\n\tpath = ~/inc.cfg\n[core]\n\thooksPath = ${work}/hooks\n[includeIf "gitdir:/x/"]\n\tpath = rel.cfg\n`,
+		);
+		expect(denyList()).toEqual(
+			expect.arrayContaining([path.join(home, "inc.cfg"), path.join(work, "hooks"), path.join(home, "rel.cfg")]),
+		);
+	});
+
+	it("reads keys case-insensitively and accepts quoted values", () => {
+		fs.writeFileSync(path.join(home, ".gitconfig"), `[CORE]\n\tHooksPath = "${work}/q-hooks"\n`);
+		expect(denyList()).toContain(path.join(work, "q-hooks"));
+	});
+
+	it("follows included files recursively", () => {
+		fs.writeFileSync(path.join(home, ".gitconfig"), `[include]\n\tpath = ~/inc.cfg\n`);
+		fs.writeFileSync(path.join(home, "inc.cfg"), `[core]\n\tattributesFile = ${work}/attrs\n`);
+		expect(denyList()).toContain(path.join(work, "attrs"));
+	});
+
+	it("reads the XDG config file too", () => {
+		const xdg = path.join(scratch, "xdg");
+		fs.mkdirSync(path.join(xdg, "git"), { recursive: true });
+		fs.writeFileSync(path.join(xdg, "git", "config"), `[core]\n\texcludesFile = ${work}/ign\n`);
+		expect(denyList({ xdgConfigHome: xdg })).toContain(path.join(work, "ign"));
+	});
+
+	it("leaves out a target outside every writable root", () => {
+		fs.writeFileSync(path.join(home, ".gitconfig"), `[core]\n\thooksPath = /usr/share/x\n`);
+		expect(denyList()).not.toContain("/usr/share/x");
+	});
+
+	it("blocks a target with glob characters and names the key and file", () => {
+		fs.writeFileSync(path.join(home, ".gitconfig"), `[core]\n\texcludesFile = ${work}/*.ex\n`);
+		const result = denies() as { blocked: string };
+		expect(result.blocked).toMatch(/excludesFile/i);
+		expect(result.blocked).toContain(path.join(home, ".gitconfig"));
+	});
+
+	it("blocks a ~otheruser path", () => {
+		fs.writeFileSync(path.join(home, ".gitconfig"), `[include]\n\tpath = ~nobody/x\n`);
+		expect(denies()).toEqual({ blocked: expect.stringMatching(/path/) });
+	});
+
+	it("terminates on an include cycle", () => {
+		fs.writeFileSync(path.join(home, ".gitconfig"), `[include]\n\tpath = ~/a.cfg\n`);
+		fs.writeFileSync(path.join(home, "a.cfg"), `[include]\n\tpath = ~/b.cfg\n`);
+		fs.writeFileSync(path.join(home, "b.cfg"), `[include]\n\tpath = ~/a.cfg\n`);
+		expect(denyList()).toEqual(expect.arrayContaining([path.join(home, "a.cfg"), path.join(home, "b.cfg")]));
+	});
+
+	it.each(["hooksPath", "attributesFile", "excludesFile"])("blocks a relative core.%s and names the key", (key) => {
+		fs.writeFileSync(path.join(home, ".gitconfig"), `[core]\n\t${key} = .rel/x\n`);
+		const result = denies() as { blocked: string };
+		expect(result.blocked).toMatch(new RegExp(key, "i"));
+	});
+
+	it("resolves a relative core.hooksPath against the repo top and denies it inside a writable root", () => {
+		fs.writeFileSync(path.join(home, ".gitconfig"), `[core]\n\thooksPath = .myhooks\n[core]\n\texcludesFile = ign\n`);
+		const top = path.join(work, "repo");
+		fs.mkdirSync(top);
+		expect(denyList({ repoTop: top })).toEqual(expect.arrayContaining([path.join(top, ".myhooks"), path.join(top, "ign")]));
+	});
+
+	it("leaves out a relative path whose repo top is outside every writable root", () => {
+		fs.writeFileSync(path.join(home, ".gitconfig"), `[core]\n\thooksPath = .myhooks\n`);
+		const top = path.join(scratch, "elsewhere");
+		fs.mkdirSync(top);
+		const result = denies({ repoTop: top });
+		expect(result).not.toHaveProperty("blocked");
+		expect(denyList({ repoTop: top })).not.toContain(path.join(top, ".myhooks"));
+	});
+
+	it("resolves a relative include.path against the config file, as before", () => {
+		fs.writeFileSync(path.join(home, ".gitconfig"), `[include]\n\tpath = rel.cfg\n`);
+		expect(denyList({ repoTop: work })).toContain(path.join(home, "rel.cfg"));
+	});
+
+	it("blocks when GIT_CONFIG_GLOBAL is set and names it", () => {
+		const result = denies({ gitConfigGlobal: path.join(work, "elsewhere.cfg") }) as { blocked: string };
+		expect(result.blocked).toContain("GIT_CONFIG_GLOBAL");
+	});
+
+	it("does not let a comment ending in a backslash swallow the next line", () => {
+		const evil = path.join(work, "evil.cfg");
+		fs.writeFileSync(path.join(home, ".gitconfig"), `# note \\\n[include]\n\tpath = ${evil}\n`);
+		expect(denyList()).toContain(evil);
+	});
+
+	it("scans extra repo config files with the same rules", () => {
+		const top = path.join(work, "repo");
+		const gitDir = path.join(top, ".git");
+		fs.mkdirSync(gitDir, { recursive: true });
+		const config = path.join(gitDir, "config");
+		fs.writeFileSync(config, `[core]\n\thooksPath = .husky/_\n`);
+		expect(denyList({ extraFiles: [config], repoTop: top })).toContain(path.join(top, ".husky", "_"));
+	});
+
+	it("scans includes found in an extra repo config file", () => {
+		const evil = path.join(work, "evil.cfg");
+		const config = path.join(work, "repo-config");
+		fs.writeFileSync(config, `[include]\n\tpath = ${evil}\n`);
+		expect(denyList({ extraFiles: [config] })).toContain(evil);
+	});
+
+	it("blocks a relative hooks path in an extra config file when no repo top is given", () => {
+		const config = path.join(work, "repo-config");
+		fs.writeFileSync(config, `[core]\n\thooksPath = .husky/_\n`);
+		expect((denies({ extraFiles: [config] }) as { blocked: string }).blocked).toMatch(/hooksPath/i);
+	});
+
+	it("blocks an included file that exists but cannot be read", () => {
+		if (process.getuid?.() === 0) return;
+		fs.writeFileSync(path.join(home, ".gitconfig"), `[include]\n\tpath = ~/locked.cfg\n`);
+		const locked = path.join(home, "locked.cfg");
+		fs.writeFileSync(locked, "[core]\n");
+		fs.chmodSync(locked, 0o000);
+		try {
+			expect(denies()).toEqual({ blocked: expect.stringContaining(locked) });
+		} finally {
+			fs.chmodSync(locked, 0o600);
+		}
 	});
 });
 
@@ -464,7 +794,7 @@ function setup(
 	const run = (command: string) => fake.tools.get("bash")!.execute("call-1", { command }, undefined, undefined, toolCtx);
 	const text = (result: any) => result.content.map((part: any) => part.text).join("");
 	const lastStatus = () => ui.setStatus.mock.calls.at(-1)?.[1] as string | undefined;
-	return { fake, ui, registerTool, start, shutdown, userBash, run, text, lastStatus };
+	return { fake, ui, registerTool, start, shutdown, userBash, run, text, lastStatus, toolCtx };
 }
 
 describe("sandbox-bash extension", () => {
@@ -472,9 +802,12 @@ describe("sandbox-bash extension", () => {
 		const fake = createFakePi();
 		const registerTool = vi.fn(fake.registerTool);
 		fake.registerTool = registerTool;
+		const bashCalls = () => registerTool.mock.calls.filter((call: any[]) => call[0]?.name === "bash").length;
 		sandboxBashExtension(asExtensionAPI(fake));
+		const totalAfterFirst = registerTool.mock.calls.length;
 		sandboxBashExtension(asExtensionAPI(fake));
-		expect(registerTool).toHaveBeenCalledTimes(1);
+		expect(bashCalls()).toBe(1);
+		expect(registerTool).toHaveBeenCalledTimes(totalAfterFirst);
 		expect(fake.tools.get("bash")).toBeDefined();
 		expect(fake.registerFlag).toHaveBeenCalledWith("no-sandbox", expect.objectContaining({ type: "boolean" }));
 	});
@@ -620,6 +953,44 @@ describe("sandbox-bash extension", () => {
 		expect(chunks.join("")).toMatch(/SRT-WRAPPED[\s\S]*from-user/);
 	});
 
+	describe("git_worktree tool and running bash commands", () => {
+		const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+		const params = () => ({ action: "add", path: path.join(projectDir, ".worktrees", "h", "p"), branch: "handsoff/t/p" });
+
+		it("is registered to run on its own, never in parallel with other tools", () => {
+			const { fake } = setup();
+			expect((fake.tools.get("git_worktree") as any).executionMode).toBe("sequential");
+		});
+
+		it("refuses while a sandboxed bash command of the same extension is still running", async () => {
+			installFakeSrt();
+			const s = setup();
+			await s.start();
+			const tool = s.fake.tools.get("git_worktree")!;
+			const started = path.join(projectDir, "started");
+			const running = s.run(`touch ${started}; sleep 2; echo finished`);
+			for (let i = 0; i < 100 && !fs.existsSync(started); i++) await sleep(50);
+			expect(fs.existsSync(started)).toBe(true);
+
+			await expect(tool.execute("wt", params(), undefined, undefined, s.toolCtx)).rejects.toThrow(/bash command is running/);
+			expect(s.text(await running)).toContain("finished");
+
+			// With nothing in flight, the tool gets as far as its own checks (the folder is no repo).
+			const after = await tool.execute("wt", params(), undefined, undefined, s.toolCtx).catch((error: Error) => error);
+			expect(String(after)).not.toMatch(/bash command is running/);
+		});
+
+		it("counts a bash command that fails as finished", async () => {
+			installFakeSrt();
+			const s = setup();
+			await s.start();
+			await s.run("exit 3").catch(() => undefined);
+			const tool = s.fake.tools.get("git_worktree")!;
+			const after = await tool.execute("wt", params(), undefined, undefined, s.toolCtx).catch((error: Error) => error);
+			expect(String(after)).not.toMatch(/bash command is running/);
+		});
+	});
+
 	describe("settings file lifecycle", () => {
 		const settingsFile = () => {
 			const dir = path.join(scratch, "agent", "sandbox-run");
@@ -756,6 +1127,248 @@ describe("sandbox-bash extension", () => {
 			const s = setup({ git: { stdout: `${gitDir}\n${common}\n${projectDir}\n`, code: 0, killed: true } });
 			await s.start();
 			expect(settings().filesystem.allowWrite).toEqual(defaults());
+		});
+
+		it("denies tree entries and the global git config in a main checkout", async () => {
+			installFakeSrt();
+			const top = mainCheckout(projectDir);
+			const revParse = gitIn(top, ...REV_PARSE);
+			const s = setup({ git: { stdout: revParse, code: 0 } });
+			await s.start();
+			const { denyWrite } = settings().filesystem;
+			expect(denyWrite).toEqual(expect.arrayContaining(gitTreeDenies(revParse)!));
+			expect(denyWrite).toContain(path.join(os.homedir(), ".gitconfig"));
+			expect(s.lastStatus()).toMatch(/sandbox: \d+ domains, 4 write paths/);
+		});
+
+		it("blocks bash when the checkout path holds a glob character", async () => {
+			installFakeSrt();
+			projectDir = path.join(scratch, "pro[x]ject");
+			const top = mainCheckout(projectDir);
+			const s = setup({ git: { stdout: gitIn(top, ...REV_PARSE), code: 0 } });
+			await s.start();
+			expect(s.lastStatus()).toBe("bash blocked: sandbox unavailable");
+			expect(s.ui.notify).toHaveBeenCalledWith(expect.stringMatching(/glob/), "error");
+			await expect(s.run("echo hi")).rejects.toThrow(/glob/);
+		});
+
+		it("adds the pointer files of a new worktree before the next bash command", async () => {
+			installFakeSrt();
+			const top = mainCheckout(projectDir);
+			gitIn(top, "worktree", "add", "-q", "-b", "one", path.join(scratch, "wt-one"), "HEAD");
+			const s = setup({ git: { stdout: gitIn(top, ...REV_PARSE), code: 0 } });
+			await s.start();
+			const newRecord = path.join(top, ".git", "worktrees", "wt-two", "commondir");
+			expect(settings().filesystem.denyWrite).not.toContain(newRecord);
+			// Created outside the sandbox, the way git_worktree does.
+			gitIn(top, "worktree", "add", "-q", "-b", "two", path.join(scratch, "wt-two"), "HEAD");
+			expect(s.text(await s.run("echo hi"))).toContain("SRT-WRAPPED");
+			expect(settings().filesystem.denyWrite).toContain(newRecord);
+			expect(settings().filesystem.denyWrite).toContain(path.join(top, ".git", "worktrees", "wt-one", "commondir"));
+		});
+
+		it("lets two parallel bash commands both run when the first one refreshed the pointer files", async () => {
+			installFakeSrt();
+			const top = mainCheckout(projectDir);
+			gitIn(top, "worktree", "add", "-q", "-b", "one", path.join(scratch, "wt-one"), "HEAD");
+			const s = setup({ git: { stdout: gitIn(top, ...REV_PARSE), code: 0 } });
+			await s.start();
+			const newRecord = path.join(top, ".git", "worktrees", "wt-two", "commondir");
+			gitIn(top, "worktree", "add", "-q", "-b", "two", path.join(scratch, "wt-two"), "HEAD");
+			const results = await Promise.all([s.run("echo a"), s.run("echo b")]);
+			for (const result of results) expect(s.text(result)).toContain("SRT-WRAPPED");
+			expect(settings().filesystem.denyWrite).toContain(newRecord);
+		});
+
+		describe("pointer files that cannot be listed", () => {
+			const asUser = process.getuid?.() !== 0;
+			const withLocked = async (target: string, body: () => Promise<void>) => {
+				const original = fs.statSync(target).mode & 0o777;
+				fs.chmodSync(target, 0o000);
+				try {
+					await body();
+				} finally {
+					fs.chmodSync(target, original);
+				}
+			};
+
+			it.skipIf(!asUser)("blocks bash at start when the worktrees folder cannot be read", async () => {
+				installFakeSrt();
+				const top = mainCheckout(projectDir);
+				gitIn(top, "worktree", "add", "-q", "-b", "one", path.join(scratch, "wt-one"), "HEAD");
+				const revParse = gitIn(top, ...REV_PARSE);
+				await withLocked(path.join(top, ".git", "worktrees"), async () => {
+					const s = setup({ git: { stdout: revParse, code: 0 } });
+					await s.start();
+					expect(s.lastStatus()).toBe("bash blocked: sandbox unavailable");
+					expect(s.ui.notify).toHaveBeenCalledWith(expect.stringMatching(/pointer/), "error");
+					await expect(s.run("echo hi")).rejects.toThrow(/pointer/);
+				});
+			});
+
+			it.skipIf(!asUser)("blocks the next bash command, and runs nothing, once the worktrees folder cannot be read", async () => {
+				installFakeSrt();
+				const top = mainCheckout(projectDir);
+				gitIn(top, "worktree", "add", "-q", "-b", "one", path.join(scratch, "wt-one"), "HEAD");
+				const s = setup({ git: { stdout: gitIn(top, ...REV_PARSE), code: 0 } });
+				await s.start();
+				expect(s.text(await s.run("echo fine"))).toContain("SRT-WRAPPED");
+				const marker = path.join(projectDir, "ran");
+				await withLocked(path.join(top, ".git", "worktrees"), async () => {
+					await expect(s.run(`touch ${marker}`)).rejects.toThrow(/bash blocked: sandbox unavailable.*pointer/);
+					expect(fs.existsSync(marker)).toBe(false);
+					expect(s.lastStatus()).toBe("bash blocked: sandbox unavailable");
+					expect((await s.userBash("echo hi")).result.output).toMatch(/pointer/);
+				});
+				// Blocked stays blocked until the session restarts.
+				await expect(s.run("echo again")).rejects.toThrow(/bash blocked/);
+			});
+
+			it("keeps the literals of a worktree whose record was removed unsandboxed, and adds new ones", async () => {
+				installFakeSrt();
+				const top = mainCheckout(projectDir);
+				const wtOne = path.join(scratch, "wt-one");
+				gitIn(top, "worktree", "add", "-q", "-b", "one", wtOne, "HEAD");
+				const s = setup({ git: { stdout: gitIn(top, ...REV_PARSE), code: 0 } });
+				await s.start();
+				const recordOne = path.join(top, ".git", "worktrees", "wt-one");
+				const oldLiterals = [path.join(recordOne, "commondir"), path.join(recordOne, "gitdir"), path.join(fs.realpathSync(wtOne), ".git")];
+				expect(settings().filesystem.denyWrite).toEqual(expect.arrayContaining(oldLiterals));
+
+				gitIn(top, "worktree", "remove", "--force", wtOne);
+				expect(fs.existsSync(recordOne)).toBe(false);
+				gitIn(top, "worktree", "add", "-q", "-b", "two", path.join(scratch, "wt-two"), "HEAD");
+
+				expect(s.text(await s.run("echo hi"))).toContain("SRT-WRAPPED");
+				const denyWrite = settings().filesystem.denyWrite;
+				expect(denyWrite).toEqual(expect.arrayContaining(oldLiterals));
+				expect(denyWrite).toContain(path.join(top, ".git", "worktrees", "wt-two", "commondir"));
+			});
+		});
+
+		describe("repo and global git config indirection", () => {
+			it("denies a repo-local relative hooks path inside the checkout", async () => {
+				installFakeSrt();
+				const top = mainCheckout(projectDir);
+				gitIn(top, "config", "core.hooksPath", ".husky/_");
+				const s = setup({ git: { stdout: gitIn(top, ...REV_PARSE), code: 0 } });
+				await s.start();
+				expect(s.lastStatus()).toMatch(/^sandbox: /);
+				expect(settings().filesystem.denyWrite).toContain(path.join(top, ".husky", "_"));
+			});
+
+			it("blocks bash when GIT_CONFIG_GLOBAL is set", async () => {
+				installFakeSrt();
+				const top = mainCheckout(projectDir);
+				const revParse = gitIn(top, ...REV_PARSE);
+				process.env.GIT_CONFIG_GLOBAL = path.join(scratch, "other.cfg");
+				try {
+					const s = setup({ git: { stdout: revParse, code: 0 } });
+					await s.start();
+					expect(s.lastStatus()).toBe("bash blocked: sandbox unavailable");
+					expect(s.ui.notify).toHaveBeenCalledWith(expect.stringContaining("GIT_CONFIG_GLOBAL"), "error");
+				} finally {
+					delete process.env.GIT_CONFIG_GLOBAL;
+				}
+			});
+		});
+
+		it("blocks bash and leaves the target alone when the repo config is a symlink", async () => {
+			installFakeSrt();
+			const top = mainCheckout(projectDir);
+			const config = path.join(top, ".git", "config");
+			const victim = path.join(scratch, "victim");
+			fs.renameSync(config, victim);
+			fs.symlinkSync(victim, config);
+			const before = fs.readFileSync(victim, "utf8");
+			const s = setup({ git: { stdout: gitIn(top, ...REV_PARSE), code: 0 } });
+			await s.start();
+			expect(s.lastStatus()).toBe("bash blocked: sandbox unavailable");
+			expect(s.ui.notify).toHaveBeenCalledWith(expect.stringContaining("not a regular file"), "error");
+			expect(fs.readFileSync(victim, "utf8")).toBe(before);
+			expect(fs.lstatSync(config).isSymbolicLink()).toBe(true);
+		});
+
+		describe("submodule status settings", () => {
+			const cfg = (dir: string, key: string) =>
+				execFileSync("git", ["config", "--file", path.join(dir, "config"), "--get", key], { encoding: "utf8" }).trim();
+
+			it("sets diff.ignoreSubmodules and status.submoduleSummary in a main checkout", async () => {
+				installFakeSrt();
+				const top = mainCheckout(projectDir);
+				const s = setup({ git: { stdout: gitIn(top, ...REV_PARSE), code: 0 } });
+				await s.start();
+				const common = path.join(top, ".git");
+				expect(cfg(common, "diff.ignoreSubmodules")).toBe("all");
+				expect(cfg(common, "status.submoduleSummary")).toBe("false");
+			});
+
+			it("changes diff.ignoreSubmodules = none to all", async () => {
+				installFakeSrt();
+				const top = mainCheckout(projectDir);
+				gitIn(top, "config", "diff.ignoreSubmodules", "none");
+				const s = setup({ git: { stdout: gitIn(top, ...REV_PARSE), code: 0 } });
+				await s.start();
+				expect(cfg(path.join(top, ".git"), "diff.ignoreSubmodules")).toBe("all");
+			});
+
+			it("announces each changed key with old and new value and the config path", async () => {
+				installFakeSrt();
+				const top = mainCheckout(projectDir);
+				gitIn(top, "config", "diff.ignoreSubmodules", "none");
+				const s = setup({ git: { stdout: gitIn(top, ...REV_PARSE), code: 0 } });
+				await s.start();
+				expect(s.ui.notify).toHaveBeenCalledWith(
+					expect.stringContaining("diff.ignoreSubmodules none -> all"),
+					"info",
+				);
+				expect(s.ui.notify).toHaveBeenCalledWith(
+					expect.stringContaining("status.submoduleSummary unset -> false"),
+					"info",
+				);
+				expect(s.ui.notify).toHaveBeenCalledWith(
+					expect.stringContaining(path.join(top, ".git", "config")),
+					"info",
+				);
+			});
+
+			it("sends no notice when both keys already hold the right values", async () => {
+				installFakeSrt();
+				const top = mainCheckout(projectDir);
+				gitIn(top, "config", "diff.ignoreSubmodules", "all");
+				gitIn(top, "config", "status.submoduleSummary", "false");
+				const s = setup({ git: { stdout: gitIn(top, ...REV_PARSE), code: 0 } });
+				await s.start();
+				const messages = s.ui.notify.mock.calls.map((c: unknown[]) => String(c[0]));
+				expect(messages.filter((m: string) => m.includes("diff.ignoreSubmodules"))).toEqual([]);
+			});
+
+			it("blocks bash and names diff.ignoreSubmodules when the config cannot be written", async () => {
+				installFakeSrt();
+				const top = mainCheckout(projectDir);
+				const config = path.join(top, ".git", "config");
+				fs.chmodSync(config, 0o444);
+				try {
+					const s = setup({ git: { stdout: gitIn(top, ...REV_PARSE), code: 0 } });
+					await s.start();
+					expect(s.lastStatus()).toBe("bash blocked: sandbox unavailable");
+					expect(s.ui.notify).toHaveBeenCalledWith(expect.stringContaining("diff.ignoreSubmodules"), "error");
+				} finally {
+					fs.chmodSync(config, 0o644);
+				}
+			});
+
+			it("writes the settings into the common config for a linked-worktree session", async () => {
+				installFakeSrt();
+				const top = mainCheckout(path.join(scratch, "repo"));
+				projectDir = path.join(scratch, "linked");
+				gitIn(top, "worktree", "add", "-q", "-b", "lead", projectDir, "HEAD");
+				const s = setup({ git: { stdout: gitIn(projectDir, ...REV_PARSE), code: 0 } });
+				await s.start();
+				const common = path.join(top, ".git");
+				expect(cfg(common, "diff.ignoreSubmodules")).toBe("all");
+				expect(cfg(common, "status.submoduleSummary")).toBe("false");
+			});
 		});
 
 		it("starts normally with no git paths when git fails", async () => {

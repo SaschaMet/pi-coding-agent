@@ -64,8 +64,14 @@ const installedVersion = (pkgDir: string): string | undefined => {
 };
 
 // cwd is the package dir: git apply skips paths outside its cwd, so a patch can never reach elsewhere.
+// The ceiling stops git's repo search there, so no repo config (and its filters) applies.
 const git = (cwd: string, args: string[]) =>
-    spawnSync("git", ["apply", ...args], { cwd, encoding: "utf8", timeout: 10_000 });
+    spawnSync("git", ["apply", ...args], {
+        cwd,
+        encoding: "utf8",
+        timeout: 10_000,
+        env: { ...process.env, GIT_CEILING_DIRECTORIES: path.dirname(cwd) },
+    });
 
 const stateIn = (pkgDir: string, file: string): Exclude<PatchState, "absent"> =>
     git(pkgDir, ["--check", "-R", file]).status === 0
