@@ -5,8 +5,10 @@ import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import {
 	PATCHED_MARKER,
+	STREAM_INTERRUPT_PATTERN,
 	collectProjectRetryCandidates,
 	patchRetryFile,
+	patchStreamInterruptFile,
 } from "../scripts/patch-retry.ts";
 
 const UNPATCHED_LINE =
@@ -113,6 +115,66 @@ describe("collectProjectRetryCandidates", () => {
 	it("returns an empty list when there is no @earendil-works scope", () => {
 		tmp = fs.mkdtempSync(path.join(os.tmpdir(), "patch-retry-"));
 		expect(collectProjectRetryCandidates(tmp)).toHaveLength(0);
+	});
+});
+
+// Shape of pi-ai 1.4/1.5 `RETRYABLE_PROVIDER_ERROR_PATTERN`: a string list fed to a
+// case-insensitive alternation.
+const RETRYABLE_LIST_JS = `function buildProviderErrorPattern(patterns) {
+    return new RegExp(patterns.join("|"), "i");
+}
+export const RETRYABLE = buildProviderErrorPattern([
+    "upstream_stream_read_error",
+    "stream was interrupted",
+    "http/?2 stream failed",
+]);
+`;
+
+describe("patchStreamInterruptFile", () => {
+	let tmp: string;
+	afterEach(() => {
+		if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
+	});
+
+	it("makes 'upstream stream interrupted' retryable", async () => {
+		tmp = fs.mkdtempSync(path.join(os.tmpdir(), "patch-retry-stream-"));
+		const file = path.join(tmp, "retry.js");
+		fs.writeFileSync(file, RETRYABLE_LIST_JS, "utf8");
+
+		const before = await import(pathToFileURL(file).href);
+		expect(before.RETRYABLE.test("upstream stream interrupted")).toBe(false);
+
+		expect(patchStreamInterruptFile(file)).toBe("patched");
+		const after = await import(`${pathToFileURL(file).href}?patched`);
+		expect(after.RETRYABLE.test("upstream stream interrupted")).toBe(true);
+		expect(after.RETRYABLE.test("stream was interrupted")).toBe(true);
+	});
+
+	it("skips an already-patched file, byte-identical", () => {
+		tmp = fs.mkdtempSync(path.join(os.tmpdir(), "patch-retry-stream-"));
+		const file = path.join(tmp, "retry.js");
+		fs.writeFileSync(file, RETRYABLE_LIST_JS, "utf8");
+
+		expect(patchStreamInterruptFile(file)).toBe("patched");
+		const afterFirst = fs.readFileSync(file, "utf8");
+		expect(afterFirst.split(STREAM_INTERRUPT_PATTERN)).toHaveLength(2);
+		expect(patchStreamInterruptFile(file)).toBe("skipped");
+		expect(fs.readFileSync(file, "utf8")).toBe(afterFirst);
+	});
+
+	it("leaves content without the anchor untouched", () => {
+		tmp = fs.mkdtempSync(path.join(os.tmpdir(), "patch-retry-stream-"));
+		const file = path.join(tmp, "retry.js");
+		const content = "const x = 1;\n";
+		fs.writeFileSync(file, content, "utf8");
+
+		expect(patchStreamInterruptFile(file)).toBe("unexpected");
+		expect(fs.readFileSync(file, "utf8")).toBe(content);
+	});
+
+	it("reports missing files", () => {
+		tmp = fs.mkdtempSync(path.join(os.tmpdir(), "patch-retry-stream-"));
+		expect(patchStreamInterruptFile(path.join(tmp, "nope.js"))).toBe("missing");
 	});
 });
 
