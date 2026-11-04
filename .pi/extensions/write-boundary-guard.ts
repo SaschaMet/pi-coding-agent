@@ -13,6 +13,7 @@ import {
     isOutsideWorkingDirectory,
     isShadowedProjectCopy,
     isWithinTempDir,
+    NO_ANSWER,
     readLastCustomEntry,
     toRepoRelative,
 } from "./lib/extension-helpers.ts";
@@ -336,6 +337,9 @@ export default function writeBoundaryGuardExtension(pi: ExtensionAPI): void {
                     `Allow ${event.toolName} outside the armed spec scope?\n\n${reason}`,
                     ["Yes", "No"],
                 );
+                if (choice === undefined) {
+                    return { block: true, reason: `${reason} ${NO_ANSWER}` };
+                }
                 if (choice !== "Yes") {
                     return { block: true, reason: `${reason} Blocked by user.` };
                 }
@@ -375,6 +379,9 @@ export default function writeBoundaryGuardExtension(pi: ExtensionAPI): void {
                 return { block: true, reason: `${reason} (no UI for approval)` };
             }
             const choice = await ctx.ui.select(`${question}\n\n${reason}`, ["Yes", "No"]);
+            if (choice === undefined) {
+                return { block: true, reason: `${reason} ${NO_ANSWER}` };
+            }
             if (choice !== "Yes") {
                 return { block: true, reason: `${reason} Blocked by user.` };
             }

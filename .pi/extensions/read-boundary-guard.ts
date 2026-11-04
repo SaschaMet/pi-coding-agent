@@ -14,6 +14,7 @@ import {
 	isWithinSharedTmp,
 	isWithinTempDir,
 	isWithinTempReportsDir,
+	NO_ANSWER,
 	resolveInputPath,
 	resolvePathWithRealAncestor,
 } from "./lib/extension-helpers.ts";
@@ -132,6 +133,9 @@ export default function readBoundaryGuardExtension(pi: ExtensionAPI): void {
 				`Allow ${event.toolName} outside current directory?\n\nPath: ${inputPath}\nCWD: ${currentCwd}`,
 				["Yes", "No"],
 			);
+			if (choice === undefined) {
+				return { block: true, reason: NO_ANSWER };
+			}
 			if (choice !== "Yes") {
 				return { block: true, reason: "Blocked by user" };
 			}

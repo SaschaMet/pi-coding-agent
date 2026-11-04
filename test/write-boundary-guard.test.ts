@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { NO_ANSWER } from "../.pi/extensions/lib/extension-helpers.ts";
 import writeBoundaryGuard from "../.pi/extensions/write-boundary-guard.ts";
 import { createFakePi, createFakeUi } from "./helpers/fake-pi.ts";
 
@@ -523,6 +524,27 @@ describe("write boundary guard extension", () => {
         );
 
         expect(result?.block).toBe(true);
+        expect(result?.reason).toContain("Blocked by user.");
+        expect(result?.reason).not.toContain(NO_ANSWER);
+    });
+
+    it("blocks with the no-answer reason when the scope dialog closes without a choice", async () => {
+        const pi = armedGuard();
+        await arm(pi, "docs/specs/spec-demo.md");
+
+        const ui = createFakeUi();
+        ui.select = vi.fn(async () => undefined) as unknown as typeof ui.select;
+        const result = await toolCall(
+            pi,
+            "write",
+            { path: "scripts/deploy.sh" },
+            makeCtx({ hasUI: true, ui }),
+        );
+
+        expect(result?.block).toBe(true);
+        expect(result?.reason?.endsWith(` ${NO_ANSWER}`)).toBe(true);
+        expect(result?.reason).not.toContain("Blocked by user");
+        expect(result?.reason?.slice(0, -(NO_ANSWER.length + 1)).trim()).not.toBe("");
     });
 
     it("disarms on /scope off", async () => {
@@ -684,6 +706,21 @@ describe("writes to the armed spec", () => {
 
         expect(String(ui.select.mock.calls[0][0])).toMatch(/widens/);
         expect(result?.block).toBe(true);
+        expect(result?.reason).toContain("Blocked by user.");
+    });
+
+    it("blocks a Scope-list change with the no-answer reason when nobody answers", async () => {
+        const pi = await armed();
+        const select = vi.fn(async (_prompt: string, _options: string[]): Promise<string | undefined> => undefined);
+        const ui = { ...createFakeUi(), select };
+
+        const result = await toolCall(pi, "write", { path: SPEC, content: WIDER }, makeCtx({ hasUI: true, ui }));
+
+        expect(String(select.mock.calls[0][0])).toMatch(/widens/);
+        expect(result?.block).toBe(true);
+        expect(result?.reason).toContain(NO_ANSWER);
+        expect(result?.reason).not.toContain("Blocked by user");
+        expect(await deployBlocked(pi)).toBe(true);
     });
 
     it("re-arms a narrowing change on Yes and asks for an Amendment", async () => {
