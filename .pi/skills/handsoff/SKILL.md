@@ -51,11 +51,15 @@ SKILL_DIR=<folder of this SKILL.md>                     # ~/.pi/agent/skills/han
 HO=$SKILL_DIR/scripts/handsoff.py
 HC=$SKILL_DIR/../hill-climb/scripts/hc.py
 RUN=$TMPDIR/pi-reports/handsoff/<task>-<yyyymmdd-hhmm>  # outside every worktree
+WT=$(git -C <repo> worktree list --porcelain | sed -n '1s/^worktree //p')/.worktrees/handsoff-<task>-<yyyymmdd-hhmm>  # main checkout; never under $TMPDIR, see Gotchas
+EXCL=$(git -C <repo> rev-parse --path-format=absolute --git-path info/exclude)
+mkdir -p "$(dirname "$EXCL")"; grep -qxF '.worktrees/' "$EXCL" 2>/dev/null || printf '\n.worktrees/\n' >> "$EXCL"
+ls -d "$(dirname "$WT")"/*/ 2>/dev/null                 # leftovers of aborted runs: list them in the gate message
 ```
 
-A dirty tree: commit or stash only files you own (repo rule 11); otherwise stop with the list. Non-repo artifact: the "repo" is the artifact folder, worktrees become `cp -R` copies, the handback is `$RUN/merged/` instead of a branch; every other step is the same.
+A dirty tree: commit or stash only files you own (repo rule 11); otherwise stop with the list. Non-repo artifact: the "repo" is the artifact folder, worktrees become `cp -R` copies under `WT=$RUN/wt`, the handback is `$RUN/merged/` instead of a branch; every other step is the same.
 
-Check: `cmux ping` succeeded, the tree is clean, `$RUN` does not exist yet.
+Check: `cmux ping` succeeded, the tree is clean, `$RUN` and `$WT` do not exist yet.
 
 ### 2. Define
 
@@ -91,7 +95,7 @@ cp brief.md "$RUN/"; # matrices and verifiers already live under $RUN/packages/<
 
 Per package, in the order of the package table:
 
-1. `git worktree add -b handsoff/<task>/<package> "$RUN/wt/<package>" "$BASE"`.
+1. `git worktree add -b handsoff/<task>/<package> "$WT/<package>" "$BASE"`.
 2. `cmux workspace create --name "handsoff/<task>/<package>"`; boot `cd <worktree> && pi --no-session --model "$WORKER_MODEL"` in its first surface per `$cmux-orchestration` → Boot the Team (model from your own footer, fallback rule as written there). Verify the model line.
 3. Send the lead task from [references/templates.md](references/templates.md) → Lead task, then `confirm_dispatch`.
 4. `python3 -I "$HO" package --run "$RUN" --name <package> --workspace <ws> --surface <ref> --worktree <path> --branch handsoff/<task>/<package> --state running --stage boot`.
@@ -119,14 +123,14 @@ Check: `status` prints `stop: all_settled` or `stop: budget` with no `running` p
 ### 6. Merge and re-score
 
 ```bash
-git -C <repo> worktree add -b handsoff/<task> "$RUN/wt/merged" "$BASE"
+git -C <repo> worktree add -b handsoff/<task> "$WT/merged" "$BASE"
 for P in $(python3 -I "$HO" status --run "$RUN" | jq -r '.merge_order[]'); do
-  git -C "$RUN/wt/merged" merge --no-ff --no-edit "handsoff/<task>/$P" \
-    || { git -C "$RUN/wt/merged" merge --abort; python3 -I "$HO" package --run "$RUN" --name "$P" --state unmerged --stop merge_conflict --note "conflict: $(git -C "$RUN/wt/merged" diff --name-only --diff-filter=U | tr '\n' ' ')"; }
+  git -C "$WT/merged" merge --no-ff --no-edit "handsoff/<task>/$P" \
+    || { git -C "$WT/merged" merge --abort; python3 -I "$HO" package --run "$RUN" --name "$P" --state unmerged --stop merge_conflict --note "conflict: $(git -C "$WT/merged" diff --name-only --diff-filter=U | tr '\n' ' ')"; }
 done
 ```
 
-Then run every `done` package's verifier in `$RUN/wt/merged` and compare with its best scores from `hc.py status`. A regression below a floor marks that package `--note "merge regressed: <criterion>"`; do not fix it, report it. Copy each worktree's `docs/plans/<name>/` or `docs/specs/<name>/` into `$RUN/packages/<package>/docs/` (those folders are gitignored and vanish with the worktree).
+Then run every `done` package's verifier in `$WT/merged` and compare with its best scores from `hc.py status`. A regression below a floor marks that package `--note "merge regressed: <criterion>"`; do not fix it, report it. Copy each worktree's `docs/plans/<name>/` or `docs/specs/<name>/` into `$RUN/packages/<package>/docs/` (those folders are gitignored and vanish with the worktree).
 
 Check: `handsoff/<task>` exists, every `done` package is `merged` or `unmerged`, and the merged verifier output is saved as `$RUN/merged-scores.json`.
 
@@ -138,7 +142,7 @@ Check: the report names `git merge handsoff/<task>` (or the `cp` command) as the
 
 ### 8. Teardown (after the operator's yes only)
 
-`git worktree remove` every `$RUN/wt/*`, `cmux workspace close` every lead workspace, `cmux tree --all` shows nothing of this run. Branches and `$RUN` stay.
+`git worktree remove` every worktree under `$WT`, then `rmdir "$WT"`, `cmux workspace close` every lead workspace, `cmux tree --all` shows nothing of this run. Branches and `$RUN` stay.
 
 ## Gotchas
 
@@ -148,6 +152,8 @@ Check: the report names `git merge handsoff/<task>` (or the `cp` command) as the
 - **Do not** read a lead's report from the screen. **Do** read `$RUN/packages/<package>/lead-report.md`; scrollback wraps and truncates.
 - **Do not** score a package from the lead's number. **Do** run its verifier yourself on the merged state; the lead already re-scored its workers, you re-score the lead.
 - **Do not** wait blind. **Do** keep every `wait_or_prompt` in 15-second slices; a lead on a prompt never signals.
+- **Do not** create a worktree under `$TMPDIR`. A pane whose cwd is there loses the guards' temp exemptions, so every run-folder write, temp read, and armed-plan write prompts. **Do** use `$WT` in the git-excluded `.worktrees/`.
+- **Do not** compare merge scores taken with different packages. Worktrees in `.worktrees/` borrow the main checkout's `node_modules`. **Do** run `npm ci` in `$WT/merged` when the merge changed `package.json` or the lockfile.
 - **Do not** boot the leads before `handsoff.py init`. **Do** record the baseline SHA first; every branch and the merge start from it.
 
 Changing this skill: run `python3 -I scripts/test_handsoff.py` and the scenarios in [references/eval-scenarios.md](references/eval-scenarios.md).

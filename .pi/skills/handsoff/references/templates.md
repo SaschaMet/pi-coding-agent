@@ -73,5 +73,5 @@ Stop: <all_settled|budget>. Packages: <done> done, <failed> failed, <unmerged> u
 **Diff.** `git diff <baseline sha> handsoff/<task>`
 **Apply.** `git merge --no-ff handsoff/<task>` on <working branch> (not done)
 
-Panes and worktrees are still open: <workspaces>, `<RUN>/wt/*`. Close them?
+Panes and worktrees are still open: <workspaces>, `<WT>/*`. Close them?
 ```

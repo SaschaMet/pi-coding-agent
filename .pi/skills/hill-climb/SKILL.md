@@ -73,13 +73,17 @@ Repeat until `close-round` prints a non-null `stop`.
 2. **Isolate.** One worktree per worker, branched from the best state:
    ```bash
    BEST=$(python3 -I "$HC" status --run "$RUN" | jq -r .best.cwd)
-   git -C "$BEST" worktree add -b "hill-climb/<run>/r<N>-w<n>" "$RUN/wt/r<N>-w<n>" HEAD
+   WT=$(git -C "$BEST" worktree list --porcelain | sed -n '1s/^worktree //p')/.worktrees/hill-climb-<run>   # main checkout
+   EXCL=$(git -C "$BEST" rev-parse --path-format=absolute --git-path info/exclude)
+   mkdir -p "$(dirname "$EXCL")"; grep -qxF '.worktrees/' "$EXCL" 2>/dev/null || printf '\n.worktrees/\n' >> "$EXCL"
+   git -C "$BEST" worktree add -b "hill-climb/<run>/r<N>-w<n>" "$WT/r<N>-w<n>" HEAD
    ```
-   Outside git: `cp -R "$BEST" "$RUN/wt/r<N>-w<n>"`. Candidate dirs live under `$RUN/wt/`, never inside the original repo.
+   Outside git: `WT=$RUN/wt` and `cp -R "$BEST" "$WT/r<N>-w<n>"`. Git worktrees never go under `$TMPDIR`: a pane whose cwd is there loses the guards' temp exemptions and prompts for every run-folder and temp file.
 3. **Dispatch** per `$cmux-orchestration`: boot one pane per worker with `cd <worktree> && pi --no-session --model "$WORKER_MODEL"`, confirm the model line, send the task from the template below, run `confirm_dispatch`, then `wait_or_prompt` for every worker. Relay prompts to the user; never answer them yourself.
 4. **Re-score every result yourself.** The worker's own number is a hint, yours is the record:
    ```bash
-   python3 -I "$HC" score --run "$RUN" --round <N> --worker w<n> --cwd "$RUN/wt/r<N>-w<n>" --direction "<one line>"
+   git -C "$WT/r<N>-w<n>" diff --quiet <baseline-sha> -- package.json package-lock.json; [ $? -eq 1 ] && (cd "$WT/r<N>-w<n>" && npm ci)   # git worktrees only; 1 = changed
+   python3 -I "$HC" score --run "$RUN" --round <N> --worker w<n> --cwd "$WT/r<N>-w<n>" --direction "<one line>"
    ```
    Exit 4 means the verifier checksum changed: restore the verifier from your copy, discard every score of that round, score again, and tell the user which worker touched it. Exit 3 means the candidate breaks the verifier's preconditions (build fails, test runner crashes): that candidate is out of the round; note it in the report with the stderr reason.
 5. **Close the round:**
@@ -96,9 +100,9 @@ Check per round: every dispatched worker has a `score` entry or a logged reason,
 python3 -I "$HC" status --run "$RUN" --markdown
 ```
 
-Deliver: the stop reason in the first line, the table from `status`, what the winning change does (from its change note), the diff command (`git -C <best.cwd> diff <baseline-sha>`), and the apply command (`git merge`/`cherry-pick` of the best branch, or `cp` for non-git artifacts). Applying is the user's step. Then ask the user before closing panes or removing worktrees (`git worktree remove`), per the cmux fail-safe teardown.
+Deliver: the stop reason in the first line, the table from `status`, what the winning change does (from its change note), the diff command (`git -C <best.cwd> diff <baseline-sha>`), and the apply command (`git merge`/`cherry-pick` of the best branch, or `cp` for non-git artifacts). Applying is the user's step. Then ask the user before closing panes or removing worktrees (`git worktree remove` every worktree under `$WT`, then `rmdir "$WT"`), per the cmux fail-safe teardown.
 
-Check: the report's first line names `targets_met`, `plateau`, or `budget`, and nothing outside `$RUN` and the worktrees was changed.
+Check: the report's first line names `targets_met`, `plateau`, or `budget`, and nothing outside `$RUN`, `$WT`, and the `.worktrees/` exclude line was changed.
 
 ## Worker task template
 
@@ -115,6 +119,7 @@ You are a cmux worker. Your system prompt already contains the durable rules (SY
 - **Do not** run all five workers every round. **Do** fan out in round 1, then narrow; five parallel builds on one machine distort timing criteria. For timing criteria, score candidates sequentially.
 - **Do not** mix a verifier change into a running climb. **Do** stop, present the new matrix at the gate again, and `init --force` a new run.
 - **Do not** report "improved by 30 %" from a single run of a noisy metric. **Do** set `repeat` and quote the median.
+- **Do not** score a worktree whose `package.json` or lockfile changed against borrowed packages. A worktree in `.worktrees/` has no `node_modules` and resolves the main checkout's copy upward. **Do** run `npm ci` in it first (step 6.4).
 - **Do not** count a round where a worker never signalled as a plateau. **Do** read its screen, recover the attempt or log it as failed with the reason, then close the round.
 
 ## Output

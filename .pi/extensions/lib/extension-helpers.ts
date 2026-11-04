@@ -218,6 +218,25 @@ export function isWithinTempReportsDir(inputPath: string, cwd: string): boolean 
 }
 
 /**
+ * Whether the target is a saved tool result of this project's Claude Code session,
+ * `~/.claude/projects/<cwd slug>/<session>/tool-results/<file>`. Claude Code stores
+ * oversized tool output there and has the model read it back. The slug is the real cwd
+ * with every non-alphanumeric character replaced by `-`; a mismatch keeps the prompt.
+ * Projects with another slug stay guarded; paths that collide on one slug already share
+ * a folder in Claude Code's own layout.
+ */
+export function isWithinClaudeToolResults(inputPath: string, cwd: string): boolean {
+   const slug = resolvePathWithRealAncestor(cwd).replace(/[^A-Za-z0-9]/g, "-");
+   const projectRoot = resolvePathWithRealAncestor(
+      path.join(os.homedir(), ".claude", "projects", slug),
+   );
+   const target = resolveInputPath(inputPath, cwd);
+   if (!isWithinRoot(target, projectRoot)) return false;
+   const parts = path.relative(projectRoot, target).split(path.sep);
+   return parts.length === 3 && parts[1] === "tool-results";
+}
+
+/**
  * Repo-relative posix path, resolved through `~`, `..`, and symlinks so every guard
  * answers "which file is this?" the same way. Returns a `../`-prefixed path when the
  * target escapes `cwd` — callers must reject that rather than pattern-match it.

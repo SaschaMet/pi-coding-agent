@@ -3,4 +3,5 @@
 .pi/npm/
 .pi/scratch/
 **/vendor/
+.worktrees/
 package-lock.json

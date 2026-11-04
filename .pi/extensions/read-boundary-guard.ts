@@ -9,6 +9,7 @@ import {
 	firstNonEmptyString,
 	isOutsideWorkingDirectory,
 	isShadowedProjectCopy,
+	isWithinClaudeToolResults,
 	isWithinRoot,
 	isWithinSharedTmp,
 	isWithinTempDir,
@@ -100,12 +101,15 @@ export default function readBoundaryGuardExtension(pi: ExtensionAPI): void {
 			// The system temp directory and the shared /tmp are exempt for read-only tools:
 			// scratch space is outside the working directory by design, and the check runs on
 			// the resolved path, so a tmp path that symlinks out of the temp directory stays blocked.
+			// The current project's Claude Code tool results are exempt too: the model must
+			// read back output that Claude Code saved there.
 			// Mutating tools keep the approval prompt (fail-safe), except inside
 			// <temp root>/pi-reports/, where agents are told to write their reports.
 			if (
 				READ_ONLY_TOOLS.has(event.toolName) &&
 				(isWithinTempDir(inputPath, currentCwd) ||
-					isWithinSharedTmp(inputPath, currentCwd))
+					isWithinSharedTmp(inputPath, currentCwd) ||
+					isWithinClaudeToolResults(inputPath, currentCwd))
 			)
 				return undefined;
 			if (
