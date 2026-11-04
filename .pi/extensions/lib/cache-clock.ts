@@ -52,7 +52,10 @@ export function shouldAutoCompact(input: AutoCompactInput): boolean {
     if (!autoCompact || compacting || running || lastResponseAt === undefined) return false;
     // One attempt per response: a failed compaction is not retried.
     if (attemptedFor === lastResponseAt) return false;
-    return now - lastResponseAt >= AUTO_COMPACT_AFTER_MS;
+    const elapsed = now - lastResponseAt;
+    // Past the TTL the cache is already cold, so compacting saves nothing and
+    // only delays the next prompt (e.g. the first tick after the machine wakes).
+    return elapsed >= AUTO_COMPACT_AFTER_MS && elapsed < LONG_TTL_MS;
 }
 
 /** Per-pane sidebar key; shared key when the surface id is unknown. */

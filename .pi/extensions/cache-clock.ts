@@ -3,8 +3,9 @@
  *
  * Shows the minutes until the provider's prompt cache goes cold in the footer
  * (and the cmux sidebar inside cmux), counted from the last assistant
- * response. On a known 60-minute cache it compacts an idle session at minute
- * 58, so the next prompt does not pay to re-cache the full history.
+ * response. On a known 60-minute cache it compacts an idle session between
+ * minute 58 and 60, so the next prompt does not pay to re-cache the full
+ * history. Past minute 60 the cache is already cold, so it does not compact.
  */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { isShadowedProjectCopy } from "./lib/extension-helpers.ts";

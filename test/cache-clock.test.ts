@@ -115,7 +115,7 @@ describe("cache-clock lib", () => {
         expect(cacheTtl(undefined, { PI_CACHE_RETENTION: "long" })).toEqual(short);
     });
 
-    it("AC4 shouldAutoCompact fires at minute 58 on a known clock", () => {
+    it("AC4 shouldAutoCompact fires only between minute 58 and 60 on a known clock", () => {
         const base = {
             lastResponseAt: START,
             attemptedFor: undefined,
@@ -126,7 +126,10 @@ describe("cache-clock lib", () => {
         expect(AUTO_COMPACT_AFTER_MS).toBe(58 * MINUTE_MS);
         expect(shouldAutoCompact({ ...base, now: START + AUTO_COMPACT_AFTER_MS - 1 })).toBe(false);
         expect(shouldAutoCompact({ ...base, now: START + AUTO_COMPACT_AFTER_MS })).toBe(true);
-        expect(shouldAutoCompact({ ...base, now: START + 60 * MINUTE_MS })).toBe(true);
+        expect(shouldAutoCompact({ ...base, now: START + 60 * MINUTE_MS - 1 })).toBe(true);
+        expect(shouldAutoCompact({ ...base, now: START + 60 * MINUTE_MS })).toBe(false);
+        // Machine slept past the TTL: the first tick after wake must not compact.
+        expect(shouldAutoCompact({ ...base, now: START + 3 * 60 * MINUTE_MS })).toBe(false);
     });
 
     it("AC5 shouldAutoCompact refuses while running, compacting, already attempted, or without a response", () => {
