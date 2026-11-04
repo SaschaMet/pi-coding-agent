@@ -96,6 +96,33 @@ export function isWithinRoot(targetPath: string, rootPath: string): boolean {
    );
 }
 
+/**
+ * Whether the resolved target sits inside the main checkout that owns the `.worktrees/`
+ * folder above cwd, outside its `.git/`. `<main>/.git` must be a real directory, not a
+ * symlink: a worktree cannot name an arbitrary folder as its main checkout. The worktree's
+ * own `.git` pointer file is never read. Any fs error answers false (fail-safe).
+ */
+export function isWithinMainCheckout(resolvedTarget: string, cwd: string): boolean {
+   const segments = resolvePathWithRealAncestor(cwd).split(path.sep);
+   const at = segments.lastIndexOf(".worktrees");
+   if (at <= 0) return false;
+   const main = segments.slice(0, at).join(path.sep) || path.sep;
+   // A home or root folder would widen the exemption far past one repository.
+   if (main === path.parse(main).root || main === resolvePathWithRealAncestor(os.homedir())) return false;
+   const gitDir = path.join(main, ".git");
+   try {
+      const stat = fs.lstatSync(gitDir);
+      if (stat.isSymbolicLink() || !stat.isDirectory()) return false;
+      if (!fs.lstatSync(path.join(gitDir, "HEAD")).isFile()) return false;
+   } catch {
+      return false;
+   }
+   if (!isWithinRoot(resolvedTarget, main)) return false;
+   // Any `.git` folder can hold remote URLs with tokens; env files hold secrets git ignores.
+   if (path.relative(main, resolvedTarget).split(path.sep).includes(".git")) return false;
+   return !/^\.env(\..*)?$/.test(path.basename(resolvedTarget));
+}
+
 export function isOutsideWorkingDirectory(
    inputPath: string,
    cwd: string,
