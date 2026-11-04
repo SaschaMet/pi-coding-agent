@@ -153,6 +153,96 @@ describe.skipIf(skipReason !== undefined)("sandboxed bash against real srt", () 
 	});
 });
 
+describe.skipIf(skipReason !== undefined)("sandboxed bash in a linked worktree against real srt", () => {
+	let root: string;
+	let main: string;
+	let common: string;
+	let lead: string;
+	let run: (command: string) => Promise<string>;
+	const savedAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const git = (cwd: string, ...args: string[]) =>
+		execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd, encoding: "utf8" }).trim();
+
+	beforeAll(async () => {
+		// The temp folder is a writable root, where the sandbox correctly opens no git paths.
+		const fixtures = path.join(repoRoot, "test", ".fixtures");
+		fs.mkdirSync(fixtures, { recursive: true });
+		root = fs.realpathSync(fs.mkdtempSync(path.join(fixtures, "sbx-wt-")));
+		main = path.join(root, "main");
+		common = path.join(main, ".git");
+		lead = path.join(main, ".worktrees", "lead");
+		// srt denies .git writes from the main checkout's outside, so the repo is built unsandboxed.
+		execFileSync("git", ["init", "-q", "-b", "main", main]);
+		git(main, "commit", "-q", "--allow-empty", "-m", "base");
+		git(main, "worktree", "add", "-q", "-b", "handsoff/t/p", lead, "HEAD");
+		process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+
+		const fake = createFakePi();
+		fake.exec = (command: string, args: string[], options?: { cwd?: string; timeout?: number }) =>
+			new Promise((resolve) => {
+				execFile(command, args, { cwd: options?.cwd, timeout: options?.timeout, encoding: "utf8" }, (error, stdout, stderr) => {
+					const code = error ? (typeof error.code === "number" ? error.code : 1) : 0;
+					resolve({ stdout, stderr, code, killed: false });
+				});
+			});
+		const extensionPath = path.join(repoRoot, ".pi", "extensions", "sandbox-bash.ts");
+		fake.getAllTools = () => [{ name: "bash", sourceInfo: { path: extensionPath } }];
+		sandboxBashExtension(asExtensionAPI(fake));
+		const ui = createFakeUi();
+		await Promise.all(fake.handlers.get("session_start")!.map((h) => h({}, { cwd: lead, hasUI: true, ui })));
+		expect(ui.setStatus.mock.calls.at(-1)?.[1]).toMatch(/^sandbox: /);
+
+		const tool = fake.tools.get("bash")!;
+		const ctx = { cwd: lead, sessionManager: { getSessionId: () => "int-wt", getSessionFile: () => undefined } };
+		run = async (command) => {
+			const result = await tool.execute("int-wt", { command: `${command}; true`, timeout: 60 }, undefined, undefined, ctx);
+			return result.content.map((part: { text: string }) => part.text).join("");
+		};
+	}, 60_000);
+
+	afterAll(() => {
+		if (savedAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+		else process.env.PI_CODING_AGENT_DIR = savedAgentDir;
+		fs.rmSync(root, { recursive: true, force: true });
+	});
+
+	const commit = 'git -c user.email=t@t -c user.name=t commit -qm';
+
+	it("stages and commits on the lead's handsoff branch", async () => {
+		const before = git(main, "rev-parse", "handsoff/t/p");
+		const out = await run(`echo a > a.txt && git add a.txt && ${commit} a && echo committed`);
+		expect(out).toContain("committed");
+		expect(git(main, "rev-parse", "handsoff/t/p")).not.toBe(before);
+	});
+
+	it("creates a nested hill-climb worker worktree and commits in it", async () => {
+		const out = await run(
+			`git worktree add -q -b hill-climb/r/r1-w1 .worktrees/hill-climb-r/r1-w1 HEAD && cd .worktrees/hill-climb-r/r1-w1 && echo b > b.txt && git add b.txt && ${commit} b && echo worker-committed`,
+		);
+		expect(out).toContain("worker-committed");
+		expect(git(main, "branch", "--list", "hill-climb/r/r1-w1")).toContain("hill-climb/r/r1-w1");
+	});
+
+	it("keeps main, other branches, config, hooks and packed history closed", async () => {
+		const mainTip = git(main, "rev-parse", "main");
+		// update-ref skips git's own "branch is checked out" refusal, so only the sandbox can stop it.
+		for (const command of [
+			"git update-ref refs/heads/main HEAD",
+			"git branch other",
+			"git config --local sbx.probe z",
+			`touch '${common}/hooks/sbx-probe'`,
+			`mkdir -p '${common}/objects/pack' 2>/dev/null; touch '${common}/objects/pack/sbx-probe'`,
+		]) {
+			expect(await run(`${command} 2>&1`), command).toMatch(/Operation not permitted|cannot lock ref|could not write config/);
+		}
+		expect(git(main, "rev-parse", "main")).toBe(mainTip);
+		expect(git(main, "branch", "--list", "other")).toBe("");
+		expect(fs.readFileSync(path.join(common, "config"), "utf8")).not.toContain("sbx");
+		expect(fs.existsSync(path.join(common, "hooks", "sbx-probe"))).toBe(false);
+		expect(fs.existsSync(path.join(common, "objects", "pack", "sbx-probe"))).toBe(false);
+	});
+});
+
 describe("bash tool ownership", () => {
 	// pi resolves a tool name to the last registration, so a second bash would silently bypass the sandbox.
 	it("no other installed extension registers a bash tool", () => {

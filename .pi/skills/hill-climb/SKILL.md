@@ -73,7 +73,7 @@ Repeat until `close-round` prints a non-null `stop`.
 2. **Isolate.** One worktree per worker, branched from the best state:
    ```bash
    BEST=$(python3 -I "$HC" status --run "$RUN" | jq -r .best.cwd)
-   WT=$(git -C "$BEST" worktree list --porcelain | sed -n '1s/^worktree //p')/.worktrees/hill-climb-<run>   # main checkout
+   WT=$(git rev-parse --show-toplevel)/.worktrees/hill-climb-<run>   # run from the session's own cwd: the climb's starting checkout
    EXCL=$(git -C "$BEST" rev-parse --path-format=absolute --git-path info/exclude)
    mkdir -p "$(dirname "$EXCL")"; grep -qxF '.worktrees/' "$EXCL" 2>/dev/null || printf '\n.worktrees/\n' >> "$EXCL"
    git -C "$BEST" worktree add -b "hill-climb/<run>/r<N>-w<n>" "$WT/r<N>-w<n>" HEAD

@@ -117,6 +117,80 @@ export interface PathVars {
 	tmpdir: string;
 }
 
+// Branch prefixes a linked-worktree session may write: the handsoff and hill-climb runs.
+export const LINKED_WORKTREE_BRANCH_PREFIXES = ["handsoff", "hill-climb"] as const;
+
+/**
+ * Extra write and deny paths for a session whose cwd is a linked worktree: its index and
+ * branch tips live in the main repo's git dir, outside `.`. The session can rewrite its own
+ * `.git` file and anything a sandboxed main checkout can reach, so every check fails closed:
+ * the common dir must sit outside writable and unsafe folders, its worktree record must name
+ * this checkout back, and no symlink may sit below it on the way to a returned path.
+ * The paths come back canonical and must not be resolved again, so a later symlink swap
+ * cannot redirect them. `revParse` is the output of
+ * `git rev-parse --path-format=absolute --git-dir --git-common-dir --show-toplevel`.
+ */
+export function linkedWorktreeGitWrites(revParse: string, vars: PathVars): { allowWrite: string[]; denyWrite: string[] } {
+	const none = { allowWrite: [], denyWrite: [] };
+	const [gitDirLine, commonLine, toplevel] = revParse.trim().split("\n");
+	if (!gitDirLine || !commonLine || !toplevel) return none;
+	const gitDir = canonicalPath(gitDirLine);
+	const common = canonicalPath(commonLine);
+	if (gitDir === common) return none;
+	const unsafeRoots = [
+		...resolvePaths(DEFAULT_CONFIG.filesystem.allowWrite, vars),
+		...UNSAFE_HOME_DIRS.map((dir) => path.join(vars.home, dir)),
+	].map(canonicalPath);
+	if (unsafeRoots.some((root) => isWithin(common, root))) return none;
+	if (!isWithin(gitDir, path.join(common, "worktrees"))) return none;
+	const backLink = readFirstLine(path.join(gitDir, "gitdir"));
+	// git may write the back-link relative to the record folder (`--relative-paths`).
+	if (!backLink || canonicalPath(path.resolve(gitDir, backLink)) !== canonicalPath(path.join(toplevel, ".git"))) return none;
+	const allowWrite = [
+		path.join(common, "worktrees"),
+		path.join(common, "objects"),
+		...LINKED_WORKTREE_BRANCH_PREFIXES.flatMap((prefix) => [
+			path.join(common, "refs", "heads", prefix),
+			path.join(common, "logs", "refs", "heads", prefix),
+		]),
+	];
+	const denyWrite = [path.join(common, "objects", "pack"), path.join(common, "objects", "info")];
+	if ([...allowWrite, ...denyWrite].some((entry) => hasSymlinkBelow(common, entry))) return none;
+	return { allowWrite, denyWrite };
+}
+
+// macOS file systems ignore case, and the JS realpath keeps the caller's spelling; native does not.
+function canonicalPath(target: string): string {
+	try {
+		return fs.realpathSync.native(target);
+	} catch {
+		return path.resolve(target);
+	}
+}
+
+function readFirstLine(file: string): string | undefined {
+	try {
+		return fs.readFileSync(file, "utf8").split("\n")[0].trim() || undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+// A missing component ends the walk: git creates it later as a real folder. Any other
+// lstat failure counts as a symlink, so doubt adds no path.
+function hasSymlinkBelow(root: string, target: string): boolean {
+	let current = root;
+	for (const part of path.relative(root, target).split(path.sep)) {
+		current = path.join(current, part);
+		try {
+			if (fs.lstatSync(current).isSymbolicLink()) return true;
+		} catch (error) {
+			return (error as NodeJS.ErrnoException).code !== "ENOENT";
+		}
+	}
+	return false;
+}
+
 export function resolvePaths(entries: readonly string[], vars: PathVars): string[] {
 	return entries.map((entry) => realPath(expand(entry, vars)));
 }

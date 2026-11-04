@@ -142,7 +142,7 @@ Check: the report names `git merge handsoff/<task>` (or the `cp` command) as the
 
 ### 8. Teardown (after the operator's yes only)
 
-`git worktree remove` every worktree under `$WT`, then `rmdir "$WT"`, `cmux workspace close` every lead workspace, `cmux tree --all` shows nothing of this run. Branches and `$RUN` stay.
+`git worktree remove` every worktree under `$WT`, deepest path first (leads nest worker worktrees in their own checkout), then `rmdir "$WT"`, `cmux workspace close` every lead workspace, `cmux tree --all` shows nothing of this run. Branches and `$RUN` stay.
 
 ## Gotchas
 

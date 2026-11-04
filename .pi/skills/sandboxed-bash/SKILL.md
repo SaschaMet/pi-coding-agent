@@ -10,6 +10,7 @@ Check first: `echo $SANDBOX_RUNTIME` prints `1` → your bash is sandboxed. Empt
 | Symptom | Cause | Do this |
 | --- | --- | --- |
 | `Operation not permitted` on `.pi/`, `.env*`, `.git/hooks`, `.git/config` | Protected inside the project | Edits to `.pi/` go through the edit tool inside the armed spec scope, never to get past a block. Ask the human for git config |
+| `Operation not permitted` on `<repo>/.git/...` from a linked worktree (`cannot lock ref`, `index.lock`) | A linked worktree may write only worktree records, new objects (not `objects/pack`, `objects/info`), and `handsoff/*` / `hill-climb/*` branches | Use one of those branch prefixes; other git writes (other branches, `config`, `gc`) run in the main checkout |
 | `Operation not permitted` outside the project | Only the project, `$TMPDIR`, `/tmp`, and `~/.npm` are writable | Write inside the project or `$TMPDIR` |
 | `Failed to connect to 127.0.0.1 port …` | Local ports (e.g. the Headroom proxy on 8788, Docker services) are not reachable | Hand the `curl` / `docker exec` check to the human with the expected output |
 | `uv`/`pipx` fails on `~/.cache/uv` or `~/.local` | Tool installs write outside the writable paths | Hand `uv tool upgrade` / `pipx upgrade` to the human; a `!` shell inside PI is sandboxed too |

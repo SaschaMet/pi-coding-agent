@@ -9,6 +9,7 @@ import {
 	buildSrtSettings,
 	checkCwd,
 	findSrt,
+	linkedWorktreeGitWrites,
 	loadSandboxConfig,
 	resolvePaths,
 	secretEnvNames,
@@ -194,6 +195,114 @@ describe("resolvePaths", () => {
 	});
 });
 
+describe("linkedWorktreeGitWrites", () => {
+	// A main repo with one linked worktree, laid out the way git writes it: the worktree's
+	// `.git` file names its record, and the record's `gitdir` file names it back.
+	function linkedRepo(root = path.join(scratch, "repo")) {
+		const common = path.join(root, ".git");
+		const gitDir = path.join(common, "worktrees", "lead");
+		for (const dir of [gitDir, path.join(common, "objects"), path.join(common, "refs", "heads"), path.join(common, "hooks")]) {
+			fs.mkdirSync(dir, { recursive: true });
+		}
+		const cwd = path.join(root, ".worktrees", "lead");
+		fs.mkdirSync(cwd, { recursive: true });
+		fs.writeFileSync(path.join(cwd, ".git"), `gitdir: ${gitDir}\n`);
+		fs.writeFileSync(path.join(gitDir, "gitdir"), `${path.join(cwd, ".git")}\n`);
+		const tmpdir = path.join(scratch, "tmp");
+		fs.mkdirSync(tmpdir, { recursive: true });
+		return { common, gitDir, cwd, revParse: `${gitDir}\n${common}\n${cwd}\n`, vars: { cwd, home: "/Users/h", tmpdir } };
+	}
+
+	it("opens worktree records, objects and the run branch prefixes, and keeps packs closed", () => {
+		const { common, revParse, vars } = linkedRepo();
+		expect(linkedWorktreeGitWrites(revParse, vars)).toEqual({
+			allowWrite: [
+				path.join(common, "worktrees"),
+				path.join(common, "objects"),
+				path.join(common, "refs", "heads", "handsoff"),
+				path.join(common, "logs", "refs", "heads", "handsoff"),
+				path.join(common, "refs", "heads", "hill-climb"),
+				path.join(common, "logs", "refs", "heads", "hill-climb"),
+			],
+			denyWrite: [path.join(common, "objects", "pack"), path.join(common, "objects", "info")],
+		});
+	});
+
+	const none = { allowWrite: [], denyWrite: [] };
+
+	it("adds nothing in a main checkout, where the git dir is the common dir", () => {
+		const { common, vars } = linkedRepo();
+		expect(linkedWorktreeGitWrites(`${common}\n${common}\n${path.dirname(common)}\n`, vars)).toEqual(none);
+	});
+
+	it("adds nothing for a git dir outside the worktree records, such as a submodule", () => {
+		const { common, cwd, vars } = linkedRepo();
+		const submodule = path.join(common, "modules", "sub");
+		fs.mkdirSync(submodule, { recursive: true });
+		expect(linkedWorktreeGitWrites(`${submodule}\n${common}\n${cwd}\n`, vars)).toEqual(none);
+	});
+
+	it("adds nothing for empty output", () => {
+		expect(linkedWorktreeGitWrites("", linkedRepo().vars)).toEqual(none);
+	});
+
+	it("adds nothing when objects is a symlink out of the git dir", () => {
+		const { common, revParse, vars } = linkedRepo();
+		const elsewhere = path.join(scratch, "elsewhere");
+		fs.mkdirSync(elsewhere);
+		fs.rmSync(path.join(common, "objects"), { recursive: true });
+		fs.symlinkSync(elsewhere, path.join(common, "objects"));
+		expect(linkedWorktreeGitWrites(revParse, vars)).toEqual(none);
+	});
+
+	it("adds nothing when the git dir sits in a writable temp folder", () => {
+		const { revParse, vars } = linkedRepo();
+		expect(linkedWorktreeGitWrites(revParse, { ...vars, tmpdir: scratch })).toEqual(none);
+	});
+
+	it("adds nothing when a branch prefix is a symlink back into the git dir", () => {
+		const { common, revParse, vars } = linkedRepo();
+		fs.symlinkSync("../../hooks", path.join(common, "refs", "heads", "handsoff"));
+		expect(linkedWorktreeGitWrites(revParse, vars)).toEqual(none);
+	});
+
+	it("adds nothing when a branch log prefix points at the whole git dir", () => {
+		const { common, revParse, vars } = linkedRepo();
+		fs.mkdirSync(path.join(common, "logs", "refs", "heads"), { recursive: true });
+		fs.symlinkSync("../../..", path.join(common, "logs", "refs", "heads", "hill-climb"));
+		expect(linkedWorktreeGitWrites(revParse, vars)).toEqual(none);
+	});
+
+	it("accepts a back-link written relative to the worktree record", () => {
+		const { gitDir, cwd, revParse, vars } = linkedRepo();
+		fs.writeFileSync(path.join(gitDir, "gitdir"), `${path.relative(gitDir, path.join(cwd, ".git"))}\n`);
+		expect(linkedWorktreeGitWrites(revParse, vars).allowWrite).toHaveLength(6);
+	});
+
+	it("adds nothing for a worktree record that belongs to another checkout", () => {
+		const { gitDir, revParse, vars } = linkedRepo();
+		fs.writeFileSync(path.join(gitDir, "gitdir"), `${path.join(scratch, "other", ".git")}\n`);
+		expect(linkedWorktreeGitWrites(revParse, vars)).toEqual(none);
+	});
+
+	it("adds nothing for a temp-folder git dir spelled in another letter case", () => {
+		const { gitDir, cwd, revParse, vars } = linkedRepo();
+		// Only the temp-folder prefix changes case; the git layout below it stays as git writes it.
+		const shout = (text: string) => text.replaceAll(scratch, scratch.toUpperCase());
+		const shouted = shout(revParse);
+		// Only case-insensitive file systems resolve the other spelling at all.
+		if (!fs.existsSync(shouted.split("\n")[1])) return;
+		fs.writeFileSync(path.join(gitDir, "gitdir"), `${shout(path.join(cwd, ".git"))}\n`);
+		expect(linkedWorktreeGitWrites(shouted, { ...vars, tmpdir: scratch })).toEqual(none);
+	});
+
+	it("adds nothing when the git dir sits in a home folder whose code runs unsandboxed", () => {
+		const home = path.join(scratch, "home");
+		const { revParse, vars } = linkedRepo(path.join(home, ".pi", "repo"));
+		expect(linkedWorktreeGitWrites(revParse, { ...vars, home })).toEqual(none);
+	});
+});
+
 describe("loadSandboxConfig", () => {
 	it("returns the defaults when no global file exists", () => {
 		expect(loadSandboxConfig(scratch)).toEqual(DEFAULT_CONFIG);
@@ -320,13 +429,21 @@ function installFakeSrt(): string {
 const extensionPath = path.resolve(import.meta.dirname, "../.pi/extensions/sandbox-bash.ts");
 
 function setup(
-	options: { flags?: Record<string, boolean>; version?: string; probeCode?: number; bashSource?: string } = {},
+	options: {
+		flags?: Record<string, boolean>;
+		version?: string;
+		probeCode?: number;
+		bashSource?: string;
+		git?: { stdout: string; code: number; killed?: boolean };
+	} = {},
 ) {
 	const fake = createFakePi({ flags: options.flags });
 	const registerTool = vi.fn(fake.registerTool);
 	fake.registerTool = registerTool;
-	fake.exec = vi.fn(async (_command: string, args: string[]) =>
-		args.includes("--version")
+	fake.exec = vi.fn(async (command: string, args: string[]) =>
+		command === "git"
+			? { stdout: options.git?.stdout ?? "", stderr: "", code: options.git?.code ?? 128, killed: options.git?.killed ?? false }
+			: args.includes("--version")
 			? { stdout: `${options.version ?? "0.0.79"}\n`, stderr: "", code: 0, killed: false }
 			: { stdout: "", stderr: "probe output", code: options.probeCode ?? 0, killed: false },
 	);
@@ -590,5 +707,63 @@ describe("sandbox-bash extension", () => {
 		const result = await s.userBash("echo hi");
 		expect(result.result.exitCode).toBe(1);
 		expect(result.result.output).toMatch(/bash blocked: sandbox unavailable/);
+	});
+
+	describe("git paths at start", () => {
+		const settings = () => {
+			const dir = path.join(scratch, "agent", "sandbox-run");
+			return JSON.parse(fs.readFileSync(path.join(dir, fs.readdirSync(dir)[0]), "utf8"));
+		};
+		const defaults = () =>
+			resolvePaths(DEFAULT_CONFIG.filesystem.allowWrite, { cwd: projectDir, home: os.homedir(), tmpdir: os.tmpdir() });
+
+		it("opens the main repo's git paths for a session in a linked worktree", async () => {
+			installFakeSrt();
+			const common = path.join(scratch, "repo", ".git");
+			const gitDir = path.join(common, "worktrees", "lead");
+			fs.mkdirSync(gitDir, { recursive: true });
+			fs.mkdirSync(path.join(common, "objects"));
+			fs.writeFileSync(path.join(projectDir, ".git"), `gitdir: ${gitDir}\n`);
+			fs.writeFileSync(path.join(gitDir, "gitdir"), `${path.join(projectDir, ".git")}\n`);
+			const revParse = `${gitDir}\n${common}\n${projectDir}\n`;
+			const s = setup({ git: { stdout: revParse, code: 0 } });
+			await s.start();
+			const { allowWrite, denyWrite } = settings().filesystem;
+			const expected = linkedWorktreeGitWrites(revParse, { cwd: projectDir, home: os.homedir(), tmpdir: os.tmpdir() });
+			expect(expected.allowWrite).toHaveLength(6);
+			expect(allowWrite).toEqual([...defaults(), ...expected.allowWrite]);
+			expect(allowWrite).toContain(path.join(common, "refs", "heads", "handsoff"));
+			expect(denyWrite).toContain(path.join(common, "objects", "pack"));
+			expect(s.lastStatus()).toMatch(/sandbox: \d+ domains, 10 write paths/);
+		});
+
+		it("adds no git paths in a main checkout", async () => {
+			installFakeSrt();
+			const common = path.join(projectDir, ".git");
+			const s = setup({ git: { stdout: `${common}\n${common}\n`, code: 0 } });
+			await s.start();
+			expect(settings().filesystem.allowWrite).toEqual(defaults());
+			expect(s.lastStatus()).toMatch(/sandbox: \d+ domains, 4 write paths/);
+		});
+
+		it("adds no git paths when git rev-parse is killed by its timeout", async () => {
+			installFakeSrt();
+			const common = path.join(scratch, "repo", ".git");
+			const gitDir = path.join(common, "worktrees", "lead");
+			fs.mkdirSync(gitDir, { recursive: true });
+			fs.writeFileSync(path.join(projectDir, ".git"), `gitdir: ${gitDir}\n`);
+			fs.writeFileSync(path.join(gitDir, "gitdir"), `${path.join(projectDir, ".git")}\n`);
+			const s = setup({ git: { stdout: `${gitDir}\n${common}\n${projectDir}\n`, code: 0, killed: true } });
+			await s.start();
+			expect(settings().filesystem.allowWrite).toEqual(defaults());
+		});
+
+		it("starts normally with no git paths when git fails", async () => {
+			installFakeSrt();
+			const s = setup({ git: { stdout: "", code: 128 } });
+			await s.start();
+			expect(settings().filesystem.allowWrite).toEqual(defaults());
+			expect(s.text(await s.run("echo hi"))).toContain("SRT-WRAPPED");
+		});
 	});
 });

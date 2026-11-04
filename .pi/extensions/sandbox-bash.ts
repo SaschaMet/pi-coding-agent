@@ -17,6 +17,7 @@ import {
 	buildSrtSettings,
 	checkCwd,
 	findSrt,
+	linkedWorktreeGitWrites,
 	loadSandboxConfig,
 	SRT_VERSION,
 	sameRealPath,
@@ -155,6 +156,16 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 		}
 
 		const config = loadSandboxConfig(getAgentDir());
+		const revParse = await pi.exec(
+			"git",
+			["rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir", "--show-toplevel"],
+			{ cwd: ctx.cwd, timeout: PROBE_TIMEOUT_MS },
+		);
+		// A killed rev-parse reports exit 0 with partial output.
+		const git =
+			revParse.code === 0 && !revParse.killed
+				? linkedWorktreeGitWrites(revParse.stdout, { cwd: ctx.cwd, home, tmpdir: os.tmpdir() })
+				: { allowWrite: [], denyWrite: [] };
 		const settingsDir = path.join(getAgentDir(), "sandbox-run");
 		fs.mkdirSync(settingsDir, { recursive: true, mode: 0o700 });
 		const envNames = secretEnvNames(process.env);
@@ -167,6 +178,9 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 			cmuxSocket: process.env.CMUX_SOCKET_PATH || undefined,
 			envNames,
 		});
+		// Already canonical: resolving them again would follow a symlink swapped in since the check.
+		settings.filesystem.allowWrite.push(...git.allowWrite);
+		settings.filesystem.denyWrite.push(...git.denyWrite);
 
 		const srtPath = findSrt(process.env.PATH ?? "", settings.filesystem.allowWrite);
 		if (!srtPath) {
