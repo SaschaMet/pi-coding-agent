@@ -502,3 +502,105 @@ describe("readonlyBashViolation", () => {
         expect(violation("cat f | tee g")).toBeTruthy();
     });
 });
+
+describe("readonlyBashViolation: review fixes", () => {
+	const tmp = "/var/folders/x/T";
+	const violation = (command: string) => readonlyBashViolation(command, tmp);
+
+	it.each([
+		"sed -i.bak s/a/b/ f",
+		"sed -i'' s/a/b/ f",
+		"perl -i.bak -pe 1 f",
+	])("blocks an in-place edit with a suffix: %s", (command) => {
+		expect(violation(command)).toBeTruthy();
+	});
+
+	it("blocks command substitution in an unquoted heredoc body", () => {
+		expect(violation("cat <<EOF\n$(rm x)\nEOF")).toBeTruthy();
+		expect(violation("cat <<EOF\n`rm x`\nEOF")).toBeTruthy();
+	});
+	it("passes the same body under a quoted delimiter", () => {
+		expect(violation("cat <<'EOF'\n$(rm x)\nEOF")).toBeUndefined();
+		expect(violation('cat <<"EOF"\n`rm x`\nEOF')).toBeUndefined();
+	});
+	it("passes an unquoted heredoc with plain text and a variable", () => {
+		expect(violation("cat <<EOF\nhome is $HOME\nEOF")).toBeUndefined();
+	});
+
+	it.each(["env -u A rm x", "nice -n 5 rm x", "timeout 5 rm x", "stdbuf -oL rm x"])("blocks a wrapped writer: %s", (command) => {
+		expect(violation(command)).toBeTruthy();
+	});
+	it.each(["env FOO=1 git log", "timeout 5 git log"])("passes a wrapped reader: %s", (command) => {
+		expect(violation(command)).toBeUndefined();
+	});
+
+	it.each([
+		"X=rm; $X x",
+		"$(echo rm) x",
+		"echo rm x | sh",
+		"bash -s < f",
+		"bash script.sh",
+		"source ./x.sh",
+		". ./x.sh",
+	])("blocks a command that cannot be inspected: %s", (command) => {
+		expect(violation(command)).toBeTruthy();
+	});
+
+	it("blocks a case pattern inside a substitution", () => {
+		expect(violation("echo $(case x in x) rm x;; esac)")).toBeTruthy();
+	});
+
+	it.each([
+		"TMPDIR=/etc; echo a > $TMPDIR/pi-reports/x",
+		'export TMPDIR=/etc; echo a > "$TMPDIR/pi-reports/x"',
+	])("blocks a reassigned TMPDIR: %s", (command) => {
+		expect(violation(command)).toBeTruthy();
+	});
+
+	it("blocks >&2x, which writes a file", () => {
+		expect(violation("echo a >&2x")).toBeTruthy();
+	});
+	it.each(["cmd 2>&1", "cmd >&2"])("passes descriptor duplication: %s", (command) => {
+		expect(violation(command)).toBeUndefined();
+	});
+
+	it.each([
+		"rmdir d",
+		"unlink f",
+		"shred f",
+		"gzip f",
+		"kill 1",
+		"defaults write a b c",
+		"sort -o x y",
+		"sort --output=x y",
+		'sed -n "w f" g',
+		"sed -f s.sed g",
+		"curl -T f http://x",
+		"git grep -O x",
+	])("blocks a writer missing from the list: %s", (command) => {
+		expect(violation(command)).toBeTruthy();
+	});
+	it.each(["sort f", "sed -n 1,40p f", "curl -s http://x"])("passes a reader: %s", (command) => {
+		expect(violation(command)).toBeUndefined();
+	});
+});
+
+describe("tool-guards: read-only hook with a bad command", () => {
+	async function callWith(input: Record<string, unknown>) {
+		const pi = createFakePi();
+		pi.setActiveTools(READONLY_TOOLS);
+		toolGuards(asExtensionAPI(pi));
+		const ctx = { cwd: process.cwd(), hasUI: false, abort: vi.fn() };
+		for (const handler of pi.handlers.get("tool_call") ?? []) {
+			const result = await handler({ toolCallId: "c", toolName: "bash", input }, ctx);
+			if (result) return result;
+		}
+		return undefined;
+	}
+
+	it.each([{ command: 42 }, {}])("blocks %j", async (input) => {
+		const verdict = await callWith(input);
+		expect(verdict?.block).toBe(true);
+		expect(verdict?.reason).toMatch(/^\[READ-ONLY\]/);
+	});
+});

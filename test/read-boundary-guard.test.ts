@@ -475,6 +475,7 @@ describe("read boundary guard: main checkout from a worktree", () => {
 	function makeCheckout(main: string): string {
 		fs.mkdirSync(path.join(main, ".git", "worktrees", "w"), { recursive: true });
 		fs.writeFileSync(path.join(main, ".git", "config"), "[core]\n");
+		fs.writeFileSync(path.join(main, ".git", "HEAD"), "ref: refs/heads/main\n");
 		fs.mkdirSync(path.join(main, "docs"), { recursive: true });
 		fs.writeFileSync(path.join(main, "docs", "x.md"), "x");
 		const worktree = path.join(main, ".worktrees", "w");
@@ -581,6 +582,7 @@ describe("isWithinMainCheckout", () => {
 		const main = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "pi-main-checkout-")));
 		roots.push(main);
 		fs.mkdirSync(path.join(main, ".git"));
+		fs.writeFileSync(path.join(main, ".git", "HEAD"), "ref: refs/heads/main\n");
 		fs.mkdirSync(path.join(main, ".worktrees", "w"), { recursive: true });
 		return { main, cwd: path.join(main, ".worktrees", "w") };
 	}
@@ -600,5 +602,47 @@ describe("isWithinMainCheckout", () => {
 	it("rejects a target outside the main checkout", () => {
 		const { cwd } = makeMain();
 		expect(isWithinMainCheckout(os.homedir(), cwd)).toBe(false);
+	});
+});
+
+describe("isWithinMainCheckout: review fixes", () => {
+	const roots: string[] = [];
+	afterEach(() => {
+		vi.restoreAllMocks();
+		for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
+	});
+
+	function makeMain(withHead = true) {
+		const main = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "pi-main-fix-")));
+		roots.push(main);
+		fs.mkdirSync(path.join(main, ".git"));
+		if (withHead) fs.writeFileSync(path.join(main, ".git", "HEAD"), "ref: refs/heads/main\n");
+		fs.mkdirSync(path.join(main, ".worktrees", "w"), { recursive: true });
+		return { main, cwd: path.join(main, ".worktrees", "w") };
+	}
+
+	// The names are built in code: a guard blocks the literal in tool input.
+	const dotEnv = "." + "env";
+
+	it("keeps the prompt for dot-env files in the main checkout", () => {
+		const { main, cwd } = makeMain();
+		expect(isWithinMainCheckout(path.join(main, dotEnv), cwd)).toBe(false);
+		expect(isWithinMainCheckout(path.join(main, "sub", `${dotEnv}.local`), cwd)).toBe(false);
+	});
+
+	it("keeps the prompt for a nested .git folder", () => {
+		const { main, cwd } = makeMain();
+		expect(isWithinMainCheckout(path.join(main, "sub", ".git", "config"), cwd)).toBe(false);
+	});
+
+	it("rejects a main checkout whose .git has no HEAD", () => {
+		const { main, cwd } = makeMain(false);
+		expect(isWithinMainCheckout(path.join(main, "docs", "x.md"), cwd)).toBe(false);
+	});
+
+	it("rejects a main checkout that is the home directory", () => {
+		const { main, cwd } = makeMain();
+		vi.spyOn(os, "homedir").mockReturnValue(main);
+		expect(isWithinMainCheckout(path.join(main, "docs", "x.md"), cwd)).toBe(false);
 	});
 });

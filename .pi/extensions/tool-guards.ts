@@ -46,7 +46,11 @@ export default function toolGuards(pi: ExtensionAPI): void {
             const input = event.input as { command?: unknown; cmd?: unknown };
             const command = input.command ?? input.cmd;
             if (isReadonlySession(pi.getActiveTools())) {
-                const denied = readonlyBashViolation(typeof command === "string" ? command : "", os.tmpdir());
+                // A command that is not a string cannot be checked, so it fails closed.
+                const denied =
+                    typeof command === "string"
+                        ? readonlyBashViolation(command, os.tmpdir())
+                        : "The command is missing or not text. Shell writes are allowed only to $TMPDIR/pi-reports/.";
                 if (denied) return { block: true, reason: `[READ-ONLY] ${denied}` };
             }
             const reason = checkCmuxSurface(typeof command === "string" ? command : "");
