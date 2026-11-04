@@ -76,7 +76,10 @@ Repeat until `close-round` prints a non-null `stop`.
    WT=$(git rev-parse --show-toplevel)/.worktrees/hill-climb-<run>   # run from the session's own cwd: the climb's starting checkout
    EXCL=$(git -C "$BEST" rev-parse --path-format=absolute --git-path info/exclude)
    mkdir -p "$(dirname "$EXCL")"; grep -qxF '.worktrees/' "$EXCL" 2>/dev/null || printf '\n.worktrees/\n' >> "$EXCL"
-   git -C "$BEST" worktree add -b "hill-climb/<run>/r<N>-w<n>" "$WT/r<N>-w<n>" HEAD
+   # Create the worktree with the git_worktree tool: action add, branch hill-climb/<run>/r<N>-w<n>,
+   # path $WT/r<N>-w<n>, base: the SHA from `git -C "$BEST" rev-parse HEAD`.
+   # No such tool: run `git -C "$BEST" worktree add -b "hill-climb/<run>/r<N>-w<n>" "$WT/r<N>-w<n>" HEAD` in bash;
+   # on `Operation not permitted`, stop and ask the user.
    ```
    Outside git: `WT=$RUN/wt` and `cp -R "$BEST" "$WT/r<N>-w<n>"`. Git worktrees never go under `$TMPDIR`: a pane whose cwd is there loses the guards' temp exemptions and prompts for every run-folder and temp file.
 3. **Dispatch** per `$cmux-orchestration`: boot one pane per worker with `cd <worktree> && CMUX_PI_HOOKS_DISABLED=1 pi --no-session --model "$WORKER_MODEL"`, confirm the model line, send the task from the template below, run `confirm_dispatch`, then `bash <cmux-orchestration skill dir>/scripts/wait-or-prompt.sh <token> <surface>` for every worker. Relay prompts to the user; never answer them yourself.
@@ -100,7 +103,7 @@ Check per round: every dispatched worker has a `score` entry or a logged reason,
 python3 -I "$HC" status --run "$RUN" --markdown
 ```
 
-Deliver: the stop reason in the first line, the table from `status`, what the winning change does (from its change note), the diff command (`git -C <best.cwd> diff <baseline-sha>`), and the apply command (`git merge`/`cherry-pick` of the best branch, or `cp` for non-git artifacts). Applying is the user's step. Then ask the user before closing panes or removing worktrees (`git worktree remove` every worktree under `$WT`, then `rmdir "$WT"`), per the cmux fail-safe teardown.
+Deliver: the stop reason in the first line, the table from `status`, what the winning change does (from its change note), the diff command (`git -C <best.cwd> diff <baseline-sha>`), and the apply command (`git merge`/`cherry-pick` of the best branch, or `cp` for non-git artifacts). Applying is the user's step. Then ask the user before closing panes or removing worktrees (the `git_worktree` tool with `action: remove` for every worktree under `$WT`, then `rmdir "$WT"`; no such tool: `git -C "$BEST" worktree remove` in bash, and on `Operation not permitted`, stop and ask the user), per the cmux fail-safe teardown.
 
 Check: the report's first line names `targets_met`, `plateau`, or `budget`, and nothing outside `$RUN`, `$WT`, and the `.worktrees/` exclude line was changed.
 

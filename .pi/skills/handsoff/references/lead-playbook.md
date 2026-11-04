@@ -7,6 +7,7 @@ Read this when your task starts with `You are a handsoff lead.` You own one pack
 - Inputs, all read-only: `$RUN/brief.md`, `$RUN/packages/<package>/matrix.json`, the verifier next to it, the time signal in your task.
 - Outputs: commits on your branch in your worktree, `$RUN/packages/<package>/lead-report.md`, the files listed under **Stages**. Then `cmux wait-for -S <package>-done`.
 - You may spawn cmux panes (workers, one reviewer) with `$cmux-orchestration`, split from your own surface, at most 5 at once. Your workers are cmux workers: their tasks start with `You are a cmux worker.` and they never spawn.
+- Never start a subagent with `isolation: worktree`: its unsandboxed `git add -A` enters a nested repo a session planted.
 - You never: push, merge into any branch but your own, edit files outside your worktree and its hill-climb worktrees, edit the matrix or verifier, ask the orchestrator or operator anything.
 - Pace to the time signal. Correctness wins over the clock, but when the orchestrator steers "budget spent", finish the current round, run review and preflight on the best state, and signal.
 
@@ -32,7 +33,7 @@ Run `$hill-climb` steps 5 to 7 on this package, with the given matrix and verifi
 
 1. `hc.py init --run $RUN/packages/<package>/hc --matrix matrix.json --cwd <your worktree>`.
 2. Each round: directions = the open plan items, grouped so that workers never touch the same files. Fan-out 1 to 5, narrower when a direction gained.
-3. Every code worker gets the two-step TDD dispatch from `$cmux-orchestration` → TDD gate: red dispatch, you rerun the failing command yourself, then green dispatch. One worktree per worker from the current best, where `$hill-climb` step 6.2 puts it: your own checkout's `.worktrees/`, never `$TMPDIR`. Every branch you or a worker create starts with `hill-climb/` or `handsoff/`: the sandbox lets a lead write only those branches, so any other name fails with `cannot lock ref ... Operation not permitted`.
+3. Every code worker gets the two-step TDD dispatch from `$cmux-orchestration` → TDD gate: red dispatch, you rerun the failing command yourself, then green dispatch. One worktree per worker from the current best, where `$hill-climb` step 6.2 puts it: your own checkout's `.worktrees/`, never `$TMPDIR`, created and removed with the `git_worktree` tool (bash `git worktree` fails in the sandbox). Every branch you or a worker create starts with `hill-climb/` or `handsoff/`: the sandbox lets a lead write only those branches, so any other name fails with `cannot lock ref ... Operation not permitted`.
 4. Re-score every worker with `hc.py score` (after `npm ci` in that worktree when its `package.json` or lockfile changed); `close-round`; update the plan's status markers and AI-Notes from the worker reports (you are the owner session of that document); close each worker's pane whose report you have read (`$cmux-orchestration` → Fail-Safe Teardown). A pane whose worker failed stays open and goes under `open_issues`.
 5. Stop on `targets_met`, `plateau`, or `budget`. Merge the best candidate's branch into your package branch (`git merge --ff-only` from the best worktree's branch, or cherry-pick).
 
