@@ -119,8 +119,10 @@ export function isWithinMainCheckout(resolvedTarget: string, cwd: string): boole
    }
    if (!isWithinRoot(resolvedTarget, main)) return false;
    // Any `.git` folder can hold remote URLs with tokens; env files hold secrets git ignores.
-   if (path.relative(main, resolvedTarget).split(path.sep).includes(".git")) return false;
-   return !/^\.env(\..*)?$/.test(path.basename(resolvedTarget));
+   // Every segment counts: a file inside a `.env` folder is as secret as the file itself.
+   const rel = path.relative(main, resolvedTarget).split(path.sep);
+   if (rel.includes(".git")) return false;
+   return !rel.some((segment) => /^\.env(\..*)?$/.test(segment));
 }
 
 export function isOutsideWorkingDirectory(
