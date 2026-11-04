@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { isWithinMainCheckout } from "../.pi/extensions/lib/extension-helpers.ts";
 import readBoundaryGuardExtension from "../.pi/extensions/read-boundary-guard.ts";
 import { createFakePi } from "./helpers/fake-pi.ts";
 
@@ -451,5 +452,153 @@ describe("read boundary guard", () => {
 		);
 		expect(result?.block).toBe(true);
 		expect(result?.reason).toContain("read-only global PI directory");
+	});
+});
+
+/**
+ * Fixtures live under os.tmpdir(): the temp exemption is off when the cwd is itself
+ * inside the temp root, so the prompt appears today for every path below.
+ */
+describe("read boundary guard: main checkout from a worktree", () => {
+	const roots: string[] = [];
+	afterEach(() => {
+		for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
+	});
+
+	function makeRoot(): string {
+		const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "pi-read-boundary-main-")));
+		roots.push(root);
+		return root;
+	}
+
+	/** `<main>` is a real checkout; `<main>/.worktrees/w` points back at it. */
+	function makeCheckout(main: string): string {
+		fs.mkdirSync(path.join(main, ".git", "worktrees", "w"), { recursive: true });
+		fs.writeFileSync(path.join(main, ".git", "config"), "[core]\n");
+		fs.mkdirSync(path.join(main, "docs"), { recursive: true });
+		fs.writeFileSync(path.join(main, "docs", "x.md"), "x");
+		const worktree = path.join(main, ".worktrees", "w");
+		fs.mkdirSync(worktree, { recursive: true });
+		fs.writeFileSync(path.join(worktree, ".git"), `gitdir: ${path.join(main, ".git", "worktrees", "w")}\n`);
+		return worktree;
+	}
+
+	async function call(cwd: string, toolName: string, input: Record<string, unknown>) {
+		const pi = createFakePi();
+		readBoundaryGuardExtension(pi as any);
+		const handlers = pi.handlers.get("tool_call") ?? [];
+		const select = vi.fn(async () => "No");
+		const result = await handlers[0]({ toolName, input }, { hasUI: true, cwd, ui: { select } });
+		return { result, prompted: select.mock.calls.length > 0 };
+	}
+
+	it.each([
+		["read", (main: string) => ({ path: path.join(main, "docs", "x.md") })],
+		["grep", (main: string) => ({ pattern: "x", path: path.join(main, "docs") })],
+		["ls", (main: string) => ({ path: path.join(main, "docs") })],
+	])("lets %s read the main checkout without a prompt", async (toolName, input) => {
+		const main = makeRoot();
+		const worktree = makeCheckout(main);
+
+		const { result, prompted } = await call(worktree, toolName, input(main));
+
+		expect(prompted).toBe(false);
+		expect(result).toBeUndefined();
+	});
+
+	it("still prompts for a write into the main checkout", async () => {
+		const main = makeRoot();
+		const worktree = makeCheckout(main);
+
+		const { prompted } = await call(worktree, "write", { path: path.join(main, "docs", "x.md"), content: "y" });
+
+		expect(prompted).toBe(true);
+	});
+
+	it("still prompts for a read of the main checkout's .git", async () => {
+		const main = makeRoot();
+		const worktree = makeCheckout(main);
+
+		const { prompted } = await call(worktree, "read", { path: path.join(main, ".git", "config") });
+
+		expect(prompted).toBe(true);
+	});
+
+	it("prompts when the worktree's .git file names another checkout", async () => {
+		const main = makeRoot();
+		const worktree = makeCheckout(main);
+		const other = makeRoot();
+		fs.mkdirSync(path.join(other, ".git"), { recursive: true });
+		fs.writeFileSync(path.join(other, "a"), "a");
+		fs.writeFileSync(path.join(worktree, ".git"), `gitdir: ${path.join(other, ".git", "worktrees", "w")}\n`);
+
+		const { prompted } = await call(worktree, "read", { path: path.join(other, "a") });
+
+		expect(prompted).toBe(true);
+	});
+
+	it("prompts when the main checkout's .git is a symlink", async () => {
+		const main = makeRoot();
+		const realGit = makeRoot();
+		fs.symlinkSync(realGit, path.join(main, ".git"));
+		fs.mkdirSync(path.join(main, ".worktrees", "w"), { recursive: true });
+		fs.writeFileSync(path.join(main, "a"), "a");
+
+		const { prompted } = await call(path.join(main, ".worktrees", "w"), "read", { path: path.join(main, "a") });
+
+		expect(prompted).toBe(true);
+	});
+
+	it("prompts when the main checkout has no .git", async () => {
+		const main = makeRoot();
+		fs.mkdirSync(path.join(main, ".worktrees", "w"), { recursive: true });
+		fs.writeFileSync(path.join(main, "a"), "a");
+
+		const { prompted } = await call(path.join(main, ".worktrees", "w"), "read", { path: path.join(main, "a") });
+
+		expect(prompted).toBe(true);
+	});
+
+	it("prompts for a target outside the main checkout", async () => {
+		const main = makeRoot();
+		const worktree = makeCheckout(main);
+		const outside = makeRoot();
+		fs.writeFileSync(path.join(outside, "a"), "a");
+
+		const { prompted } = await call(worktree, "read", { path: path.join(outside, "a") });
+
+		expect(prompted).toBe(true);
+	});
+});
+
+describe("isWithinMainCheckout", () => {
+	const roots: string[] = [];
+	afterEach(() => {
+		for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
+	});
+
+	function makeMain() {
+		const main = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "pi-main-checkout-")));
+		roots.push(main);
+		fs.mkdirSync(path.join(main, ".git"));
+		fs.mkdirSync(path.join(main, ".worktrees", "w"), { recursive: true });
+		return { main, cwd: path.join(main, ".worktrees", "w") };
+	}
+
+	it("accepts a target inside the main checkout and rejects its .git", () => {
+		const { main, cwd } = makeMain();
+		expect(isWithinMainCheckout(path.join(main, "docs", "x.md"), cwd)).toBe(true);
+		expect(isWithinMainCheckout(path.join(main, ".git", "config"), cwd)).toBe(false);
+		expect(isWithinMainCheckout(path.join(main, ".git"), cwd)).toBe(false);
+	});
+
+	it("rejects a cwd that is not under a .worktrees folder", () => {
+		const { main } = makeMain();
+		expect(isWithinMainCheckout(path.join(main, "docs"), main)).toBe(false);
+	});
+
+	it("rejects a target outside the main checkout", () => {
+		const { cwd } = makeMain();
+		expect(isWithinMainCheckout(os.homedir(), cwd)).toBe(false);
 	});
 });
