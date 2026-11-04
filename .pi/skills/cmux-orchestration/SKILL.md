@@ -103,7 +103,7 @@ ts() { local e=$(( $(date +%s) - T0 )); if [ -n "${BUDGET:-}" ]; then echo "[tim
 for S in $S1 $S2; do cmux send --surface "${S:?}" "You are a cmux worker. $TASK $(ts)"; cmux send-key --surface "${S:?}" enter; done
 ```
 
-**Confirm every dispatch (mandatory).** A task typed into a pane whose terminal is still starting, or whose pi is still loading, can lose its Enter: the text sits in the input box and the worker never starts (verified: a grill worker idled 25 minutes while the orchestrator waited on its token). Boot first and wait until the pane footer shows the model line; then send the task; then, within 15 seconds, read the screen and confirm the worker is busy (`Working…` or `Thinking…`). If it is not, press Enter once and check again; still idle → report to the user. Never start a `wait_or_prompt` before this check passes.
+**Confirm every dispatch (mandatory).** A task typed into a pane whose terminal is still starting, or whose pi is still loading, can lose its Enter: the text sits in the input box and the worker never starts (verified: a grill worker idled 25 minutes while the orchestrator waited on its token). Boot first and wait until the pane footer shows the model line; then send the task; then, within 15 seconds, read the screen and confirm the worker is busy (`Working…` or `Thinking…`). If it is not, press Enter once and check again; still idle → report to the user. Never start `wait-or-prompt.sh` before this check passes.
 
 ```bash
 confirm_dispatch() {   # $1 = worker surface; exit 0 = busy, 1 = still idle after one extra Enter
@@ -140,33 +140,15 @@ VERDICT=$(printf '%s\n' "$OUT" | grep -oE 'VERDICT=(GREEN|RED)' | tail -1 | cut 
 
 **Rendezvous (block until a worker signals) — the preferred completion mechanism, not read-screen polling:**
 
-- orchestrator `wait_or_prompt <token> <surface>` (below) ⇄ worker `cmux wait-for -S <token>`.
+- orchestrator `wait-or-prompt.sh <token> <surface>` (below) ⇄ worker `cmux wait-for -S <token>`.
 - **Report contract:** For long-output tasks (reports, reviews), put three requirements in the task prompt: the worker (1) writes its full report to `$TMPDIR/pi-reports/<task>.md`, (2) prints a one-line sentinel as its last chat line, (3) runs `cmux wait-for -S <token>` when done. The orchestrator waits on the token, then reads the report file. When the task serves a spec or plan, the task prompt names that document, and the orchestrator copies the report to `docs/specs/<name>/reports/<task>.md` or `docs/plans/<name>/reports/<task>.md` (see **Artifact folder** in [../create-spec/SKILL.md](../create-spec/SKILL.md)). Workers never write into a document folder. Never parse a long report from screen scrollback: the TUI wraps lines at pane width and truncates scrollback (verified: a 400-line read-screen captured a wrapped, incomplete report). Bounded `read-screen` marker polling stays the fallback only when the worker cannot signal `wait-for`.
-- **Never wait blind — watch for approval prompts.** A worker blocked on an approval prompt can never signal, so a bare `wait-for` hangs until its timeout (verified: a pi review sat on "Allow write outside current directory?" for its report file while the orchestrator waited). Wait in 15-second slices and read the worker's screen between slices:
+- **Never wait blind — watch for approval prompts.** A worker blocked on an approval prompt can never signal, so a bare `wait-for` hangs until its timeout (verified: a pi review sat on "Allow write outside current directory?" for its report file while the orchestrator waited). Wait with the shipped script, never with your own `sleep` loop. `<skill-dir>` is the directory holding this `SKILL.md` (the path in your skill list). The script waits in 15-second slices and reads the worker's screen between slices:
 
 ```bash
-wait_or_prompt() {   # $1 = token, $2 = worker surface; exit 0 = signalled, 2 = prompt, 3 = sandbox stop, 1 = timed out
-  for _ in $(seq 1 240); do
-    # Keep the whole loop shorter than the bash tool timeout (default 600 s): return, then wait again in a new call.
-    cmux wait-for "$1" --timeout 15 && return 0          # exits 1 on timeout
-    SCR=$(cmux read-screen --workspace "$WS" --surface "$2" --lines 40)
-    if printf '%s\n' "$SCR" | grep -qE 'Allow .*\?|Do you want to proceed|Trust project folder|→ Yes'; then
-      echo "PROMPT on $2"; printf '%s\n' "$SCR" | tail -15; return 2
-    fi
-    # A sandboxed worker that stopped or lost bash cannot signal. Anchor to line start (after the
-    # TUI's left padding): this repo's sandbox files quote the same phrases mid-line, and a worker may display them.
-    if printf '%s\n' "$SCR" | grep -qE '^[[:space:]]*(NEEDS_UNSANDBOXED|NEEDS_DOMAIN): ' || printf '%s\n' "$SCR" | grep -qE '^[[:space:]]*(bash blocked: sandbox unavailable|Refusing to run with the built-in defaults)'; then
-      echo "SANDBOX STOP on $2"; printf '%s\n' "$SCR" | tail -15; return 3
-    fi
-    # Idle without having signalled: a lost Enter, or the worker stopped early. Four idle slices in a row (about a minute) → report.
-    if printf '%s\n' "$SCR" | grep -qE 'Working…|Thinking…'; then IDLE=0; else IDLE=$((${IDLE:-0} + 1)); fi
-    if [ "${IDLE:-0}" -ge 4 ]; then echo "IDLE on $2"; printf '%s\n' "$SCR" | tail -15; IDLE=0; return 4; fi
-  done
-  return 1
-}
+bash <skill-dir>/scripts/wait-or-prompt.sh <token> <surface>   # bash timeout 600 · 0 signalled · 1 timed out (call again) · 2 prompt · 3 sandbox stop · 4 idle · 64 usage
 ```
 
-Run it in the background. On exit 4 (idle), read the screen: an unsent task in the input box → press Enter and wait again; a finished worker that forgot to signal → read its report file. On exit 2, show the prompt to the user at once and let them decide. On exit 3, follow **Unsandboxed one-shot** (`NEEDS_UNSANDBOXED:`) or relay the line to the user (`NEEDS_DOMAIN:`, `bash blocked`). Do not answer a permission prompt for them unless they have said to. Standing exception: a grill worker's start prompt (see below). Keep the task file and the report file on different paths (`<task>.task.md` vs `<task>.md`) — verified: a shared path made workers overwrite their own task file with the report.
+Run it in the background. On exit 1 (timed out), call it again. On exit 64 (usage), fix the arguments: `WS` or `$CMUX_WORKSPACE_ID` must be set. On exit 4 (idle), read the screen: an unsent task in the input box → press Enter and wait again; a finished worker that forgot to signal → read its report file. On exit 2, show the prompt to the user at once and let them decide. On exit 3, follow **Unsandboxed one-shot** (`NEEDS_UNSANDBOXED:`) or relay the line to the user (`NEEDS_DOMAIN:`, `bash blocked`). Do not answer a permission prompt for them unless they have said to. Standing exception: a grill worker's start prompt (see below). Keep the task file and the report file on different paths (`<task>.task.md` vs `<task>.md`) — verified: a shared path made workers overwrite their own task file with the report.
 
 **TDD gate (every code task) — the orchestrator enforces Red, not the worker:** a rule in `.pi/SYSTEM.md` alone does not hold (verified: a worker with the TDD rule loaded wrote source before tests). Split each code task into two dispatches:
 

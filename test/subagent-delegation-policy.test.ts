@@ -10,6 +10,10 @@ const saved: Record<string, string | undefined> = {};
 let socketDir: string;
 let socketFile: string;
 
+const newEvent = () => ({
+    systemPromptOptions: { sections: { other: "KEEP" } as Record<string, string> },
+});
+
 const enterCmux = (): void => {
     process.env.CMUX_SURFACE_ID = "surface-test";
     process.env.CMUX_SOCKET_PATH = socketFile;
@@ -41,23 +45,36 @@ describe("subagent delegation policy extension", () => {
         const handlers = pi.handlers.get("before_agent_start") ?? [];
         expect(handlers.length).toBeGreaterThan(0);
 
-        const result = await handlers[0]({}, { hasUI: false });
-        expect(result?.message?.customType).toBe("subagent-delegation-policy");
-        expect(result?.message?.content).toContain("Explicit user delegation request");
-        expect(result?.message?.content).toContain("Skill execution requests stay in the current session");
-        expect(result?.message?.content).toContain("must call `Agent`");
-        expect(result?.message?.content).toContain("Retrieve background results with `get_subagent_result`");
-        expect(result?.message?.content).toContain("Subagents must inherit the parent model");
-        expect(result?.message?.content).toContain(
+        const event = newEvent();
+        const result = await handlers[0](event, { hasUI: false });
+        expect(result?.message).toBeUndefined();
+        expect(result?.systemPrompt).toBeUndefined();
+        const policy = event.systemPromptOptions.sections.delegation_policy;
+        expect(policy).toContain("Explicit user delegation request");
+        expect(policy).toContain("Skill execution requests stay in the current session");
+        expect(policy).toContain("must call `Agent`");
+        expect(policy).toContain("Retrieve background results with `get_subagent_result`");
+        expect(policy).toContain("Subagents must inherit the parent model");
+        expect(policy).toContain(
             "Research and look-up subagents are the exception",
         );
-        expect(result?.message?.content).toContain(".pi/SYSTEM.md");
-        expect(result?.message?.content).toContain("fall back to the current model");
-        expect(result?.message?.content).toContain("Repository reconnaissance that feeds a research artifact");
-        expect(result?.message?.content).toContain("Do not delegate implementation or edits by default");
-        expect(result?.message?.content).toContain("A skill may direct delegation for drafting a document");
-        expect(result?.message?.content).not.toContain("High-context repository reconnaissance stays in-session");
-        expect(result?.message?.content).not.toContain("High-context reconnaissance tasks: prefer");
+        expect(policy).toContain(".pi/SYSTEM.md");
+        expect(policy).toContain("fall back to the current model");
+        expect(policy).toContain("Repository reconnaissance that feeds a research artifact");
+        expect(policy).toContain("Do not delegate implementation or edits by default");
+        expect(policy).toContain("A skill may direct delegation for drafting a document");
+        expect(policy).not.toContain("High-context repository reconnaissance stays in-session");
+        expect(policy).not.toContain("High-context reconnaissance tasks: prefer");
+    });
+
+    it("keeps other sections intact", async () => {
+        const pi = createFakePi();
+        delegationPolicyExtension(pi as any);
+        const handlers = pi.handlers.get("before_agent_start") ?? [];
+        const event = newEvent();
+        await handlers[0](event, { hasUI: false });
+        expect(event.systemPromptOptions.sections.other).toBe("KEEP");
+        expect(Object.keys(event.systemPromptOptions.sections).sort()).toEqual(["delegation_policy", "other"]);
     });
 
     it("normalizes explicit spawn phrasing", async () => {
@@ -100,8 +117,9 @@ describe("subagent delegation policy extension", () => {
         const pi = createFakePi();
         delegationPolicyExtension(pi as any);
         const handlers = pi.handlers.get("before_agent_start") ?? [];
-        const result = await handlers[0]({}, ctx);
-        return result?.message?.content as string;
+        const event = newEvent();
+        await handlers[0](event, ctx);
+        return event.systemPromptOptions.sections.delegation_policy as string;
     };
 
     it("adds the cmux pane rule in an interactive cmux session", async () => {

@@ -9,6 +9,7 @@ import {
 	buildSrtSettings,
 	checkCwd,
 	findSrt,
+	gitMaintenanceOff,
 	linkedWorktreeGitWrites,
 	loadSandboxConfig,
 	resolvePaths,
@@ -61,6 +62,53 @@ describe("wrapCommand", () => {
 		const command = "echo $HOME; it's\nnext `id`";
 		const out = execFileSync("/bin/bash", ["-c", wrapCommand(command, "/s.json", fakeSrt)], { encoding: "utf8" });
 		expect(out).toBe(`[--settings]\n[/s.json]\n[--]\n[/bin/bash]\n[-c]\n[${command}]\n`);
+	});
+});
+
+describe("gitMaintenanceOff", () => {
+	it("appends both pairs when no count is set", () => {
+		const out = gitMaintenanceOff({ PATH: "/bin" });
+		expect(out).toMatchObject({
+			PATH: "/bin",
+			GIT_CONFIG_COUNT: "2",
+			GIT_CONFIG_KEY_0: "maintenance.auto",
+			GIT_CONFIG_VALUE_0: "false",
+			GIT_CONFIG_KEY_1: "gc.auto",
+			GIT_CONFIG_VALUE_1: "0",
+		});
+	});
+
+	it("keeps existing pairs and appends after them", () => {
+		const out = gitMaintenanceOff({ GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "user.name", GIT_CONFIG_VALUE_0: "x" });
+		expect(out).toMatchObject({
+			GIT_CONFIG_COUNT: "3",
+			GIT_CONFIG_KEY_0: "user.name",
+			GIT_CONFIG_VALUE_0: "x",
+			GIT_CONFIG_KEY_1: "maintenance.auto",
+			GIT_CONFIG_VALUE_1: "false",
+			GIT_CONFIG_KEY_2: "gc.auto",
+			GIT_CONFIG_VALUE_2: "0",
+		});
+	});
+
+	it("treats an empty count as zero", () => {
+		const out = gitMaintenanceOff({ GIT_CONFIG_COUNT: "" });
+		expect(out.GIT_CONFIG_COUNT).toBe("2");
+		expect(out.GIT_CONFIG_KEY_0).toBe("maintenance.auto");
+	});
+
+	it("returns a malformed count unchanged", () => {
+		const input = { GIT_CONFIG_COUNT: "abc", PATH: "/bin" };
+		const out = gitMaintenanceOff(input);
+		expect(out).toEqual(input);
+		expect(out.GIT_CONFIG_KEY_0).toBeUndefined();
+	});
+
+	it("does not mutate its input", () => {
+		const input: NodeJS.ProcessEnv = { PATH: "/bin" };
+		gitMaintenanceOff(input);
+		expect(input).toEqual({ PATH: "/bin" });
+		expect(input.GIT_CONFIG_COUNT).toBeUndefined();
 	});
 });
 
@@ -735,6 +783,57 @@ describe("sandbox-bash extension", () => {
 			expect(allowWrite).toContain(path.join(common, "refs", "heads", "handsoff"));
 			expect(denyWrite).toContain(path.join(common, "objects", "pack"));
 			expect(s.lastStatus()).toMatch(/sandbox: \d+ domains, 10 write paths/);
+		});
+
+		const linkedWorktreeRevParse = () => {
+			const common = path.join(scratch, "repo", ".git");
+			const gitDir = path.join(common, "worktrees", "lead");
+			fs.mkdirSync(gitDir, { recursive: true });
+			fs.mkdirSync(path.join(common, "objects"));
+			fs.writeFileSync(path.join(projectDir, ".git"), `gitdir: ${gitDir}\n`);
+			fs.writeFileSync(path.join(gitDir, "gitdir"), `${path.join(projectDir, ".git")}\n`);
+			return `${gitDir}\n${common}\n${projectDir}\n`;
+		};
+		const echoGitConfig =
+			'echo "count=$GIT_CONFIG_COUNT $GIT_CONFIG_KEY_0=$GIT_CONFIG_VALUE_0 $GIT_CONFIG_KEY_1=$GIT_CONFIG_VALUE_1"';
+		// The test process must not already carry git config pairs, or the asserted count would shift.
+		let savedCount: string | undefined;
+		beforeEach(() => {
+			savedCount = process.env.GIT_CONFIG_COUNT;
+			delete process.env.GIT_CONFIG_COUNT;
+		});
+		afterEach(() => {
+			if (savedCount === undefined) delete process.env.GIT_CONFIG_COUNT;
+			else process.env.GIT_CONFIG_COUNT = savedCount;
+		});
+
+		it("turns off git auto maintenance for sandboxed bash in a linked worktree", async () => {
+			installFakeSrt();
+			const s = setup({ git: { stdout: linkedWorktreeRevParse(), code: 0 } });
+			await s.start();
+			expect(s.text(await s.run(echoGitConfig))).toContain("count=2 maintenance.auto=false gc.auto=0");
+		});
+
+		it("leaves git config env alone in a main checkout", async () => {
+			installFakeSrt();
+			const common = path.join(projectDir, ".git");
+			const s = setup({ git: { stdout: `${common}\n${common}\n`, code: 0 } });
+			await s.start();
+			const out = s.text(await s.run(echoGitConfig));
+			expect(out).toContain("count= ");
+			expect(out).not.toContain("maintenance.auto");
+		});
+
+		it("turns off git auto maintenance for user ! commands in a linked worktree", async () => {
+			installFakeSrt();
+			const s = setup({ git: { stdout: linkedWorktreeRevParse(), code: 0 } });
+			await s.start();
+			const result = await s.userBash(echoGitConfig);
+			const chunks: string[] = [];
+			await result.operations.exec(echoGitConfig, projectDir, {
+				onData: (data: Buffer) => chunks.push(data.toString()),
+			});
+			expect(chunks.join("")).toContain("count=2 maintenance.auto=false gc.auto=0");
 		});
 
 		it("adds no git paths in a main checkout", async () => {

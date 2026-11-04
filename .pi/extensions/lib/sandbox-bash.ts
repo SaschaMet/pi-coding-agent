@@ -61,6 +61,25 @@ export function wrapCommand(command: string, settingsPath: string, srtPath: stri
 	return `exec ${shellQuote(srtPath)} --settings ${shellQuote(settingsPath)} -- /bin/bash -c ${shellQuote(command)}`;
 }
 
+// git's auto maintenance needs the main repo's packed-refs, which a linked worktree may not write.
+// Env config writes no file; existing GIT_CONFIG_* pairs are kept, a malformed count is left to git.
+const MAINTENANCE_OFF = [
+	["maintenance.auto", "false"],
+	["gc.auto", "0"],
+] as const;
+
+export function gitMaintenanceOff(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+	const raw = env.GIT_CONFIG_COUNT;
+	const start = raw === undefined || raw === "" ? 0 : /^\d+$/.test(raw) ? Number(raw) : undefined;
+	if (start === undefined) return env;
+	const next: NodeJS.ProcessEnv = { ...env, GIT_CONFIG_COUNT: String(start + MAINTENANCE_OFF.length) };
+	MAINTENANCE_OFF.forEach(([key, value], i) => {
+		next[`GIT_CONFIG_KEY_${start + i}`] = key;
+		next[`GIT_CONFIG_VALUE_${start + i}`] = value;
+	});
+	return next;
+}
+
 // Names only: values never leave process.env. cmux and SSH_AUTH_SOCK hold paths, not secrets.
 export function secretEnvNames(env: NodeJS.ProcessEnv): string[] {
 	return Object.keys(env)

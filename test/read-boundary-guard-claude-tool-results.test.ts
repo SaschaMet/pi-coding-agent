@@ -1,8 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import readBoundaryGuardExtension from "../.pi/extensions/read-boundary-guard.ts";
 import { asExtensionAPI, createFakePi } from "./helpers/fake-pi.ts";
+
+// Fixtures live under the checkout, which inside a `.worktrees/` checkout counts as the main checkout; these suites test other exemptions.
+vi.mock("../.pi/extensions/lib/extension-helpers.ts", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../.pi/extensions/lib/extension-helpers.ts")>()),
+	isWithinMainCheckout: () => false,
+}));
 
 describe("claude tool-results exemption", () => {
 	// HOME points at a fixture so os.homedir() resolves ~/.claude inside it.

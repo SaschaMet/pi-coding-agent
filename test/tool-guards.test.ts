@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import toolGuards from "../.pi/extensions/tool-guards.ts";
+import { isReadonlySession, readonlyBashViolation } from "../.pi/extensions/lib/tool-guards.ts";
 import { asExtensionAPI, createFakePi } from "./helpers/fake-pi.ts";
 
 function setup() {
@@ -348,4 +349,258 @@ describe("tool-guards: cmux target guard", () => {
         const verdict = await bash("cmux new-split right --workspace workspace:2");
         expect(verdict?.reason).toContain('--workspace "$CMUX_WORKSPACE_ID"');
     });
+});
+
+const READONLY_TOOLS = ["read", "bash", "grep", "find", "ls"];
+
+function readonlySetup(tools: string[]) {
+    const pi = createFakePi();
+    pi.setActiveTools(tools);
+    toolGuards(asExtensionAPI(pi));
+    const ctx = { cwd: process.cwd(), hasUI: false, abort: vi.fn() };
+    return async (command: string) => {
+        for (const handler of pi.handlers.get("tool_call") ?? []) {
+            const result = await handler({ toolCallId: "c", toolName: "bash", input: { command } }, ctx);
+            if (result) return result;
+        }
+        return undefined;
+    };
+}
+
+// Real script from the vision-offload skill: a python heredoc whose body holds quotes and parentheses.
+const VISION_SCRIPT = String.raw`python3 - <<'PYEOF'
+import base64, json, sys, urllib.request
+
+IMAGE_PATH = "IMAGE_PATH"
+MIME_TYPE = "MIME_TYPE"
+CONTEXT_BLOCK = """
+CONTEXT_BLOCK
+"""
+
+payload = {
+    "model": "Ornith-1.5-9B-uncensored-MLX-8bit",
+    "max_tokens": 2048,
+    "temperature": 0,
+    "messages": [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": (
+                        "You are a precise vision assistant. Analyze the attached image.\n\n"
+                        + CONTEXT_BLOCK
+                        + "\n\nAnswer the task above using ONLY what is visible in the image. "
+                        "If asked to transcribe text, transcribe it verbatim. "
+                        "If something asked about is not visible, say so explicitly."
+                    ),
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": "data:%s;base64,%s"
+                        % (
+                            MIME_TYPE,
+                            base64.b64encode(open(IMAGE_PATH, "rb").read()).decode(),
+                        )
+                    },
+                },
+            ],
+        }
+    ],
+}
+
+req = urllib.request.Request(
+    "http://localhost:1331/v1/chat/completions",
+    data=json.dumps(payload).encode(),
+    headers={"Content-Type": "application/json"},
+)
+with urllib.request.urlopen(req, timeout=300) as r:
+    out = json.load(r)
+print(out["choices"][0]["message"]["content"])
+PYEOF`;
+
+describe("tool-guards: read-only session bash", () => {
+    it.each([
+        "git init x",
+        'rm -rf "$TMPDIR/x"',
+        "echo a > f",
+        'echo a > "$TMPDIR/evil"',
+        "git -c core.pager=x log",
+        "git branch foo",
+        "find . -delete",
+        "npm install",
+    ])("blocks %s", async (command) => {
+        const verdict = await readonlySetup(READONLY_TOOLS)(command);
+        expect(verdict?.block).toBe(true);
+        expect(verdict?.reason).toMatch(/^\[READ-ONLY\]/);
+        expect(verdict?.reason).toContain("$TMPDIR/pi-reports/");
+    });
+
+    it.each([
+        "cat f | jq .",
+        "git log -1",
+        "git -C d log",
+        "git diff HEAD -U1 -- a b",
+        "rg -n x | head",
+        "sed -n 1,40p f",
+        "cmd 2>/dev/null",
+        'echo a > "$TMPDIR/pi-reports/r.md"',
+        VISION_SCRIPT,
+    ])("allows %s", async (command) => {
+        expect(await readonlySetup(READONLY_TOOLS)(command)).toBeUndefined();
+    });
+
+    it.each([
+        ["write", ["read", "bash", "write", "edit"]],
+        ["edit only", ["read", "bash", "edit"]],
+    ])("leaves a session with %s alone", async (_name, tools) => {
+        expect(await readonlySetup(tools)("git init x")).toBeUndefined();
+    });
+});
+
+describe("isReadonlySession", () => {
+    it("is true for bash without write and edit", () => {
+        expect(isReadonlySession(READONLY_TOOLS)).toBe(true);
+    });
+    it("is false once write or edit is active", () => {
+        expect(isReadonlySession(["bash", "write"])).toBe(false);
+        expect(isReadonlySession(["bash", "edit"])).toBe(false);
+    });
+    it("is false without bash", () => {
+        expect(isReadonlySession(["read", "grep"])).toBe(false);
+    });
+});
+
+describe("readonlyBashViolation", () => {
+    const tmp = "/var/folders/x/T";
+    const violation = (command: string) => readonlyBashViolation(command, tmp);
+
+    it("checks a heredoc header", () => {
+        expect(violation("cat > f <<'E'\nbody\nE")).toBeTruthy();
+    });
+    it("ignores a heredoc body", () => {
+        expect(violation("python3 - <<'E'\nrm -rf /\nE")).toBeUndefined();
+    });
+    it("blocks a redirect with an unknown expansion", () => {
+        expect(violation('echo a > "$HOME/x"')).toBeTruthy();
+    });
+    it("blocks a .. escape out of pi-reports", () => {
+        expect(violation('echo a > "$TMPDIR/pi-reports/../x"')).toBeTruthy();
+        expect(violation(`echo a > ${tmp}/pi-reports/../x`)).toBeTruthy();
+    });
+    it("allows a resolved pi-reports path and /dev/null", () => {
+        expect(violation(`echo a > ${tmp}/pi-reports/a.md`)).toBeUndefined();
+        expect(violation("cmd &> /dev/null")).toBeUndefined();
+    });
+    it("allows read-only git and npm ls", () => {
+        expect(violation("git worktree list")).toBeUndefined();
+        expect(violation("npm ls")).toBeUndefined();
+    });
+    it("blocks mutating segments after a pipe or &&", () => {
+        expect(violation("ls && rm x")).toBeTruthy();
+        expect(violation("cat f | tee g")).toBeTruthy();
+    });
+});
+
+describe("readonlyBashViolation: review fixes", () => {
+	const tmp = "/var/folders/x/T";
+	const violation = (command: string) => readonlyBashViolation(command, tmp);
+
+	it.each([
+		"sed -i.bak s/a/b/ f",
+		"sed -i'' s/a/b/ f",
+		"perl -i.bak -pe 1 f",
+	])("blocks an in-place edit with a suffix: %s", (command) => {
+		expect(violation(command)).toBeTruthy();
+	});
+
+	it("blocks command substitution in an unquoted heredoc body", () => {
+		expect(violation("cat <<EOF\n$(rm x)\nEOF")).toBeTruthy();
+		expect(violation("cat <<EOF\n`rm x`\nEOF")).toBeTruthy();
+	});
+	it("passes the same body under a quoted delimiter", () => {
+		expect(violation("cat <<'EOF'\n$(rm x)\nEOF")).toBeUndefined();
+		expect(violation('cat <<"EOF"\n`rm x`\nEOF')).toBeUndefined();
+	});
+	it("passes an unquoted heredoc with plain text and a variable", () => {
+		expect(violation("cat <<EOF\nhome is $HOME\nEOF")).toBeUndefined();
+	});
+
+	it.each(["env -u A rm x", "nice -n 5 rm x", "timeout 5 rm x", "stdbuf -oL rm x"])("blocks a wrapped writer: %s", (command) => {
+		expect(violation(command)).toBeTruthy();
+	});
+	it.each(["env FOO=1 git log", "timeout 5 git log"])("passes a wrapped reader: %s", (command) => {
+		expect(violation(command)).toBeUndefined();
+	});
+
+	it.each([
+		"X=rm; $X x",
+		"$(echo rm) x",
+		"echo rm x | sh",
+		"bash -s < f",
+		"bash script.sh",
+		"source ./x.sh",
+		". ./x.sh",
+	])("blocks a command that cannot be inspected: %s", (command) => {
+		expect(violation(command)).toBeTruthy();
+	});
+
+	it("blocks a case pattern inside a substitution", () => {
+		expect(violation("echo $(case x in x) rm x;; esac)")).toBeTruthy();
+	});
+
+	it.each([
+		"TMPDIR=/etc; echo a > $TMPDIR/pi-reports/x",
+		'export TMPDIR=/etc; echo a > "$TMPDIR/pi-reports/x"',
+	])("blocks a reassigned TMPDIR: %s", (command) => {
+		expect(violation(command)).toBeTruthy();
+	});
+
+	it("blocks >&2x, which writes a file", () => {
+		expect(violation("echo a >&2x")).toBeTruthy();
+	});
+	it.each(["cmd 2>&1", "cmd >&2"])("passes descriptor duplication: %s", (command) => {
+		expect(violation(command)).toBeUndefined();
+	});
+
+	it.each([
+		"rmdir d",
+		"unlink f",
+		"shred f",
+		"gzip f",
+		"kill 1",
+		"defaults write a b c",
+		"sort -o x y",
+		"sort --output=x y",
+		'sed -n "w f" g',
+		"sed -f s.sed g",
+		"curl -T f http://x",
+		"git grep -O x",
+	])("blocks a writer missing from the list: %s", (command) => {
+		expect(violation(command)).toBeTruthy();
+	});
+	it.each(["sort f", "sed -n 1,40p f", "curl -s http://x"])("passes a reader: %s", (command) => {
+		expect(violation(command)).toBeUndefined();
+	});
+});
+
+describe("tool-guards: read-only hook with a bad command", () => {
+	async function callWith(input: Record<string, unknown>) {
+		const pi = createFakePi();
+		pi.setActiveTools(READONLY_TOOLS);
+		toolGuards(asExtensionAPI(pi));
+		const ctx = { cwd: process.cwd(), hasUI: false, abort: vi.fn() };
+		for (const handler of pi.handlers.get("tool_call") ?? []) {
+			const result = await handler({ toolCallId: "c", toolName: "bash", input }, ctx);
+			if (result) return result;
+		}
+		return undefined;
+	}
+
+	it.each([{ command: 42 }, {}])("blocks %j", async (input) => {
+		const verdict = await callWith(input);
+		expect(verdict?.block).toBe(true);
+		expect(verdict?.reason).toMatch(/^\[READ-ONLY\]/);
+	});
 });

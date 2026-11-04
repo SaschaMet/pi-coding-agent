@@ -170,10 +170,10 @@ describe("scoped packages", () => {
     let projectDir: string;
     let scopedPatch: string;
     // node_modules keeps a scoped package one folder deeper, under its scope.
-    const writeScoped = (root: string) => {
+    const writeScoped = (root: string, version = "1.0.0") => {
         const dir = path.join(root, "@scope", "name");
         fs.mkdirSync(dir, { recursive: true });
-        fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ version: "1.0.0" }));
+        fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ version }));
         fs.writeFileSync(path.join(dir, "a.ts"), "one\ntwo\nthree\n");
         return path.join(dir, "a.ts");
     };
@@ -202,6 +202,12 @@ describe("scoped packages", () => {
         expect(applyPatch(agentDir, scopedPatch, projectDir)).toBe("applied");
         expect(fs.readFileSync(globalTarget, "utf8")).toBe("one\nTWO\nthree\n");
         expect(fs.readFileSync(projectTarget, "utf8")).toBe("one\nTWO\nthree\n");
+    });
+
+    it("flags a review when only the project copy is on a new version", () => {
+        writeScoped(path.join(agentDir, "npm", "node_modules"));
+        writeScoped(path.join(projectDir, ".pi", "npm", "node_modules"), "1.1.0");
+        expect(checkPatch(agentDir, scopedPatch, projectDir)).toMatchObject({ reviewDue: true, installed: "1.1.0" });
     });
 
     it("keeps the plain package name for unscoped patches", () => {
