@@ -33,6 +33,7 @@ type EventName =
     | "ui_prompt_start"
     | "ui_prompt_end"
     | "agent_end"
+    | "session_info_changed"
     | "session_shutdown";
 const ALL_EVENTS: EventName[] = [
     "session_start",
@@ -40,6 +41,7 @@ const ALL_EVENTS: EventName[] = [
     "ui_prompt_start",
     "ui_prompt_end",
     "agent_end",
+    "session_info_changed",
     "session_shutdown",
 ];
 
@@ -72,8 +74,8 @@ function handlerFor(pi: Fake, event: EventName): (event: unknown, ctx: unknown) 
     return handlers[0];
 }
 
-async function fire(pi: Fake, event: EventName, mode = "tui"): Promise<void> {
-    await handlerFor(pi, event)({ type: event }, { mode, hasUI: false });
+async function fire(pi: Fake, event: EventName, mode = "tui", payload: Record<string, unknown> = {}): Promise<void> {
+    await handlerFor(pi, event)({ type: event, ...payload }, { mode, hasUI: false });
     await flush();
 }
 
@@ -341,6 +343,162 @@ describe("cmux sidebar pills", () => {
         });
     });
 
+    describe("auto title", () => {
+        const LONG_NAME = "Investigate manual read approval for subagent orchestrator";
+        const renameCalls = (spy: { mock: { calls: unknown[][] } }): string[][] =>
+            argsOf(spy).filter((a) => a[0] === "rename-tab");
+        const renamedTo = (title: string): string[] => ["rename-tab", "--surface", SURFACE_ID, "--title", title];
+
+        it("AC6: session_info_changed renames the tab to the short session name", async () => {
+            enterCmux();
+            const pi = register();
+            const execSpy = mockExec(pi, () => treeJson([["a"]]));
+            await fire(pi, "session_start");
+            await fire(pi, "session_info_changed", "tui", { name: LONG_NAME });
+            expect(renameCalls(execSpy)).toEqual([renamedTo("Investigate manual read approval")]);
+        });
+
+        it("AC6: renames the workspace too when the pane is alone in it", async () => {
+            enterCmux();
+            const pi = register();
+            const execSpy = mockExec(pi, () => treeJson([["a"]]));
+            await fire(pi, "session_info_changed", "tui", { name: LONG_NAME });
+            expect(argsOf(execSpy)).toContainEqual([
+                "workspace",
+                "rename",
+                WORKSPACE_ID,
+                "--title",
+                "Investigate manual read approval",
+            ]);
+        });
+
+        it("AC6: the word rule caps at 4 words and stops before filler words", async () => {
+            enterCmux();
+            const pi = register();
+            const execSpy = mockExec(pi, () => treeJson([["a"], ["b"]]));
+            const cases: Array<[string, string]> = [
+                ["Integrate mate-cli into pi coding agent as optional extension", "Integrate mate-cli"],
+                ["Review iqRouter model session log for improvements", "Review iqRouter model session"],
+                ["For loop bug", "For loop bug"],
+                ["Fix the flaky test.", "Fix the flaky test"],
+                [
+                    "Refactor authentication middleware configuration loader",
+                    "Refactor authentication middleware",
+                ],
+            ];
+            for (const [name, short] of cases) {
+                execSpy.mockClear();
+                await fire(pi, "session_info_changed", "tui", { name });
+                expect(renameCalls(execSpy)).toEqual([renamedTo(short)]);
+            }
+        });
+
+        it("AC6: session_start applies the short title of an already named session", async () => {
+            enterCmux();
+            const pi = register();
+            pi.getSessionName = () => LONG_NAME;
+            const execSpy = mockExec(pi, () => treeJson([["a"]]));
+            await fire(pi, "session_start");
+            expect(renameCalls(execSpy)).toEqual([renamedTo("Investigate manual read approval")]);
+        });
+
+        it("AC6: a reload keeps the current tab title", async () => {
+            enterCmux();
+            const pi = register();
+            pi.getSessionName = () => LONG_NAME;
+            const execSpy = mockExec(pi, () => treeJson([["a"]]));
+            await fire(pi, "session_start", "tui", { reason: "reload" });
+            expect(renameCalls(execSpy)).toEqual([]);
+        });
+
+        it("AC6: after set_pane_title, session_info_changed does not rename", async () => {
+            enterCmux();
+            const pi = register();
+            const execSpy = mockExec(pi, () => treeJson([["a"]]));
+            await fire(pi, "session_start");
+            await pi.tools.get("set_pane_title")!.execute("id", { title: "mine" }, undefined, undefined, { mode: "tui" });
+            await flush();
+            execSpy.mockClear();
+            await fire(pi, "session_info_changed", "tui", { name: LONG_NAME });
+            expect(renameCalls(execSpy)).toEqual([]);
+        });
+
+        it("AC6: a cleared name or print mode sends no rename", async () => {
+            enterCmux();
+            const pi = register();
+            const execSpy = mockExec(pi, () => treeJson([["a"]]));
+            await fire(pi, "session_info_changed", "tui", { name: undefined });
+            await fire(pi, "session_info_changed", "print", { name: LONG_NAME });
+            expect(execSpy).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("stale pill cleanup", () => {
+        const LIVE = "AAAAAAAA-0000-4000-8000-000000000001";
+        const GONE = "BBBBBBBB-0000-4000-8000-000000000002";
+        const SELF = "CCCCCCCC-0000-4000-8000-000000000003";
+        const LIST_ARGS = ["list-status", "--workspace", WORKSPACE_ID];
+        const UUID_TREE_ARGS = ["--id-format", "uuids", "tree", "--workspace", WORKSPACE_ID, "--json"];
+        const STATUS = [
+            "program_status=pi · task icon=bolt.fill priority=2",
+            "pi=Running icon=bolt.fill color=#4C8DFF",
+            `pi-${SELF}=idle icon=moon.zzz color=#8e8e93`,
+            `pi-${LIVE}=working icon=sparkle color=#ff9500`,
+            `pi-${GONE}=running icon=sparkle color=#ff9500`,
+            `cache-clock-${GONE}=cache 60m icon=clock`,
+            "pi-tabs=a · b icon=rectangle.stack",
+        ].join("\n");
+        const uuidTree = (ids: string[]): string =>
+            JSON.stringify({
+                windows: [{ workspaces: [{ id: WORKSPACE_ID, panes: [{ surfaces: ids.map((id) => ({ id })) }] }] }],
+            });
+        const mockCleanup = (pi: Fake, answers: { status?: string; tree?: string; failList?: boolean }) =>
+            vi.spyOn(pi, "exec").mockImplementation(async (_cmd: any, args: any) => {
+                if (args[0] === "list-status") {
+                    if (answers.failList) throw new Error("list failed");
+                    return { ...OK_EXEC, stdout: answers.status ?? "" };
+                }
+                if (args[0] === "--id-format") return { ...OK_EXEC, stdout: answers.tree ?? "" };
+                return OK_EXEC;
+            });
+        const clearCalls = (spy: { mock: { calls: unknown[][] } }): string[][] =>
+            argsOf(spy).filter((a) => a[0] === "clear-status");
+
+        it("AC7: session_start clears pi-<uuid> pills whose tab is gone and keeps everything else", async () => {
+            enterCmux();
+            process.env.CMUX_SURFACE_ID = SELF;
+            const pi = register();
+            const execSpy = mockCleanup(pi, { status: STATUS, tree: uuidTree([SELF, LIVE]) });
+            await fire(pi, "session_start");
+            expect(execSpy).toHaveBeenCalledWith("cmux", LIST_ARGS, OPTS);
+            expect(execSpy).toHaveBeenCalledWith("cmux", UUID_TREE_ARGS, OPTS);
+            expect(clearCalls(execSpy)).toEqual([["clear-status", `pi-${GONE}`, "--workspace", WORKSPACE_ID]]);
+        });
+
+        it("AC7: clears nothing when the tree does not list the caller's own tab", async () => {
+            enterCmux();
+            process.env.CMUX_SURFACE_ID = SELF;
+            const pi = register();
+            const execSpy = mockCleanup(pi, { status: STATUS, tree: uuidTree([LIVE]) });
+            await fire(pi, "session_start");
+            expect(clearCalls(execSpy)).toEqual([]);
+        });
+
+        it("AC7: an unparsable tree or a failing list-status clears nothing", async () => {
+            enterCmux();
+            process.env.CMUX_SURFACE_ID = SELF;
+            let pi = register();
+            let execSpy = mockCleanup(pi, { status: STATUS, tree: "not json" });
+            await fire(pi, "session_start");
+            expect(clearCalls(execSpy)).toEqual([]);
+
+            pi = register();
+            execSpy = mockCleanup(pi, { failList: true, tree: uuidTree([SELF]) });
+            await fire(pi, "session_start");
+            expect(clearCalls(execSpy)).toEqual([]);
+        });
+    });
+
     describe("cmux gate", () => {
         const fireAll = async (pi: Fake, mode = "tui"): Promise<void> => {
             for (const event of ALL_EVENTS) await fire(pi, event, mode);
@@ -385,13 +543,13 @@ describe("cmux sidebar pills", () => {
     });
 
     describe("sidebar config doc", () => {
-        it("AC5: the reference doc's json block hides the message, keeps the branch, shortens the path", () => {
+        it("AC5: the reference doc's json block hides the message and the branch + path line", () => {
             const doc = fs.readFileSync(path.join(__dirname, "..", "docs", "reference", "cmux-sidebar.md"), "utf8");
             const match = doc.match(/```json\s*\n([\s\S]*?)```/);
             expect(match).not.toBeNull();
             const config = JSON.parse(match![1]) as { sidebar?: Record<string, unknown> };
             expect(config.sidebar?.showNotificationMessage).toBe(false);
-            expect(config.sidebar?.showBranchDirectory).toBe(true);
+            expect(config.sidebar?.showBranchDirectory).toBe(false);
             expect(config.sidebar?.pathLastSegmentOnly).toBe(true);
             expect(doc).toContain("showAgentActivity");
         });

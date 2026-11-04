@@ -79,7 +79,7 @@ Repeat until `close-round` prints a non-null `stop`.
    git -C "$BEST" worktree add -b "hill-climb/<run>/r<N>-w<n>" "$WT/r<N>-w<n>" HEAD
    ```
    Outside git: `WT=$RUN/wt` and `cp -R "$BEST" "$WT/r<N>-w<n>"`. Git worktrees never go under `$TMPDIR`: a pane whose cwd is there loses the guards' temp exemptions and prompts for every run-folder and temp file.
-3. **Dispatch** per `$cmux-orchestration`: boot one pane per worker with `cd <worktree> && pi --no-session --model "$WORKER_MODEL"`, confirm the model line, send the task from the template below, run `confirm_dispatch`, then `wait_or_prompt` for every worker. Relay prompts to the user; never answer them yourself.
+3. **Dispatch** per `$cmux-orchestration`: boot one pane per worker with `cd <worktree> && CMUX_PI_HOOKS_DISABLED=1 pi --no-session --model "$WORKER_MODEL"`, confirm the model line, send the task from the template below, run `confirm_dispatch`, then `wait_or_prompt` for every worker. Relay prompts to the user; never answer them yourself.
 4. **Re-score every result yourself.** The worker's own number is a hint, yours is the record:
    ```bash
    git -C "$WT/r<N>-w<n>" diff --quiet <baseline-sha> -- package.json package-lock.json; [ $? -eq 1 ] && (cd "$WT/r<N>-w<n>" && npm ci)   # git worktrees only; 1 = changed

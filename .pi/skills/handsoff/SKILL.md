@@ -96,7 +96,7 @@ cp brief.md "$RUN/"; # matrices and verifiers already live under $RUN/packages/<
 Per package, in the order of the package table:
 
 1. `git worktree add -b handsoff/<task>/<package> "$WT/<package>" "$BASE"`.
-2. `cmux workspace create --name "handsoff/<task>/<package>"`; boot `cd <worktree> && pi --no-session --model "$WORKER_MODEL"` in its first surface per `$cmux-orchestration` → Boot the Team (model from your own footer, fallback rule as written there). Verify the model line.
+2. `cmux workspace create --name "handsoff/<task>/<package>"`; boot `cd <worktree> && CMUX_PI_HOOKS_DISABLED=1 pi --no-session --model "$WORKER_MODEL"` in its first surface per `$cmux-orchestration` → Boot the Team (model from your own footer, fallback rule as written there). Verify the model line.
 3. Send the lead task from [references/templates.md](references/templates.md) → Lead task, then `confirm_dispatch`.
 4. `python3 -I "$HO" package --run "$RUN" --name <package> --workspace <ws> --surface <ref> --worktree <path> --branch handsoff/<task>/<package> --state running --stage boot`.
 

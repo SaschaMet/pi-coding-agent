@@ -1,6 +1,6 @@
 # cmux sidebar: settings and pi pills
 
-Settings for `~/.config/cmux/cmux.json` that make each workspace row in the cmux sidebar show only the agent state, the tab names, and the git branch. Written for cmux 0.65.2.
+Settings for `~/.config/cmux/cmux.json` that make each workspace row in the cmux sidebar show only the agent state and the tab names. Written for cmux 0.65.2.
 
 ## Sidebar block
 
@@ -10,7 +10,7 @@ Merge these keys into the `sidebar` object of `~/.config/cmux/cmux.json`:
 {
   "sidebar": {
     "showNotificationMessage": false,
-    "showBranchDirectory": true,
+    "showBranchDirectory": false,
     "pathLastSegmentOnly": true
   }
 }
@@ -21,16 +21,16 @@ What each key does (schema descriptions, quoted verbatim):
 | Key | Value | Schema description | Why |
 | --- | --- | --- | --- |
 | `showNotificationMessage` | `false` | "Show the latest notification text in the sidebar." | Hides the message preview under the workspace title. |
-| `showBranchDirectory` | `true` | "Show the workspace working directory." | Keeps the branch and directory line (this is the default). |
-| `pathLastSegmentOnly` | `true` | "Truncate sidebar paths from the start, showing as much of the trailing path as fits with a leading …/. When false, full paths are abbreviated with ~/." | Shortens the path. |
+| `showBranchDirectory` | `false` | "Show the workspace working directory." | Hides the path. cmux has no key that hides only the path, so the git branch goes too. |
+| `pathLastSegmentOnly` | `true` | "Truncate sidebar paths from the start, showing as much of the trailing path as fits with a leading …/. When false, full paths are abbreviated with ~/." | Shortens the path where cmux still shows one. |
 
-`pathLastSegmentOnly` is the closest setting cmux offers, but it does not show strictly the last segment. It keeps as much of the end of the path as fits, after a leading `…/`.
+`pathLastSegmentOnly` does not show strictly the last segment. It keeps as much of the end of the path as fits, after a leading `…/`. With the branch + directory line on, the sidebar still showed full `/Users/…` paths, so the line is off.
 
 ## Settings left alone
 
 - `showAgentActivity` stays at its default. Its description reads: "Show the loading spinner on workspaces with running coding agents or active loaders." It controls the spinner only. It does **not** remove the built-in pi pill (see below).
-- `compactAgentStatus` is rejected. Its description says one icon "replaces the agent status rows (for example Running or Needs input), the branch and directory line, and the pull request rows". That would drop the branch line, which this setup keeps.
-- `hideAllDetails` is rejected: "Hide all per-workspace detail rows." also hides the branch.
+- `compactAgentStatus` is rejected. Its description says one icon "replaces the agent status rows (for example Running or Needs input), the branch and directory line, and the pull request rows". That would also replace the state rows.
+- `hideAllDetails` is rejected: "Hide all per-workspace detail rows." also hides the pills.
 
 ## Pills this repo's extension sets
 
@@ -44,6 +44,14 @@ The pi extension `cmux-status` runs `cmux set-status` only inside a live cmux te
 | `pi-tabs` (per workspace) | tab titles joined with ` · ` | `rectangle.stack` | — | Session start and after `set_pane_title` when the text changed; every agent end, even unchanged |
 
 On session shutdown the extension runs `cmux clear-status pi-<surface id>` and `cmux clear-status pi-tabs --workspace <id>`. Another pi session in the same workspace restores `pi-tabs` on its next agent end.
+
+A pi that is killed skips that shutdown and leaves its `pi-<surface id>` pill behind. On session start the extension lists the workspace's pills (`cmux list-status`) and its live tabs (`cmux --id-format uuids tree --json`), then clears each `pi-<surface id>` pill whose tab is gone. It clears nothing unless the tree lists its own tab, so a failed tree call never removes live pills.
+
+cmux workers started by the `cmux-orchestration` skill run with `CMUX_PI_HOOKS_DISABLED=1`. That turns off cmux's own pi hook (the `pi=Running` pill below) for them: the hook treats a final message ending in `?` as "needs input", so a worker asking its orchestrator a question flagged the shared workspace. Their `cmux-status` pill still works.
+
+## Tab and workspace names
+
+pi sets the terminal title to `π - <session name> - <folder>`, and cmux shows it as the tab name. The `pi-spark` package writes a 3–8 word session name, so the title gets long. `cmux-status` renames the tab with `cmux rename-tab` whenever the session name changes. The name is cut to at most 4 words and stops before the first filler word (`for`, `in`, `to`, `and`, …): "Investigate manual read approval for subagent orchestrator" becomes "Investigate manual read approval". The workspace gets the same name when the pane is alone in it. A cmux rename overrides later terminal-title writes (checked on cmux 0.65.2: an OSC title write did not replace a `rename-tab` title). Once the agent calls `set_pane_title`, the auto name stops until the next `/new`, `/resume`, or `/fork`; `/reload` keeps the current tab name. After `/new` the tab keeps the previous name until pi-spark names the new session.
 
 ## The duplicate built-in pill
 
@@ -61,7 +69,7 @@ The `pi` key belongs to cmux's own pi integration, not to this repo. `cmux hooks
 1. Back up the config: `cp ~/.config/cmux/cmux.json ~/.config/cmux/cmux.json.$(date +%Y%m%d-%H%M%S).bak`
 2. Merge the three keys from the block above into the existing `sidebar` object. Keep every other key.
 3. Reload: `cmux reload-config`
-4. Check: the workspace row shows no message preview, still shows the branch line, and the path starts with `…/` when it is long.
+4. Check: the workspace row shows no message preview and no branch or path line.
 
 Rollback: copy the `.bak` file back and run `cmux reload-config`.
 

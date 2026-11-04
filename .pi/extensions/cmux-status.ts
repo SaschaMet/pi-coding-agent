@@ -11,6 +11,9 @@
  * Also offers a `set_pane_title` tool so the agent can name its tab and,
  * when the pane is alone in its workspace, the workspace. The tool is only
  * registered in interactive cmux sessions, so subagents never see it.
+ * Until the agent calls it, the tab gets a short form of the session name:
+ * pi's own terminal title ("π - <name> - <folder>") is too long for the
+ * sidebar, and an explicit cmux rename overrides it.
  */
 import { Type } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -47,24 +50,37 @@ const runCmuxTask = (task: () => Promise<unknown>): void => {
 
 const MAX_TITLE_CHARS = 40;
 
-/** Strips control/format chars (bidi spoofing), leading dashes, and cuts by code point. */
-const sanitizeTitle = (raw: string): string =>
-    Array.from(
-        raw
-            .replace(/\p{Cf}/gu, "")
-            .replace(/\p{Cc}/gu, " ")
-            .replace(/\s+/g, " ")
-            .trim()
-            .replace(/^[-\s]+/, ""),
-    )
-        .slice(0, MAX_TITLE_CHARS)
-        .join("");
+/** Strips control/format chars (bidi spoofing) and leading dashes. */
+const cleanTitle = (raw: string): string =>
+    raw
+        .replace(/\p{Cf}/gu, "")
+        .replace(/\p{Cc}/gu, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/^[-\s]+/, "");
+
+/** cleanTitle, then cut by code point. */
+const sanitizeTitle = (raw: string): string => Array.from(cleanTitle(raw)).slice(0, MAX_TITLE_CHARS).join("");
+
+const SHORT_TITLE_WORDS = 4;
+// Words that start a qualifier; the short title stops before them.
+const CUT_WORDS = new Set(["for", "in", "into", "to", "of", "with", "on", "from", "and", "as", "via", "using"]);
+
+/** "Investigate manual read approval for subagent orchestrator" → "Investigate manual read approval". */
+const shortTitle = (name: string): string => {
+    const words = cleanTitle(name.replace(/[.!?]+$/, "")).split(" ");
+    const cut = words.findIndex((word, i) => i > 0 && CUT_WORDS.has(word.toLowerCase()));
+    const kept = words.slice(0, cut === -1 ? SHORT_TITLE_WORDS : Math.min(cut, SHORT_TITLE_WORDS));
+    // Drop whole words rather than let sanitizeTitle cut the last one mid-word.
+    while (kept.length > 1 && Array.from(kept.join(" ")).length > MAX_TITLE_CHARS) kept.pop();
+    return sanitizeTitle(kept.join(" "));
+};
 
 type CmuxTree = {
     windows?: Array<{
         workspaces?: Array<{
             id?: string;
-            panes?: Array<{ surface_count?: number; surfaces?: Array<{ title?: unknown }> }>;
+            panes?: Array<{ surface_count?: number; surfaces?: Array<{ id?: unknown; title?: unknown }> }>;
         }>;
     }>;
 };
@@ -106,6 +122,31 @@ const tabNames = (treeJson: string, workspaceId: string): string[] => {
     return [];
 };
 
+const STATE_PILL = /^(pi-[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12})=/i;
+
+/**
+ * State pill keys (`pi-<surface uuid>`) whose tab no longer exists. A pi killed
+ * without shutdown leaves its pill behind. Empty unless the tree lists the
+ * caller's own tab, so a partial or failed tree answer never clears live pills.
+ */
+const staleStateKeys = (statusLines: string, treeJson: string, workspaceId: string, selfId: string): string[] => {
+    const tree = parseTree(treeJson);
+    const live = new Set<string>();
+    for (const win of tree.windows ?? []) {
+        for (const ws of win.workspaces ?? []) {
+            if (ws.id !== workspaceId) continue;
+            for (const surface of (ws.panes ?? []).flatMap((pane) => pane.surfaces ?? [])) {
+                if (typeof surface.id === "string") live.add(surface.id.toUpperCase());
+            }
+        }
+    }
+    if (!live.has(selfId.toUpperCase())) return [];
+    return statusLines
+        .split("\n")
+        .map((line) => STATE_PILL.exec(line.trim())?.[1])
+        .filter((key): key is string => key !== undefined && !live.has(key.slice(3).toUpperCase()));
+};
+
 const setState = (pi: ExtensionAPI, state: keyof typeof STATES): void => {
     runCmux(pi, ["set-status", stateKey(), ...STATES[state]]);
 };
@@ -123,6 +164,8 @@ export default function cmuxStatusExtension(pi: ExtensionAPI): void {
     let agentRunning = false;
     // Last tab text sent, so an unchanged list costs no set-status call.
     let lastTabs = "";
+    // An explicit set_pane_title beats the auto title from the session name.
+    let titlePinned = false;
 
     // force: another pi session in this workspace may have cleared the shared
     // pill on its shutdown, so an unchanged text still has to be re-sent.
@@ -144,10 +187,58 @@ export default function cmuxStatusExtension(pi: ExtensionAPI): void {
         });
     };
 
-    pi.on("session_start", (_event, ctx) => {
+    const clearStalePills = (): void => {
+        const workspaceId = process.env.CMUX_WORKSPACE_ID;
+        const selfId = process.env.CMUX_SURFACE_ID;
+        if (!workspaceId || !selfId) return;
+        runCmuxTask(async () => {
+            const status = await pi.exec("cmux", ["list-status", "--workspace", workspaceId], {
+                timeout: EXEC_TIMEOUT_MS,
+            });
+            const tree = await pi.exec("cmux", ["--id-format", "uuids", "tree", "--workspace", workspaceId, "--json"], {
+                timeout: EXEC_TIMEOUT_MS,
+            });
+            for (const key of staleStateKeys(status.stdout, tree.stdout, workspaceId, selfId)) {
+                await pi.exec("cmux", ["clear-status", key, "--workspace", workspaceId], { timeout: EXEC_TIMEOUT_MS });
+            }
+        });
+    };
+
+    const applyTitle = (title: string): void => {
+        const surfaceId = process.env.CMUX_SURFACE_ID;
+        const workspaceId = process.env.CMUX_WORKSPACE_ID;
+        // --title: rename-tab parses a flag-like positional title as a flag, even after "--".
+        runCmux(pi, ["rename-tab", "--surface", surfaceId ?? "", "--title", title]);
+        if (workspaceId) {
+            runCmuxTask(async () => {
+                const tree = await pi.exec("cmux", ["tree", "--workspace", workspaceId, "--json"], {
+                    timeout: EXEC_TIMEOUT_MS,
+                });
+                if (!isOnlySurface(tree.stdout, workspaceId)) return;
+                await pi.exec("cmux", ["workspace", "rename", workspaceId, "--title", title], {
+                    timeout: EXEC_TIMEOUT_MS,
+                });
+            });
+        }
+        refreshTabs();
+    };
+
+    const applySessionName = (name: string | undefined): void => {
+        if (titlePinned || !name) return;
+        const title = shortTitle(name);
+        if (title) applyTitle(title);
+    };
+
+    pi.on("session_start", (event, ctx) => {
         if (!active(ctx)) return;
         setState(pi, "idle");
         refreshTabs();
+        clearStalePills();
+        // A reload keeps the tab's cmux rename, which may come from set_pane_title.
+        if (event.reason !== "reload") {
+            titlePinned = false;
+            applySessionName(pi.getSessionName());
+        }
         pi.registerTool({
             name: "set_pane_title",
             label: "Set pane title",
@@ -163,25 +254,16 @@ export default function cmuxStatusExtension(pi: ExtensionAPI): void {
             execute: async (_id, params) => {
                 const title = sanitizeTitle(params.title);
                 if (!title) throw new Error("Title is empty after sanitizing");
-                const surfaceId = process.env.CMUX_SURFACE_ID;
-                const workspaceId = process.env.CMUX_WORKSPACE_ID;
-                // --title: rename-tab parses a flag-like positional title as a flag, even after "--".
-                runCmux(pi, ["rename-tab", "--surface", surfaceId ?? "", "--title", title]);
-                if (workspaceId) {
-                    runCmuxTask(async () => {
-                        const tree = await pi.exec("cmux", ["tree", "--workspace", workspaceId, "--json"], {
-                            timeout: EXEC_TIMEOUT_MS,
-                        });
-                        if (!isOnlySurface(tree.stdout, workspaceId)) return;
-                        await pi.exec("cmux", ["workspace", "rename", workspaceId, "--title", title], {
-                            timeout: EXEC_TIMEOUT_MS,
-                        });
-                    });
-                }
-                refreshTabs();
+                titlePinned = true;
+                applyTitle(title);
                 return { content: [{ type: "text", text: `Title requested: ${title}` }], details: undefined };
             },
         });
+    });
+
+    pi.on("session_info_changed", (event, ctx) => {
+        if (!active(ctx)) return;
+        applySessionName(event.name);
     });
 
     pi.on("agent_start", (_event, ctx) => {
