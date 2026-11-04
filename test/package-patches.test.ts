@@ -166,6 +166,50 @@ describe("listPatches / runCheck", () => {
     });
 });
 
+describe("scoped packages", () => {
+    let projectDir: string;
+    let scopedPatch: string;
+    // node_modules keeps a scoped package one folder deeper, under its scope.
+    const writeScoped = (root: string) => {
+        const dir = path.join(root, "@scope", "name");
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ version: "1.0.0" }));
+        fs.writeFileSync(path.join(dir, "a.ts"), "one\ntwo\nthree\n");
+        return path.join(dir, "a.ts");
+    };
+
+    beforeEach(() => {
+        projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "package-patches-proj-"));
+        const dir = path.join(agentDir, "patches", "@scope", "name");
+        fs.mkdirSync(dir, { recursive: true });
+        scopedPatch = path.join(dir, "fix.patch");
+        fs.writeFileSync(scopedPatch, PATCH());
+    });
+    afterEach(() => fs.rmSync(projectDir, { recursive: true, force: true }));
+
+    it("lists patches of scoped and plain packages", () => {
+        expect(listPatches(agentDir).sort()).toEqual([patchFile, scopedPatch].sort());
+    });
+
+    it("names the scoped package in full", () => {
+        writeScoped(path.join(agentDir, "npm", "node_modules"));
+        expect(checkPatch(agentDir, scopedPatch)).toMatchObject({ pkg: "@scope/name", name: "fix", state: "needed" });
+    });
+
+    it("applies to the global and the project copy of a scoped package", () => {
+        const globalTarget = writeScoped(path.join(agentDir, "npm", "node_modules"));
+        const projectTarget = writeScoped(path.join(projectDir, ".pi", "npm", "node_modules"));
+        expect(applyPatch(agentDir, scopedPatch, projectDir)).toBe("applied");
+        expect(fs.readFileSync(globalTarget, "utf8")).toBe("one\nTWO\nthree\n");
+        expect(fs.readFileSync(projectTarget, "utf8")).toBe("one\nTWO\nthree\n");
+    });
+
+    it("keeps the plain package name for unscoped patches", () => {
+        writePkg("one\nTWO\nthree\n");
+        expect(checkPatch(agentDir, patchFile)).toMatchObject({ pkg: "pkg", state: "applied" });
+    });
+});
+
 describe("package-patches extension", () => {
     const settle = () => new Promise((resolve) => setImmediate(resolve));
 

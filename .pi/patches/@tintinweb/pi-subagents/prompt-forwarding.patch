@@ -1,0 +1,126 @@
+Purpose: subagents forward the read guard's "Allow <tool> outside current directory?" question to the parent's pane while the parent is busy (named, 10-minute timeout, closes on idle or abort); every other dialog stays refused and every other UI call stays silent.
+Reviewed-Version: 0.23.0
+--- a/src/agent-runner.ts
++++ b/src/agent-runner.ts
+@@ -6,7 +6,7 @@
+ import { homedir } from "node:os";
+ import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
+ import type { Model } from "@earendil-works/pi-ai";
+-import type { ExtensionContext, LoadExtensionsResult } from "@earendil-works/pi-coding-agent";
++import type { ExtensionContext, ExtensionUIContext, LoadExtensionsResult } from "@earendil-works/pi-coding-agent";
+ import {
+   type AgentSession,
+   type AgentSessionEvent,
+@@ -497,6 +497,92 @@
+   toolName: string;
+ }
+ 
++// Local patch: only the read guard's question may reach the parent, at any nesting depth.
++// The whole title, the session-name prefixes and the Yes/No options must match, because a
++// model-written question (ask_user_question's select fallback) can copy any single line.
++const FORWARDED_TITLE =
++  /^(\[[A-Za-z0-9._-]+(#[0-9a-f]{8})?\] )*Allow \S+ outside current directory\?\n\nPath: [^\n]*\nCWD: [^\n]*$/;
++const FORWARDED_OPTIONS = ["Yes", "No"];
++// An unanswered forwarded question resolves as "no answer", which the guard treats as No.
++const SUBAGENT_PROMPT_TIMEOUT_MS = 10 * 60_000;
++const IDLE_POLL_MS = 1_000;
++
++/**
++ * The UI a subagent's extensions see when the parent has one. Only the read guard's
++ * outside-cwd question goes to the parent's pane, named after the subagent, and only while
++ * the parent is busy: an idle pane would take the keypress meant for its editor. Every
++ * other dialog is refused and every other call stays silent, as pi's no-op UI does, so a
++ * subagent can neither ask for more nor redraw the parent's screen.
++ */
++export function promptOnlyUI(
++  parent: ExtensionUIContext,
++  name: string,
++  isParentIdle: () => boolean,
++  signal?: AbortSignal,
++): ExtensionUIContext {
++  // A parent whose context is gone counts as idle.
++  const parentIdle = () => {
++    try {
++      return isParentIdle();
++    } catch {
++      return true;
++    }
++  };
++  return {
++    select: async (title, options, opts) => {
++      const guardShaped =
++        FORWARDED_TITLE.test(title) &&
++        options.length === FORWARDED_OPTIONS.length &&
++        options.every((option, i) => option === FORWARDED_OPTIONS[i]);
++      if (!guardShaped || parentIdle()) return undefined;
++      const signals = [signal, opts?.signal].filter((s): s is AbortSignal => s !== undefined);
++      if (signals.some((s) => s.aborted)) return undefined;
++      const closeOnIdle = new AbortController();
++      const poll = setInterval(() => {
++        if (parentIdle()) closeOnIdle.abort();
++      }, IDLE_POLL_MS);
++      try {
++        return await parent.select(`[${name}] ${title}`, options, {
++          ...opts,
++          timeout: SUBAGENT_PROMPT_TIMEOUT_MS,
++          signal: AbortSignal.any([closeOnIdle.signal, ...signals]),
++        });
++      } finally {
++        clearInterval(poll);
++      }
++    },
++    confirm: async () => false,
++    input: async () => undefined,
++    notify: () => {},
++    onTerminalInput: () => () => {},
++    setStatus: () => {},
++    setWorkingMessage: () => {},
++    setWorkingVisible: () => {},
++    setWorkingIndicator: () => {},
++    setHiddenThinkingLabel: () => {},
++    setWidget: () => {},
++    setFooter: () => {},
++    setHeader: () => {},
++    setTitle: () => {},
++    custom: async () => undefined as never,
++    pasteToEditor: () => {},
++    setEditorText: () => {},
++    getEditorText: () => "",
++    editor: async () => undefined,
++    addAutocompleteProvider: () => {},
++    setEditorComponent: () => {},
++    getEditorComponent: () => undefined,
++    get theme() {
++      return parent.theme;
++    },
++    getAllThemes: () => [],
++    getTheme: () => undefined,
++    setTheme: () => ({ success: false, error: "UI not available" }),
++    getToolsExpanded: () => false,
++    setToolsExpanded: () => {},
++  };
++}
++
+ export interface RunOptions {
+   /** ExtensionAPI instance — used for pi.exec() instead of execSync. */
+   pi: ExtensionAPI;
+@@ -1286,15 +1372,16 @@
+   const { session } = await runInChildSessionContext(() => createAgentSession(sessionOpts));
+ 
+   const baseSessionName = agentConfig?.name ?? type;
+-  session.setSessionName(
+-    options.agentId ? `${baseSessionName}#${options.agentId.slice(0, 8)}` : baseSessionName,
+-  );
++  const sessionName = options.agentId ? `${baseSessionName}#${options.agentId.slice(0, 8)}` : baseSessionName;
++  session.setSessionName(sessionName);
+ 
+   // Bind extensions so that session_start fires and extensions can initialize
+   // (e.g. loading credentials, setting up state). Tool gating already happened
+   // at session construction via the `tools:` allowlist above — no separate
+   // post-bind filter is needed. All ExtensionBindings fields are optional.
+   await session.bindExtensions({
++    // Local patch: a parent with a UI answers the read guard's question; see promptOnlyUI.
++    uiContext: ctx.hasUI ? promptOnlyUI(ctx.ui, sessionName, () => ctx.isIdle(), options.signal) : undefined,
+     onError: (err) => {
+       options.onToolActivity?.({
+         type: "end",

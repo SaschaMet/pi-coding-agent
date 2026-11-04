@@ -23,19 +23,28 @@ export function getAgentDir(): string {
 export function listPatches(agentDir: string): string[] {
     const root = path.join(agentDir, "patches");
     if (!fs.existsSync(root)) return [];
+    const subdirs = (dir: string) =>
+        fs.readdirSync(dir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+    // A scoped package (`@scope/name`) sits one folder deeper, as in node_modules.
+    const packages = subdirs(root).flatMap((name) =>
+        name.startsWith("@") ? subdirs(path.join(root, name)).map((inner) => path.join(name, inner)) : [name],
+    );
     const files: string[] = [];
-    for (const pkg of fs.readdirSync(root, { withFileTypes: true })) {
-        if (!pkg.isDirectory()) continue;
-        for (const file of fs.readdirSync(path.join(root, pkg.name)).sort()) {
-            if (file.endsWith(".patch")) files.push(path.join(root, pkg.name, file));
+    for (const pkg of packages) {
+        for (const file of fs.readdirSync(path.join(root, pkg)).sort()) {
+            if (file.endsWith(".patch")) files.push(path.join(root, pkg, file));
         }
     }
     return files;
 }
 
+// `@scope/name` for a scoped package, else the folder name.
+const packageName = (agentDir: string, file: string): string =>
+    path.relative(path.join(agentDir, "patches"), path.dirname(file)).split(path.sep).join("/");
+
 // The global install, plus the project's own copy when one exists (`<project>/.pi/npm`).
 const packageDirs = (agentDir: string, file: string, projectDir?: string): string[] => {
-    const pkg = path.basename(path.dirname(file));
+    const pkg = packageName(agentDir, file);
     const roots = [path.join(agentDir, "npm", "node_modules")];
     if (projectDir) roots.push(path.join(projectDir, ".pi", "npm", "node_modules"));
     return [...new Set(roots.map((root) => path.join(root, pkg)))].filter((dir) => fs.existsSync(dir));
@@ -70,7 +79,7 @@ const RANK: Record<PatchState, number> = { absent: 0, applied: 1, needed: 2, con
 
 export function checkPatch(agentDir: string, file: string, projectDir?: string): PatchStatus {
     const base = {
-        pkg: path.basename(path.dirname(file)),
+        pkg: packageName(agentDir, file),
         name: path.basename(file, ".patch"),
         file,
     };
