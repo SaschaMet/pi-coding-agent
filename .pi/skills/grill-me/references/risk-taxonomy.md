@@ -44,6 +44,7 @@ Default changes:
 - Add validation before persistence
 - Prefer idempotent write paths
 - Add migration and rollback notes for schema or stored-data changes
+- For a new field on stored data without a migration: list every path that reads or writes old records and the value each one sees there (absent, `null`, framework fallback); test old records on each path
 
 ### 3. External Dependency Failure
 

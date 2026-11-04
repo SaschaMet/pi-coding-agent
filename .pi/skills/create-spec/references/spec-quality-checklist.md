@@ -53,6 +53,7 @@ Use this gate before finalizing a spec.
 - [ ] Negative assertions are included when needed (`must not expose ...`).
 - [ ] Each behavioral criterion is written once as `Given / When / Then`; static checks stay one line.
 - [ ] Edge cases and error paths are covered.
+- [ ] Every new field on stored data or config has a criterion for records saved before the change, once per path that reads or writes it (each editor, override or inheritance layer, API, import), not only the main path. The criterion states the value those records really hold (absent, `null`, or the default).
 
 ## 4. Verification Mapping
 

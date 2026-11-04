@@ -56,4 +56,6 @@ Statuses: `pass`, `fail`, `dry-run ok`, `not run: <reason>`. Reconciled items ad
 - "Please check manually" is a last resort. First look for the evidence yourself: logs, installed source, a local run, a stub.
 - An item is `human` because of what it needs, not because it is slow or tedious. Slow agent items still run.
 - A failure is reported first, never buried under passes.
+- Test data must include records saved **before** the change. Data the feature itself created during development holds the new defaults and hides the case where existing records lack them.
+- An unticked `human` item in the spec's manual checklist is an open item, not an implicit pass. Carry it into the report.
 - Read-only means no edits, not no checks. A read-only turn or a "just write the summary" turn still runs tests, typecheck, and local read-only dry-runs. Do not end with "Should I run the preflight?"; run it.

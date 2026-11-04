@@ -137,6 +137,10 @@ migration path; test adequacy for changed behavior.
   files. A doc counts only when it names the changed symbol, key, or flag.
 - Check boundary values, invalid inputs, null/empty states, error paths, concurrency-sensitive paths, and
   integration/API contract compatibility when touched.
+- **Stored-data check** — when the diff adds a field to stored data or config without a migration, trace
+  what records saved before the change hold on every path that reads or writes them, including framework
+  inheritance or override fallbacks. Code that assumes the field's default (for example writes into
+  `field.value` in place) when the stored value can be absent or `null` is a blocking `qa` finding.
 - When the diff introduces caching meant to protect a downstream rate limit or reduce latency, trace the
   actual runtime call pattern before accepting "no regression": is the cache-holding object constructed once
   per process/module, or freshly per request/call? Rate it HIGH when the cache cannot activate under the real
