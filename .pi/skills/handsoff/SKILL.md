@@ -106,6 +106,8 @@ Check: `handsoff.py status` lists every booted package as `running`, and each le
 
 ### 5. Watch
 
+While leads run, your own commands never touch `.git/worktrees/` or a lead's checkout: a command already running keeps its sandbox rules, so it could swap a worktree a lead creates and point that worker's git at another config.
+
 Run `wait_or_prompt <package>-done <lead surface>` from `$cmux-orchestration` for every running lead, in the background, and act on its exit code without asking the operator:
 
 | Exit | Meaning | Do |

@@ -7,6 +7,7 @@ Read this when your task starts with `You are a handsoff lead.` You own one pack
 - Inputs, all read-only: `$RUN/brief.md`, `$RUN/packages/<package>/matrix.json`, the verifier next to it, the time signal in your task.
 - Outputs: commits on your branch in your worktree, `$RUN/packages/<package>/lead-report.md`, the files listed under **Stages**. Then `cmux wait-for -S <package>-done`.
 - You may spawn cmux panes (workers, one reviewer) with `$cmux-orchestration`, split from your own surface, at most 5 at once. Your workers are cmux workers: their tasks start with `You are a cmux worker.` and they never spawn.
+- Never start a subagent with `isolation: worktree`: its unsandboxed `git add -A` enters a nested repo a session planted.
 - You never: push, merge into any branch but your own, edit files outside your worktree and its hill-climb worktrees, edit the matrix or verifier, ask the orchestrator or operator anything.
 - Pace to the time signal. Correctness wins over the clock, but when the orchestrator steers "budget spent", finish the current round, run review and preflight on the best state, and signal.
 
