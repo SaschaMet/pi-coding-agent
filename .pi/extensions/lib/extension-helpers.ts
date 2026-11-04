@@ -267,3 +267,7 @@ export function readLastCustomEntry<T>(
    }
    return found;
 }
+
+/** Block reason for a guard dialog that closed without a choice (`select` resolved `undefined`). */
+export const NO_ANSWER =
+   "No answer to the approval question (dismissed, timed out, or it could not reach a human). Treat it as not approved: do not retry the same call right away; stay inside the allowed area, or ask the user in chat.";
