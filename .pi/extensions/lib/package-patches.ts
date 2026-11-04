@@ -88,8 +88,9 @@ export function checkPatch(agentDir: string, file: string, projectDir?: string):
     if (dirs.length === 0) return { ...base, state: "absent", reviewed, reviewDue: false };
 
     const state = dirs.map((dir) => stateIn(dir, file)).reduce((a, b) => (RANK[b] > RANK[a] ? b : a));
-    // Versions can differ between copies; the first (global) one decides the review.
-    const installed = installedVersion(dirs[0]);
+    // Versions can differ between copies; any copy on an unreviewed version needs the review.
+    const versions = dirs.map(installedVersion);
+    const installed = versions.find((v) => reviewed && v && v !== reviewed) ?? versions[0];
     const reviewDue = Boolean(reviewed && installed && reviewed !== installed);
     return { ...base, state, installed, reviewed, reviewDue };
 }
