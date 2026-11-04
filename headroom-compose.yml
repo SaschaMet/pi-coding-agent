@@ -21,8 +21,10 @@
 #   this container is down, it spawns a NATIVE `headroom proxy` on 8788 (detached, orphaned to
 #   launchd, survives across sessions) that then blocks this container's port forever
 #   ("address already in use") and silently serves sessions on headroom's default settings
-#   (dedup ON, no --lossless). Prevent it BEFORE the first PI session:
-#     mkdir -p ~/.pi/agent/headroom && printf '{\n  "autoStart": false\n}\n' > ~/.pi/agent/headroom/settings.json
+#   (dedup ON, no --lossless). The guard is tracked as
+#   .pi/headroom/settings.json; `npm run pi:sync-global` writes it to
+#   ~/.pi/agent/headroom/. Run the sync BEFORE the first PI session.
+#   A hand-written copy there is deleted by the next sync push.
 #   Full writeup + detection commands: noheadroom.README.md section 4 (duplicate native proxy)
 #   and section 5 (running a native proxy with the same features instead of Docker).
 # - Container listens on 8787 (the image default) internally; only the host-side publish
@@ -42,7 +44,8 @@ services:
     # wasn't in any tagged release then (confirmed absent from v0.32.0). That feature has
     # since shipped in tagged releases — still present at v0.41.0 (headroom/proxy/server.py),
     # so per the note above we re-pin to a tag instead of tracking the moving :main branch.
-    # Re-verified inside image 0.41.0 (2026-10-23) that the command/entrypoint/env assumptions
+    # Re-verified inside image 0.42.0 (2026-11-04) that the
+    # command/entrypoint/env assumptions
     # below still hold: entrypoint `headroom proxy`, baked-in HEALTHCHECK on ${HEADROOM_PORT:-8787}
     # /readyz, nonroot /home/nonroot/.headroom volume, and every env var + CLI flag still exists.
     # NOTE: v0.38.0 adds a gateway turn contract to /v1/compress (PR #3605) — non-breaking
@@ -57,13 +60,14 @@ services:
     # v0.40.0 also renames HEADROOM_LICENSE_KEY to HEADROOM_LICENSE and makes cloud usage
     # reporting opt-in (PR #3857, flagged breaking upstream). No-op here: we set no licence,
     # so the proxy runs the OSS path and starts no reporter.
-    # Verified on image 0.41.0 against the live 0.38.0 proxy: a real POST /v1/compress
-    # returns a byte-identical body (same transforms_applied, same token counts), and the
-    # noheadroom extension's own round-trip lands (inbound POST /v1/compress tagged
-    # x-headroom-stack: pi-extension, 15 msgs / 49 KB, answered from the 0.41.0 container).
+    # Verified on image 0.42.0 against a captured 0.41.0 reply: a real
+    # POST /v1/compress returns the same reply keys, and the noheadroom
+    # extension's own round-trip lands (answered from the 0.42.0 container).
+    # v0.42.0 (PR #4235) makes HEADROOM_TELEMETRY=off also stop the
+    # anonymous beacon; PR #4467 only adds savings reporting on /v1/compress.
     # Re-confirm that round-trip after the NEXT bump.
     # Docker tag drops the `v` that the GitHub release tag carries: release v0.41.0 == image 0.41.0.
-    image: ghcr.io/headroomlabs-ai/headroom:0.41.0
+    image: ghcr.io/headroomlabs-ai/headroom:0.42.0
     container_name: headroom
     restart: unless-stopped
     ports:

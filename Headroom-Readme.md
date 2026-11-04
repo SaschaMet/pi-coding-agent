@@ -80,18 +80,18 @@ pi install npm:@raquezha/noheadroom
 
 ### 3. Configure
 
-Runtime config lives at `~/.pi/agent/headroom/settings.json` (already created):
+Runtime config lives at `~/.pi/agent/headroom/settings.json`. This repo tracks it as
+`.pi/headroom/settings.json`, and `npm run pi:sync-global` copies it there. A hand-written global
+file is deleted by the next sync push.
 
 ```json
 {
-  "enabled": true,
-  "baseUrl": "http://127.0.0.1:8788",
-  "autoStart": false,
-  "minContextTokens": 20000,
-  "minMessageChars": 2000,
-  "timeoutMs": 30000
+  "autoStart": false
 }
 ```
+
+Every other field keeps its built-in default: `enabled: true`, `baseUrl: "http://127.0.0.1:8788"`,
+`minContextTokens`, `minMessageChars`, `timeoutMs`.
 
 - `autoStart: false` because Docker manages the proxy. Set `true` only for the pip path.
 - `minContextTokens` — only compress once the conversation exceeds this many tokens.

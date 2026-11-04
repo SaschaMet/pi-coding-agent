@@ -15,6 +15,7 @@ The project-local PI config tree — the source of truth for the global PI runti
 - `.pi/extensions/` — quality-gate + boundary-guard extensions (see child).
 - `.pi/security/` — the shared security policy (`policy.ts`), its pure evaluator (`guard-core.ts`), the Claude hook and git pre-commit CLI (`guard-cli.ts`), the read-only install check (`check-install.ts`), the global git hook dispatcher (`git-hooks/`), and the global git ignore file. Synced to `~/.pi/agent/security/`; see `docs/reference/gates-and-guards.md`.
 - `.pi/local-packages/` — local extensions loaded as `packages` entries in `settings.json`, for ones that must run before npm packages (`pii-redaction.ts`, before noheadroom).
+- `.pi/headroom/settings.json` — noheadroom extension config (`autoStart: false`, so the extension never spawns a native proxy over the Docker one). Synced to `~/.pi/agent/headroom/`; a global-only copy is deleted by the push.
 - `.pi/mcp.json` — MCP config (merge-synced, never overwritten). `.pi/models.json` — model config (never synced; holds API keys).
 - `.pi/docs/` — agent docs (e.g. the debug-extension guide).
 

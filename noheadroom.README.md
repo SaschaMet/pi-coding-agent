@@ -111,12 +111,14 @@ Once it holds 8788, the Docker container can never publish that port again — e
 
 **Fix (applied 2026-09-12; repeat on any machine that hit this):**
 
-1. Tell the extension to stop spawning a native proxy. Its config lives in a **dedicated file** — `~/.pi/agent/headroom/settings.json`, NOT the PI `settings.json`:
+1. Tell the extension to stop spawning a native proxy. Its config lives in a **dedicated file** — `~/.pi/agent/headroom/settings.json`, NOT the PI `settings.json`. This repo tracks it as `.pi/headroom/settings.json` (`{"autoStart": false}`); the sync writes it to the global folder:
 
    ```bash
-   mkdir -p ~/.pi/agent/headroom
-   printf '{\n  "autoStart": false\n}\n' > ~/.pi/agent/headroom/settings.json
+   npm run pi:sync-global
+   cat ~/.pi/agent/headroom/settings.json   # "autoStart": false
    ```
+
+   Do not write the global file by hand: every `pi:sync-global` push deletes files in `~/.pi/agent` that the repo does not have.
 
 2. Kill the orphaned native proxy:
 
@@ -136,7 +138,7 @@ Once it holds 8788, the Docker container can never publish that port again — e
 | Log being written | `~/.headroom/logs/proxy.log` | `docker exec headroom tail /home/nonroot/.headroom/proxy.log` |
 | Version | `~/.local/bin/headroom --version` (pipx) | `docker exec headroom headroom --version` |
 
-**Fresh-machine rule:** write `autoStart: false` (step 1) **before** relying on the Docker proxy. Otherwise the first PI session that starts with the container down spawns a native proxy that locks 8788.
+**Fresh-machine rule:** run the sync (step 1) **before** relying on the Docker proxy. Otherwise the first PI session that starts with the container down spawns a native proxy that locks 8788.
 
 ## 5. Running without Docker: native proxy with the same features
 
