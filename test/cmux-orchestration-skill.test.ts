@@ -7,6 +7,8 @@ import { checkCmuxSurface } from "../.pi/extensions/lib/tool-guards.ts";
 const skillDir = path.join(process.cwd(), ".pi", "skills", "cmux-orchestration");
 const skillPath = path.join(skillDir, "SKILL.md");
 const refDir = path.join(skillDir, "references");
+const scriptsDir = path.join(skillDir, "scripts");
+const waitScriptPath = path.join(scriptsDir, "wait-or-prompt.sh");
 
 function readSkill(): { text: string; name: string; description: string } {
     expect(fs.existsSync(skillPath), `${skillPath} is missing`).toBe(true);
@@ -24,6 +26,24 @@ function readReferences(): { file: string; text: string }[] {
         .readdirSync(refDir)
         .filter((f) => f.endsWith(".md"))
         .map((file) => ({ file, text: fs.readFileSync(path.join(refDir, file), "utf-8") }));
+}
+
+function readScripts(): { file: string; text: string }[] {
+    if (!fs.existsSync(scriptsDir)) return [];
+    return fs.readdirSync(scriptsDir).map((file) => ({ file, text: fs.readFileSync(path.join(scriptsDir, file), "utf-8") }));
+}
+
+function readWaitScript(): string {
+    expect(fs.existsSync(waitScriptPath), `${waitScriptPath} is missing`).toBe(true);
+    return fs.readFileSync(waitScriptPath, "utf-8");
+}
+
+function listMarkdown(dir: string): string[] {
+    return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) return listMarkdown(full);
+        return entry.name.endsWith(".md") ? [full] : [];
+    });
 }
 
 describe("cmux-orchestration skill", () => {
@@ -104,7 +124,7 @@ describe("cmux-orchestration skill", () => {
     // A longer blind wait hides a worker stuck on an approval prompt.
     it("caps every wait slice at 30 seconds", () => {
         const { text } = readSkill();
-        const files = [text, ...readReferences().map((r) => r.text)];
+        const files = [text, ...readReferences().map((r) => r.text), ...readScripts().map((r) => r.text)];
         for (const body of files) {
             for (const m of body.matchAll(/--timeout (\d+)/g)) {
                 expect(Number(m[1])).toBeLessThanOrEqual(30);
@@ -157,10 +177,11 @@ describe("cmux-orchestration skill", () => {
     // worker's last line, or a file it displays (this repo's sandbox code) looks like a stop.
     it("watches the worker's last line for sandbox stops, not the whole screen", () => {
         const { text } = readSkill();
-        expect(text).not.toContain("NEEDS_UNSANDBOXED:|NEEDS_DOMAIN:|bash blocked:|Refusing");
+        const script = readWaitScript();
+        for (const body of [text, script]) expect(body).not.toContain("NEEDS_UNSANDBOXED:|NEEDS_DOMAIN:|bash blocked:|Refusing");
         // The pi TUI left-pads every rendered line, so a bare `^` would never match.
-        expect(text).toContain("'^[[:space:]]*(NEEDS_UNSANDBOXED|NEEDS_DOMAIN): '");
-        expect(text).toContain("'^[[:space:]]*(bash blocked: sandbox unavailable|Refusing to run with the built-in defaults)'");
+        expect(script).toContain("'^[[:space:]]*(NEEDS_UNSANDBOXED|NEEDS_DOMAIN): '");
+        expect(script).toContain("'^[[:space:]]*(bash blocked: sandbox unavailable|Refusing to run with the built-in defaults)'");
     });
 
     it("states the cmux target rule and the fresh-shell cause", () => {
@@ -168,7 +189,20 @@ describe("cmux-orchestration skill", () => {
         expect(text).toMatch(/fresh shell/i);
         expect(text).toContain("a literal ref, a `$CMUX_*` variable, or `${VAR:?}`");
         expect(text).toMatch(/new-split takes the direction as a bare word/);
-        expect(text).toMatch(/shorter than the bash tool timeout/);
+        expect(readWaitScript()).toContain("under the bash tool timeout");
+    });
+
+    it("waits through the shipped script, never an inline loop", () => {
+        const { text } = readSkill();
+        expect(text).toContain("scripts/wait-or-prompt.sh");
+        expect(text).toContain("never with your own `sleep` loop");
+        expect(text).not.toContain("wait_or_prompt");
+    });
+
+    it("leaves no wait_or_prompt reference in any skill", () => {
+        const skillsRoot = path.join(process.cwd(), ".pi", "skills");
+        const hits = listMarkdown(skillsRoot).filter((file) => fs.readFileSync(file, "utf-8").includes("wait_or_prompt"));
+        expect(hits.map((f) => path.relative(skillsRoot, f))).toEqual([]);
     });
 
     it("spawns every pane in the caller's workspace, never a new workspace", () => {

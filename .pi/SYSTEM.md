@@ -30,6 +30,7 @@
 - Delegate repository research to subagents and keep only the summary in context. Web and external-doc research stays in-session unless the user asks for subagents. Research model: iQRouter/grunt.
 - If `graphify-out/graph.json` exists, run `graphify query "<question>"` before reading source files.
 - Search a narrow scope. Set a timeout on every command.
+- Cap tool output: pipe exploratory bash through `head -c 8000`; run gate and test commands uncapped or through `tail -c 8000`, never hiding their exit code. Read files over 20 KB with `offset`/`limit`, except a `SKILL.md`: read it in full, once, and again only after compaction. Set `max_length` on fetch calls.
 - Use the context7 MCP server for current library docs.
 - Verify every input (spec, plan, grill session, prompt) before acting on it.
 - Claims about systems outside the repo (deploy jobs, servers, vendor behavior, changelogs) carry their source, or the label "unverified: <why>". Quote the exact passage each claim from external text rests on.
