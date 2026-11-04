@@ -17,6 +17,7 @@ import {
 	buildSrtSettings,
 	checkCwd,
 	findSrt,
+	gitMaintenanceOff,
 	linkedWorktreeGitWrites,
 	loadSandboxConfig,
 	SRT_VERSION,
@@ -40,7 +41,7 @@ type State =
 	| { kind: "pending" }
 	| { kind: "off" }
 	| { kind: "blocked"; reason: string }
-	| { kind: "active"; srtPath: string; settingsPath: string; settings: SrtSettings; envNames: string[] };
+	| { kind: "active"; srtPath: string; settingsPath: string; settings: SrtSettings; envNames: string[]; linkedWorktree: boolean };
 
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
@@ -66,8 +67,9 @@ function describeState(state: State): Report | undefined {
 }
 
 // CLAUDE_CODE_TMPDIR keeps $TMPDIR the same path inside and outside srt.
-function sandboxEnv(env: NodeJS.ProcessEnv | undefined): NodeJS.ProcessEnv {
-	return { ...(env ?? process.env), CLAUDE_CODE_TMPDIR: os.tmpdir() };
+function sandboxEnv(env: NodeJS.ProcessEnv | undefined, linkedWorktree: boolean): NodeJS.ProcessEnv {
+	const base = { ...(env ?? process.env), CLAUDE_CODE_TMPDIR: os.tmpdir() };
+	return linkedWorktree ? gitMaintenanceOff(base) : base;
 }
 
 export default function sandboxBashExtension(pi: ExtensionAPI): void {
@@ -106,7 +108,7 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 		return {
 			...context,
 			command: wrapCommand(context.command, state.settingsPath, state.srtPath),
-			env: sandboxEnv(context.env),
+			env: sandboxEnv(context.env, state.linkedWorktree),
 		};
 	};
 
@@ -128,7 +130,7 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 			exec: (command, cwd, options) =>
 				local.exec(wrapCommand(command, active.settingsPath, active.srtPath), cwd, {
 					...options,
-					env: sandboxEnv(options.env),
+					env: sandboxEnv(options.env, active.linkedWorktree),
 				}),
 		};
 	}
@@ -206,7 +208,7 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 			fs.rmSync(settingsPath, { force: true });
 			return { kind: "blocked", reason: `srt probe failed (exit ${probe.code}): ${probe.stderr.trim().slice(0, 200)}` };
 		}
-		return { kind: "active", srtPath, settingsPath, settings, envNames };
+		return { kind: "active", srtPath, settingsPath, settings, envNames, linkedWorktree: git.allowWrite.length > 0 };
 	}
 
 	function removeSettingsFile(): void {
