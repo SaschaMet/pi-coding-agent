@@ -46,21 +46,16 @@ re-sends the whole context.
 
 ## Model selection
 
-Default: **inherit the orchestrator model** — pass no `model`. Per `README.md`, a skill may require a model,
-and this is the one place where it pays: the reviewer is the highest-token agent in the skill.
-
-Available cheap option in this environment: `grunt` (provider `iqRouter`). `claude-sonnet-5` and
-`claude-haiku-4-5` are **not** in this pi build's Anthropic catalog — do not pass them; the spawn fails or
-silently falls back.
+Default: models from **Model roles** in `SYSTEM.md`, unless the repo assigns other models.
 
 | Agent | Model |
 | --- | --- |
-| Reviewer | Inherit by default. Pass `model: "grunt"` **only when the user asks for a cheap or fast review.** |
-| Security verification | Always inherit. Never delegate exploit reasoning to a cheaper model. |
-| Graphify digest | `model: "grunt"` — pure summarization of build output, near-zero quality risk. |
+| Reviewer | `model: "claude-bridge/claude-opus-5-5"`, `thinking: "medium"`. |
+| Security verification | `model: "claude-bridge/claude-opus-5-5"`, `thinking: "medium"`. Never a cheaper model. |
+| Graphify digest | `model: "claude-bridge/claude-haiku-5-5"`, `thinking: "low"` — pure summarization of build output. |
 
-Fail-safe: if a spawn is rejected for an unknown model, retry once with no `model` field and add a scope note
-that the review ran on the orchestrator model. Never skip a pass because a model was unavailable.
+Fail-safe: if a spawn is rejected for an unknown model, retry once with `model: "iqRouter/grunt"`, `thinking: "high"`,
+tell the user, and add a scope note that the review ran on grunt. Never skip a pass because a model was unavailable.
 
 ## Finding caps
 

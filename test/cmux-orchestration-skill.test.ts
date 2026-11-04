@@ -236,4 +236,18 @@ describe("cmux-orchestration skill", () => {
         expect(text).toMatch(/grill.{0,200}approve.{0,40}(at once|immediately)/is);
         expect(text).toMatch(/grill.{0,300}close.{0,40}pane.{0,40}automatically/is);
     });
+
+    it("closes finished panes on its own but keeps failed ones for the user", () => {
+        const { text } = readSkill();
+        expect(text).toContain("Close each pane you spawned as soon as it is done and no longer needed");
+        expect(text).toMatch(/error path.{0,120}keep the pane, report, and ask/is);
+        expect(text).not.toContain("Closing panes is user-approved, never automatic");
+    });
+
+    it("boots workers on their role model from Model roles", () => {
+        const { text } = readSkill();
+        expect(text).toContain("**Model roles**");
+        expect(text).toContain('WORKER_MODEL="claude-bridge/claude-sonnet-5-5:medium"');
+        expect(text).not.toContain("orchestrator's own model");
+    });
 });

@@ -34,7 +34,7 @@ Do these never, and do the alternative:
 - No `git push`, no merge into the working branch. Do: merge onto `handsoff/<task>` only.
 - No edits outside the worktrees and the run folder. Do: refuse the prompt, log it with `handsoff.py issue`.
 - No run without cmux. Do: stop at the gate with `cmux required` when `cmux ping` fails.
-- No pane or worktree close before the operator approves. Do: ask once, in the report.
+- No worktree removal before the operator approves, and no close of a failed lead's workspace. Do: close each finished lead's workspace once its report is read; ask once, in the report, for the rest.
 - No criterion without a measurement command. Do: stop at the gate with the finding.
 - No grill session marked `done`. Do: `overridden <date>: handsoff, answers delegated to agent`.
 - No lowered target to reach it. Do: report `plateau` or `budget` with the gap.
@@ -96,7 +96,7 @@ cp brief.md "$RUN/"; # matrices and verifiers already live under $RUN/packages/<
 Per package, in the order of the package table:
 
 1. `git worktree add -b handsoff/<task>/<package> "$WT/<package>" "$BASE"`.
-2. `cmux workspace create --name "handsoff/<task>/<package>"`; boot `cd <worktree> && CMUX_PI_HOOKS_DISABLED=1 pi --no-session --model "$WORKER_MODEL"` in its first surface per `$cmux-orchestration` → Boot the Team (model from your own footer, fallback rule as written there). Verify the model line.
+2. `cmux workspace create --name "handsoff/<task>/<package>"`; boot `cd <worktree> && CMUX_PI_HOOKS_DISABLED=1 pi --no-session --model "$WORKER_MODEL"` in its first surface per `$cmux-orchestration` → Boot the Team (lead: `claude-bridge/claude-opus-5-5:medium` per **Model roles**, fallback rule as written there). Verify the model line.
 3. Send the lead task from [references/templates.md](references/templates.md) → Lead task, then `confirm_dispatch`.
 4. `python3 -I "$HO" package --run "$RUN" --name <package> --workspace <ws> --surface <ref> --worktree <path> --branch handsoff/<task>/<package> --state running --stage boot`.
 
@@ -110,7 +110,7 @@ Run `bash <cmux-orchestration skill dir>/scripts/wait-or-prompt.sh <package>-don
 
 | Exit | Meaning | Do |
 | --- | --- | --- |
-| 0 | lead signalled | read `$RUN/packages/<package>/lead-report.md`; `package --state done --stop <reason> --aggregate <x>` |
+| 0 | lead signalled | read `$RUN/packages/<package>/lead-report.md`; `package --state done --stop <reason> --aggregate <x>`; `cmux workspace close --workspace <ws>` (the lead gets no follow-up) |
 | 2 | permission prompt | inside the lead's worktree or `$RUN`: approve (`send-key enter`). Anything else: pick the prompt's No, `issue --text "refused: <action>"`, steer the lead with "refused, continue without it" |
 | 3 | sandbox stop | `NEEDS_UNSANDBOXED`: never; log as refused. `NEEDS_DOMAIN` or `bash blocked`: the one allowed interruption; relay to the operator, wait, resume |
 | 4 | idle without signal | task still in the input box: press Enter. Pane dead or no progress after two idle reports: `package --respawn` and boot the lead again on the same worktree with "resume from your last AI-Note"; a second loss: `--state failed --stop lead_lost` |
@@ -136,13 +136,13 @@ Check: `handsoff/<task>` exists, every `done` package is `merged` or `unmerged`,
 
 ### 7. Report
 
-Send the report from [references/templates.md](references/templates.md) → Report. First line: the run's stop reason and the counts. Nothing is applied, nothing closed.
+Send the report from [references/templates.md](references/templates.md) → Report. First line: the run's stop reason and the counts. Nothing is applied, no worktree removed.
 
 Check: the report names `git merge handsoff/<task>` (or the `cp` command) as the operator's step and asks for teardown approval in its last line.
 
 ### 8. Teardown (after the operator's yes only)
 
-`git worktree remove` every worktree under `$WT`, deepest path first (leads nest worker worktrees in their own checkout), then `rmdir "$WT"`, `cmux workspace close` every lead workspace, `cmux tree --all` shows nothing of this run. Branches and `$RUN` stay.
+`git worktree remove` every worktree under `$WT`, deepest path first (leads nest worker worktrees in their own checkout), then `rmdir "$WT"`, `cmux workspace close` every lead workspace still open (failed or lost leads), `cmux tree --all` shows nothing of this run. Branches and `$RUN` stay.
 
 ## Gotchas
 

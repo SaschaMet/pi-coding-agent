@@ -33,7 +33,7 @@ Run `$hill-climb` steps 5 to 7 on this package, with the given matrix and verifi
 1. `hc.py init --run $RUN/packages/<package>/hc --matrix matrix.json --cwd <your worktree>`.
 2. Each round: directions = the open plan items, grouped so that workers never touch the same files. Fan-out 1 to 5, narrower when a direction gained.
 3. Every code worker gets the two-step TDD dispatch from `$cmux-orchestration` → TDD gate: red dispatch, you rerun the failing command yourself, then green dispatch. One worktree per worker from the current best, where `$hill-climb` step 6.2 puts it: your own checkout's `.worktrees/`, never `$TMPDIR`. Every branch you or a worker create starts with `hill-climb/` or `handsoff/`: the sandbox lets a lead write only those branches, so any other name fails with `cannot lock ref ... Operation not permitted`.
-4. Re-score every worker with `hc.py score` (after `npm ci` in that worktree when its `package.json` or lockfile changed); `close-round`; update the plan's status markers and AI-Notes from the worker reports (you are the owner session of that document).
+4. Re-score every worker with `hc.py score` (after `npm ci` in that worktree when its `package.json` or lockfile changed); `close-round`; update the plan's status markers and AI-Notes from the worker reports (you are the owner session of that document); close each worker's pane whose report you have read (`$cmux-orchestration` → Fail-Safe Teardown). A pane whose worker failed stays open and goes under `open_issues`.
 5. Stop on `targets_met`, `plateau`, or `budget`. Merge the best candidate's branch into your package branch (`git merge --ff-only` from the best worktree's branch, or cherry-pick).
 
 Done when: `hc.py status` shows a stop reason and your branch holds the best state.
@@ -81,7 +81,7 @@ ai_notes:
 - <entries for the plan or spec, format of that document>
 ```
 
-Then print `LEAD_DONE package=<package> stop=<reason>` as your last chat line and run `cmux wait-for -S <package>-done`. Do not close your workers' panes; the orchestrator asks the operator.
+Close the reviewer's pane and any finished worker pane still open; failed ones stay. Worktrees stay; the orchestrator asks the operator. Then print `LEAD_DONE package=<package> stop=<reason>` as your last chat line and run `cmux wait-for -S <package>-done`.
 
 ## Gotchas
 

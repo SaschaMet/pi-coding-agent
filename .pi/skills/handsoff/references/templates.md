@@ -25,7 +25,7 @@ One message, this order, plain words. Fill every slot; a slot you cannot fill is
 
 **Done per package.** Every acceptance criterion done, every test and check green, no HIGH or security review finding, preflight with no open agent item. MEDIUM and lower findings are accepted and listed.
 
-**Will not happen.** push, merge into <working branch>, edits outside the worktrees, pane close, grill marked done, lowered targets, questions to you before the report.
+**Will not happen.** push, merge into <working branch>, edits outside the worktrees, worktree removal, grill marked done, lowered targets, questions to you before the report.
 
 **Handback.** branch `handsoff/<task>` + run folder `<RUN>`.
 
@@ -73,5 +73,5 @@ Stop: <all_settled|budget>. Packages: <done> done, <failed> failed, <unmerged> u
 **Diff.** `git diff <baseline sha> handsoff/<task>`
 **Apply.** `git merge --no-ff handsoff/<task>` on <working branch> (not done)
 
-Panes and worktrees are still open: <workspaces>, `<WT>/*`. Close them?
+Worktrees are still open: `<WT>/*`. Workspaces of failed leads: <workspaces, or none>. Remove them?
 ```

@@ -2,6 +2,7 @@
   "commands": [
     {
       "name": "pi Team",
+      "description": "Workers use the implementation model from Model roles in .pi/SYSTEM.md; update --model when the roles change.",
       "keywords": ["team", "fleet", "workers"],
       "workspace": {
         "name": "pi-team",
@@ -16,7 +17,7 @@
                   {
                     "type": "terminal",
                     "name": "worker-1",
-                    "command": "npm run agent -- --new-session --model iqRouter/grunt:high",
+                    "command": "npm run agent -- --new-session --model claude-bridge/claude-sonnet-5-5:medium",
                     "focus": true
                   }
                 ]
@@ -28,7 +29,7 @@
                   {
                     "type": "terminal",
                     "name": "worker-2",
-                    "command": "npm run agent -- --new-session --model iqRouter/grunt:high"
+                    "command": "npm run agent -- --new-session --model claude-bridge/claude-sonnet-5-5:medium"
                   }
                 ]
               }

@@ -24,7 +24,7 @@ Read only when changing this skill. Each scenario runs in a fresh session with o
 - Query: "handsoff: `contentDates()` must ignore a `contentUpdatedDate` that is not a valid ISO date (today a string like `garbage` wins the string compare and becomes `dateModified`); the vitest suite is the check"
 - Files: `web/src/lib/date.ts`, `web/src/lib/date.test.ts` (strapi-website)
 - Precondition: the baseline must fail at least one acceptance test, or `hc.py init` refuses with nothing to climb. Check the current behavior before the gate.
-- Expected: one gate message with brief, one package, matrix (`tests_failing` floor, `acs_done`), verifier that runs vitest with the JSON reporter; no second question before the gate; after "yes": `handsoff.py init`, one lead workspace, lead task starts with `You are a handsoff lead.`; report names `git merge --no-ff handsoff/<task>` as the operator's step; no pane closed.
+- Expected: one gate message with brief, one package, matrix (`tests_failing` floor, `acs_done`), verifier that runs vitest with the JSON reporter; no second question before the gate; after "yes": `handsoff.py init`, one lead workspace, lead task starts with `You are a handsoff lead.`; report names `git merge --no-ff handsoff/<task>` as the operator's step; the finished lead's workspace closed, no worktree removed.
 
 ### 2. Full path, two packages, one refusal
 

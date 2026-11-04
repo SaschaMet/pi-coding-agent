@@ -73,7 +73,7 @@ Before Step 1, check whether `graphify-out/graph.json` exists at the repository 
 - No graph: do not build one automatically. If the diff crosses 3+ module architecture boundaries and direct
   inspection cannot resolve the flow, ask the user to approve a one-time build
   (`graphify <repo-root> --mode deep --no-viz`). With approval, dispatch a read-only digest agent (max 3
-  turns, `model: "grunt"`) that runs the build and scoped queries and returns a ≤20-line context block — raw
+  turns, `model: "claude-bridge/claude-haiku-5-5"`, `thinking: "low"`) that runs the build and scoped queries and returns a ≤20-line context block — raw
   build output never enters the parent context.
 - Small localized diff: skip graphify; direct file inspection is sufficient.
 

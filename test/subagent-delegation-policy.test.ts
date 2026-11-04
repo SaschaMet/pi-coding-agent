@@ -54,12 +54,12 @@ describe("subagent delegation policy extension", () => {
         expect(policy).toContain("Skill execution requests stay in the current session");
         expect(policy).toContain("must call `Agent`");
         expect(policy).toContain("Retrieve background results with `get_subagent_result`");
-        expect(policy).toContain("Subagents must inherit the parent model");
+        expect(policy).toContain("Subagent models follow the **Model roles**");
         expect(policy).toContain(
-            "Research and look-up subagents are the exception",
+            "Research and look-up subagents: `claude-bridge/claude-haiku-5-5`",
         );
         expect(policy).toContain(".pi/SYSTEM.md");
-        expect(policy).toContain("fall back to the current model");
+        expect(policy).toContain("fall back to `iqRouter/grunt`");
         expect(policy).toContain("Repository reconnaissance that feeds a research artifact");
         expect(policy).toContain("Do not delegate implementation or edits by default");
         expect(policy).toContain("A skill may direct delegation for drafting a document");
