@@ -100,14 +100,13 @@ node ~/.pi/agent/security/check-install.ts
 
 ### Installing repo hooks while the global hook path is set
 
-Installers that ask git for the hooks folder (`git rev-parse --git-path hooks`), such as `graphify hook install`, get the global folder and write into it. Their hook then never runs, and the next push overwrites it. `pre-commit install` refuses to run at all while `core.hooksPath` is set. Hide the global config for that one command:
+Installers that ask git for the hooks folder (`git rev-parse --git-path hooks`) get the global folder and write into it. Their hook then never runs, and the next push overwrites it. `pre-commit install` refuses to run at all while `core.hooksPath` is set. graphify 0.9.102 and later refuse a hooks path outside the repo and write `.git/hooks/` themselves, so a plain `graphify hook install` works. For `pre-commit`, hide the global config for that one command:
 
 ```bash
-GIT_CONFIG_GLOBAL=/dev/null graphify hook install
 GIT_CONFIG_GLOBAL=/dev/null pre-commit install
 ```
 
-Both then write into the repo's own `.git/hooks/` (verified: graphify, and pre-commit 4.6.2). The global dispatcher runs those repo hooks after its own scan. Run these yourself: the guard blocks agents from hiding the global git config.
+It then writes into the repo's own `.git/hooks/` (verified: pre-commit 4.6.2). The global dispatcher runs those repo hooks after its own scan. Run these yourself: the guard blocks agents from hiding the global git config.
 
 ## settings.json
 

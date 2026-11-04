@@ -17,6 +17,7 @@ Turn any folder of files into a navigable knowledge graph with community detecti
 /graphify <url1> <url2> ...                           # clone multiple repos, build each, merge into one cross-repo graph
 /graphify <path> --mode deep                          # thorough extraction, richer INFERRED edges
 /graphify <path> --update                             # incremental - re-extract only new/changed files
+/graphify <path> --force                              # full rebuild allowing graph shrink (e.g. after deleting files)
 /graphify <path> --directed                            # build directed graph (preserves edge direction: source→target)
 /graphify <path> --whisper-model medium                # use a larger Whisper model for better transcription accuracy
 /graphify <path> --cluster-only                       # rerun clustering on existing graph
@@ -46,6 +47,10 @@ Turn any folder of files into a navigable knowledge graph with community detecti
 
 Drop any folder of code, docs, papers, images, or video into graphify and get a queryable knowledge graph. Persistent across sessions, honest audit trail (EXTRACTED/INFERRED/AMBIGUOUS), community detection surfaces cross-document connections you wouldn't think to ask about.
 
+**When a graph is worth building:** this applies when you are choosing a tool yourself; if the user invoked `/graphify`, follow that request as asked. AST extraction of code is fast and free, but semantic extraction of docs, papers and images runs the model over every file, which can cost minutes and tens of thousands of tokens.
+
+If a graph already exists, query it. With no graph, one targeted lookup ("where is X defined", "what calls Y" in an ordinary-sized codebase) is faster and free with a plain text search such as `grep` and `Read`: search directly instead of running the steps below, and mention that a graph can be built if the user wants one. Build one when you expect many questions against this corpus, the corpus is large or unfamiliar, the question needs links text search cannot see (doc to code, across documents), or it is structural (communities, bridges, import cycles).
+
 ## What You Must Do When Invoked
 
 If the user invoked `/graphify --help` or `/graphify -h` (with no other arguments), print the contents of the `## Usage` section above verbatim and stop. Do not run any commands, do not detect files, do not default the path to `.`. Just print the Usage block and return.
@@ -56,7 +61,7 @@ If no path was given, use `.` (current directory). Do not ask the user for a pat
 
 If the path argument starts with `https://github.com/` or `http://github.com/`, treat it as a GitHub URL - run Step 0 before anything else, then continue with the resolved local path.
 
-Follow these steps in order. Do not skip steps.
+Follow these steps in order unless the fast path above applies.
 
 ### Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)
 
@@ -117,7 +122,9 @@ $(cat graphify-out/.graphify_python) -c "
 import json
 from graphify.detect import detect
 from pathlib import Path
-result = detect(Path('INPUT_PATH'))
+from graphify.paths import out_path
+from graphify.watch import _read_build_excludes, _read_build_gitignore
+result = detect(Path('INPUT_PATH'), extra_excludes=_read_build_excludes(out_path()), gitignore=_read_build_gitignore(out_path()))
 # Write the sidecar from Python, not a shell redirect, so the same block renders
 # on PowerShell hosts without console-encoding drift (#2528).
 Path('graphify-out/.graphify_detect.json').write_text(json.dumps(result, ensure_ascii=False), encoding=\"utf-8\")
@@ -190,7 +197,10 @@ for f in detect.get('files', {}).get('code', []):
     code_files.extend(collect_files(Path(f)) if Path(f).is_dir() else [Path(f)])
 
 if code_files:
-    result = extract(code_files, cache_root=Path('INPUT_PATH'))
+    # root= anchors node ids and source_file on the scan root; cache_root only says
+    # where graphify-out/cache lives. Pass both: without root= the anchor falls back
+    # to cache_root, so pointing the cache elsewhere would rename every node (#3727).
+    result = extract(code_files, cache_root=Path('INPUT_PATH'), root=Path('INPUT_PATH'))
     Path('graphify-out/.graphify_ast.json').write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding=\"utf-8\")
     print(f'AST: {len(result[\"nodes\"])} nodes, {len(result[\"edges\"])} edges')
 else:
@@ -223,6 +233,18 @@ from pathlib import Path
 ast = json.loads(Path('graphify-out/.graphify_ast.json').read_text(encoding=\"utf-8\"))
 sem = json.loads(Path('graphify-out/.graphify_semantic.json').read_text(encoding=\"utf-8\"))
 
+# Stamp tier provenance on the semantic side. build._is_ast_tier reads
+# _origin when present and otherwise guesses from the SHAPE of
+# source_location ('L<line>' means AST). A subagent that writes 'L12' for a
+# doc section therefore made that node read as AST, and the next
+# graphify update deleted it along with the re-extracted code file it
+# seemed to belong to (#2843). extract() stamps its own items 'ast'; the
+# semantic side must say so explicitly.
+for n in sem['nodes']:
+    n.setdefault('_origin', 'semantic')
+for e in sem['edges']:
+    e.setdefault('_origin', 'semantic')
+
 # Merge: AST nodes first, semantic nodes deduplicated by id
 seen = {n['id'] for n in ast['nodes']}
 merged_nodes = list(ast['nodes'])
@@ -249,7 +271,7 @@ print(f'Merged: {total} nodes, {edges} edges ({len(ast[\"nodes\"])} AST + {len(s
 
 ### Step 4 - Build graph, cluster, analyze, generate outputs
 
-**Before starting:** the code blocks below pass `directed=IS_DIRECTED` to `build_from_json()`. Replace `IS_DIRECTED` with `True` if `--directed` was given (builds a `DiGraph` preserving edge direction source→target), otherwise `False` (the default undirected `Graph`). Substitute it the same way you substitute `INPUT_PATH` — do not leave the literal `IS_DIRECTED` in the code.
+**Before starting:** the code blocks below pass `directed=IS_DIRECTED` to `build_from_json()` and `force=IS_FORCE` to `to_json()`. Replace `IS_DIRECTED` with `True` if `--directed` was given (builds a `DiGraph` preserving edge direction source→target), otherwise `False` (the default undirected `Graph`). Replace `IS_FORCE` with `True` if `--force` was given (permits intentional shrink, e.g. after deleting files), otherwise `False`. Substitute them the same way you substitute `INPUT_PATH` — do not leave literal `IS_DIRECTED` or `IS_FORCE` in the code.
 
 ```bash
 mkdir -p graphify-out
@@ -287,7 +309,7 @@ questions = suggest_questions(G, communities, labels)
 # nothing) when the new graph is smaller than the existing graph.json. Only write
 # GRAPH_REPORT.md + the analysis sidecar when the graph was actually written, so
 # they never describe a graph that graph.json doesn't contain (#1392).
-wrote = to_json(G, communities, 'graphify-out/graph.json')
+wrote = to_json(G, communities, 'graphify-out/graph.json', force=IS_FORCE)
 if not wrote:
     print('ERROR: refused to shrink graphify-out/graph.json (existing graph has more nodes; #479).')
     print('If this shrink is intentional (you deleted files), re-run a full build with --force.')
@@ -438,7 +460,13 @@ extract = json.loads(Path('graphify-out/.graphify_extract.json').read_text(encod
 # types are gated on output.
 from graphify.cli import _stamped_manifest_files
 _corpus = detect.get('all_files') or detect['files']
-_manifest_files = _stamped_manifest_files(_corpus, extract, Path('INPUT_PATH'))
+# A file a subagent only partly read DID produce output, so the stamp filter alone would
+# keep it - but its node set covers just the head of the file, and stamping it means
+# detect_incremental reads it as done and never re-queues it, leaving the truncated graph
+# live forever. Name those files so they stay unstamped and are retried next run (#2225).
+_pf = Path('graphify-out/.graphify_partial.txt')
+_partial = {l.strip() for l in _pf.read_text(encoding=\"utf-8\").splitlines() if l.strip()} if _pf.exists() else set()
+_manifest_files = _stamped_manifest_files(_corpus, extract, Path('INPUT_PATH'), partial_source_files=_partial)
 # Files dispatched this run (the changed subset) but NOT stamped above still carry
 # a stale semantic_hash from a prior run; clear it so detect_incremental re-queues
 # them instead of reading them as unchanged (#1948).
@@ -475,7 +503,7 @@ cost_path.write_text(json.dumps(cost, indent=2, ensure_ascii=False), encoding=\"
 print(f'This run: {input_tok:,} input tokens, {output_tok:,} output tokens')
 print(f'All time: {cost[\"total_input_tokens\"]:,} input, {cost[\"total_output_tokens\"]:,} output ({len(cost[\"runs\"])} runs)')
 "
-rm -f graphify-out/.graphify_detect.json graphify-out/.graphify_extract.json graphify-out/.graphify_ast.json graphify-out/.graphify_semantic.json graphify-out/.graphify_analysis.json
+rm -f graphify-out/.graphify_detect.json graphify-out/.graphify_extract.json graphify-out/.graphify_ast.json graphify-out/.graphify_semantic.json graphify-out/.graphify_analysis.json graphify-out/.graphify_partial.txt
 find graphify-out -maxdepth 1 -name '.graphify_chunk_*.json' -delete 2>/dev/null
 rm -f graphify-out/.needs_update 2>/dev/null || true
 ```
@@ -496,6 +524,8 @@ If graphify saved you time, consider supporting it: https://github.com/sponsors/
 
 Replace PATH_TO_DIR with the actual absolute path of the directory that was processed.
 
+If PATH_TO_DIR is inside a git repository, add one line to the report: `graphify-out/` was written into the working tree, so unless the repository already ignores it, it will show in `git status`; the user can add `graphify-out/` to `.gitignore`, or commit only the outputs their team should share (see https://docs.graphify.com/guides/team-workflows).
+
 Then paste these sections from GRAPH_REPORT.md directly into the chat:
 - God Nodes
 - Surprising Connections
@@ -513,27 +543,12 @@ The graph is the map. Your job after the pipeline is to be the guide.
 
 ---
 
-## Interpreter guard for subcommands
+## Other subcommands
 
-Before running any subcommand below (`--update`, `--cluster-only`, `query`, `path`, `explain`, `add`), check that `.graphify_python` exists. If it's missing (e.g. user deleted `graphify-out/`), re-resolve the interpreter first:
-
-```bash
-if [ ! -f graphify-out/.graphify_python ]; then
-    GRAPHIFY_BIN=$(which graphify 2>/dev/null)
-    if [ -n "$GRAPHIFY_BIN" ]; then
-        PYTHON=$(head -1 "$GRAPHIFY_BIN" | tr -d '#!')
-        case "$PYTHON" in *[!a-zA-Z0-9/_.@-]*) PYTHON="python3" ;; esac
-    else
-        PYTHON="python3"
-    fi
-    mkdir -p graphify-out
-    "$PYTHON" -c "import sys; open('graphify-out/.graphify_python', 'w', encoding='utf-8').write(sys.executable)"
-fi
-```
-
-## For --update and --cluster-only
-
-Both are non-default subcommands. `--update` re-extracts only new or changed files; `--cluster-only` reruns clustering on the existing graph. See `references/update.md` for both flows.
+- Before any subcommand (`--update`, `--cluster-only`, `query`, `path`, `explain`, `add`): if `graphify-out/.graphify_python` is missing, run the guard in `references/interpreter-guard.md` first.
+- `--update` re-extracts only new or changed files; `--cluster-only` reruns clustering on the existing graph. See `references/update.md`.
+- `/graphify add <url>` fetches a URL into the corpus; `--watch` auto-rebuilds on file changes. Neither is part of the default build. See `references/add-watch.md`.
+- Installing the post-commit auto-rebuild hook or wiring graphify into a project's CLAUDE.md: see `references/hooks.md`.
 
 ---
 
@@ -551,18 +566,6 @@ Before traversal, expand the question against the graph's own vocabulary so a wo
 
 - **A stale graph lies silently.** The graph does not know files added, renamed, or moved since the last build — query answers on the changed area miss the new code or point to old locations. After a large diff, run `graphify <repo-root> --update` (incremental; re-extracts only new/changed files) before trusting query answers on the changed area, or read the changed files directly.
 - **Narrow noisy queries.** Broad questions return truncated node lists — the CLI prints `TRUNCATED` with suggestions. Take the suggestions on the spot (`--budget` cap, `context_filter=['call']`, a narrower question) instead of re-reading full output; a noisy answer among mostly-irrelevant nodes is a query-shape problem, not a graph problem.
-
----
-
-## For /graphify add and --watch
-
-Neither is part of the default build. When the user runs `/graphify add <url>` to fetch a URL into the corpus, or passes `--watch` to auto-rebuild on file changes, see `references/add-watch.md`.
-
----
-
-## For the commit hook and native CLAUDE.md integration
-
-When the user asks to install the post-commit auto-rebuild hook or wire graphify into a project's CLAUDE.md, see `references/hooks.md`.
 
 ---
 

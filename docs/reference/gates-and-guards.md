@@ -308,7 +308,7 @@ Known gaps of the security guard:
 - A repo's `.claude/settings.json` with `"disableAllHooks": true` turns off the Claude guard there. Read an untrusted repo's settings before you trust the folder.
 - A repo with its own `core.hooksPath` (husky, lefthook) skips the global git hook. `git commit --no-verify` typed by a human skips it too.
 - While the global `core.hooksPath` is set, repo hooks under names without a wrapper (for example `push-to-checkout`, `reference-transaction`) do not run.
-- Installers that use `git rev-parse --git-path hooks` (for example `graphify hook install`) write into the global folder, and `pre-commit install` refuses to run. A human runs them as `GIT_CONFIG_GLOBAL=/dev/null <installer>` (`scripts/sync-pi-config.md`); agents are blocked from that prefix.
+- Installers that use `git rev-parse --git-path hooks` write into the global folder, and `pre-commit install` refuses to run. graphify 0.9.102 and later are the exception: they refuse an out-of-repo hooks path and write `.git/hooks/`. A human runs them as `GIT_CONFIG_GLOBAL=/dev/null <installer>` (`scripts/sync-pi-config.md`); agents are blocked from that prefix.
 - Raw edits of `~/.gitconfig` (`sed`, `>`, an editor), shell aliases, `sudo`, and git run by `npm` or `make` scripts are not blocked. `node ~/.pi/agent/security/check-install.ts` reports a removed hook path afterwards.
 - A search for a word that starts with `GIT_CONFIG_GLOBAL=` is blocked; search without the `=`.
 - Staged changes to tracked `.env.<other>` files are blocked.

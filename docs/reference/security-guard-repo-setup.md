@@ -35,16 +35,17 @@ On `missing` it prints the one-time install commands. It never runs them, never 
 
 ## Installing repo hooks
 
-Installers that ask git for the hooks folder (`git rev-parse --git-path hooks`) get the global folder while `core.hooksPath` is set. `graphify hook install` would append to the shared wrappers, where its block never runs. `pre-commit install` refuses outright ("Cowardly refusing to install hooks with `core.hooksPath` set").
+Installers that ask git for the hooks folder (`git rev-parse --git-path hooks`) get the global folder while `core.hooksPath` is set. `pre-commit install` refuses outright ("Cowardly refusing to install hooks with `core.hooksPath` set").
 
-Hide the global config for that one command:
+graphify 0.9.102 and later need no workaround: `graphify hook install` refuses a hooks path outside the repo, prints `refusing hooks path … (#3869)`, and writes into the repo's own `.git/hooks/` (verified 2026-11-04; the global hooks stay unchanged). Older graphify versions append to the shared wrappers, where the block never runs.
+
+For `pre-commit`, hide the global config for that one command:
 
 ```bash
-GIT_CONFIG_GLOBAL=/dev/null graphify hook install
 GIT_CONFIG_GLOBAL=/dev/null pre-commit install
 ```
 
-Both then write into the repo's own `.git/hooks/` (verified: graphify, and pre-commit 4.6.2; the global hooks stay unchanged). The dispatcher runs those hooks after its scan. Use the same prefix for `graphify hook status` and `uninstall`.
+It then writes into `.git/hooks/` (verified: pre-commit 4.6.2). The dispatcher runs repo hooks after its scan.
 
 Run these yourself. The guard blocks agents from hiding the global git config, because the same trick turns the commit scan off.
 
@@ -68,4 +69,4 @@ Not blocked (known gaps): raw edits of `~/.gitconfig` (`sed`, `>`, an editor), `
 ## Limits
 
 - A repo with its own `core.hooksPath` (husky, lefthook) skips the global commit scan. The check warns about it. Today none of the 20 repos under `~/Projects` sets one.
-- A bare `graphify hook install` run without the prefix still writes into the global folder. The graph then never rebuilds after a commit, and the next sync removes the block. No security impact.
+- graphify older than 0.9.102 writes its hooks into the global folder. The graph then never rebuilds after a commit, and the next sync removes the block. No security impact.
