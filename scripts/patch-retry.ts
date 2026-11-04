@@ -58,6 +58,26 @@ export function patchRetryFile(retryJsPath: string): PatchStatus {
 	return "unexpected";
 }
 
+// iqRouter relays a dropped upstream stream as "upstream stream interrupted", which
+// pi-ai's retryable list misses (it has "stream was interrupted"), so the run ends in
+// an error instead of a retry. Insert the pattern right after that sibling entry.
+const STREAM_INTERRUPT_ANCHOR = '    "stream was interrupted",\n';
+export const STREAM_INTERRUPT_PATTERN = '"upstream.?stream.?interrupted"';
+
+/** Make "upstream stream interrupted" retryable. Idempotent; never corrupts unknown content. */
+export function patchStreamInterruptFile(retryJsPath: string): PatchStatus {
+	if (!fs.existsSync(retryJsPath)) return "missing";
+	const content = fs.readFileSync(retryJsPath, "utf8");
+	if (content.includes(STREAM_INTERRUPT_PATTERN)) return "skipped";
+	if (!content.includes(STREAM_INTERRUPT_ANCHOR)) return "unexpected";
+	fs.writeFileSync(
+		retryJsPath,
+		content.replace(STREAM_INTERRUPT_ANCHOR, `${STREAM_INTERRUPT_ANCHOR}    ${STREAM_INTERRUPT_PATTERN},\n`),
+		"utf8",
+	);
+	return "patched";
+}
+
 /**
  * Collect every pi-ai retry.js reachable under a `node_modules/@earendil-works`
  * scope: the direct `pi-ai` package plus any nested copy tucked under another
@@ -142,6 +162,26 @@ function main(): void {
 			unexpected = true;
 			console.error(
 				`[patch-retry] WARNING: unexpected content (upstream changed?), not patched: ${file}`,
+			);
+		}
+	}
+
+	for (const file of targets) {
+		let status: PatchStatus;
+		try {
+			status = patchStreamInterruptFile(file);
+		} catch (error) {
+			// A read-only global install (sandbox, root-owned prefix) must not fail `npm install`.
+			console.error(`[patch-retry] WARNING: cannot write ${file}: ${(error as Error).message}`);
+			continue;
+		}
+		if (status === "patched") {
+			console.log(`[patch-retry] stream-retry patched  ${file}`);
+		} else if (status === "skipped") {
+			console.log(`[patch-retry] stream-retry already  ${file}`);
+		} else if (status === "unexpected") {
+			console.error(
+				`[patch-retry] WARNING: retryable error list changed upstream, stream-retry not patched: ${file}`,
 			);
 		}
 	}

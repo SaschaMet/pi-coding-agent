@@ -10,6 +10,7 @@ import {
 	isOutsideWorkingDirectory,
 	isShadowedProjectCopy,
 	isWithinClaudeToolResults,
+	isWithinMainCheckout,
 	isWithinRoot,
 	isWithinSharedTmp,
 	isWithinTempDir,
@@ -104,13 +105,15 @@ export default function readBoundaryGuardExtension(pi: ExtensionAPI): void {
 			// the resolved path, so a tmp path that symlinks out of the temp directory stays blocked.
 			// The current project's Claude Code tool results are exempt too: the model must
 			// read back output that Claude Code saved there.
+			// A worktree may read its main checkout (reads only); `.git/` keeps the prompt because remote URLs can hold tokens.
 			// Mutating tools keep the approval prompt (fail-safe), except inside
 			// <temp root>/pi-reports/, where agents are told to write their reports.
 			if (
 				READ_ONLY_TOOLS.has(event.toolName) &&
 				(isWithinTempDir(inputPath, currentCwd) ||
 					isWithinSharedTmp(inputPath, currentCwd) ||
-					isWithinClaudeToolResults(inputPath, currentCwd))
+					isWithinClaudeToolResults(inputPath, currentCwd) ||
+					isWithinMainCheckout(resolvedTarget, currentCwd))
 			)
 				return undefined;
 			if (

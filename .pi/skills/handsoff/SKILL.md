@@ -108,7 +108,7 @@ Check: `handsoff.py status` lists every booted package as `running`, and each le
 
 While leads run, your own commands never touch `.git/worktrees/` or a lead's checkout: a command already running keeps its sandbox rules, so it could swap a worktree a lead creates and point that worker's git at another config.
 
-Run `wait_or_prompt <package>-done <lead surface>` from `$cmux-orchestration` for every running lead, in the background, and act on its exit code without asking the operator:
+Run `bash <cmux-orchestration skill dir>/scripts/wait-or-prompt.sh <package>-done <lead surface>` for every running lead, in the background, and act on its exit code without asking the operator:
 
 | Exit | Meaning | Do |
 | --- | --- | --- |
@@ -153,7 +153,7 @@ Run `npx tsx scripts/git-pointer-check.ts <main checkout>` first (when the repo 
 - **Do not** let a lead fix Medium or Low review findings. **Do** list them under accepted findings; only HIGH findings (and every security finding) get one fix round.
 - **Do not** read a lead's report from the screen. **Do** read `$RUN/packages/<package>/lead-report.md`; scrollback wraps and truncates.
 - **Do not** score a package from the lead's number. **Do** run its verifier yourself on the merged state; the lead already re-scored its workers, you re-score the lead.
-- **Do not** wait blind. **Do** keep every `wait_or_prompt` in 15-second slices; a lead on a prompt never signals.
+- **Do not** wait blind. **Do** keep every `wait-or-prompt.sh` call in 15-second slices; a lead on a prompt never signals.
 - **Do not** create a worktree under `$TMPDIR`. A pane whose cwd is there loses the guards' temp exemptions, so every run-folder write, temp read, and armed-plan write prompts. **Do** use `$WT` in the git-excluded `.worktrees/`.
 - **Do not** compare merge scores taken with different packages. Worktrees in `.worktrees/` borrow the main checkout's `node_modules`. **Do** run `npm ci` in `$WT/merged` when the merge changed `package.json` or the lockfile.
 - **Do not** boot the leads before `handsoff.py init`. **Do** record the baseline SHA first; every branch and the merge start from it.

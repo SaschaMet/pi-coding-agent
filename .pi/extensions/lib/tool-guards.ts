@@ -290,3 +290,353 @@ export function checkCmuxSurface(rawCommand: string): string | undefined {
     }
     return undefined;
 }
+
+/** A session that can run shell commands but has neither `write` nor `edit`. */
+export function isReadonlySession(tools: readonly string[]): boolean {
+    return tools.includes("bash") && !tools.includes("write") && !tools.includes("edit");
+}
+
+const REPORTS_HINT = "Shell writes are allowed only to $TMPDIR/pi-reports/.";
+
+type ShellWord = { value: string; singleQuoted: boolean; escaped: boolean };
+type ShellSegment = { words: ShellWord[]; targets: ShellWord[] };
+
+/** Index of the `)` that closes the `(` before `from`, or -1. Quotes inside are not tracked: an unbalanced case fails safe. */
+function closingParen(source: string, from: number): number {
+    let depth = 1;
+    for (let i = from; i < source.length; i++) {
+        if (source[i] === "(") depth++;
+        else if (source[i] === ")" && --depth === 0) return i;
+    }
+    return -1;
+}
+
+/** Splits on unquoted `; | & ( )` and newlines; skips heredoc bodies and collects redirect targets. A string is a violation. */
+function parseShell(source: string, tmpdir: string): ShellSegment[] | string {
+    const segments: ShellSegment[] = [];
+    const heredocs: Array<{ delimiter: string; stripTabs: boolean; quoted: boolean }> = [];
+    let words: ShellWord[] = [];
+    let targets: ShellWord[] = [];
+    let value = "";
+    let has = false;
+    let singleQuoted = false;
+    let escaped = false;
+    let pending: "target" | "skip" | undefined;
+    let quote: string | undefined;
+    let failure: string | undefined;
+
+    const flushWord = () => {
+        if (!has) return;
+        const word = { value, singleQuoted, escaped };
+        if (pending === "target") targets.push(word);
+        else if (pending === undefined) words.push(word);
+        pending = undefined;
+        value = "";
+        has = false;
+        singleQuoted = false;
+        escaped = false;
+    };
+    const flushSegment = () => {
+        flushWord();
+        if (pending !== undefined) failure ??= "a redirect has no target";
+        pending = undefined;
+        if (words.length > 0 || targets.length > 0) segments.push({ words, targets });
+        words = [];
+        targets = [];
+    };
+    // A number glued to a redirect (`2>`) is the file descriptor, not an argument.
+    const flushBeforeRedirect = () => {
+        if (has && !singleQuoted && !escaped && /^\d+$/.test(value)) {
+            value = "";
+            has = false;
+        } else flushWord();
+    };
+    const substitute = (open: number): number => {
+        const close = closingParen(source, open);
+        if (close < 0) {
+            failure ??= "an unclosed command substitution";
+            return source.length;
+        }
+        const inner = source.slice(open, close);
+        // A `)` closing a case pattern ends the substitution early, so the rest would go unchecked.
+        if (/\bcase\b/.test(inner)) failure ??= "a case statement inside a command substitution";
+        failure ??= readonlyBashViolation(inner, tmpdir);
+        value += "$(…)";
+        has = true;
+        return close;
+    };
+    const backtick = (at: number): number => {
+        const close = source.indexOf("`", at + 1);
+        if (close < 0) {
+            failure ??= "an unclosed backtick";
+            return source.length;
+        }
+        failure ??= readonlyBashViolation(source.slice(at + 1, close), tmpdir);
+        value += "$(…)";
+        has = true;
+        return close;
+    };
+    const readHeredocDelimiter = (from: number): number => {
+        let i = from;
+        const stripTabs = source[i] === "-";
+        if (stripTabs) i++;
+        while (source[i] === " " || source[i] === "\t") i++;
+        let delimiter = "";
+        let quoted = false;
+        for (; i < source.length && !/[\s;|&<>()]/.test(source[i]); i++) {
+            if (/['"\\]/.test(source[i])) quoted = true;
+            else delimiter += source[i];
+        }
+        if (delimiter === "") failure ??= "a heredoc without a delimiter";
+        heredocs.push({ delimiter, stripTabs, quoted });
+        return i;
+    };
+    const skipHeredocBodies = (from: number): number => {
+        let pos = from;
+        for (const { delimiter, stripTabs, quoted } of heredocs.splice(0)) {
+            let closed = false;
+            while (pos < source.length && !closed) {
+                const eol = source.indexOf("\n", pos);
+                const end = eol < 0 ? source.length : eol;
+                const line = source.slice(pos, end);
+                pos = end + 1;
+                closed = (stripTabs ? line.replace(/^\t+/, "") : line) === delimiter;
+                // Only a quoted delimiter keeps the shell from expanding the body.
+                if (!closed && !quoted && /\$\(|`/.test(line)) failure ??= "an unquoted heredoc body that runs a command";
+            }
+        }
+        return pos;
+    };
+
+    for (let i = 0; i < source.length && failure === undefined; i++) {
+        const ch = source[i];
+        const next = source[i + 1];
+        if (quote === "'") {
+            if (ch === "'") quote = undefined;
+            else value += ch;
+            continue;
+        }
+        if (quote === '"') {
+            if (ch === '"') quote = undefined;
+            else if (ch === "\\" && next !== undefined) {
+                value += next;
+                escaped = true;
+                i++;
+            } else if (ch === "$" && next === "(") i = substitute(i + 2);
+            else if (ch === "`") i = backtick(i);
+            else value += ch;
+            continue;
+        }
+        if (ch === "'" || ch === '"') {
+            quote = ch;
+            has = true;
+            if (ch === "'") singleQuoted = true;
+        } else if (ch === "\\") {
+            has = true;
+            escaped = true;
+            if (next === "\n") i++;
+            else if (next !== undefined) {
+                value += next;
+                i++;
+            }
+        } else if (ch === "$" && next === "(") i = substitute(i + 2);
+        else if (ch === "`") i = backtick(i);
+        else if (ch === "#" && !has) {
+            while (i + 1 < source.length && source[i + 1] !== "\n") i++;
+        } else if (ch === "\n") {
+            flushSegment();
+            if (heredocs.length > 0) i = skipHeredocBodies(i + 1) - 1;
+        } else if (ch === ";" || ch === "(" || ch === ")") flushSegment();
+        else if (ch === "|") {
+            if (next === "|" || next === "&") i++;
+            flushSegment();
+        } else if (ch === "&") {
+            if (next === ">") {
+                flushWord();
+                i += source[i + 2] === ">" ? 2 : 1;
+                pending = "target";
+            } else {
+                if (next === "&") i++;
+                flushSegment();
+            }
+        } else if (ch === ">") {
+            if (next === "(") {
+                failure = "a process substitution that writes";
+                break;
+            }
+            flushBeforeRedirect();
+            if (next === ">") i++;
+            if (source[i + 1] === "|") i++;
+            if (source[i + 1] === "&") {
+                i++;
+                // `2>&1` duplicates a descriptor; `>&file` and `>&2x` write a file.
+                pending = /^(\d+|-)(?![^\s;|&<>()])/.test(source.slice(i + 1)) ? "skip" : "target";
+            } else pending = "target";
+        } else if (ch === "<") {
+            if (next === "(") {
+                i = substitute(i + 2);
+                continue;
+            }
+            flushBeforeRedirect();
+            if (next === "<" && source[i + 2] !== "<") {
+                i = readHeredocDelimiter(i + 2) - 1;
+                continue;
+            }
+            while (source[i + 1] === "<") i++;
+            if (source[i + 1] === "&") i++;
+            pending = "skip";
+        } else if (/\s/.test(ch)) flushWord();
+        else {
+            value += ch;
+            has = true;
+        }
+    }
+    if (quote !== undefined) failure ??= "an unclosed quote";
+    if (failure === undefined) flushSegment();
+    return failure === undefined ? segments : `Cannot check this command (${failure}). ${REPORTS_HINT}`;
+}
+
+const MUTATING_COMMANDS = new Set([
+    "rm", "mv", "cp", "touch", "mkdir", "ln", "tee", "dd", "truncate", "install", "chmod", "chown", "rsync", "patch",
+    "wget", "unzip", "npx", "pnpm", "yarn", "pip", "pip3", "sudo", "doas", "eval",
+    "rmdir", "unlink", "shred", "trash", "mkfifo", "mknod", "split", "csplit", "gzip", "gunzip", "bzip2", "xz", "zip",
+    "ditto", "kill", "killall", "pkill", "defaults", "launchctl", "xattr", "chgrp",
+    // Run a command string or script the parser cannot see.
+    "source", ".", "su", "script", "chroot", "busybox", "watch",
+]);
+const WRAPPERS = new Set([
+    "env", "command", "builtin", "nohup", "time", "nice", "exec", "xargs",
+    "timeout", "gtimeout", "stdbuf", "setsid", "caffeinate", "ionice",
+]);
+const SHELL_KEYWORDS = new Set(["if", "then", "else", "elif", "do", "while", "until", "!", "{", "}", "fi", "done", "esac"]);
+const SHELLS = new Set(["sh", "bash", "zsh", "dash", "ksh"]);
+const GIT_READ_COMMANDS = new Set(["status", "log", "diff", "show", "rev-parse", "ls-files", "grep", "blame"]);
+const GIT_BRANCH_LISTING_FLAGS = new Set(["-a", "-r", "-v", "-vv", "--all", "--remotes", "--verbose", "--list", "-l", "--show-current"]);
+const FIND_WRITING_ACTIONS = new Set(["-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint", "-fprint0", "-fprintf", "-fls"]);
+
+// A short-flag cluster may carry an attached value (`-i.bak`, `-oFILE`), so only the letters before it count.
+const isShortFlagWith = (arg: string, letters: string) => new RegExp(`^-(?!-)[A-Za-z]*[${letters}]`).test(arg);
+// A script that uses sed's `w` (write file) or `e` (run command) command.
+const SED_WRITING_SCRIPT = /(^|[\s;{}/\d$])[we](\s|;|}|$)/;
+const MAX_WRAPPER_FLAGS = 6;
+
+function gitViolation(args: string[]): string | undefined {
+    let i = 0;
+    for (; i < args.length; i++) {
+        const arg = args[i];
+        if (arg === "-C" || arg === "--git-dir" || arg === "--work-tree") i++;
+        else if (arg.startsWith("--git-dir=") || arg.startsWith("--work-tree=") || arg === "--no-pager") continue;
+        else if (arg.startsWith("-")) return `git option ${arg} is not allowed in a read-only agent.`;
+        else break;
+    }
+    const sub = args[i];
+    const rest = args.slice(i + 1);
+    if (sub === undefined) return undefined;
+    if (rest.some((arg) => arg.startsWith("--output"))) return `git ${sub} --output writes a file.`;
+    if (sub === "grep" && rest.some((arg) => arg.startsWith("-O") || arg.startsWith("--open-files-in-pager"))) return "git grep -O runs a command.";
+    if (GIT_READ_COMMANDS.has(sub)) return undefined;
+    if (sub === "branch" && rest.every((arg) => GIT_BRANCH_LISTING_FLAGS.has(arg))) return undefined;
+    if (sub === "worktree" && rest[0] === "list") return undefined;
+    if (sub === "stash" && rest[0] === "list") return undefined;
+    return `git ${sub} can change the repository.`;
+}
+
+/**
+ * Every command a wrapper may run. A bare flag may or may not take the next word as its value
+ * (`env -u A rm`, `env -i git`), so both readings are returned; null means too many flags to enumerate.
+ */
+function wrappedCommands(rest: string[], flagsSeen = 0): string[][] | null {
+    const [first] = rest;
+    if (first === undefined) return [[]];
+    if (/^[A-Za-z_]\w*=/.test(first) || /^\d+(\.\d+)?[smhd]?$/.test(first)) return wrappedCommands(rest.slice(1), flagsSeen);
+    if (!first.startsWith("-")) return [rest];
+    if (flagsSeen >= MAX_WRAPPER_FLAGS) return null;
+    const withFlagSkipped = wrappedCommands(rest.slice(1), flagsSeen + 1);
+    if (withFlagSkipped === null || !/^-(-[\w-]+|[A-Za-z])$/.test(first)) return withFlagSkipped;
+    const withValueSkipped = wrappedCommands(rest.slice(2), flagsSeen + 1);
+    return withValueSkipped === null ? null : [...withFlagSkipped, ...withValueSkipped];
+}
+
+function commandViolation(words: ShellWord[]): string | undefined {
+    const all = words.map((word) => word.value);
+    // The folder an allowed redirect resolves against must not change mid-command.
+    if (all.some((arg) => /^TMPDIR=/.test(arg)) || (all[0] === "unset" && all.includes("TMPDIR"))) return "TMPDIR is reassigned.";
+    return argsViolation(all);
+}
+
+function argsViolation(all: string[]): string | undefined {
+    let args = all;
+    while (args.length > 0 && (/^[A-Za-z_]\w*=/.test(args[0]) || SHELL_KEYWORDS.has(args[0]))) args = args.slice(1);
+    if (args.length === 0) return undefined;
+    const head = args[0].split("/").pop() ?? "";
+    const rest = args.slice(1);
+    if (args[0].includes("$")) return "The command name comes from an expansion and cannot be checked.";
+    if (WRAPPERS.has(head)) {
+        if (head === "env" && rest.some((arg) => arg === "-S" || arg.startsWith("--split-string"))) return "env -S runs a command string that cannot be checked.";
+        const candidates = wrappedCommands(rest);
+        if (candidates === null) return `${head} has too many options to check.`;
+        return candidates.map(argsViolation).find(Boolean);
+    }
+    if (MUTATING_COMMANDS.has(head)) return `${head} can change files.`;
+    // A shell reads stdin, a script, or a string; none can be checked.
+    if (SHELLS.has(head) && rest[0] !== "--version") return `${head} runs commands that cannot be checked.`;
+    switch (head) {
+        case "sed":
+        case "perl":
+            if (rest.some((arg) => isShortFlagWith(arg, "i") || arg.startsWith("--in-place"))) return `${head} -i edits files in place.`;
+            if (head === "sed" && rest.some((arg) => isShortFlagWith(arg, "f") || arg.startsWith("--file"))) return "sed -f runs a script file that cannot be checked.";
+            if (head === "sed" && rest.some((arg) => !arg.startsWith("-") && SED_WRITING_SCRIPT.test(arg))) return "sed w/e writes a file or runs a command.";
+            return undefined;
+        case "sort":
+            return rest.some((arg) => isShortFlagWith(arg, "o") || arg.startsWith("--output")) ? "sort -o writes a file." : undefined;
+        case "find":
+            return rest.some((arg) => FIND_WRITING_ACTIONS.has(arg)) ? "find -delete/-exec/-fprint can change files." : undefined;
+        case "curl":
+            return rest.some(
+                (arg) =>
+                    isShortFlagWith(arg, "oOTK") ||
+                    /^--(output|remote-name|upload-file|config)/.test(arg),
+            )
+                ? "curl -o/-O/-T/-K writes a file or reads a config that cannot be checked."
+                : undefined;
+        case "tar":
+            return rest.some((arg) => isShortFlagWith(arg, "x") || /^[A-Za-z]*x[A-Za-z]*$/.test(arg) || arg === "--extract" || arg === "--get")
+                ? "tar -x extracts files."
+                : undefined;
+        case "npm": {
+            const verb = rest.find((arg) => !arg.startsWith("-"));
+            return verb === "ls" || verb === "view" ? undefined : "npm can change files; only npm ls and npm view are allowed.";
+        }
+        case "git":
+            return gitViolation(rest);
+        default:
+            return undefined;
+    }
+}
+
+function redirectViolation(target: ShellWord, tmpdir: string): string | undefined {
+    const value = target.value;
+    if (value === "/dev/null") return undefined;
+    const root = tmpdir.replace(/\/+$/, "");
+    const literal = !target.singleQuoted && !target.escaped ? /^(?:\$TMPDIR|\$\{TMPDIR\})\//.exec(value) : null;
+    const resolved = literal ? `${root}/${value.slice(literal[0].length)}` : value;
+    const unknownExpansion = (literal ? value.slice(literal[0].length) : value).includes("$") || value.includes("`");
+    const inReports = resolved.startsWith(`${root}/pi-reports/`) && resolved.length > root.length + 12;
+    const escapes = resolved.split("/").includes("..") || target.escaped;
+    if (inReports && !escapes && !unknownExpansion) return undefined;
+    return `Redirect to ${value} is blocked.`;
+}
+
+/**
+ * Why a read-only agent may not run this shell command, else undefined.
+ * Interpreter bodies (python, node) are not inspected.
+ */
+export function readonlyBashViolation(command: string, tmpdir: string): string | undefined {
+    const parsed = parseShell(command, tmpdir);
+    if (typeof parsed === "string") return parsed;
+    for (const { words, targets } of parsed) {
+        const reason = targets.map((target) => redirectViolation(target, tmpdir)).find(Boolean) ?? commandViolation(words);
+        if (reason) return `${reason} ${REPORTS_HINT}`;
+    }
+    return undefined;
+}

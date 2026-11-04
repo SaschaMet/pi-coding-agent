@@ -8,7 +8,7 @@ Dev utilities outside the runtime: bidirectional config sync (`.pi/` ↔ `~/.pi/
 
 ## Ownership
 
-- `patch-retry.ts` — re-applies the pi-ai retry-backoff cap (60s from 5th retry) after every `npm install`; runs as `postinstall` + `npm run pi:patch-retry`. See `test/patch-retry.test.ts`.
+- `patch-retry.ts` — re-applies the pi-ai retry-backoff cap (60s from 5th retry) and makes `upstream stream interrupted` retryable after every `npm install`; warns instead of failing on a read-only global install; runs as `postinstall` + `npm run pi:patch-retry`. See `test/patch-retry.test.ts`.
 - `pi-package-patches.ts` — `check` / `apply` for the `.pi/patches/<pkg>/*.patch` files that re-apply local edits to packages under `<agentDir>/npm/node_modules`; exit 0 applied or absent, 1 needed, 2 conflict. Logic lives in `.pi/extensions/lib/package-patches.ts`. Separate from `patch-retry.ts` on purpose. See `test/package-patches.test.ts`.
 - `sync-pi-config.ts` (+ `sync-pi-config.md`) — managed sync of the `.pi/` tree: exclusions, extension pruning, settings/mcp merge, `SYSTEM.md → CLAUDE.md` copy, file modes on push, and the security policy check before push.
 - `smoke.ts` — extension/resource discovery smoke check.

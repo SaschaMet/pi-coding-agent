@@ -1,3 +1,4 @@
+import os from "node:os";
 import type {
     ExtensionAPI,
     ToolCallEvent,
@@ -10,6 +11,8 @@ import {
     checkCmuxSurface,
     checkRepeat,
     emptyRepeatState,
+    isReadonlySession,
+    readonlyBashViolation,
     recordResult,
     resultKey,
 } from "./lib/tool-guards.ts";
@@ -42,6 +45,14 @@ export default function toolGuards(pi: ExtensionAPI): void {
         if (event.toolName === "bash") {
             const input = event.input as { command?: unknown; cmd?: unknown };
             const command = input.command ?? input.cmd;
+            if (isReadonlySession(pi.getActiveTools())) {
+                // A command that is not a string cannot be checked, so it fails closed.
+                const denied =
+                    typeof command === "string"
+                        ? readonlyBashViolation(command, os.tmpdir())
+                        : "The command is missing or not text. Shell writes are allowed only to $TMPDIR/pi-reports/.";
+                if (denied) return { block: true, reason: `[READ-ONLY] ${denied}` };
+            }
             const reason = checkCmuxSurface(typeof command === "string" ? command : "");
             if (reason) return { block: true, reason };
         }

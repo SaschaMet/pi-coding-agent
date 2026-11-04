@@ -1,9 +1,15 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import readBoundaryGuardExtension from "../.pi/extensions/read-boundary-guard.ts";
 import { asExtensionAPI, createFakePi } from "./helpers/fake-pi.ts";
+
+// Fixtures live under the checkout, which inside a `.worktrees/` checkout counts as the main checkout; these suites test other exemptions.
+vi.mock("../.pi/extensions/lib/extension-helpers.ts", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../.pi/extensions/lib/extension-helpers.ts")>()),
+	isWithinMainCheckout: () => false,
+}));
 
 describe("tmp directory exemption", () => {
 	// The exemption only makes sense for a working directory outside the system tmp
