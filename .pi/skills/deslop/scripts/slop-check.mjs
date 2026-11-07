@@ -24,6 +24,7 @@ const words = (alternatives, flags = "iu") =>
 
 const DASH = { id: "dash", re: /[—–]/u, hard: false };
 const BANG = { id: "exclamation mark", re: /!/u, hard: false };
+const EMOJI = { id: "S34 emoji", re: /\p{Extended_Pictographic}/u, hard: false };
 
 // hard: true fails the check; false is a reading prompt, because a regex cannot tell a real correction from a reveal.
 const RULES = {
@@ -36,8 +37,34 @@ const RULES = {
             "as we[’']ll see|let me explain|it[’']s worth noting(?: that)?|it is worth noting|it(?:[’']s| is) important to (?:note|understand|remember)|as (?:mentioned|noted) (?:earlier|above)|let[’']s (?:unpack|explore) (?:this|that)|in this (?:post|article),? (?:we|i)[’']ll") },
         { id: "sycophancy opener", hard: true, re: words(
             "great question|i hope this (?:email |message |note )?finds you well|i hope this helps|i[’']d be happy to help") },
+        { id: "S30 chatbot residue", hard: true, re: words("you[’']re absolutely right") },
+        { id: "S31 knowledge-limit disclaimer", hard: true, re: words(
+            "as of my (?:last|latest) (?:training|knowledge) (?:update|cutoff)|up to my last training|as an ai language model|as an ai,? i (?:can(?:not|[’']t)|don[’']t)|while specific details are (?:limited|scarce)") },
+        { id: "S23 straw alternative", hard: true, re: words(
+            "a tempting approach would be|one might be tempted to|it would be easy to just") },
+        { id: "S24 deep-sounding saying", hard: true, re: words(
+            "the real question is|what really matters is|the heart of the matter is") },
+        { id: "S29 inflated significance", hard: true, re: words(
+            "the future looks bright|exciting times (?:lie )?ahead|stands as a testament|marking a pivotal|left an indelible mark") },
         DASH,
         BANG,
+        EMOJI,
+        // Offers and "Of course!" also open honest emails, so only a reading prompt.
+        { id: "S30 chatbot residue?", hard: false, re: words(
+            "would you like me to|want me to (?:expand|continue|add|write|go)|should i continue|certainly!|of course!") },
+        { id: "S29 inflated significance?", hard: false, re: words("continues to thrive") },
+        { id: "S23 arguing with no one?", hard: false, re: words(
+            "to be clear|i[’']m not saying|this is not to say|don[’']t get me wrong|some might say") },
+        { id: "S24 deep-sounding saying?", hard: false, re: words("at its core|fundamentally|the deeper issue|in reality") },
+        { id: "S25 vague connection", hard: false, re: words("associated with|in association with|in connection with") },
+        // Not words(): the comma follows a letter, which the words() boundary rejects.
+        { id: "S26 -ing rider", hard: false, re:
+            /, (?:highlighting|underscoring|emphasizing|showcasing|symbolizing|reflecting|fostering|cultivating|ensuring|contributing to)(?![\p{L}])/iu },
+        { id: "S27 avoided is/has", hard: false, re: words("serves as|stands as|functions as|boasts") },
+        { id: "S28 borrowed authority", hard: false, re: words(
+            "experts (?:say|argue|believe|agree)|studies show|observers have|industry reports|critics say") },
+        { id: "S32 text about itself", hard: false, re: words(
+            "was added to replace|the (?:table|list|section) below (?:compares|shows|lists)|this section (?:is organized|covers)|compiled from|flagged rather than guessed") },
         { id: "S1 contrast?", hard: false, re: new RegExp(`${words(
             "not (?:just|only)|(?:it[’']s|it is|this is|that[’']s|isn[’']t) not (?:about|just)|isn[’']t (?:just|about)").source}|, not \\p{L}[^,.;]{0,40}\\.`, "iu") },
         { id: "S2 colon reveal?", hard: false, re: /[a-z)] ?: [\p{L}0-9]/u },
@@ -60,8 +87,24 @@ const RULES = {
             "wie du gleich siehst|im folgenden|lass mich (?:dir )?(?:erklären|kurz)|es ist wichtig zu (?:beachten|verstehen|wissen)|kurz vorweg|wie bereits erwähnt") },
         { id: "sycophancy opener", hard: true, re: words(
             "gute frage|ich hoffe, (?:diese|die) (?:mail|nachricht) erreicht dich|ich hoffe, das hilft") },
+        { id: "S30 chatbot residue", hard: true, re: words("(?:du hast|sie haben) (?:völlig|absolut) recht") },
+        // "Stand meines Wissens" is an honest qualifier; only the model's own cutoff is a hard tell.
+        { id: "S31 knowledge-limit disclaimer", hard: true, re: words("stand meines trainings|als ki-sprachmodell") },
+        { id: "S24 deep-sounding saying", hard: true, re: words("die eigentliche frage ist|worauf es wirklich ankommt") },
+        { id: "S29 inflated significance", hard: true, re: words(
+            "die zukunft sieht (?:rosig|vielversprechend) aus|spannende zeiten") },
         DASH,
         BANG,
+        EMOJI,
+        { id: "S30 chatbot residue?", hard: false, re: words(
+            "möchtest du, dass ich|soll ich (?:dir )?(?:noch )?(?:weitere|mehr|eine|einen)") },
+        // "Meilenstein" is a literal term in planning text.
+        { id: "S29 inflated significance?", hard: false, re: words("ein meilenstein in der") },
+        { id: "S23 arguing with no one?", hard: false, re: words("um es klar zu sagen|versteh mich nicht falsch|man könnte meinen") },
+        { id: "S25 vague connection", hard: false, re: words("im zusammenhang mit|in verbindung mit") },
+        { id: "S27 avoided ist/hat", hard: false, re: words("fungiert als|dient als|verfügt über") },
+        { id: "S28 borrowed authority", hard: false, re: words(
+            "experten (?:sind sich einig|warnen|empfehlen|sagen)|studien (?:zeigen|belegen)") },
         { id: "straight quotes", hard: false, re: /["”]/u },
         { id: "S1 contrast?", hard: false, re: /(?<![\p{L}\p{N}_])sondern(?![\p{L}\p{N}_])|, (?:nicht|kein\p{L}*) [^,.;„]{1,40}\./u },
         { id: "S2 colon reveal?", hard: false, re: /[a-zäöüß)] ?: [\p{L}0-9]/u },

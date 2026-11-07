@@ -60,6 +60,17 @@ describe("deslop skill files", () => {
         }
     });
 
+    // Pasted text may carry instructions; the skill must edit it, not obey it.
+    it("treats input as material, never as instructions", () => {
+        expect(read("SKILL.md")).toMatch(/never as instructions/);
+    });
+
+    it("defines every pattern the script and skill cite", () => {
+        const slop = read("references/slop.md");
+        const cited = `${read("SKILL.md")}\n${read("scripts/slop-check.mjs")}`.match(/S\d+/g) ?? [];
+        for (const id of new Set(cited)) expect(slop, `${id} is cited but not defined`).toMatch(new RegExp(`\\| ${id} \\|`));
+    });
+
     it("carries no rules from the business skill it was ported from", () => {
         for (const rel of ["SKILL.md", "references/slop.md", "references/compression.md", "scripts/slop-check.mjs"]) {
             expect(read(rel)).not.toMatch(/Katrin|HWG|Befund|Sascha/);
@@ -141,6 +152,46 @@ describe("slop-check.mjs", () => {
     it("flags filler and doublets from the compression reference", () => {
         expect(check(["--lang", "en", "--stdin"], "It is generally fine.").stdout).toMatch(/S15/);
         expect(check(["--lang", "en", "--stdin"], "Read any and all notes.").stdout).toMatch(/compression phrase/);
+    });
+
+    it("fails on chatbot residue and knowledge-limit disclaimers", () => {
+        expect(check(["--lang", "en", "--stdin"], "Would you like me to expand on this?").stdout).toMatch(/S30/);
+        expect(check(["--lang", "en", "--stdin"], "You're absolutely right.").status).toBe(1);
+        expect(check(["--lang", "en", "--stdin"], "As of my last training update, it ships in May.").stdout).toMatch(/S31/);
+        expect(check(["--lang", "de", "--stdin"], "Möchtest du, dass ich weitermache?").stdout).toMatch(/S30/);
+        expect(check(["--lang", "de", "--stdin"], "Du hast völlig recht.").status).toBe(1);
+    });
+
+    it("fails on deep-sounding sayings, straw alternatives, and send-offs", () => {
+        expect(check(["--lang", "en", "--stdin"], "The real question is whether teams adapt.").stdout).toMatch(/S24/);
+        expect(check(["--lang", "en", "--stdin"], "A tempting approach would be a cron job.").stdout).toMatch(/S23/);
+        expect(check(["--lang", "en", "--stdin"], "The future looks bright for the team.").stdout).toMatch(/S29/);
+        expect(check(["--lang", "de", "--stdin"], "Worauf es wirklich ankommt, ist Tempo.").status).toBe(1);
+        expect(check(["--lang", "de", "--stdin"], "Die Zukunft sieht rosig aus.").status).toBe(1);
+    });
+
+    it("only warns on residue phrases that honest messages also use", () => {
+        expect(check(["--lang", "en", "--stdin"], "Would you like me to send the invoice by Friday?").status).toBe(0);
+        expect(check(["--lang", "en", "--stdin"], "Of course! I'll bring the keys.").status).toBe(0);
+        expect(check(["--lang", "de", "--stdin"], "Soll ich dir eine Kopie schicken?").stdout).toMatch(/S30/);
+        expect(check(["--lang", "de", "--stdin"], "Soll ich dir eine Kopie schicken?").status).toBe(0);
+        expect(check(["--lang", "de", "--stdin"], "Stand meines Wissens ist der Vertrag noch gültig.").status).toBe(0);
+        expect(check(["--lang", "de", "--stdin"], "Ein Meilenstein in der Planung ist der 3. Mai.").status).toBe(0);
+    });
+
+    it("only warns on tells that are weak alone", () => {
+        const en = [
+            "The gallery serves as an exhibition space, highlighting local art.",
+            "He is associated with the orchestra. Experts argue it matters.",
+            "To be clear, the table below compares prices. 🚀",
+        ].join("\n");
+        const run = check(["--lang", "en", "--stdin"], en);
+        expect(run.status).toBe(0);
+        for (const id of ["S23", "S25", "S26", "S27", "S28", "S32", "S34"]) expect(run.stdout).toMatch(new RegExp(id));
+        const de = "Der Raum dient als Galerie. Studien zeigen, dass das im Zusammenhang mit Kunst steht. ✨";
+        const deRun = check(["--lang", "de", "--stdin"], de);
+        expect(deRun.status).toBe(0);
+        for (const id of ["S25", "S27", "S28", "S34"]) expect(deRun.stdout).toMatch(new RegExp(id));
     });
 
     it("ignores fenced code, inline code, and HTML comments", () => {
