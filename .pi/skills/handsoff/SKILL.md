@@ -16,7 +16,7 @@ Companion skills: `$explore` and `$hill-climb` for the define phase, `$cmux-orch
 | --- | --- | --- | --- |
 | Operator | chat | approves the gate, applies the handback, approves teardown | is asked anything between gate and report |
 | Orchestrator (you) | this session | defines, gates, boots leads, watches, answers prompts, merges, re-scores, reports | edits files, answers a lead's grill questions |
-| Lead | one cmux workspace per package | grill, plan or spec, hill-climb rounds, review, preflight, signal ([references/lead-playbook.md](references/lead-playbook.md)) | touches another package, pushes, merges |
+| Lead | one pane per package, split in your workspace | grill, plan or spec, hill-climb rounds, review, preflight, signal ([references/lead-playbook.md](references/lead-playbook.md)) | touches another package, pushes, merges |
 | Worker | one pane, one worktree, one round | one direction, self-verifies, commits, signals | loops, edits the verifier |
 | Reviewer | one pane, read-only | `$code-review` on the package diff | edits |
 
@@ -25,16 +25,17 @@ Companion skills: `$explore` and `$hill-climb` for the define phase, `$cmux-orch
 - The run folder holds brief, matrix, verifier, `run.json`, every package's grill summary, plan or spec, hill-climb log, review report, checklist.
 - Every package is `done`, `failed`, or `unmerged` in `run.json`, each with a stop reason.
 - Branch `handsoff/<task>` holds the merged best state of every `done` package, re-scored after the merge. Nothing was merged into the working branch or pushed.
-- The report reached the operator with scores, stop reasons, accepted findings, open issues, the apply command, and a teardown request. Panes and worktrees still exist.
+- The report reached the operator with scores, stop reasons, accepted findings, open issues, the apply command, and a teardown request. Worktrees and the surfaces of failed leads still exist.
 
 ## Refusal list
 
 Do these never, and do the alternative:
 
 - No `git push`, no merge into the working branch. Do: merge onto `handsoff/<task>` only.
-- No edits outside the worktrees and the run folder. Do: refuse the prompt, log it with `handsoff.py issue`.
+- No edits outside the worktrees and the run folder. Do: refuse the prompt, log it with `handsoff.py issue --run "$RUN" [--package <package>] --text "refused: <action>"`.
 - No run without cmux. Do: stop at the gate with `cmux required` when `cmux ping` fails.
-- No worktree removal before the operator approves, and no close of a failed lead's workspace. Do: close each finished lead's workspace once its report is read; ask once, in the report, for the rest.
+- No new cmux workspace. Do: split your own workspace; the cmux guard blocks every new workspace.
+- No worktree removal before the operator approves, and no close of a failed lead's surface. Do: close each finished lead's surface once its report is read; ask once, in the report, for the rest.
 - No criterion without a measurement command. Do: stop at the gate with the finding.
 - No grill session marked `done`. Do: `overridden <date>: handsoff, answers delegated to agent`.
 - No lowered target to reach it. Do: report `plateau` or `budget` with the gap.
@@ -73,11 +74,12 @@ Pick the path:
 Rules for both paths:
 
 - The brief's skeleton becomes the package list: one package per independent part, each with its own files and its own acceptance criteria. One part means one package. Parts that must change the same files are one package.
-- Every package gets its own `matrix.json` and verifier under `$RUN/packages/<package>/`. A coding package's default criteria: `tests_failing` (target 0, floor at baseline), `typecheck_errors` (target 0), `acs_done` (count of acceptance criteria whose test passes, target = all, higher). Add task-specific criteria from the research.
+- Every package gets its own `matrix.json` and verifier in `$RUN/packages/<package>/hc/`, the folder `hc.py` runs in and reads the verifier from. A coding package's default criteria: `tests_failing` (target 0, floor at baseline), `typecheck_errors` (target 0), `acs_done` (count of acceptance criteria whose test passes, target = all, higher). Add task-specific criteria from the research.
+- A content or UI package's verifier measures the rendered output in at least one criterion, not only the source file.
 - Budget: `budget_rounds` 10 and `plateau_rounds` 3 per package (hill-climb defaults), 1 to 5 workers per round chosen by the lead, wall clock = your estimate × 1.5 in seconds.
 - A package with no measurable criterion stops the define phase: state which package and why, and ask for a proxy or a narrower task.
 
-Check: every package has `matrix.json` that passes `hc.py init --dry-run` and a verifier that prints the same JSON twice on the untouched artifact.
+Check: every package passes `python3 -I "$HC" init --run "$RUN/packages/<package>/hc" --matrix "$RUN/packages/<package>/hc/matrix.json" --cwd <repo> --dry-run`, and its verifier prints the same JSON twice on the untouched artifact.
 
 ### 3. Gate
 
@@ -90,15 +92,15 @@ Check: the operator approved in one reply. From here on, no message to the opera
 ```bash
 BASE=$(git rev-parse HEAD)
 python3 -I "$HO" init --run "$RUN" --task <task> --budget-seconds <N> --artifact <path> --baseline-sha "$BASE"
-cp brief.md "$RUN/"; # matrices and verifiers already live under $RUN/packages/<package>/
+cp brief.md "$RUN/"; # matrices and verifiers already live in $RUN/packages/<package>/hc/
 ```
 
 Per package, in the order of the package table:
 
-1. Create the worktree with the `git_worktree` tool: `action: add`, `branch: handsoff/<task>/<package>`, `path: $WT/<package>`, `base: $BASE`. No such tool (another repo): run `git worktree add -b handsoff/<task>/<package> "$WT/<package>" "$BASE"` in bash; if it fails with `Operation not permitted`, stop and ask the operator.
-2. `cmux workspace create --name "handsoff/<task>/<package>"`; boot `cd <worktree> && CMUX_PI_HOOKS_DISABLED=1 pi --no-session --model "$WORKER_MODEL"` in its first surface per `$cmux-orchestration` → Boot the Team (lead: `claude-bridge/claude-opus-5-5:medium` per **Model roles**, fallback rule as written there). Verify the model line.
-3. Send the lead task from [references/templates.md](references/templates.md) → Lead task, then `confirm_dispatch`.
-4. `python3 -I "$HO" package --run "$RUN" --name <package> --workspace <ws> --surface <ref> --worktree <path> --branch handsoff/<task>/<package> --state running --stage boot`.
+1. Create the worktree with the `git_worktree` tool: `action: add`, `branch: handsoff/<task>--<package>`, `path: $WT/<package>`, `base: $BASE`. No such tool (another repo): run `git worktree add -b handsoff/<task>--<package> "$WT/<package>" "$BASE"` in bash; if it fails with `Operation not permitted`, stop and ask the operator. Use `--`, not `/`: git cannot hold the handback branch `handsoff/<task>` next to refs under `handsoff/<task>/`. Then register it: `python3 -I "$HO" package --run "$RUN" --name <package> --worktree "$WT/<package>" --branch handsoff/<task>--<package>`.
+2. Split your workspace per `$cmux-orchestration` → Boot the Team, in one bash call (variables do not survive the call): `WS="$CMUX_WORKSPACE_ID"; LAST=<anchor ref>; W=$(cmux new-split --workspace "$CMUX_WORKSPACE_ID" <right|down> --surface "${LAST:?}" --json | jq -r .surface_ref); echo "$W"`. The anchor is your own surface (`$CMUX_SURFACE_ID`) for the first lead and the previous lead's surface for each next one; the direction alternates `right`, `down`, `right`, … (staircase). Boot `cd "$WT/<package>" && CMUX_PI_HOOKS_DISABLED=1 pi --no-session --model "$WORKER_MODEL"` in `$W` (lead: `claude-bridge/claude-opus-5-5:medium` per **Model roles**, fallback rule as written there). Answer the project MCP prompts with the loop in `$cmux-orchestration` → Boot verification (`W` = the lead's ref) and log each with `python3 -I "$HO" issue --run "$RUN" [--package <package>] --text "boot: denied project MCP <name>"`. Verify the model line.
+3. Send the lead task from [references/templates.md](references/templates.md) → Lead task, then `confirm_dispatch <lead surface ref>`.
+4. `python3 -I "$HO" package --run "$RUN" --name <package> --workspace "$CMUX_WORKSPACE_ID" --surface <lead surface ref> --state running --stage boot`.
 
 Leads run in parallel. More than two packages: boot two, then boot the next when one settles, so one machine does not run ten builds at once.
 
@@ -112,8 +114,8 @@ Run `bash <cmux-orchestration skill dir>/scripts/wait-or-prompt.sh <package>-don
 
 | Exit | Meaning | Do |
 | --- | --- | --- |
-| 0 | lead signalled | read `$RUN/packages/<package>/lead-report.md`; `package --state done --stop <reason> --aggregate <x>`; `cmux workspace close --workspace <ws>` (the lead gets no follow-up) |
-| 2 | permission prompt | inside the lead's worktree or `$RUN`: approve (`send-key enter`). Anything else: pick the prompt's No, `issue --text "refused: <action>"`, steer the lead with "refused, continue without it" |
+| 0 | lead signalled | read `$RUN/packages/<package>/lead-report.md`; `package --state done --stop <reason> --aggregate <x>`; close every pane the report lists under `open_panes`, then the lead: `cmux close-surface --workspace "$CMUX_WORKSPACE_ID" --surface <lead surface ref> --force` (`--force`: pi still runs in it; the lead gets no follow-up) |
+| 2 | permission prompt | inside the lead's worktree or `$RUN`: approve (`send-key enter`). Anything else: pick the prompt's No, `issue --run "$RUN" [--package <package>] --text "refused: <action>"`, steer the lead with "refused, continue without it" |
 | 3 | sandbox stop | `NEEDS_UNSANDBOXED`: never; log as refused. `NEEDS_DOMAIN` or `bash blocked`: the one allowed interruption; relay to the operator, wait, resume |
 | 4 | idle without signal | task still in the input box: press Enter. Pane dead or no progress after two idle reports: `package --respawn` and boot the lead again on the same worktree with "resume from your last AI-Note"; a second loss: `--state failed --stop lead_lost` |
 | 1 | timed out | same as idle |
@@ -127,14 +129,28 @@ Check: `status` prints `stop: all_settled` or `stop: budget` with no `running` p
 ```bash
 # Create it with the git_worktree tool: action add, branch handsoff/<task>, path $WT/merged, base $BASE (fallback as in step 4).
 for P in $(python3 -I "$HO" status --run "$RUN" | jq -r '.merge_order[]'); do
-  git -C "$WT/merged" merge --no-ff --no-edit "handsoff/<task>/$P" \
-    || { git -C "$WT/merged" merge --abort; python3 -I "$HO" package --run "$RUN" --name "$P" --state unmerged --stop merge_conflict --note "conflict: $(git -C "$WT/merged" diff --name-only --diff-filter=U | tr '\n' ' ')"; }
+  if git -C "$WT/merged" merge --no-ff --no-edit "handsoff/<task>--$P"; then
+    python3 -I "$HO" package --run "$RUN" --name "$P" --state merged
+  else
+    F=$(git -C "$WT/merged" diff --name-only --diff-filter=U | tr '\n' ' ')   # list before the abort clears it
+    git -C "$WT/merged" merge --abort
+    python3 -I "$HO" package --run "$RUN" --name "$P" --state unmerged --stop merge_conflict --note "conflict: $F"
+  fi
 done
 ```
 
-Then run every `done` package's verifier in `$WT/merged` and compare with its best scores from `hc.py status`. A regression below a floor marks that package `--note "merge regressed: <criterion>"`; do not fix it, report it. Copy each worktree's `docs/plans/<name>/` or `docs/specs/<name>/` into `$RUN/packages/<package>/docs/` (those folders are gitignored and vanish with the worktree).
+Then re-score every merged package with its own verifier, cwd `$WT/merged`:
 
-Check: `handsoff/<task>` exists, every `done` package is `merged` or `unmerged`, and the merged verifier output is saved as `$RUN/merged-scores.json`.
+```bash
+for P in $(python3 -I "$HO" status --run "$RUN" | jq -r '.packages | to_entries[] | select(.value.state == "merged") | .key'); do
+  H="$RUN/packages/$P/hc"   # a matrix with verifier_cmd: run that command instead of python3 -I
+  (cd "$WT/merged" && python3 -I "$H/$(jq -r .verifier "$H/matrix.json")") | tail -1 | jq --arg p "$P" '{($p): .}'
+done | jq -s add > "$RUN/merged-scores.json"
+```
+
+Compare each package with its best scores from `python3 -I "$HC" status --run "$RUN/packages/<package>/hc"`. A regression below a floor marks that package `--note "merge regressed: <criterion>"`; do not fix it, report it. Copy each worktree's `docs/plans/<name>/` or `docs/specs/<name>/` into `$RUN/packages/<package>/docs/` (those folders are gitignored and vanish with the worktree).
+
+Check: `handsoff/<task>` exists, no package is left `done` (each is `merged` or `unmerged`), and the merged verifier output is saved as `$RUN/merged-scores.json`.
 
 ### 7. Report
 
@@ -144,11 +160,14 @@ Check: the report names `git merge handsoff/<task>` (or the `cp` command) as the
 
 ### 8. Teardown (after the operator's yes only)
 
-Run `npx tsx scripts/git-pointer-check.ts <main checkout>` first (when the repo has it) and quote every `bad` line to the operator. Then remove every worktree under `$WT` with the `git_worktree` tool (`action: remove`; no tool: `git worktree remove` in bash), deepest path first (leads nest worker worktrees in their own checkout), then `rmdir "$WT"`, `cmux workspace close` every lead workspace still open (failed or lost leads), `cmux tree --all` shows nothing of this run. Branches and `$RUN` stay.
+Run `npx tsx scripts/git-pointer-check.ts <main checkout>` first (when the repo has it) and quote every `bad` line to the operator. Then remove every worktree under `$WT` with the `git_worktree` tool (`action: remove`; no tool: `git worktree remove` in bash), deepest path first (leads nest worker worktrees in their own checkout; `git -C <repo> worktree list --porcelain | sed -n "s/^worktree //p" | grep "^$WT/" | awk '{print length($0) "\t" $0}' | sort -rn | cut -f2-` gives that order), then `rmdir "$WT"`, `cmux close-surface --workspace "$CMUX_WORKSPACE_ID" --surface <ref> --force` for every lead surface still open (failed or lost leads), `cmux tree --all` shows nothing of this run. Branches and `$RUN` stay.
 
 ## Gotchas
 
 - **Do not** start a lead's task with `You are a cmux worker.` That line makes it read the subagent rules, which forbid spawning panes, so the lead can never dispatch workers. **Do** use the lead task in [references/templates.md](references/templates.md), which starts with `You are a handsoff lead.` and grants the spawn.
+- **Do not** create a workspace per lead. The cmux guard blocks every new workspace. **Do** split your own workspace (step 4.2).
+- **Do not** name package branches `handsoff/<task>/<package>`. Git then cannot create the handback branch `handsoff/<task>` (`cannot lock ref`). **Do** use `handsoff/<task>--<package>`.
+- **Do not** run `close-surface` without `--surface`. It defaults to your own surface. **Do** pass the lead's ref and `--force`.
 - **Do not** answer a lead's grill questions. **Do** make the lead self-answer; the gate approval is the delegation, and the summary records `overridden`.
 - **Do not** let a lead fix Medium or Low review findings. **Do** list them under accepted findings; only HIGH findings (and every security finding) get one fix round.
 - **Do not** read a lead's report from the screen. **Do** read `$RUN/packages/<package>/lead-report.md`; scrollback wraps and truncates.

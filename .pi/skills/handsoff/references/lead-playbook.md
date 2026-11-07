@@ -4,7 +4,7 @@ Read this when your task starts with `You are a handsoff lead.` You own one pack
 
 ## Contract
 
-- Inputs, all read-only: `$RUN/brief.md`, `$RUN/packages/<package>/matrix.json`, the verifier next to it, the time signal in your task.
+- Inputs, all read-only: `$RUN/brief.md`, `$RUN/packages/<package>/hc/matrix.json`, the verifier next to it, the time signal in your task.
 - Outputs: commits on your branch in your worktree, `$RUN/packages/<package>/lead-report.md`, the files listed under **Stages**. Then `cmux wait-for -S <package>-done`.
 - You may spawn cmux panes (workers, one reviewer) with `$cmux-orchestration`, split from your own surface, at most 5 at once. Your workers are cmux workers: their tasks start with `You are a cmux worker.` and they never spawn.
 - Never start a subagent with `isolation: worktree`: its unsandboxed `git add -A` enters a nested repo a session planted.
@@ -31,10 +31,10 @@ Done when: the document exists, its Grill Status is `overridden`, and every acce
 
 Run `$hill-climb` steps 5 to 7 on this package, with the given matrix and verifier (no new gate: the operator approved them):
 
-1. `hc.py init --run $RUN/packages/<package>/hc --matrix matrix.json --cwd <your worktree>`.
+1. `hc.py init --run $RUN/packages/<package>/hc --matrix $RUN/packages/<package>/hc/matrix.json --cwd <your worktree>`.
 2. Each round: directions = the open plan items, grouped so that workers never touch the same files. Fan-out 1 to 5, narrower when a direction gained.
 3. Every code worker gets the two-step TDD dispatch from `$cmux-orchestration` → TDD gate: red dispatch, you rerun the failing command yourself, then green dispatch. One worktree per worker from the current best, where `$hill-climb` step 6.2 puts it: your own checkout's `.worktrees/`, never `$TMPDIR`, created and removed with the `git_worktree` tool (bash `git worktree` fails in the sandbox). Every branch you or a worker create starts with `hill-climb/` or `handsoff/`: the sandbox lets a lead write only those branches, so any other name fails with `cannot lock ref ... Operation not permitted`.
-4. Re-score every worker with `hc.py score` (after `npm ci` in that worktree when its `package.json` or lockfile changed); `close-round`; update the plan's status markers and AI-Notes from the worker reports (you are the owner session of that document); close each worker's pane whose report you have read (`$cmux-orchestration` → Fail-Safe Teardown). A pane whose worker failed stays open and goes under `open_issues`.
+4. Re-score every worker with `hc.py score` (after `npm ci` in that worktree when its `package.json` or lockfile changed); `close-round`; update the plan's status markers and AI-Notes from the worker reports (you are the owner session of that document); close each worker's pane whose report you have read (`$cmux-orchestration` → Fail-Safe Teardown). A pane whose worker failed stays open and goes under `open_issues` and `open_panes`.
 5. Stop on `targets_met`, `plateau`, or `budget`. Merge the best candidate's branch into your package branch (`git merge --ff-only` from the best worktree's branch, or cherry-pick).
 
 Done when: `hc.py status` shows a stop reason and your branch holds the best state.
@@ -55,7 +55,9 @@ Done when: `code-review.md` exists, no HIGH or security finding is unaddressed, 
 
 Run `$preflight-checklist` yourself on the package: plan or spec, the conversation (your grill summary), the diff. Write `checklist.md` into the document folder. A failed `agent` item inside the package: fix it (TDD gate), re-run the whole preflight. Two failed fixes on one item: stop, list it as an open issue. `human` items are listed, not run.
 
-Done when: `checklist.md` exists and every `agent` item is `pass` or listed as an open issue.
+A package whose output is a page or UI: render it once at 390 px and once at 1280 px wide. At both widths `document.documentElement.scrollWidth > innerWidth` must be false and nothing may be clipped. Save the screenshots as `$RUN/packages/<package>/rendered-390.png` and `rendered-1280.png`. A failure is a failed `agent` item.
+
+Done when: `checklist.md` exists, every `agent` item is `pass` or listed as an open issue, and a UI package has both screenshots.
 
 ### signal
 
@@ -65,24 +67,27 @@ Write `$RUN/packages/<package>/lead-report.md`:
 package: <package>
 stop: <targets_met|plateau|budget>
 aggregate: <best from hc.py status>
-branch: handsoff/<task>/<package>
+branch: handsoff/<task>--<package>
 baseline_sha: <sha>
 rounds: <N>
 acs: <done>/<total>
 tests: <command> -> <pass/fail counts>
 review: <HIGH count fixed>, accepted_findings below
 preflight: <pass count>/<total>, human items below
+rendered: <390 px: ok|overflow|clipped, 1280 px: ok|overflow|clipped, screenshot paths> | n/a (no UI)
 accepted_findings:
 - <severity> <file:line> <one line>
 open_issues:
 - <one line each, or none>
 human_items:
 - <one line each, or none>
+open_panes:
+- <surface ref and why it is still open, or none>
 ai_notes:
 - <entries for the plan or spec, format of that document>
 ```
 
-Close the reviewer's pane and any finished worker pane still open; failed ones stay. Worktrees stay; the orchestrator asks the operator. Then print `LEAD_DONE package=<package> stop=<reason>` as your last chat line and run `cmux wait-for -S <package>-done`.
+Close the reviewer's pane and any finished worker pane still open; failed ones stay and go under `open_panes`, and the orchestrator closes them after reading your report. Worktrees stay; the orchestrator asks the operator. Then print `LEAD_DONE package=<package> stop=<reason>` as your last chat line and run `cmux wait-for -S <package>-done`.
 
 ## Gotchas
 

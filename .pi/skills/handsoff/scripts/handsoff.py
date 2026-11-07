@@ -12,7 +12,7 @@ Commands (all print one JSON object on stdout; diagnostics go to stderr):
 
   init     create the run folder and run.json (refuses to overwrite without --force)
   package  add or update one package (upsert; unspecified fields keep their value)
-  issue    append an open issue to the run
+  issue    append an open issue to one package, or to the run without --package
   status   clock, packages, stop decision, merge order (--markdown for the report)
   ts       print the cmux time signal for dispatch messages
 
@@ -133,7 +133,7 @@ def cmd_package(a: argparse.Namespace) -> None:
 def cmd_issue(a: argparse.Namespace) -> None:
     run_dir = Path(a.run)
     run = load_run(run_dir)
-    if a.package not in run["packages"]:
+    if a.package is not None and a.package not in run["packages"]:
         fail(2, f"unknown package {a.package!r}; known: {', '.join(run['packages']) or 'none'}")
     if not a.text.strip():
         fail(2, "--text must not be empty")
@@ -180,7 +180,7 @@ def markdown(s: dict) -> str:
             f"| {p.get('branch') or ''} | {p.get('aggregate') if p.get('aggregate') is not None else ''} | {p.get('note') or ''} |"
         )
     lines += ["", "Open issues:"]
-    lines += [f"- {i['package']}: {i['text']}" for i in s["issues"]] or ["- none"]
+    lines += [f"- {i['package'] or 'run'}: {i['text']}" for i in s["issues"]] or ["- none"]
     return "\n".join(lines)
 
 
@@ -233,7 +233,7 @@ def main(argv: list[str] | None = None) -> None:
 
     p = sub.add_parser("issue", help="append an open issue")
     p.add_argument("--run", required=True)
-    p.add_argument("--package", required=True)
+    p.add_argument("--package", help="package slug; omit for a run-level issue")
     p.add_argument("--text", required=True)
     p.set_defaults(fn=cmd_issue)
 

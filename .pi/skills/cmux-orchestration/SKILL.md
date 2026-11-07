@@ -31,7 +31,23 @@ cmux close-surface --surface surface:3      # stop / tear down one agent
 
 ### Boot verification (run once per worker)
 
-After a worker reports ready, read its model line once and report it to the user. Silent model fallback (e.g. `iqRouter/grunt:high` → `openrouter/z-ai/glm-5.3-flash:medium`) is otherwise visible only in the pane footer:
+First answer the project MCP prompts. A fresh worktree carries the repo's `.pi/mcp.json`, so the new pi asks `Allow project MCP server "<name>"?` once per server. The default `Don't allow` is the safe answer: workers and leads use the main session's tools only, and the task must name any MCP server it needs. Report every answered prompt to the user in one line. The loop waits until pi shows either a prompt or its model line, so a slow boot does not end it early.
+
+```bash
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  S=$(cmux read-screen --workspace "$WS" --surface "${W:?}" --lines 25)
+  N=$(printf '%s\n' "$S" | grep -oE 'Allow project MCP server "[^"]+"' | tail -1 | cut -d'"' -f2)
+  if [ -z "$N" ]; then
+    printf '%s\n' "$S" | grep -qE '[A-Za-z0-9._-]+/[A-Za-z0-9._-]+:[a-z]+' && break   # pi is up, no prompt left
+    sleep 2; continue
+  fi
+  echo "denied project MCP: $N"
+  cmux send-key --workspace "${WS:?}" --surface "${W:?}" enter   # default option is "Don't allow"
+  sleep 4
+done
+```
+
+Then, after a worker reports ready, read its model line once and report it to the user. Silent model fallback (e.g. `iqRouter/grunt:high` → `openrouter/z-ai/glm-5.3-flash:medium`) is otherwise visible only in the pane footer:
 
 ```bash
 cmux read-screen --surface "$W" --scrollback --lines 60 | grep -oE '[A-Za-z0-9._-]+/[A-Za-z0-9._-]+:[a-z]+' | tail -1

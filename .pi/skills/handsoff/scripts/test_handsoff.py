@@ -92,6 +92,29 @@ class HandsoffTests(unittest.TestCase):
         p = ho("issue", "--run", self.run_dir, "--package", "nope", "--text", "x", check=False)
         self.assertEqual(p.returncode, 2)
 
+    def test_issue_without_package_is_run_level(self):
+        self.init()
+        r = out(ho("issue", "--run", self.run_dir, "--text", "refused: write outside worktree"))
+        self.assertIsNone(r["issues"][0]["package"])
+        s = out(ho("status", "--run", self.run_dir))
+        self.assertEqual([(i["package"], i["text"]) for i in s["issues"]], [(None, "refused: write outside worktree")])
+        self.assertIn("- run: refused: write outside worktree", ho("status", "--run", self.run_dir, "--markdown").stdout)
+
+    def test_package_and_handback_branches_coexist(self):
+        handback = self.init()["handback_branch"]
+        self.assertEqual(handback, "handsoff/demo")
+        repo = Path(self.tmp.name) / "repo"
+        subprocess.run(["git", "init", "-q", str(repo)], check=True)
+
+        def git(*args, check=True):
+            return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, check=check)
+
+        git("-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "base")
+        git("branch", f"{handback}--api")
+        git("branch", handback)
+        # The old scheme nests the package ref under the handback name; git refuses it.
+        self.assertNotEqual(git("branch", f"{handback}/api", check=False).returncode, 0)
+
     def test_status_stop_and_merge_order(self):
         self.init()
         ho("package", "--run", self.run_dir, "--name", "b", "--state", "running")
