@@ -1,8 +1,8 @@
 /**
  * Reversible PII redaction for every model request.
  *
- * `context` replaces PII with stable tags before any provider (claude-bridge
- * included) and before noheadroom see the messages; `tool_call` swaps tags back
+ * `context` replaces PII with stable tags before any provider and before
+ * noheadroom see the messages; `tool_call` swaps tags back
  * for local built-in tools; `message_end` shows real values to the user. The
  * compaction and branch-summary hooks cover the summary calls that skip
  * `context`. Detection runs on a local Presidio analyzer (en + de).

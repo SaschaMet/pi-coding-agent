@@ -1,12 +1,14 @@
 /**
  * Claude subscription usage extension.
  *
- * Reads the 5-hour and 7-day plan utilization that claude-bridge forwards as
- * `anthropic-ratelimit-unified-*` headers on `after_provider_response`, shows
- * it in the footer, and writes it to the snapshot file the agent-usage-bar
- * menu-bar app reads. Claude Code only sends an event when a usage window
- * changes, so the footer stays empty until the first one and any parse or
- * write failure hides data rather than showing wrong numbers.
+ * Reads the 5-hour and 7-day plan utilization that the Anthropic API sends
+ * as `anthropic-ratelimit-unified-*` response headers on
+ * `after_provider_response` (native `anthropic` subscription OAuth, or the
+ * `claude-bridge` provider, which forwards the same header names), shows it
+ * in the footer, and writes it to the snapshot file the agent-usage-bar
+ * menu-bar app reads. The API only sends a reading when a usage window
+ * changes, so the footer is restored from the snapshot at session start and
+ * any parse or write failure hides data rather than showing wrong numbers.
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -17,7 +19,7 @@ import { isShadowedProjectCopy } from "./lib/extension-helpers.ts";
 const CLAUDE_USAGE_REGISTERED = Symbol.for("pi.extensions.claude-usage.registered");
 
 const STATUS_KEY = "claude-usage";
-const BRIDGE_PROVIDER = "claude-bridge";
+const CLAUDE_PROVIDERS = new Set(["anthropic", "claude-bridge"]);
 const HEADER_PREFIX = "anthropic-ratelimit-unified-";
 const SNAPSHOT_SCHEMA = 1;
 
@@ -108,6 +110,30 @@ function writeSnapshot(usage: Usage, now: number): void {
     }
 }
 
+/** Last known windows from the snapshot, dropping expired ones; {} when unreadable. */
+function loadSnapshot(now: number): Usage {
+    try {
+        const data = JSON.parse(fs.readFileSync(snapshotPath(), "utf8"));
+        if (data?.schema !== SNAPSHOT_SCHEMA) return {};
+        const usage: Usage = {};
+        if (typeof data.fiveHour === "number" && (data.fiveHourResetAt == null || data.fiveHourResetAt > now)) {
+            usage.fiveHour = {
+                percent: Math.min(100, Math.max(0, Math.round(data.fiveHour))),
+                resetAt: data.fiveHourResetAt ?? null,
+            };
+        }
+        if (typeof data.sevenDay === "number" && (data.sevenDayResetAt == null || data.sevenDayResetAt > now)) {
+            usage.sevenDay = {
+                percent: Math.min(100, Math.max(0, Math.round(data.sevenDay))),
+                resetAt: data.sevenDayResetAt ?? null,
+            };
+        }
+        return usage;
+    } catch {
+        return {};
+    }
+}
+
 export default function claudeUsageExtension(pi: ExtensionAPI): void {
     if (isShadowedProjectCopy(import.meta.url)) return;
     const guardPi = pi as ExtensionAPI & Record<PropertyKey, unknown>;
@@ -121,14 +147,14 @@ export default function claudeUsageExtension(pi: ExtensionAPI): void {
     };
 
     pi.on("session_start", (_event, ctx) => {
-        latest = {};
+        latest = loadSnapshot(Date.now());
         if (ctx.mode !== "tui") return;
-        clearFooter(ctx);
+        ctx.ui.setStatus(STATUS_KEY, formatUsage(latest));
     });
 
     pi.on("model_select", (event, ctx) => {
         if (ctx.mode !== "tui") return;
-        if (event.model.provider !== BRIDGE_PROVIDER) clearFooter(ctx);
+        if (!CLAUDE_PROVIDERS.has(event.model.provider)) clearFooter(ctx);
     });
 
     pi.on("after_provider_response", (event, ctx) => {

@@ -17,7 +17,7 @@
                   {
                     "type": "terminal",
                     "name": "worker-1",
-                    "command": "npm run agent -- --new-session --model claude-bridge/claude-sonnet-5-5:medium",
+                    "command": "npm run agent -- --new-session --model anthropic/claude-sonnet-5-5:medium",
                     "focus": true
                   }
                 ]
@@ -29,7 +29,7 @@
                   {
                     "type": "terminal",
                     "name": "worker-2",
-                    "command": "npm run agent -- --new-session --model claude-bridge/claude-sonnet-5-5:medium"
+                    "command": "npm run agent -- --new-session --model anthropic/claude-sonnet-5-5:medium"
                   }
                 ]
               }

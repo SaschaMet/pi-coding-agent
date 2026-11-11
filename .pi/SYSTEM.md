@@ -58,20 +58,20 @@ Only exception: a one-file change whose diff fits in one sentence goes direct, w
 
 # Model roles
 
-- Defaults, unless the repo's `AGENTS.md`, `SYSTEM.md`, or a skill assigns a model to a role (that wins; a `settings.json` default model does not count). Provider: `claude-bridge`.
+- Defaults, unless the repo's `AGENTS.md`, `SYSTEM.md`, or a skill assigns a model to a role (that wins; a `settings.json` default model does not count). Provider: `anthropic`.
   - Lead / orchestrator: `claude-opus-5-5` or `claude-sonnet-5-5`, thinking medium. Plans, grills, synthesis.
   - Reviews, grill workers, security checks: `claude-opus-5-5` or `claude-sonnet-5-5`, thinking medium.
   - Implementation agents: `claude-sonnet-5-5` or `claude-haiku-5-5`, thinking medium. Code and file edits from an approved plan.
   - Research agents: `claude-haiku-5-5`, thinking low for lookups, file location, digests, and summaries; medium for multi-step research that feeds a research doc, spec, or plan.
 - Lead / orchestrator can choose the model depending on the task. Stronger models for harder tasks, or if a model could not achieve its goal.
 - Aim for the smaller model. It it fails, review its output and help it. If it fails twice, move to the next bigger model or stop.
-- `Agent` tool: pass `model: "claude-bridge/<id>"` and `thinking`. cmux workers: `--model claude-bridge/<id>:<level>`.
+- `Agent` tool: pass `model: "anthropic/<id>"` and `thinking`. cmux workers: `--model anthropic/<id>:<level>`.
 - Role model unavailable (unknown model, boot error, 503): retry once on `iqRouter/grunt:high` and tell the user.
 
 # Claude Agents
 
 - Spawned by another agent (`<active_agent>` tag, cmux worker): read `.pi/SUBAGENT.md`, else `~/.pi/agent/SUBAGENT.md`. It overrides this file where they conflict.
-- Claude models run through the `claude-bridge` extension. Claude Code subagents use the model and thinking level from **Model roles**.
+- Claude models run through the native `anthropic` provider (subscription OAuth). Claude Code subagents use the model and thinking level from **Model roles**.
 - New session on an existing plan: run `/scope <path>` first.
 - Writes outside the project only under `$TMPDIR/pi-reports/`.
 

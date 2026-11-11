@@ -57,7 +57,7 @@ export default function subagentDelegationPolicy(pi: ExtensionAPI): void {
             "- Skill execution requests stay in the current session unless the user explicitly asks for delegation.",
             "- Do not delegate implementation or edits by default. Inspect and edit the current project/repository directly for normal coding tasks.",
             "- Subagent models follow the **Model roles** section of `.pi/SYSTEM.md` (implementation: Sonnet 5.5 medium; review: Opus 5.5 medium) unless the user, the repo's `AGENTS.md`, or the invoked skill names another model. If the role model is unavailable, fall back to `iqRouter/grunt` once and tell the user.",
-            "- Research and look-up subagents: `claude-bridge/claude-haiku-5-5`, thinking `low` for lookups and summaries, `medium` for research that feeds a document.",
+            "- Research and look-up subagents: `anthropic/claude-haiku-5-5`, thinking `low` for lookups and summaries, `medium` for research that feeds a document.",
             "- When delegation is explicitly requested, use `generic-readonly` for research/planning/summarization tasks.",
             "- When delegation is explicitly requested, use `generic-worker` or built-in `general-purpose` for implementation or file-modifying tasks.",
             "- External-doc or web research task: keep it in-session unless the user explicitly asks for subagents.",
@@ -66,7 +66,7 @@ export default function subagentDelegationPolicy(pi: ExtensionAPI): void {
             "- Keep trivial, localized tasks in-session unless user explicitly asks for delegation.",
             ...(inCmuxTui(ctx) ? [CMUX_RULE] : []),
         ].join("\n");
-        // A section, not a forced prompt: the Claude bridge forwards sections, and an unchanged one is sent once.
+        // A section, not a forced prompt: the policy is a stable block, so the provider's prompt cache keeps it cheap.
         event.systemPromptOptions.sections.delegation_policy = policy;
     });
 }

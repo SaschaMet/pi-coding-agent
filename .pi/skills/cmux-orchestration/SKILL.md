@@ -62,9 +62,9 @@ Compare against the requested model. On mismatch: report it, do not silently acc
 **Model default: each worker boots on its role model from **Model roles** in `SYSTEM.md`, unless the user or the repo's `AGENTS.md` names another model.** Set `WORKER_MODEL` per worker:
 
 ```bash
-WORKER_MODEL="claude-bridge/claude-sonnet-5-5:medium"   # implementation
-WORKER_MODEL="claude-bridge/claude-opus-5-5:medium"     # review, grill, security
-WORKER_MODEL="claude-bridge/claude-haiku-5-5:low"       # lookup research; :medium when it feeds a doc
+WORKER_MODEL="anthropic/claude-sonnet-5-5:medium"   # implementation
+WORKER_MODEL="anthropic/claude-opus-5-5:medium"     # review, grill, security
+WORKER_MODEL="anthropic/claude-haiku-5-5:low"       # lookup research; :medium when it feeds a doc
 ```
 
 **Fallback:** only when the worker fails to boot or its model backend errors (e.g. 503 busy, unknown model), respawn that worker once on `iqRouter/grunt:high` and tell the user. If the fallback fails too, report and ask.
