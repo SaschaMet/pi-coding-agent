@@ -4,7 +4,7 @@ description: 'Clarify brand messaging using narrative structure that positions t
 license: MIT
 metadata:
   author: wondelai
-  version: "1.5.0"
+  version: "1.6.0"
 ---
 
 # StoryBrand Messaging Framework
@@ -34,6 +34,9 @@ Every compelling story follows the same pattern. Use this structure for all mess
 - Tie the desire to survival (physical, financial, relational, or spiritual)
 - Aspirational identity is powerful ("become the leader everyone respects")
 - Different segments have different desires — write separate messaging per role, stage, and pain intensity
+- Find the desire: ask customers, read competitor reviews for their exact words, run interviews. People list too many wants; cut to one
+- Several heroes? Find the umbrella desire (Nike: "athletic shoes", not one per sport)
+- Inside-language test: a third-grader gets it and nobody asks "what does that mean?". Cut anything that makes the reader burn calories
 
 **Product applications:**
 
@@ -60,6 +63,9 @@ See: [references/brand-script.md](references/brand-script.md) — fill out the B
 - External: "my investments are scattered"; internal: "I feel overwhelmed"; philosophical: "people shouldn't need to be experts to retire well"
 - A good villain is specific and relatable, not abstract — "Wall Street jargon designed to confuse you", not "complexity"
 - Most brands stop at external problems, missing the internal ones that drive purchases
+- The villain is the thing you and the customer fight, never your competitor
+- Chain the levels: the internal and philosophical problems must grow out of the external one; unlinked levels read as three topics
+- Philosophical test: finish "It's just plain wrong that..." or "You shouldn't have to..."
 
 **Product applications:**
 
@@ -83,6 +89,8 @@ See: [references/brand-script.md](references/brand-script.md) — fill out the B
 **Key insights:**
 - Show empathy with "we understand" language; show authority with testimonials, client logos, statistics, awards
 - Never make your origin story the centerpiece — that is hero behavior; brief, relevant credentials suffice
+- Authority must match THIS problem; a credential from another field is noise
+- Empathy is one sentence, not a story. Prefer a customer success story over a self-description
 
 **Product applications:**
 
@@ -109,6 +117,9 @@ See: [references/sales-conversations.md](references/sales-conversations.md) — 
 - Process Plan: 3-4 numbered steps max, action verbs, memorable names ("1. Schedule a call. 2. Get a custom plan. 3. Start seeing results.")
 - Agreement Plan: fear-removing commitments ("100% satisfaction guaranteed", "Cancel anytime")
 - More than 4 steps overwhelms; numbering implies order and ease
+- Name each step in a few plain words; no inside language, no feature lists
+- Pre-purchase plan = how they start ("Chat → Diagnose → Plan"); post-purchase plan = life after buying. Show the one that removes the stall
+- The last step ends in a clear decision, not ambiguity
 
 **Product applications:**
 
@@ -133,6 +144,8 @@ See: [references/sales-conversations.md](references/sales-conversations.md) — 
 - Direct: "Buy Now", "Schedule a Call", "Get Started"; Transitional: "Download Free Guide", "Watch Demo", "Take the Quiz"
 - Make the Direct CTA a visually prominent button (contrasting color) and repeat it down the page
 - Use action language ("Get" not "Submit"); one obvious Direct CTA per page
+- Button test: (1) what motivates the click? (2) what does the visitor get on click? If either is unclear, rewrite
+- "Marry me or date me": Direct CTA = marry, Transitional CTA = date. Trade the transitional offer (guide, sample, webinar) for an email address
 
 **Product applications:**
 
@@ -161,6 +174,7 @@ See: [references/website-wireframe.md](references/website-wireframe.md) — open
 - A taste of consequence is enough — don't run a scare campaign
 - Focus on opportunity cost, not punishment ("another year of feeling stuck")
 - Pair failure with success messaging to create contrast
+- On a page, name the stakes before painting success; the problem is agitated before the solution
 
 **Product applications:**
 
@@ -185,6 +199,7 @@ See: [references/website-wireframe.md](references/website-wireframe.md) — open
 - Status: "Become the go-to expert"; completeness: "Finally have financial peace of mind"; self-realization: "Be the leader you were meant to be"
 - Show transformation with before/after comparisons and specific numbers
 - Keep the success picture tangible, never vague or generic
+- Write the transformation line: "The hero goes from ____ to ____." Use it as the page's end state
 
 **Product applications:**
 
@@ -235,6 +250,8 @@ See: [references/multi-channel-consistency.md](references/multi-channel-consiste
 | No clear CTA | No direction = no action | Ask for the sale |
 | No stakes | No urgency = no motivation | Paint failure picture |
 | Starting with "We" | Self-focused | Start with customer's problem |
+| Inside language | Staff-only terms pass as "organized" messaging | Test the copy on someone outside the company |
+| Too many wants, problems, or steps | Dilutes the story gap | One desire, one villain, 3-4 steps |
 
 ## Quick Diagnostic
 
@@ -247,6 +264,17 @@ See: [references/multi-channel-consistency.md](references/multi-channel-consiste
 | Is there a clear 3-step plan? | Path feels risky | Add Process + Agreement plans |
 | Is there one obvious CTA? | Nobody acts | Add prominent, repeated Direct CTA |
 | Do you show success AND failure stakes? | No narrative tension | Paint both outcome pictures |
+
+## Rollout Order
+
+1. Fill the BrandScript.
+2. Write the one-liner.
+3. Turn the BrandScript into copy.
+4. Align every team on the same words.
+5. Update site, content, and sales scripts.
+6. Review against customer feedback and analytics.
+
+Personas feed the Character box. StoryBrand sets the narrative; personas tailor it per segment.
 
 ## Further Reading
 
