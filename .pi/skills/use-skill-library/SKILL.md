@@ -30,6 +30,16 @@ Load and run a skill from the manual library at `~/.pi/agent/skill-library/`.
 | Nothing in the index fits                             | Say so plainly. Answer from general knowledge if you can, and label it as not from the library. |
 | The user named something absent from the index        | Say it is not installed. Show the closest index entries. Do not substitute one skill for another without saying so.                 |
 
+## Listing the library
+
+When the user asks for a list of the library's skills, run this and present the output. It reads each skill's `description` frontmatter field, so it stays accurate even if the index table in `AGENTS.md` drifts:
+
+```bash
+cd ~/.pi/agent/skill-library && for d in */; do s="${d%/}"; desc=$(awk '/^---[[:space:]]*$/{c++;next} c==1 && /^description:/{print substr($0,14); exit}' "$s/SKILL.md" | sed "s/^[\"']//;s/[\"']$//"); printf '%-26s %s\n' "$s" "$desc"; done
+```
+
+Output is one line per skill: name, then its metadata description. A skill that prints an empty description is missing the frontmatter field — flag it in the answer.
+
 ## Metaskills
 
 Some library skills orchestrate others — `improve-website` runs several of them as phases. When loading one:
