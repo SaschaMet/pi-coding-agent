@@ -23,3 +23,7 @@ The user's rule: no request from impeccable may reach a third party. The offline
 12. **Complete output.** No `// ...`, "rest follows the same pattern", or a skeleton in place of the implementation.
 13. **No user to ask** (a subagent or non-interactive run): adopt the detected stack, take the safest branch, and list every assumption in the final output.
 14. **Check the result** at desktop width and below 768px.
+
+## Premium and proportion (local, 2026-11-08)
+
+15. **Persuade surfaces and "premium" requests.** When the surface is Persuade, or the request names premium, high-end, expensive, golden ratio, hero, or first impression: read [premium-proportion.md](premium-proportion.md) after `reference/craft-floor.md`, and run `local/measure-proportions.mjs` at 1440×900 and 390×844 before the first edit and after the last. Report both summaries.
