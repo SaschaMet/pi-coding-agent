@@ -208,13 +208,55 @@ describe("claude-usage extension", () => {
         expect(ui.setStatus).toHaveBeenLastCalledWith(STATUS_KEY, "Claude 5h 13% · 7d 57%");
     });
 
-    it("clears the footer and forgets remembered windows on session start", async () => {
+    it("restores the footer from the snapshot on session start", async () => {
         const { pi, ui, ctx } = setup();
         await fire(pi, "after_provider_response", { status: 200, headers: CAPTURED_HEADERS }, ctx);
         await fire(pi, "session_start", {}, ctx);
-        expect(ui.setStatus).toHaveBeenLastCalledWith(STATUS_KEY, undefined);
+        expect(ui.setStatus).toHaveBeenLastCalledWith(STATUS_KEY, "Claude 5h 13% · 7d 57%");
         await fire(pi, "after_provider_response", { status: 200, headers: FIVE_HOUR_ONLY }, ctx);
-        expect(ui.setStatus).toHaveBeenLastCalledWith(STATUS_KEY, "Claude 5h 20%");
+        expect(ui.setStatus).toHaveBeenLastCalledWith(STATUS_KEY, "Claude 5h 20% · 7d 57%");
+    });
+
+    it("restores the footer from a pre-existing snapshot on session start", async () => {
+        fs.mkdirSync(path.dirname(snapshotFile), { recursive: true });
+        fs.writeFileSync(
+            snapshotFile,
+            JSON.stringify({
+                schema: 1,
+                updatedAt: BEFORE_RESET - 1000,
+                fiveHour: 42,
+                sevenDay: 86,
+                fiveHourResetAt: 1793824200000,
+                sevenDayResetAt: 1794117600000,
+            }),
+        );
+        const { pi, ui, ctx } = setup();
+        await fire(pi, "session_start", {}, ctx);
+        expect(ui.setStatus).toHaveBeenLastCalledWith(STATUS_KEY, "Claude 5h 42% · 7d 86%");
+    });
+
+    it("drops a snapshot window whose reset time has passed on session start", async () => {
+        fs.mkdirSync(path.dirname(snapshotFile), { recursive: true });
+        fs.writeFileSync(
+            snapshotFile,
+            JSON.stringify({
+                schema: 1,
+                updatedAt: BEFORE_RESET - 1000,
+                fiveHour: 42,
+                sevenDay: 86,
+                fiveHourResetAt: BEFORE_RESET - 500, // expired
+                sevenDayResetAt: 1794117600000,
+            }),
+        );
+        const { pi, ui, ctx } = setup();
+        await fire(pi, "session_start", {}, ctx);
+        expect(ui.setStatus).toHaveBeenLastCalledWith(STATUS_KEY, "Claude 7d 86%");
+    });
+
+    it("starts with an empty footer when no snapshot exists", async () => {
+        const { pi, ui, ctx } = setup();
+        await fire(pi, "session_start", {}, ctx);
+        expect(ui.setStatus).toHaveBeenLastCalledWith(STATUS_KEY, undefined);
     });
 
     it("drops a remembered window from the footer and snapshot once its reset time has passed", async () => {
@@ -230,12 +272,12 @@ describe("claude-usage extension", () => {
         expect(readSnapshot()).toMatchObject({ fiveHour: null, sevenDay: 60 });
     });
 
-    it("forgets remembered windows on session start in print mode too", async () => {
+    it("restores remembered windows on session start in print mode too", async () => {
         const { pi, ctx } = setup("print");
         await fire(pi, "after_provider_response", { status: 200, headers: CAPTURED_HEADERS }, ctx);
         await fire(pi, "session_start", {}, ctx);
         await fire(pi, "after_provider_response", { status: 200, headers: FIVE_HOUR_ONLY }, ctx);
-        expect(readSnapshot()).toMatchObject({ fiveHour: 20, sevenDay: null });
+        expect(readSnapshot()).toMatchObject({ fiveHour: 20, sevenDay: 57 });
     });
 
     it("clears the footer when switching to another provider", async () => {
@@ -247,6 +289,12 @@ describe("claude-usage extension", () => {
     it("leaves the footer alone when switching to a claude-bridge model", async () => {
         const { pi, ui, ctx } = setup();
         await fire(pi, "model_select", { model: { provider: "claude-bridge", id: "claude-opus-5-5" } }, ctx);
+        expect(ui.setStatus).not.toHaveBeenCalled();
+    });
+
+    it("leaves the footer alone when switching to a native anthropic model", async () => {
+        const { pi, ui, ctx } = setup();
+        await fire(pi, "model_select", { model: { provider: "anthropic", id: "claude-fable-5-2" } }, ctx);
         expect(ui.setStatus).not.toHaveBeenCalled();
     });
 });

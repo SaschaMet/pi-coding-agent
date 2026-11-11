@@ -50,9 +50,9 @@ Default: models from **Model roles** in `SYSTEM.md`, unless the repo assigns oth
 
 | Agent | Model |
 | --- | --- |
-| Reviewer | `model: "claude-bridge/claude-opus-5-5"`, `thinking: "medium"`. |
-| Security verification | `model: "claude-bridge/claude-opus-5-5"`, `thinking: "medium"`. Never a cheaper model. |
-| Graphify digest | `model: "claude-bridge/claude-haiku-5-5"`, `thinking: "low"` — pure summarization of build output. |
+| Reviewer | `model: "anthropic/claude-opus-5-5"`, `thinking: "medium"`. |
+| Security verification | `model: "anthropic/claude-opus-5-5"`, `thinking: "medium"`. Never a cheaper model. |
+| Graphify digest | `model: "anthropic/claude-haiku-5-5"`, `thinking: "low"` — pure summarization of build output. |
 
 Fail-safe: if a spawn is rejected for an unknown model, retry once with `model: "iqRouter/grunt"`, `thinking: "high"`,
 tell the user, and add a scope note that the review ran on grunt. Never skip a pass because a model was unavailable.

@@ -100,7 +100,7 @@ Rules:
 }
 ```
 
-- Boot Claude models with thinking `medium`, not `high`. Example: `pi --model claude-bridge/claude-opus-5-5:medium`. The synced settings already set `medium` for the bridge models.
+- Boot Claude models with thinking `medium`, not `high`. Example: `pi --model anthropic/claude-opus-5-5:medium`. The synced settings already set `medium` for the Claude models.
 
 ### 6. Install the PI packages
 
@@ -116,7 +116,6 @@ pi install npm:@juicesharp/rpiv-todo
 pi install npm:pi-lens
 pi install npm:pi-cache-optimizer
 pi install npm:pi-insomnia
-pi install npm:pi-claude-bridge
 ```
 
 What they do:
@@ -132,7 +131,6 @@ What they do:
 | `pi-lens` | Code intelligence |
 | `pi-cache-optimizer` | Prompt-cache tuning |
 | `pi-insomnia` | Keeps the machine awake during runs |
-| `pi-claude-bridge` | Use Claude models through Claude Code (step 9) |
 
 ### 7. Start Headroom and the PII analyzer
 
@@ -148,7 +146,7 @@ Check: `curl -fsS http://127.0.0.1:8788/health`.
 - Stop it: `npm run headroom:down`.
 - The container mounts `~/.claude/projects` and `~/.pi/agent/sessions` read-only.
 
-The PII analyzer is a local Presidio container (English + German) on `127.0.0.1:5002`. The `pii-redaction` package (`.pi/local-packages/pii-redaction.ts`) uses it to replace emails, phone numbers, IBANs, card numbers, and names with tags like `<pii:EMAIL_ADDRESS:…>` before any model sees them, Claude through `claude-bridge` included. Local tools (`bash`, `read`, `edit`, `write`, `grep`, `find`, `ls`) get the real values back, so logins still work.
+The PII analyzer is a local Presidio container (English + German) on `127.0.0.1:5002`. The `pii-redaction` package (`.pi/local-packages/pii-redaction.ts`) uses it to replace emails, phone numbers, IBANs, card numbers, and names with tags like `<pii:EMAIL_ADDRESS:…>` before any model sees them. Local tools (`bash`, `read`, `edit`, `write`, `grep`, `find`, `ls`) get the real values back, so logins still work.
 
 ```bash
 npm run presidio:up   # first run builds the image (~1.5 GB)
@@ -167,13 +165,12 @@ Set up MCP servers through the `pi-mcp-adapter` extension. No MCP config is stor
 
 ### 9. Claude models (optional)
 
-Use Claude models inside PI through Claude Code:
+Use Claude models inside PI through the native Anthropic provider (subscription OAuth):
 
-1. Install Claude Code and log in: `claude` (follow the login prompt).
-2. Install the bridge: `pi install npm:pi-claude-bridge` (already in step 6).
-3. Start `pi`, run `/model`, and pick a `claude-bridge/...` model.
+1. Start `pi` and run `/login` (Anthropic). Follow the OAuth prompt.
+2. Run `/model` and pick an `anthropic/...` model.
 
-Optional config: `~/.pi/agent/claude-bridge.json`. Docs: <https://www.npmjs.com/package/pi-claude-bridge>.
+The token is stored in `~/.pi/agent/auth.json`. The `claude-usage` extension reads the plan-usage response headers and shows 5h/7d utilization in the footer.
 
 ### 10. Shell setup
 
@@ -394,5 +391,4 @@ pisync() {
 - PI: <https://pi.dev/docs/latest> and <https://github.com/earendil-works/pi>
 - Package docs (after `npm install`): [Providers & Models](node_modules/@earendil-works/pi-coding-agent/docs/providers.md), [Settings](node_modules/@earendil-works/pi-coding-agent/docs/settings.md), [Skills](node_modules/@earendil-works/pi-coding-agent/docs/skills.md), [Extensions](node_modules/@earendil-works/pi-coding-agent/docs/extensions.md), [Sessions](node_modules/@earendil-works/pi-coding-agent/docs/sessions.md), [Keybindings](node_modules/@earendil-works/pi-coding-agent/docs/keybindings.md), [Terminal Setup](node_modules/@earendil-works/pi-coding-agent/docs/terminal-setup.md)
 - Subagents: <https://github.com/tintinweb/pi-subagents>
-- Claude bridge: <https://www.npmjs.com/package/pi-claude-bridge>
 - Implementation checklist: [`docs/reference/implementation-workflow.md`](docs/reference/implementation-workflow.md)

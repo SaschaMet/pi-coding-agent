@@ -247,7 +247,7 @@ describe("cmux-orchestration skill", () => {
     it("boots workers on their role model from Model roles", () => {
         const { text } = readSkill();
         expect(text).toContain("**Model roles**");
-        expect(text).toContain('WORKER_MODEL="claude-bridge/claude-sonnet-5-5:medium"');
+        expect(text).toContain('WORKER_MODEL="anthropic/claude-sonnet-5-5:medium"');
         expect(text).not.toContain("orchestrator's own model");
     });
 });

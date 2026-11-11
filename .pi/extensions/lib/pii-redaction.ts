@@ -3,8 +3,8 @@
  * key file, and PI wiring live in the pii-redaction package.
  *
  * A tag is `<pii:TYPE:` + 12 hex of HMAC-SHA256(key, value) + `>`. The same value
- * always gets the same tag, so resumed sessions and count-based history reuse
- * in claude-bridge keep seeing identical text.
+ * always gets the same tag, so resumed sessions and provider prompt caches
+ * keep seeing identical text.
  */
 import { createHmac } from "node:crypto";
 

@@ -56,7 +56,7 @@ describe("subagent delegation policy extension", () => {
         expect(policy).toContain("Retrieve background results with `get_subagent_result`");
         expect(policy).toContain("Subagent models follow the **Model roles**");
         expect(policy).toContain(
-            "Research and look-up subagents: `claude-bridge/claude-haiku-5-5`",
+            "Research and look-up subagents: `anthropic/claude-haiku-5-5`",
         );
         expect(policy).toContain(".pi/SYSTEM.md");
         expect(policy).toContain("fall back to `iqRouter/grunt`");
