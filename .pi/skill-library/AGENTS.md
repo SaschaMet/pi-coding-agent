@@ -55,6 +55,7 @@ its rules — that discipline is what keeps two skills from contradicting each o
 | The resumable conversion journey — diagnose, rank, ship as experiments | `improve-website` |
 | Evidence, sample size, no-peeking, ICE, the 10x screen | `cro-methodology` |
 | Persuasion principles **and the ethics/regulatory layer** | `influence-psychology` |
+| Motive-based copy audits after Niggehoff (buyer motive, comparability, hook) | `sales-psychology-audit` |
 | Comprehension, memory, the Curse of Knowledge | `made-to-stick` |
 | Page order, the protagonist, the wireframe, email sequences | `storybrand-messaging` |
 | Interview hygiene, the commitment ladder | `mom-test` |
@@ -94,6 +95,7 @@ Note for updates: the repo also has a `plugins/` directory. It is generated buil
 | `influence-psychology`     | Cialdini's seven principles of ethical persuasion applied to copy, product, and sales, with explicit ethical limits.                              |
 | `steve-jobs-design-review` | Brutal end-to-end design review: ruthless simplicity, focus, saying no, binary verdicts.                                                          |
 | `microinteractions`        | Triggers, rules, feedback, loops, and modes — the small details of interaction design.                                                            |
+| `sales-psychology-audit`   | Audit a site's copy against Matthias Niggehoff's sales psychology: buyer motive (Motivkompass), 8 scored lenses with quotes, ranked before/after recommendations. Written locally 2026-11-07, not part of the wondelai copy; standalone, no `improve-website` phase. |
 | `top-design`               | Awwwards-level immersive web experiences: scroll animation, cinematic storytelling, premium component architecture. **Also the "expensive / premium / agency" overlay** for a `taste-skill` run, absorbed from the retired `soft-skill`. |
 
 #### Orchestration map for `improve-website`
@@ -256,6 +258,8 @@ Human setup, once per machine, in a normal terminal:
 2. Add `. "$HOME/.pi/agent/skill-library/impeccable/local/offline.sh"` to `~/.zshrc` and open a new terminal.
 
 Without step 2 the skill refuses to run its launcher and reads `PRODUCT.md` / `DESIGN.md` directly instead.
+
+**Local quality layer (2026-11-08).** `local/premium-proportion.md` (phi as one proportion system for type, space, columns and media; halo-effect hero; layout for the decision) and `local/measure-proportions.mjs` (Playwright, localhost only, reports column ratios against phi, flags 50/50 splits, empty text halves and a primary action below the fold). `local/RULES.md` rule 15 routes Persuade and "premium" work to both. Both live in `local/`, so an upstream re-copy keeps them.
 
 ### Animation
 
