@@ -65,7 +65,7 @@ Write the extracted text to `$TMPDIR` if a subagent needs it.
 
 - **Never invent numbers, clients, testimonials, or market prices.** Write `[Platzhalter: Anzahl Kundinnen]` in the after-copy and list each placeholder as a human to-do.
 - **Placeholders already on the page** (`[Datum]`, `[Betrag]`) mean the draft is unfinished. List them only under "Draft gaps". Leave them out of every score and every recommendation; score the copy that exists.
-- **Urgency and scarcity are not default fixes.** They repel green and blue buyers. Recommend them only for red or yellow, and only with real limits. Ethics and regulation (UWG; HWG for health offers) belong to influence-psychology; name it when a fix needs that check.
+- **Urgency and scarcity are not default fixes.** They repel green and blue buyers. Recommend them only for red or yellow, and only with real limits. Ethics belong to influence-psychology; name it when a fix needs that check. German advertising law (UWG; HWG for health offers) is covered by no skill here: flag the claim for a legal check.
 - **Do not call the audit "Neuroprofiling".** The method is proprietary. Call it "motive-based audit after Niggehoff's published principles".
 - **Color advice is a hypothesis.** Mark it so and pair it with a test.
 - **Copy his principles, not his site.** His homepage uses superlatives and a 40-testimonial wall. Do not recommend those; see the last section of the knowledge base.

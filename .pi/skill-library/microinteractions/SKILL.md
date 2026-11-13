@@ -129,7 +129,7 @@ See: [references/loops-modes.md](references/loops-modes.md) for long loops, mode
 
 **Core concept:** A signature moment is a microinteraction so distinctive it becomes part of the product's identity -- the Facebook Like, slide-to-unlock, Slack's loading messages. Every product should have one or two; not every interaction should be one.
 
-**Scope note:** `top-design` owns the signature moment at *page* scale -- "design the signature moment first, not the header; what will people screenshot" -- as a composition decision for marketing and portfolio sites. This section owns it at *control* scale: how a single interaction becomes identity-bearing through its trigger, rules, and feedback. If the question is "what is the one thing people will remember about this page", that is `top-design`. If it is "how do I build this one control so it feels like ours", it is here.
+**Scope note:** This section owns the signature moment at *control* scale: how a single interaction becomes identity-bearing through its trigger, rules, and feedback. The *page*-scale question, "what is the one thing people will remember about this page", is a composition decision for marketing and portfolio sites and belongs to `impeccable`. If the question is "how do I build this one control so it feels like ours", it is here.
 
 **Why it works:** Signature moments create emotional memory and make products feel crafted rather than assembled. They are what users demonstrate first when describing your product to others.
 

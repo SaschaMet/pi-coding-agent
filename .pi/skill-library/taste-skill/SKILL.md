@@ -8,6 +8,12 @@ description: Anti-slop frontend skill for landing pages, portfolios, and redesig
 > Landing pages, portfolios, and redesigns. Not dashboards, not data tables, not multi-step product UI.
 > Every rule below is **contextual**. None of it fires automatically. First read the brief, then pull only what fits.
 
+> **LOCAL ADDITION (this library):**
+> - Complete output: write every file in full. No `// ...`, no "rest stays the same", no skeleton in place of an implementation.
+> - When the user names a look, read exactly one preset before section 1, never two in one run:
+>   - minimal, editorial, document-style → [local/preset-minimalist.md](local/preset-minimalist.md)
+>   - expensive, premium, luxury, Apple-like → [local/preset-premium.md](local/preset-premium.md)
+
 ---
 
 ## 0. BRIEF INFERENCE (Read the Room Before Anything Else)

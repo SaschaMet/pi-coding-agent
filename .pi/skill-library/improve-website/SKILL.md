@@ -1,6 +1,6 @@
 ---
 name: improve-website
-description: 'Guided journey from a live website that underperforms to a prioritized, evidence-backed backlog of conversion, usability, message, and speed fixes - each shipped as a testable experiment. Orchestrates eight skills phase by phase - cro-methodology, ux-heuristics, refactoring-ui, web-typography, storybrand-messaging, high-perf-browser, made-to-stick, and ux-heuristics'' Norman references - asking the user questions at every decision point and recording results in the project docs/ folder so the journey resumes across sessions. Use when the user wants to know WHY a page underperforms: it isn''t converting, visitors leave, or ''the homepage feels off but a redesign didn''t help''. If they instead want the visual fixed now - ''looks generic'' (impeccable), ''make it expensive'' (top-design), ''build this screenshot'' (image-to-code-skill) - that is not this. For one framework in isolation, invoke that skill directly.'
+description: 'Guided journey from a live website that underperforms to a prioritized, evidence-backed backlog of conversion, usability, message, and speed fixes - each shipped as a testable experiment. Orchestrates eight skills phase by phase - cro-methodology, ux-heuristics, refactoring-ui, web-typography, storybrand-messaging, high-perf-browser, made-to-stick, and ux-heuristics'' Norman references - asking the user questions at every decision point and recording results in the project docs/ folder so the journey resumes across sessions. Use when the user wants to know WHY a page underperforms: it isn''t converting, visitors leave, or ''the homepage feels off but a redesign didn''t help''. If they instead want the visual fixed now - ''looks generic'' or ''make it expensive'' (impeccable), ''build this screenshot'' (image-to-code-skill) - that is not this. For one framework in isolation, invoke that skill directly.'
 license: MIT
 metadata:
   author: wondelai
@@ -41,7 +41,7 @@ constituent skills carry the method — invoke them rather than improvising thei
 1. **Resume first.** Before anything else, read `docs/IMPROVE-WEBSITE-PLAN.md` and every artifact in the Journey Map. If the tracker exists, summarize the journey state in 3-5 lines and ask which phase to enter. Done when the user has confirmed an entry point. A journey with a tracker is resumed, never restarted.
 2. **Intake on first run only.** No tracker: run the Intake below, then create `docs/IMPROVE-WEBSITE-PLAN.md` with every phase statused `pending | in-progress | awaiting-evidence | done | deferred: reason | skipped: reason`. Done when the tracker exists and the user has confirmed the phase plan.
 3. **Phase entry.** Announce: what the phase does, the decision it forces, the artifact it produces, rough effort. Offer proceed / skip / defer — phases marked GATE may be deferred, never skipped. Mark the phase `in-progress` on proceed. Done when the user chose.
-4. **Skill invocation and fallback.** Load the phase's skill and use it: each phase's Invoke line names the skill by slug — use that skill to run the phase. If it is not available, offer: `npx skills add wondelai/skills/<slug> --global`. If the user declines, run the phase from its Brief — the minimum viable method. State which mode you are in.
+4. **Skill invocation and fallback.** Load the phase's skill and use it: each phase's Invoke line names the skill by slug — use that skill to run the phase. If it is not available, say which skill is missing and run the phase from its Brief — the minimum viable method. Never install a skill. State which mode you are in.
 5. **In-phase decisions.** Ask every question under "Decide with the user" — with concrete options and your recommendation. Record the choice in the tracker's Key Decisions. A decision made silently is a defect.
 6. **Phase exit.** Present the draft artifact content for sign-off before writing. On approval: write or extend the docs/ files, update the tracker (status, Key Decisions, Next Actions). Done when the files are written and the phase row shows `done`.
 7. **Artifact discipline.** Read before writing; create a file only if missing, otherwise extend — add or update your sections, preserve everyone else's. Files are UPPERCASE in `docs/`. Every recommendation lands as a checkbox or a table row with owner and priority. See [references/artifact-templates.md](references/artifact-templates.md) when creating a docs/ file for the first time — create it from the full skeleton (all section headings), then fill the sections your phase names.
@@ -49,7 +49,7 @@ constituent skills carry the method — invoke them rather than improvising thei
    convert* and produces evidence-backed documents; `impeccable` answers *what it should look like*
    and produces code. Route by what the user is asking for:
    - "Traffic but nobody signs up", "why do they leave", "audit for clarity" → **here**. Phase 1 is the gate.
-   - "It looks generic / cheap / dated" → **`impeccable`**; "make it look expensive" → **`top-design`**; "build this from a screenshot" → **`image-to-code-skill`**. Directly. Do not open a CRO journey for a visual request; the user did not ask for a backlog.
+   - "It looks generic / cheap / dated" or "make it look expensive" → **`impeccable`**; "build this from a screenshot" → **`image-to-code-skill`**. Directly. Do not open a CRO journey for a visual request; the user did not ask for a backlog.
    - Both, in order: run this journey, then hand the ranked visual findings to `impeccable` to implement. That is the chain, and it only runs in that direction.
 
    A visual request routed here produces a tracker and seven phases the user never wanted. A
@@ -244,8 +244,9 @@ do this?") with clear signifiers (pressable buttons, editable fields) and constr
 free text, Submit disabled until valid); Evaluation ("what happened?") with feedback within 0.1s. Fix
 slips with undo and separated destructive actions; error messages say what went wrong and how to fix, no blame.
 
-**Invoke:** Use the `ux-heuristics` skill and read its `references/norman-*.md` files - the affordance and
-signifier taxonomy, the two gulfs, the Seven Stages walkthrough, and `norman-human-error.md` - with the
+**Invoke:** Use the `ux-heuristics` skill and read exactly these five of its references:
+`norman-signifiers.md`, `norman-constraints.md`, `norman-feedback.md`, `norman-two-gulfs.md`,
+`norman-human-error.md` - with the
 conversion-critical flows (signup, checkout, account
 setup). Ask for weak signifiers, where constraints make errors impossible, feedback gaps, and message rewrites.
 
@@ -264,8 +265,6 @@ the checklist, and destructive actions offer undo.
 |---|---|---|
 | influence-psychology | objection points need ethical persuasion assets (social proof, authority, real scarcity) | Extends docs/WEBSITE.md `## Conversion Elements` |
 | microinteractions | interactions feel dead or unresponsive | Extends docs/DESIGN.md `## Microinteraction Inventory` |
-| top-design | the redesign warrants a signature moment, not just fixes | Extends docs/DESIGN.md `## Design Direction` |
-| steve-jobs-design-review | before relaunch, for a brutal end-to-end verdict | Extends docs/WEBSITE.md `## Audit Findings` |
 
 Optional phases follow the same operating rules — load and use each listed skill exactly as a core phase would; insert where the Add-when condition first becomes true.
 
@@ -292,6 +291,3 @@ Exit checklist:
 Close the loop by re-invoking `cro-methodology` to design the bold tests for the high-ICE backlog: size
 the sample up front, run one full business cycle, require 95% confidence, never peek early — then promote
 them from `## Experiment Backlog` to `## Experiment Cards`, and close the tracker with Next Actions carried into the artifacts.
-
-Forward routing: when the site converts and needs more qualified traffic, continue with the `grow-website` skill.
-When the friction lives in the product, not the marketing site, continue with the `improve-app` skill.

@@ -182,11 +182,11 @@ Focus on recordings from:
 
 ## Customer Interviews
 
-Interviewing is owned by two other skills, and doing it badly produces research that is worse than
-none — it produces confident wrong answers that then aim every experiment.
+Interviewing done badly produces research that is worse than none — it produces confident wrong
+answers that then aim every experiment. Two rules, from *The Mom Test* and Jobs-to-be-Done research:
 
-- **How to interview without contaminating the answer** — `mom-test`: talk about their life not your idea, ask about specifics in the past, never about hypotheticals or feature wishes, and treat compliments as data loss. It also carries the commitment ladder (time, reputation, money) for telling real interest from politeness.
-- **What to ask a recent buyer** — `jobs-to-be-done`: the purchase timeline, the four forces that pushed and pulled them, what they switched away from, and what they nearly bought instead.
+- **How to interview without contaminating the answer**: talk about their life not your idea, ask about specifics in the past, never about hypotheticals or feature wishes, and treat compliments as data loss. Use the commitment ladder (time, reputation, money) to tell real interest from politeness.
+- **What to ask a recent buyer**: the purchase timeline, the four forces that pushed and pulled them, what they switched away from, and what they nearly bought instead.
 
 **Who to interview**, which is the CRO-specific part: recent buyers (why they bought), recent
 non-buyers (why they didn't), long-term customers (what keeps them), churned customers (why they

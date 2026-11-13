@@ -79,10 +79,10 @@ gave you.
 
 ## 0.A SHARED FAMILY RULES (LOCAL ADDITION)
 
-These eight rules are **family-wide**: they hold whether this skill or `taste-skill` drives the run.
+These nine rules are **family-wide**: they hold whether this skill or `taste-skill` drives the run.
 They are restated here rather than cross-referenced because a run loads exactly one workflow
 skill — never both — so a pointer would aim at a file that is not in context. This is the
-family's only written copy of these rules.
+family's only consolidated list; `taste-skill` states the same rules inside its own sections.
 
 1. **No em-dash or en-dash in user-visible output.** Not "limited use" — zero. A single `—` or `–` fails the check. Restructure the sentence or use a colon.
 2. **Fonts:** `Inter` is discouraged as a default; `Fraunces` and `Instrument Serif` are banned as display defaults; reaching for a serif because the brief says "editorial" or "premium" is the most-tested AI tell there is. Prefer `Geist`, `Outfit`, `Cabinet Grotesk`, `Satoshi`.
@@ -92,6 +92,7 @@ family's only written copy of these rules.
 6. **Eyebrow labels: at most one per three sections.** Count `uppercase tracking` instances; more than `ceil(sections / 3)` is a failure.
 7. **No div-based fake screenshots** — never simulate a product UI out of styled `<div>` rectangles (fake dashboards, task lists, terminals). Use a real image, or a labeled placeholder slot.
 8. **Dark mode is designed in both modes** for any consumer-facing page, and any motion above a light touch honors `prefers-reduced-motion`.
+9. **Complete output:** write every file in full. No `// ...`, no "rest stays the same", no skeleton in place of an implementation.
 
 Also family-wide and already stated below: no pure `#000000` or `#ffffff`, no AI-purple/blue gradient
 default, transform-and-opacity-only animation, `IntersectionObserver` over scroll listeners, WCAG AA.
@@ -107,7 +108,7 @@ point you present the work: "matching the source, this keeps a 3-line hero and a
 shadow — both against the family default." Under **Adapt** and **Borrow direction**, the family rules
 win and the image loses on exactly these points.
 
-Rules 1, 3, 7, and 8 have no carve-out. An em-dash extracted from a screenshot still does not ship; a
+Rules 1, 3, 7, 8, and 9 have no carve-out. An em-dash extracted from a screenshot still does not ship; a
 hand-rolled icon set still is not built; a fake screenshot is still not div art; a light-only page is
 still incomplete.
 
