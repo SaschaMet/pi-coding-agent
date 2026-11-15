@@ -60,6 +60,7 @@ function createFakePi(): ExtensionAPI {
             stderr: "",
             code: 0,
             killed: false,
+            truncated: false,
         })) as ExtensionAPI["exec"],
         getActiveTools: (() =>
             tools.map((tool) => tool.name)) as ExtensionAPI["getActiveTools"],

@@ -73,7 +73,9 @@ This layout applies to specs created from now on. A spec that still has `## In P
 5. **Invariants and Contracts**: org/domain rules that always apply, plus an optional `CARDS` line per point when it adds a constraint.
 6. **Architecture Impact & Data Flow Changes**: changed flows table, and blast radius with the dependency table; the before/after diagrams sit in Changes at a Glance. Required for Medium+ specs. Omit for Small.
 7. **Manual Verification Checklist**: what a human checks; automated checks live in the steps.
-8. **Risks, One-Way Doors, Rollback**: failure modes and recovery.
+8. **Risks, One-Way Doors, Rollback**: failure modes and recovery. If the change adds state that persists
+   across events or runs, include a state table: states, the event for each transition, the reset event,
+   and what happens when an expected event never arrives.
 9. **Definition of Done**: traceability from intent -> criteria -> verification.
 10. **Open Questions / Deferred Decisions**: unresolved decisions separated from requirements.
 11. **Handoff**: implementation, verification, and escalation notes.

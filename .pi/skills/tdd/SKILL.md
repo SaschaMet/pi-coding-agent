@@ -85,6 +85,10 @@ Done when every acceptance criterion in the spec or plan has a passing test.
 
 - Test behavior through the public surface, not internals or private state.
 - For guards and checks, test both paths: the blocked action is blocked, the allowed action is allowed.
+- For event-driven state (a flag set in one handler and cleared in another), add a sequence test where the
+  clearing event never arrives, if the framework allows that path (check its docs first): open event, then
+  the next lifecycle event, then the gated event. For parsers, add
+  input that ends mid-state (unclosed quote, fence, block).
 - Keep tests deterministic: no network, no real clock, no dependence on the user's home directory. Clean up temp files.
 - Name tests after the behavior. Do not copy spec or plan IDs into test names or comments.
 - Reuse the project's existing test helpers and patterns before writing new ones.

@@ -137,6 +137,13 @@ migration path; test adequacy for changed behavior.
   files. A doc counts only when it names the changed symbol, key, or flag.
 - Check boundary values, invalid inputs, null/empty states, error paths, concurrency-sensitive paths, and
   integration/API contract compatibility when touched.
+- **State check** — when the diff adds or changes mutable state that gates behavior (a closure or module
+  `let`, a status/mode field, a one-shot latch, a counter with a threshold, a persisted state entry), list
+  its states and the events that change them. Then check: (1) the clearing event is one the framework
+  guarantees (cite its docs), and state kept outside the owning instance (global, module scope, disk) is
+  reset or deliberately shared;
+  (2) a status field has an allowed-transitions table, not just an allowed-values list; (3) a parser
+  handles the state it is in at end of input. A gap is a `qa` finding; quote the set and the missing reset.
 - **Stored-data check** — when the diff adds a field to stored data or config without a migration, trace
   what records saved before the change hold on every path that reads or writes them, including framework
   inheritance or override fallbacks. Code that assumes the field's default (for example writes into

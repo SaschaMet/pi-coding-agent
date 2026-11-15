@@ -15,7 +15,7 @@
  * pi's own terminal title ("π - <name> - <folder>") is too long for the
  * sidebar, and an explicit cmux rename overrides it.
  */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { isInsideCmux, isShadowedProjectCopy } from "./lib/extension-helpers.ts";
 

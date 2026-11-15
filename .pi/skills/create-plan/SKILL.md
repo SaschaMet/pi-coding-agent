@@ -50,7 +50,9 @@ This layout applies to plans created from now on. A plan that still has `## In P
 3. **Changes**: checklist of file-level changes.
 4. **Tests**: what to add or run.
 5. **Verification**: automated + manual steps.
-6. **Risks & Rollback**: failure modes and recovery.
+6. **Risks & Rollback**: failure modes and recovery. If the change adds state that persists across events
+   or runs, include a state table: states, the event for each transition, the reset event, and what
+   happens when an expected event never arrives.
 7. **Done When**: traceability checklist.
 
 Then **Amendments** and **AI-Notes**, last, with the template's rules blockquotes. Changes carry status markers (`[ ]`, `[wip]`, `[x]`, `[f]`).

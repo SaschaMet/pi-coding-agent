@@ -33,6 +33,10 @@ PI extensions that enforce quality and safety at the tool layer: session-end qua
 
 - Fail-Safe Defaults: a guard must fail to the most restrictive state. Uncertain → block, never allow.
 - Guards hook tool-call events (`ToolCallEvent` / `ToolResultEvent`) and message-end; keep handlers idempotent and side-effect-free beyond the guard decision.
+- Keep per-session state inside the extension factory: Pi loads a fresh extension instance for every
+  session. State on `globalThis`, at module scope, or on disk survives a session switch; reset it on
+  `session_start` or say in a comment why it is shared. Use `agent_settled`, not `agent_end`, as the
+  end-of-run signal (`agent_end` can be followed by a retry).
 - Do not bypass a guard in code or tests. The guards are the contract — they are pinned by `test/gates.test.ts`, `test/read-boundary-guard.test.ts`, `test/write-boundary-guard.test.ts`, `test/spec-scope.test.ts`, `test/trust-loader.test.ts`, `test/subagent-delegation-policy.test.ts`, `test/security-guard.test.ts`, `test/security-parity.test.ts`, `test/sandbox-bash.test.ts`, `test/sandbox-bash.integration.test.ts`, `test/tool-guards.test.ts`, `test/degenerate-output.test.ts`.
 - Security rules live only in `.pi/security/policy.ts`. `security-guard.ts` maps events and holds no rule logic.
 - Shared logic lives in `lib/`; do not duplicate path/trust/gate helpers across extension files.
