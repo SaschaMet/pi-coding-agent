@@ -285,21 +285,18 @@ describe("package-patches extension", () => {
         expect(pi.sentMessages).toHaveLength(0);
     });
 
-    it("sends the agent a nextTurn message on conflict", async () => {
+    it("warns the user on conflict without messaging the agent", async () => {
         writePkg("one\nsomething else\nthree\n");
         const { pi, ui } = await start();
-        expect(pi.sentMessages).toHaveLength(1);
-        expect(pi.sentMessages[0].options).toEqual({ deliverAs: "nextTurn" });
-        expect(pi.sentMessages[0].message.content).toContain("package-patches skill");
-        expect(ui.notify).toHaveBeenCalled();
+        expect(pi.sentMessages).toHaveLength(0);
+        expect(ui.notify).toHaveBeenCalledWith(expect.stringContaining("package-patches skill"), "warning");
     });
 
-    it("sends a review message when the package version changed", async () => {
+    it("warns about review when the package version changed", async () => {
         writePkg("one\nTWO\nthree\n", "1.1.0");
-        const { pi } = await start();
-        expect(pi.sentMessages).toHaveLength(1);
-        expect(pi.sentMessages[0].message.content).toContain("1.0.0");
-        expect(pi.sentMessages[0].message.content).toContain("1.1.0");
+        const { pi, ui } = await start();
+        expect(pi.sentMessages).toHaveLength(0);
+        expect(ui.notify).toHaveBeenCalledWith(expect.stringMatching(/1\.0\.0[\s\S]*1\.1\.0/), "warning");
     });
 
     it("turns an internal error into a warning instead of throwing", async () => {

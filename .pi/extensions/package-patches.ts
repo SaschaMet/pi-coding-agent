@@ -4,8 +4,8 @@
  * Re-applies local patches to installed packages that an update may have
  * wiped. A patch that still fits is applied at session start. A conflict,
  * or a package version newer than the one the patch was reviewed against,
- * goes to the agent as a next-turn message so it can run the
- * package-patches skill. Never throws: a failed check must not block startup.
+ * shows the user a warning only; it stays out of the message history so it
+ * costs no tokens. Never throws: a failed check must not block startup.
  */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { isShadowedProjectCopy } from "./lib/extension-helpers.ts";
@@ -18,9 +18,7 @@ import {
 } from "./lib/package-patches.ts";
 
 const PACKAGE_PATCHES_REGISTERED = Symbol.for("pi.extensions.package-patches.registered");
-const MESSAGE_TYPE = "package-patches";
-
-function run(pi: ExtensionAPI, ctx: ExtensionContext): void {
+function run(ctx: ExtensionContext): void {
     const agentDir = getAgentDir();
     let patched = 0;
     const attention: string[] = [];
@@ -40,7 +38,6 @@ function run(pi: ExtensionAPI, ctx: ExtensionContext): void {
     }
     if (attention.length > 0) {
         const content = `Package patch needs review. Run the package-patches skill.\n${attention.join("\n")}`;
-        pi.sendMessage({ customType: MESSAGE_TYPE, display: true, content }, { deliverAs: "nextTurn" });
         ctx.ui.notify(content, "warning");
     }
 }
@@ -55,7 +52,7 @@ export default function packagePatches(pi: ExtensionAPI): void {
         if (ctx.mode !== "tui") return;
         setImmediate(() => {
             try {
-                run(pi, ctx);
+                run(ctx);
             } catch (error) {
                 ctx.ui.notify(`package-patches failed: ${String(error)}`, "warning");
             }
