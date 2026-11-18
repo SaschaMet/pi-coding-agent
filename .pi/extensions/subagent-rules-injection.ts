@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { getAgentDir, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { isShadowedProjectCopy } from "./lib/extension-helpers.ts";
 
 const SUBAGENT_RULES_REGISTERED = Symbol.for("pi.extensions.subagent-rules-injection.registered");
@@ -10,11 +10,17 @@ const SUBAGENT_RULES_INJECTED = Symbol.for("pi.extensions.subagent-rules-injecti
 // documents it as the hook for downstream extensions to detect child sessions.
 const SUBAGENT_TAG = '<active_agent name="';
 
-// Subagents start with noContextFiles, so replace-mode agents see neither file unless
-// it is injected; append-mode agents already carry both in the copied parent prompt.
-const INSTRUCTION_FILES = [
-    { file: join(".pi", "SYSTEM.md"), heading: "The project's durable rules (.pi/SYSTEM.md) — follow them:" },
-    { file: "AGENTS.md", heading: "The project's instructions (AGENTS.md) — follow them:" },
+// Subagents start with noContextFiles, so replace-mode agents see none of these unless
+// injected; append-mode agents carry SYSTEM.md and AGENTS.md in the copied parent prompt
+// but never SUBAGENT.md. SUBAGENT.md comes last because it overrides SYSTEM.md.
+// Candidates are tried in order; the global SUBAGENT.md covers projects without one.
+const INSTRUCTION_FILES: Array<{ paths: (base: string) => string[]; heading: string }> = [
+    { paths: (base) => [join(base, ".pi", "SYSTEM.md")], heading: "The project's durable rules (.pi/SYSTEM.md) — follow them:" },
+    { paths: (base) => [join(base, "AGENTS.md")], heading: "The project's instructions (AGENTS.md) — follow them:" },
+    {
+        paths: (base) => [join(base, ".pi", "SUBAGENT.md"), join(getAgentDir(), "SUBAGENT.md")],
+        heading: "The subagent rules (SUBAGENT.md) — they override the durable rules where they conflict; follow them:",
+    },
 ];
 
 // Fail-safe: a missing, unreadable, or empty file must never break the child
@@ -44,8 +50,8 @@ export default function subagentRulesInjection(pi: ExtensionAPI): void {
         const base = ctx?.cwd || process.cwd();
         // Append-mode subagents embed both files verbatim in the parent prompt. Matching
         // each file's own text keeps the check right however often the files are edited.
-        const sections = INSTRUCTION_FILES.flatMap(({ file, heading }) => {
-            const text = readOptional(join(base, file));
+        const sections = INSTRUCTION_FILES.flatMap(({ paths, heading }) => {
+            const text = paths(base).map(readOptional).find((t) => t !== undefined);
             return text && !systemPrompt.includes(text) ? [`${heading}\n${text}`] : [];
         });
         if (sections.length === 0) return { action: "continue" };
