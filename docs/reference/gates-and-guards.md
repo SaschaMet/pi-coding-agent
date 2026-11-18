@@ -43,6 +43,7 @@ Checks at the end of the turn (`lib/gate-checks.ts`):
 | `files_non_empty` | A successful `write` or `edit` left an empty file. |
 | `bash_mutations_disclosed` | A path changed by `bash` is not named in the final message. The name must stand alone: `docs/r` is not named by `docs/rx/a.md`. An absolute path inside the working directory also counts when named relative to it. A directory counts when a path inside it is named. |
 | `verification_actually_ran` | The final message claims success ("tests pass", "typecheck is clean", "build succeeded") and no verification command ran this turn. |
+| `review_ran` | A plan or spec is armed, every status marker in its `Changes` or `Execution Steps` section is `[x]`, the final message claims success, and the document's folder holds no `code-review-<YYYY-MM-DD>.md`. Any such file counts, whatever its date. An unreadable document is skipped. |
 
 What counts as a verification command: `npm|pnpm|yarn|bun [run] test|typecheck|type-check|lint|build`, `vitest`, `jest`, `pytest`, `tsc`, `eslint`, `cargo test`, `go test`, `make test|check`.
 
@@ -318,7 +319,7 @@ Known gaps of the security guard:
 - PI-only guards (gates, scope guard, bash sandbox) do not exist for Claude.
 - The legacy Claude hooks were removed after a side-by-side check. Two stay, because nothing replaces them: `scan-secrets.sh` (BIP39 seed phrases in Claude prompts) and `prompt-injection-defender.sh` (injection warnings on tool output).
 - A `git push` whose branch is built at run time (`$(...)`, `$VAR`, backticks) is blocked; type the branch name.
-- Code review is not automatic: the `code-review` skill runs only when invoked.
+- Code review is not automatic: the `code-review` skill runs only when invoked. In pi, `review_ran` warns when an armed plan is finished without a review file.
 - No injection warning on tool results yet.
 - `init-project` and `add-coding-standard` check the install with `check-install.ts` but never install it; the user runs the commands. Details: [security-guard-repo-setup.md](security-guard-repo-setup.md).
 

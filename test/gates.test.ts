@@ -8,6 +8,7 @@ import {
     checkBashMutationsDisclosed,
     claimsVerification,
 } from "../.pi/extensions/lib/gate-checks.ts";
+import { SCOPE_STATE_TYPE } from "../.pi/extensions/write-boundary-guard.ts";
 import { asExtensionAPI, createFakePi } from "./helpers/fake-pi.ts";
 
 type GitScript = { isWorkTree?: boolean; status: string[] };
@@ -59,6 +60,7 @@ type RunOptions = {
     toolResults?: Array<{ toolName: string; input: Record<string, unknown>; isError?: boolean }>;
     assistantText?: string;
     aborted?: boolean;
+    ctx?: Record<string, unknown>;
 };
 
 async function runAgent(pi: ReturnType<typeof createFakePi>, options: RunOptions = {}) {
@@ -72,7 +74,7 @@ async function runAgent(pi: ReturnType<typeof createFakePi>, options: RunOptions
         });
     }
     await fire(pi, "agent_end", { messages: [] });
-    await fire(pi, "agent_settled", { aborted: options.aborted ?? false });
+    await fire(pi, "agent_settled", { aborted: options.aborted ?? false }, options.ctx);
 }
 
 function corrections(pi: ReturnType<typeof createFakePi>): string[] {
@@ -690,5 +692,115 @@ describe("gates bash-mutation checks", () => {
         });
 
         expect(corrections(pi)).toHaveLength(0);
+    });
+});
+
+describe("review_ran", () => {
+    const PLAN = "docs/plans/demo/plan-demo.md";
+    const SPEC = "docs/specs/demo/spec-demo.md";
+    const ranTests = [{ toolName: "bash", input: { command: "npm test" } }];
+
+    function armed(pi: ReturnType<typeof createFakePi>, docPath = PLAN) {
+        const entry = {
+            type: "custom",
+            customType: SCOPE_STATE_TYPE,
+            data: { scope: { specPath: docPath, modify: [], forbid: [] } },
+        };
+        return uiCtx(pi, { sessionManager: { getBranch: () => [entry] } });
+    }
+
+    // The trailing Tests section holds open boxes on purpose: only the Changes section counts.
+    function plan(...markers: string[]): string {
+        const changes = markers.map((marker, index) => `- [${marker}] Change ${index + 1}`).join("\n");
+        return `# Plan\n\n## 3. Changes\n\n${changes}\n\n## 4. Tests\n\n- [ ] T1\n`;
+    }
+
+    async function finishRun(pi: ReturnType<typeof createFakePi>, assistantText: string, ctx?: Record<string, unknown>) {
+        gatesExtension(asExtensionAPI(pi));
+        await runAgent(pi, { toolResults: ranTests, assistantText, ctx: ctx ?? armed(pi) });
+    }
+
+    function reviewWarnings(pi: ReturnType<typeof createFakePi>): string[] {
+        return corrections(pi).filter((message) => message.includes("review_ran"));
+    }
+
+    it("warns when every change is done, success is claimed, and no review file exists", async () => {
+        writeFixture(PLAN, plan("x", "x"));
+        const pi = withGit(createFakePi(), { status: ["", ""] });
+
+        await finishRun(pi, "All tests pass.");
+
+        expect(reviewWarnings(pi)).toHaveLength(1);
+        expect(reviewWarnings(pi)[0]).toContain(PLAN);
+    });
+
+    it("stays quiet once a code-review file is in the folder", async () => {
+        writeFixture(PLAN, plan("x", "x"));
+        writeFixture("docs/plans/demo/code-review-2026-11-17.md", "# Review\n");
+        const pi = withGit(createFakePi(), { status: ["", ""] });
+
+        await finishRun(pi, "All tests pass.");
+
+        expect(reviewWarnings(pi)).toHaveLength(0);
+    });
+
+    it("stays quiet while a change is still in progress", async () => {
+        writeFixture(PLAN, plan("x", "wip"));
+        const pi = withGit(createFakePi(), { status: ["", ""] });
+
+        await finishRun(pi, "All tests pass.");
+
+        expect(reviewWarnings(pi)).toHaveLength(0);
+    });
+
+    it("stays quiet without an armed document", async () => {
+        writeFixture(PLAN, plan("x", "x"));
+        const pi = withGit(createFakePi(), { status: ["", ""] });
+
+        await finishRun(pi, "All tests pass.", uiCtx(pi));
+
+        expect(reviewWarnings(pi)).toHaveLength(0);
+    });
+
+    it("stays quiet when the final message claims no success", async () => {
+        writeFixture(PLAN, plan("x", "x"));
+        const pi = withGit(createFakePi(), { status: ["", ""] });
+
+        await finishRun(pi, "Done.");
+
+        expect(reviewWarnings(pi)).toHaveLength(0);
+    });
+
+    it("stays quiet when the armed document cannot be read", async () => {
+        const pi = withGit(createFakePi(), { status: ["", ""] });
+
+        await finishRun(pi, "All tests pass.");
+
+        expect(reviewWarnings(pi)).toHaveLength(0);
+    });
+
+    it("reads a spec's Execution Steps, including nested Validate items", async () => {
+        writeFixture(
+            SPEC,
+            [
+                "# Spec",
+                "",
+                "## 4. Execution Steps",
+                "",
+                "### Step 1: add the check",
+                "- Validate:",
+                "  - [x] `npm test` — passes",
+                "",
+                "## 5. Invariants and Contracts",
+                "",
+                "- [ ] not a status marker",
+                "",
+            ].join("\n"),
+        );
+        const pi = withGit(createFakePi(), { status: ["", ""] });
+
+        await finishRun(pi, "All tests pass.", armed(pi, SPEC));
+
+        expect(reviewWarnings(pi)).toHaveLength(1);
     });
 });

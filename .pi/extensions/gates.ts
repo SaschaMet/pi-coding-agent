@@ -10,11 +10,13 @@ import {
     buildCorrection,
     checkBashMutationsDisclosed,
     checkChangesDisclosed,
+    checkReviewRan,
     checkVerificationRan,
     checkWrittenArtifacts,
     parsePorcelain,
     type RecordedToolCall,
 } from "./lib/gate-checks.ts";
+import { SCOPE_STATE_TYPE } from "./write-boundary-guard.ts";
 
 const GATES_REGISTERED = Symbol.for("pi.extensions.gates.registered");
 const GATES_STATE_TYPE = "gates-state";
@@ -184,6 +186,8 @@ export default function gatesExtension(pi: ExtensionAPI): void {
         if (!state.enabled || event.aborted) return;
 
         const current = await gitChangedPaths(pi, state, ctx.cwd);
+        const armed = readLastCustomEntry<{ scope?: { specPath?: unknown } | null }>(ctx, SCOPE_STATE_TYPE);
+        const docPath = armed?.data?.scope?.specPath;
 
         const violations = [
             ...(current === null || state.baseline === null
@@ -192,6 +196,7 @@ export default function gatesExtension(pi: ExtensionAPI): void {
             ...checkWrittenArtifacts(state.toolCalls, ctx.cwd),
             ...checkBashMutationsDisclosed(state.bashMutations, state.assistantText, ctx.cwd),
             ...checkVerificationRan(state.toolCalls, state.assistantText),
+            ...(typeof docPath === "string" ? checkReviewRan(docPath, ctx.cwd, state.assistantText) : []),
         ];
 
         if (violations.length === 0) return;
@@ -217,7 +222,7 @@ export default function gatesExtension(pi: ExtensionAPI): void {
             report(
                 [
                     `Gates are ${state.enabled ? "on" : "off"}.`,
-                    "Checks: changes_disclosed, artifacts_exist/files_non_empty, verification_actually_ran.",
+                    "Checks: changes_disclosed, artifacts_exist/files_non_empty, verification_actually_ran, review_ran.",
                     "Usage: /gates on | /gates off",
                 ].join("\n"),
             );

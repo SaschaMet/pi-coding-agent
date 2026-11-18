@@ -22,7 +22,7 @@ import { matchesAny, parseScopeSection } from "./lib/spec-scope.ts";
 const WRITE_BOUNDARY_GUARD_REGISTERED = Symbol.for(
     "pi.extensions.write-boundary-guard.registered",
 );
-const SCOPE_STATE_TYPE = "write-scope";
+export const SCOPE_STATE_TYPE = "write-scope";
 
 const GUARDED_TOOLS = new Set(["write", "edit"]);
 
