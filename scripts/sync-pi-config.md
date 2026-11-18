@@ -118,6 +118,8 @@ Merged, never overwritten. Shared keys: the source wins. Keys that exist only in
 
 Mirror semantics apply: a `push` deletes skill-library files that exist only globally, and a `pull` deletes those that exist only locally. If you maintain the library in the global dir (see its own `AGENTS.md`), run a `pull` first so the local copy is current before you `push` anything else.
 
+Exception: a `pull` keeps a local-only folder under `skill-library/` or `skills/` that holds `.skill-import.json` (written by `/skill-import`). `skill-import.json` at the top level is per-machine config (it holds an absolute repo path) and never syncs.
+
 ## Extension Directory Pruning
 
 When syncing, extension directories under `extensions/` that exist in both global and local are pruned from the local copy — **but only if the global extension is marked as managed**.

@@ -26,6 +26,7 @@ The whole point: the skills here add **zero** tokens to a session that does not 
 3. `SKILL.md` names the reference files to read for the task at hand. Read **only** those. The references are large on purpose — reading all of them defeats the point.
 4. Relative links inside a skill (`[x](references/foo.md)`) resolve against **that skill's own folder**, not against this directory and not against the project.
 5. Skills never write into this directory. Their artifacts go to the current project's `docs/` folder.
+   One exception: the `/skill-import` command (an extension, not a skill) installs audited skills here. Every new skill enters that way. Each imported folder holds a `.skill-import.json` record; a `pull` keeps it.
 
 If a named skill is not in the index below, say so — do not improvise a replacement.
 Upstream descriptions name skills that are not installed here: `one-page-marketing`, `negotiation`, `contagious`, `obviously-awesome`. Treat them the same way.
