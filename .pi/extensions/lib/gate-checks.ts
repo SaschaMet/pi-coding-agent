@@ -259,6 +259,49 @@ export function checkVerificationRan(calls: RecordedToolCall[], assistantText: s
     ];
 }
 
+/** The section that carries status markers: `## 3. Changes` (plan) or `## 4. Execution Steps` (spec). */
+const WORK_SECTION = /^##\s+\d+\.\s+(?:Changes|Execution Steps)\s*$/;
+const CHECKBOX = /^\s*[-*]\s+\[([^\]]*)\]/;
+const REVIEW_FILE = /^code-review-\d{4}-\d{2}-\d{2}\.md$/;
+
+/**
+ * True at the end of an armed plan: every status marker is `[x]` and the final message claims
+ * success. Earlier in the plan a missing review is expected, so a warning would be noise.
+ */
+export function isPlanFinished(docText: string, assistantText: string): boolean {
+    let inSection = false;
+    let markers = 0;
+    for (const line of docText.split("\n")) {
+        if (/^##\s/.test(line)) {
+            inSection = WORK_SECTION.test(line);
+            continue;
+        }
+        const match = inSection ? CHECKBOX.exec(line) : null;
+        if (!match) continue;
+        if (match[1].trim().toLowerCase() !== "x") return false;
+        markers += 1;
+    }
+    return markers > 0 && claimsVerification(assistantText);
+}
+
+/** An unreadable document stays silent: the scope guard already reports a broken spec. */
+export function checkReviewRan(docPath: string, cwd: string, assistantText: string): string[] {
+    const absolute = path.isAbsolute(docPath) ? docPath : path.join(cwd, docPath);
+    let docText: string;
+    let folder: string[];
+    try {
+        docText = fs.readFileSync(absolute, "utf8");
+        folder = fs.readdirSync(path.dirname(absolute));
+    } catch {
+        return [];
+    }
+    if (!isPlanFinished(docText, assistantText)) return [];
+    if (folder.some((name) => REVIEW_FILE.test(name))) return [];
+    return [
+        `review_ran: every change in '${sanitizeForMessage(docPath)}' is marked done and the final message claims success, but its folder holds no code-review-<YYYY-MM-DD>.md. The review step has not run.`,
+    ];
+}
+
 export function buildCorrection(violations: string[]): string {
     return [
         "[GATES] Checks flagged the agent's last turn:",
