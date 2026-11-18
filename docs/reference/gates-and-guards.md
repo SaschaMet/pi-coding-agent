@@ -293,6 +293,18 @@ Rollback: delete `degenerate-output.ts` and `lib/degenerate-output.ts`, then `np
 - It injects `.pi/SYSTEM.md` and the root `AGENTS.md` once, each only if the prompt does not already contain its full text. Replace-mode subagents get both; append-mode subagents already carry them. Files are read from the subagent's session folder.
 - Missing, unreadable or empty file: it does nothing and the subagent still starts.
 
+## Skill import (`skill-import.ts`)
+
+- `/skill-import <path> [--target skills]` is the one entry path for new skills, third-party or self-written. It never touches the network and never runs `git` or a file from the source.
+- It installs into the repo named in `~/.pi/agent/skill-import.json` (`{"libraryRepo": "<abs path>"}`, per machine, never synced). No config, no UI, a busy agent, or a pending import: it refuses.
+- It copies the source into a `$TMPDIR` staging folder (no `.git/`, no symlinks, at most 500 files and 10 MiB) and takes a tree hash over every file.
+- During the audit turn the agent holds only `read, grep, find, ls`, so text inside the skill cannot run commands or write files. The saved tool list comes back when the run settles, on every reject, and on `session_start`.
+- Verdict BLOCK, no verdict, or an aborted run rejects. PASS or REVIEW opens a yes/no dialog; chat text cannot approve.
+- On yes it re-checks the tree hash, then copies the staged bytes plus a `.skill-import.json` record. Third-party skills go to `.pi/skill-library/` only; `.pi/skills/` takes only `source: "local"`.
+- Its own `fs` writes bypass the tool guards by design: the dialog is the gate.
+- A `pull` keeps a local-only skill folder that holds `.skill-import.json` (`scripts/sync-pi-config.md`).
+- Not covered yet: an agent `write` that creates a `SKILL.md` directly, and `npx skills add` typed by a human. A follow-up guard is planned.
+
 ## Not covered here
 
 Known gaps of the security guard:

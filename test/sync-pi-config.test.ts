@@ -739,6 +739,89 @@ describe("sync-pi-config", () => {
 		expect(fs.existsSync(path.join(globalSkill, "SKILL.md"))).toBe(false);
 	});
 
+	it("pull keeps local-only skill-library and skills folders that hold a skill-import record", () => {
+		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-imported-pull-keep-");
+		const imported = path.join(localPiDir, "skill-library", "imp");
+		const own = path.join(localPiDir, "skills", "own");
+		writeJson(path.join(imported, ".skill-import.json"), { name: "imp" });
+		fs.mkdirSync(path.join(imported, "references"), { recursive: true });
+		fs.writeFileSync(path.join(imported, "SKILL.md"), "---\nname: imp\n---\n", "utf-8");
+		fs.writeFileSync(path.join(imported, "references", "a.md"), "# a\n", "utf-8");
+		writeJson(path.join(own, ".skill-import.json"), { name: "own" });
+		fs.writeFileSync(path.join(own, "SKILL.md"), "---\nname: own\n---\n", "utf-8");
+
+		const result = syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
+
+		expect(result.deleted).toEqual([]);
+		expect(fs.existsSync(path.join(imported, ".skill-import.json"))).toBe(true);
+		expect(fs.existsSync(path.join(imported, "SKILL.md"))).toBe(true);
+		expect(fs.existsSync(path.join(imported, "references", "a.md"))).toBe(true);
+		expect(fs.existsSync(path.join(own, ".skill-import.json"))).toBe(true);
+		expect(fs.existsSync(path.join(own, "SKILL.md"))).toBe(true);
+	});
+
+	it("pull still deletes a local-only skill-library folder without a skill-import record", () => {
+		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-imported-pull-plain-");
+		const plain = path.join(localPiDir, "skill-library", "plain");
+		fs.mkdirSync(plain, { recursive: true });
+		fs.writeFileSync(path.join(plain, "SKILL.md"), "plain\n", "utf-8");
+
+		const result = syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
+
+		expect(result.deleted).toEqual(["skill-library/plain/SKILL.md"]);
+		expect(fs.existsSync(path.join(plain, "SKILL.md"))).toBe(false);
+	});
+
+	it("push copies an imported skill, including its skill-import record, to global", () => {
+		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-imported-push-");
+		const imported = path.join(localPiDir, "skill-library", "imp");
+		writeJson(path.join(imported, ".skill-import.json"), { name: "imp" });
+		fs.writeFileSync(path.join(imported, "SKILL.md"), "---\nname: imp\n---\n", "utf-8");
+
+		const result = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+
+		expect(result.updated.sort()).toEqual([
+			"skill-library/imp/.skill-import.json",
+			"skill-library/imp/SKILL.md",
+		]);
+		expect(
+			fs.existsSync(path.join(globalAgentDir, "skill-library", "imp", ".skill-import.json")),
+		).toBe(true);
+	});
+
+	it("keeps a global skill-import.json on push and never copies it into the project on pull", () => {
+		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-skill-import-config-");
+		writeJson(path.join(globalAgentDir, "skill-import.json"), { repo: "/abs/repo" });
+
+		const pushed = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+		const pulled = syncManagedPiDirectory("pull", localPiDir, globalAgentDir);
+
+		expect(pushed.deleted).toEqual([]);
+		expect(fs.existsSync(path.join(globalAgentDir, "skill-import.json"))).toBe(true);
+		expect(pulled.updated).toEqual([]);
+		expect(fs.existsSync(path.join(localPiDir, "skill-import.json"))).toBe(false);
+	});
+
+	it("push copies the skill-import extension and its lib file to global, not project-only", () => {
+		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-skill-import-ext-");
+		const ext = path.join(localPiDir, "extensions", "skill-import.ts");
+		const lib = path.join(localPiDir, "extensions", "lib", "skill-import.ts");
+		fs.mkdirSync(path.dirname(lib), { recursive: true });
+		fs.writeFileSync(ext, "skill-import\n", "utf-8");
+		fs.writeFileSync(lib, "skill-import lib\n", "utf-8");
+
+		const result = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+
+		expect(isProjectOnlyExtensionPath("skill-import.ts")).toBe(false);
+		expect(isProjectOnlyExtensionPath("lib/skill-import.ts")).toBe(false);
+		expect(result.updated.sort()).toEqual([
+			"extensions/lib/skill-import.ts",
+			"extensions/skill-import.ts",
+		]);
+		expect(fs.existsSync(path.join(globalAgentDir, "extensions", "skill-import.ts"))).toBe(true);
+		expect(fs.existsSync(path.join(globalAgentDir, "extensions", "lib", "skill-import.ts"))).toBe(true);
+	});
+
 	it("skips syncing global runtime cache files for both pull and push", () => {
 		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-cache-skip-");
 
