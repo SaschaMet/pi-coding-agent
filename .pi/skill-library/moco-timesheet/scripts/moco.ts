@@ -1,14 +1,26 @@
 // MOCO timesheet CLI: read your own hours and book time after a confirmed preview.
-// Usage: node --use-env-proxy moco.ts <projects|list|sum|add> [options]
+// Usage: node --use-env-proxy moco.ts <projects|list|sum|add|suggest> [options]
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import type { Dirent } from "node:fs";
+import { access, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import { parseArgs } from "node:util";
+import { type ActivityEvent, buildDays, type DayReport, type Meeting, parseClaudeSession, parseConfig, parseGitLog, parseMeetings, parsePiSession, type ProjectMap } from "./activity.ts";
 
 export interface Deps {
 	fetch: (input: string, init?: RequestInit) => Promise<Response>;
 	readSecret: (service: string) => Promise<string | undefined>;
 	readFile: (path: string) => Promise<string>;
+	// Refuses to overwrite, so a file the user already previewed is never replaced.
+	writeFile: (path: string, text: string) => Promise<void>;
+	listFiles: (dir: string, ext: string) => Promise<{ path: string; mtimeMs: number }[]>;
+	git: (repo: string, args: string[]) => Promise<string>;
+	exists: (path: string) => Promise<boolean>;
+	// Repo roots (directories holding .git) at or under dir, at most maxDepth levels down.
+	findRepos: (dir: string, maxDepth: number) => Promise<string[]>;
+	home: string;
+	now: () => Date;
 	out: (text: string) => void;
 	err: (text: string) => void;
 }
@@ -300,6 +312,7 @@ const COMMANDS = {
 		billable: { type: "boolean" },
 	},
 	add: { file: { type: "string" }, confirm: { type: "string" } },
+	suggest: { from: { type: "string" }, to: { type: "string" }, out: { type: "string" }, meetings: { type: "string" } },
 } as const;
 
 type Command = keyof typeof COMMANDS;
@@ -312,6 +325,8 @@ interface Values {
 	billable?: boolean;
 	file?: string;
 	confirm?: string;
+	out?: string;
+	meetings?: string;
 }
 
 async function connect(deps: Deps): Promise<{ moco: Moco; key: string }> {
@@ -407,6 +422,236 @@ async function addCommand(moco: Moco, deps: Deps, values: Values, rows: Row[]): 
 	return 0;
 }
 
+const SESSION_DIRS = [
+	{ dir: ".pi/agent/sessions", parse: parsePiSession },
+	{ dir: ".claude/projects", parse: parseClaudeSession },
+] as const;
+
+async function loadConfig(deps: Deps): Promise<ProjectMap> {
+	const path = `${deps.home}/.config/moco/projects.json`;
+	try {
+		return parseConfig(await deps.readFile(path), deps.home);
+	} catch (error) {
+		const why = error instanceof Error ? error.message : "unreadable";
+		throw new UsageError(`cannot use ${path}: ${why}. Create it from the template in SKILL.md ("One-time setup for log hours").`);
+	}
+}
+
+const REPO_DEPTH = 3;
+
+async function readCommits(deps: Deps, map: ProjectMap, from: string): Promise<{ events: ActivityEvent[]; skipped: number }> {
+	const events: ActivityEvent[] = [];
+	let skipped = 0;
+	if (map.gitEmails.length === 0) return { events, skipped };
+	const repos = new Set<string>();
+	for (const folder of new Set(map.projects.flatMap((p) => p.folders))) {
+		for (const repo of await deps.findRepos(folder, REPO_DEPTH)) repos.add(repo);
+	}
+	for (const repo of repos) {
+		for (const email of map.gitEmails) {
+			// An argument array, never a shell line: the address comes from a config file.
+			const text = await deps.git(repo, [
+				"--no-pager",
+				"log",
+				"--all",
+				`--author=${email}`,
+				// No --until: git filters on committer date, which a rebase moves past the range; the day filter
+				// on author dates happens later. --since stays safe because committer date is never before author date.
+				`--since=${from}T00:00:00`,
+				"--format=%aI%x09%s",
+			]);
+			const parsed = parseGitLog(text, repo);
+			events.push(...parsed.events);
+			skipped += parsed.skipped;
+		}
+	}
+	return { events, skipped };
+}
+
+async function readEvents(deps: Deps, from: string): Promise<{ events: ActivityEvent[]; skipped: number }> {
+	// Sessions untouched since before the range cannot hold events inside it; skipping them avoids most of the scan.
+	const since = new Date(`${from}T00:00:00`).getTime();
+	const events: ActivityEvent[] = [];
+	let skipped = 0;
+	for (const { dir, parse } of SESSION_DIRS) {
+		for (const file of await deps.listFiles(`${deps.home}/${dir}`, ".jsonl")) {
+			if (file.mtimeMs < since) continue;
+			const parsed = parse(await deps.readFile(file.path));
+			for (const e of parsed.events) events.push(e);
+			skipped += parsed.skipped;
+		}
+	}
+	return { events, skipped };
+}
+
+function suggestReport(report: DayReport, from: string, to: string, skipped: number, booked: string[]): string[] {
+	const lines = [`Range: ${from} to ${to}`];
+	const mins = (m: number) => Math.round(m);
+	const section = (title: string, items: string[]) => {
+		if (items.length > 0) lines.push("", title, ...items.map((i) => `  ${i}`));
+	};
+	const who = (r: DayReport["rows"][number]) => `${r.date}  ${r.entry.project} / ${r.task}`;
+	section("Work:", report.rows.map((r) => `${who(r)}  raw ${mins(r.rawMinutes)} min  booked ${hm(r.bookedMinutes * 60)}`));
+	section("Skipped, MOCO already has an own entry that day:", booked);
+	section("Left out (rounds to 0):", report.dropped.map((r) => `${who(r)}  raw ${mins(r.rawMinutes)} min  dropped`));
+	section(
+		"Shared with unmapped folders:",
+		report.rows
+			.concat(report.dropped)
+			.filter((r) => r.lostToUnmappedMinutes > 0)
+			.map((r) => `${r.date}  ${r.entry.project}  ${mins(r.lostToUnmappedMinutes)} min went to unmapped activity`),
+	);
+	section(
+		"Meeting time removed from log time:",
+		report.cuts.map((c) => `${c.date}  ${c.title}  ${c.entry.project}  ${mins(c.minutes)} min`),
+	);
+	section(
+		"Meetings no project claims (keyword matched none or several):",
+		report.unassigned.map((m) => `${m.date}  ${m.title}`),
+	);
+	section(
+		"Unmapped folders:",
+		report.unmapped.map((u) => `${u.cwd}  ${u.events} events  ${mins(u.minutes)} min`),
+	);
+	section(
+		"Flags:",
+		report.rows.filter((r) => r.agentOnlyMinutes > 0).map((r) => `${r.date}  ${r.entry.project}  agent-only ${hm(r.agentOnlyMinutes * 60)}`),
+	);
+	section(
+		"No description:",
+		report.rows.filter((r) => r.description === "").map((r) => `${r.date}  ${r.entry.project}`),
+	);
+	if (skipped > 0) lines.push("", `Skipped ${skipped} unparseable log lines`);
+	return lines;
+}
+
+async function loadMeetings(deps: Deps, path: string): Promise<Meeting[]> {
+	try {
+		return parseMeetings(await deps.readFile(path));
+	} catch (error) {
+		const why = error instanceof Error ? error.message : "unreadable";
+		throw new UsageError(`cannot use meetings file ${path}: ${why}`);
+	}
+}
+
+const LOOKBACK_DAYS = 31;
+
+function isoDay(d: Date): string {
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function addDays(day: string, n: number): string {
+	const [y, m, d] = day.split("-").map(Number);
+	return isoDay(new Date(y, m - 1, d + n));
+}
+
+// Each config project must exist in MOCO with active tasks, or nothing is written.
+function resolveConfig(map: ProjectMap, projects: Project[]): Map<ProjectMap["projects"][number], number> {
+	const ids = new Map<ProjectMap["projects"][number], number>();
+	map.projects.forEach((entry, i) => {
+		const where = `config entry ${i + 1}`;
+		const project = match(projects, entry.project, projectKeys, `${where}: projects`);
+		const tasks = project.tasks.filter((t) => t.active);
+		for (const task of [entry.task, entry.meetingTask]) {
+			if (task !== undefined) match(tasks, task, taskKeys, `${where}: active tasks of ${project.name}`);
+		}
+		ids.set(entry, project.id);
+	});
+	return ids;
+}
+
+// One start for all projects: a lagging project must not lose days because another was booked recently.
+function defaultStart(own: Activity[], mapped: Set<number>, lookback: string): string {
+	const starts = [...mapped].map((id) => {
+		const last = own
+			.filter((a) => a.project.id === id)
+			.map((a) => a.date)
+			.sort()
+			.pop();
+		return last === undefined ? lookback : addDays(last, 1);
+	});
+	return starts.sort()[0];
+}
+
+// Any own entry on a project and date blocks every row of that project-day; returns the report lines.
+function skipBooked(report: DayReport, own: Activity[], ids: Map<ProjectMap["projects"][number], number>): string[] {
+	const mocoSeconds = new Map<string, number>();
+	for (const a of own) {
+		const key = `${a.project.id}|${a.date}`;
+		mocoSeconds.set(key, (mocoSeconds.get(key) ?? 0) + (a.worked_seconds ?? a.seconds));
+	}
+	const keyOf = (r: DayReport["rows"][number]) => `${ids.get(r.entry)}|${r.date}`;
+	const logMinutes = new Map<string, { minutes: number; first: DayReport["rows"][number] }>();
+	for (const r of report.rows.filter((x) => mocoSeconds.has(keyOf(x)))) {
+		const seen = logMinutes.get(keyOf(r));
+		logMinutes.set(keyOf(r), { minutes: (seen?.minutes ?? 0) + r.bookedMinutes, first: seen?.first ?? r });
+	}
+	report.rows = report.rows.filter((r) => !mocoSeconds.has(keyOf(r)));
+	return [...logMinutes].map(
+		([key, { minutes, first }]) =>
+			`${first.date}  ${first.entry.project}  already booked  MOCO ${hm(mocoSeconds.get(key) ?? 0)}  logs ${hm(minutes * 60)}`,
+	);
+}
+
+async function suggestCommand(deps: Deps, values: Values, connectToMoco: () => Promise<Moco>): Promise<number> {
+	if (values.out === undefined) throw new UsageError("suggest needs --out <path prefix>");
+	const given = {
+		from: values.from === undefined ? undefined : parseDate(values.from, "--from"),
+		to: values.to === undefined ? undefined : parseDate(values.to, "--to"),
+	};
+	const map = await loadConfig(deps);
+	const meetings = values.meetings === undefined ? [] : await loadMeetings(deps, values.meetings);
+	const moco = await connectToMoco();
+	const projects = await moco.get<Project[]>("/projects/assigned", { active: "true" });
+	const ids = resolveConfig(map, projects);
+	const profile = await moco.get<{ id: number }>("/profile");
+
+	const today = isoDay(deps.now());
+	const lookback = addDays(today, -LOOKBACK_DAYS);
+	const to = given.to ?? addDays(today, -1);
+	const readFrom = given.from ?? lookback;
+	if (readFrom > to) throw new UsageError("--from must not be after --to");
+	const entries = await moco.getAll<Activity>("/activities", { from: readFrom, to, user_id: String(profile.id) });
+	const mapped = new Set(ids.values());
+	const own = entries.filter((a) => mapped.has(a.project.id));
+
+	const from = given.from ?? defaultStart(own, mapped, lookback);
+	if (from > to) {
+		deps.out(`Range: ${from} to ${to}`);
+		deps.out("Nothing to suggest: every mapped project is booked through the end of the range.");
+		return 0;
+	}
+	const logs = await readEvents(deps, from);
+	const commits = await readCommits(deps, map, from);
+	const events = [...logs.events, ...commits.events];
+	const skipped = logs.skipped + commits.skipped;
+	const report = buildDays({ events, map, from, to, meetings });
+
+	const booked = skipBooked(report, own, ids);
+
+	const rows = report.rows.map((r) => ({
+		date: r.date,
+		project: r.entry.project,
+		task: r.task,
+		hours: hm(r.bookedMinutes * 60),
+		description: r.description,
+	}));
+	const written: string[] = [];
+	const targets = Array.from({ length: Math.ceil(rows.length / MAX_ROWS) }, (_, i) => `${values.out}.${i + 1}.json`);
+	// All targets are checked first, so a refusal never leaves a partial set behind.
+	for (const path of targets) {
+		if (await deps.exists(path)) throw new UsageError(`${path} already exists. Pick another --out or remove it.`);
+	}
+	for (const [i, path] of targets.entries()) {
+		await deps.writeFile(path, `${JSON.stringify(rows.slice(i * MAX_ROWS, (i + 1) * MAX_ROWS), null, 2)}\n`);
+		written.push(path);
+	}
+	for (const line of suggestReport(report, from, to, skipped, booked)) deps.out(line);
+	deps.out("");
+	deps.out(written.length > 0 ? `Wrote ${rows.length} rows: ${written.join(", ")}` : "No rows to write.");
+	return 0;
+}
+
 export async function run(argv: string[], unsafeDeps: Deps): Promise<number> {
 	let key: string | undefined;
 	const scrub = (text: string) => (key ? text.replaceAll(key, "***") : text);
@@ -415,7 +660,7 @@ export async function run(argv: string[], unsafeDeps: Deps): Promise<number> {
 	try {
 		const [command, ...rest] = argv;
 		if (!command || !Object.hasOwn(COMMANDS, command)) {
-			throw new UsageError(`unknown command "${command ?? ""}". Use: projects | list | sum | add`);
+			throw new UsageError(`unknown command "${command ?? ""}". Use: projects | list | sum | add | suggest`);
 		}
 		const options = COMMANDS[command as Command];
 		const values = parseArgs({ args: rest, options, strict: true, allowPositionals: false }).values as Values;
@@ -424,6 +669,13 @@ export async function run(argv: string[], unsafeDeps: Deps): Promise<number> {
 			if (typeof values.file !== "string") throw new UsageError("add needs --file <json>");
 			// Validate the file before any request, so a bad file never costs a call.
 			rows = parseRows(await deps.readFile(values.file));
+		}
+		if (command === "suggest") {
+			return await suggestCommand(deps, values, async () => {
+				const connection = await connect(deps);
+				key = connection.key;
+				return connection.moco;
+			});
 		}
 		const connection = await connect(deps);
 		key = connection.key;
@@ -446,11 +698,65 @@ function readKeychain(service: string): Promise<string | undefined> {
 	});
 }
 
+async function listJsonFiles(dir: string, ext: string): Promise<{ path: string; mtimeMs: number }[]> {
+	let entries: Dirent[];
+	try {
+		entries = await readdir(dir, { recursive: true, withFileTypes: true });
+	} catch {
+		return [];
+	}
+	const files = entries.filter((e) => e.isFile() && e.name.endsWith(ext));
+	return Promise.all(
+		files.map(async (e) => {
+			const path = `${e.parentPath}/${e.name}`;
+			return { path, mtimeMs: (await stat(path)).mtimeMs };
+		}),
+	);
+}
+
+const SKIP_DIRS = new Set(["node_modules", ".cache", "Library"]);
+
+async function findGitRepos(dir: string, maxDepth: number): Promise<string[]> {
+	const repos: string[] = [];
+	const walk = async (path: string, depth: number): Promise<void> => {
+		let entries: Dirent[];
+		try {
+			entries = await readdir(path, { withFileTypes: true });
+		} catch {
+			return;
+		}
+		if (entries.some((e) => e.name === ".git")) repos.push(path);
+		if (depth >= maxDepth) return;
+		// Symlinks are not followed, so a link cannot lead the scan out of the mapped folder.
+		for (const e of entries) {
+			if (e.isDirectory() && e.name !== ".git" && !SKIP_DIRS.has(e.name)) await walk(`${path}/${e.name}`, depth + 1);
+		}
+	};
+	await walk(dir, 0);
+	return repos;
+}
+
+function runGit(repo: string, args: string[]): Promise<string> {
+	return new Promise((done, fail) => {
+		execFile("git", args, { cwd: repo, maxBuffer: 16 * 1024 * 1024 }, (error, stdout) => (error ? fail(error) : done(stdout)));
+	});
+}
+
 if (import.meta.main) {
 	process.exitCode = await run(process.argv.slice(2), {
 		fetch: (url, init) => fetch(mocoOnly(url), init),
 		readSecret: readKeychain,
 		readFile: (path) => readFile(path, "utf8"),
+		writeFile: (path, text) => writeFile(path, text, { flag: "wx" }),
+		listFiles: listJsonFiles,
+		git: runGit,
+		exists: (path) => access(path).then(
+			() => true,
+			() => false,
+		),
+		findRepos: findGitRepos,
+		home: homedir(),
+		now: () => new Date(),
 		out: (text) => console.log(text),
 		err: (text) => console.error(text),
 	});

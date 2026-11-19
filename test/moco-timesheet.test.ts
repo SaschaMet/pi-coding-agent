@@ -107,6 +107,14 @@ function setup(
 			if (content === undefined) throw new Error(`ENOENT: ${path}`);
 			return content;
 		},
+		// suggest is not exercised here; these defaults only satisfy the Deps shape.
+		exists: async () => false,
+		writeFile: async () => {},
+		listFiles: async () => [],
+		findRepos: async () => [],
+		git: async () => "",
+		home: "/h",
+		now: () => new Date("2026-11-19T12:00:00Z"),
 		out: (text) => out.push(text),
 		err: (text) => err.push(text),
 	};
