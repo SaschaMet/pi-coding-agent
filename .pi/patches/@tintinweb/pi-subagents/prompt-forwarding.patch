@@ -1,5 +1,5 @@
 Purpose: subagents forward the read guard's "Allow <tool> outside current directory?" question (Yes/No or its session-grant options) to the parent's pane while the parent is busy (named, 10-minute timeout, closes on idle or abort); every other dialog stays refused and every other UI call stays silent.
-Reviewed-Version: 0.26.0
+Reviewed-Version: 0.26.1
 --- a/src/agent-runner.ts
 +++ b/src/agent-runner.ts
 @@ -6,7 +6,7 @@
@@ -11,7 +11,7 @@ Reviewed-Version: 0.26.0
  import {
    type AgentSession,
    type AgentSessionEvent,
-@@ -495,6 +495,99 @@
+@@ -496,6 +496,99 @@
  export interface ToolActivity {
    type: "start" | "end";
    toolName: string;
@@ -111,8 +111,8 @@ Reviewed-Version: 0.26.0
  }
  
  export interface RunOptions {
-@@ -1286,15 +1379,16 @@
-   const { session } = await runInChildSessionContext(() => createAgentSession(sessionOpts));
+@@ -1313,15 +1406,16 @@
+   if (modelFallbackMessage) ctx.ui.notify(modelFallbackMessage, "warning");
  
    const baseSessionName = agentConfig?.name ?? type;
 -  session.setSessionName(
