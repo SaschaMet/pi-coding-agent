@@ -1,6 +1,6 @@
-# Upgrading graphify and the Headroom proxy
+# Upgrading graphify, the Headroom proxy, and Presidio
 
-Runbook for bumping the two external tools this repo depends on. Write a plan per bump (`create-plan`); this page holds the steps and the traps that stay the same each time.
+Runbook for bumping the three external tools this repo depends on. Write a plan per bump (`create-plan`); this page holds the steps and the traps that stay the same each time.
 
 ## Which step runs where
 
@@ -53,3 +53,32 @@ Upstream changes that already touch this config:
 - v0.38.0 (PR #3605) adds a gateway contract to `/v1/compress`. It is non-breaking without a top-level `gateway` object, which the extension never sends. Kill switch: `HEADROOM_GATEWAY_CONTRACT=0`.
 - v0.39.0 (PR #3715) also admits the Docker bridge gateway on `/v1/compress` when the Host header is loopback. `HEADROOM_COMPRESS_ALLOW_REMOTE` still short-circuits that guard and stays.
 - v0.40.0 (PR #3852) refuses an unauthenticated non-loopback bind; that is why `HEADROOM_ALLOW_UNAUTHENTICATED_BIND=1` exists. The same release renamed `HEADROOM_LICENSE_KEY` to `HEADROOM_LICENSE`; we set neither.
+- v0.43.0 has a breaking change: it ports the MCP servers to SDK 2.x (#4603). This setup runs no Headroom MCP server (`--lossless` emits no CCR marker), so no impact. #4300 keeps CCR proactive expansion out of the cached prefix; `HEADROOM_NO_CCR_PROACTIVE_EXPANSION=1` stays. #4611 keeps health probes out of the proxy log, so step 5's `proxy.log` check needs a real PI turn, not a health probe.
+- v0.44.0 has a breaking change: PyTorch extras leave `[all]` (#4067). The image installs `proxy,code,bedrock,redis`, so no impact. #4617 adds a lossless `/v1/compress` mode and detects the provider by wire shape: step 5's `jq -S keys` comparison checks that the reply the extension reads did not change. #4716 makes `--lossless` fold only pure path listings, never markup. Security fix GHSA-mc2f-vg4v-2fh4 (#4701): the ASGI layer stops buffering when the client disconnects. Entrypoint, `/readyz` healthcheck, and `/home/nonroot` volume are unchanged.
+
+## Presidio
+
+The analyzer for the pii-redaction package: a local image built from `presidio/Dockerfile` (stock base image + German spaCy model `de_core_news_lg`).
+
+Pins:
+
+- `FROM` in `presidio/Dockerfile`.
+- `image: pi-presidio-analyzer:<version>-de` in `presidio-compose.yml`. Bump both: the new tag has no local image, so `docker compose up -d` builds it.
+- The wheel URL and `DE_SHA256` in `presidio/Dockerfile`.
+
+Traps:
+
+- **curl.** Since 2.2.366 the images no longer ship `curl` (release notes: "Container images no longer ship curl"), so a `RUN curl …` fails the build. The Dockerfile downloads with Python's `urllib` and keeps `sha256sum -c`. The image healthcheck uses Python too.
+- **Variant.** Do not use the `-distroless` variant: it has no shell and no pip, so the `RUN` cannot run. Analyzer images keep pip (only the anonymizer lost it).
+- **spaCy.** The German model must match the image's spaCy minor line: `de_core_news_lg-3.8.0` needs spaCy 3.8.x, and 2.2.366 locks spaCy 3.8.16. A new spaCy minor (3.9) needs a new model wheel and a new `DE_SHA256` (`shasum -a 256 <wheel>`); keep `--no-deps`.
+
+Steps:
+
+1. Read the release notes between the pinned and the new tag: Docker image changes, Python version, and the spaCy pin in the release's lock file.
+2. Bump both pins (and the wheel and `DE_SHA256` if spaCy moved a minor).
+3. (you) `docker compose -f presidio-compose.yml build` → the log shows `…de_core_news_lg-3.8.0-py3-none-any.whl: OK`.
+4. (you) Check the spaCy match: `docker run --rm --entrypoint python pi-presidio-analyzer:2.2.366-de -c "import spacy, de_core_news_lg; print(spacy.__version__, de_core_news_lg.__version__)"` → `3.8.16 3.8.0`.
+5. (you) `npm run presidio:up` → `analyzer healthy at http://127.0.0.1:5002/health`; `docker ps` → `healthy`.
+6. (you) German analyze: `curl -fsS -X POST http://127.0.0.1:5002/analyze -H 'Content-Type: application/json' -d '{"text":"Mein Name ist Hans Müller","language":"de"}'` → a `PERSON` entity. This curl runs on the host, which still has curl.
+7. `lsof -nP -iTCP:5002 -sTCP:LISTEN` → only Docker, bound to 127.0.0.1.
+8. Undo: pin both old values back and `docker compose -f presidio-compose.yml up -d`. The old `pi-presidio-analyzer:<old>-de` image stays on disk, so no rebuild.
