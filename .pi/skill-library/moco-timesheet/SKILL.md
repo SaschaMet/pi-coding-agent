@@ -87,7 +87,7 @@ Use when the user says "log hours". `suggest` only writes files; booking still g
    If a day is reported as already booked by a "TBD" entry (EON), use the placeholder flow below before step 5.
    **Meetings no project claims: always ask, never book them silently and never leave them unmentioned.** Ask the user with `ask_user_question`, one question per meeting, in batches of at most 4 per call, with the options: a configured project, internal (No-Dev & Workshops), skip. Then show the config lines that make the answer permanent (a keyword on the project, or a `meetingRules` entry for a generic title such as "Abstimmung") for the user to add, rerun `suggest` with a new `--out`, and book the answered meetings. A meeting claimed by two projects is listed here too: ask which one.
    Known answers (2026-11-19) are already in the user's config as rules. If one of these meetings is listed as unclaimed again, the rule is missing: still ask. The answers were: Weekly: eCommerce is skipped; Taschenrechner is KI Gremium (Mate project); Nosto topics are Grüne Erde; a bare "Abstimmung" is internal (No-Dev & Workshops); Blocker: Mate CLI / Agentic Workflow is skipped.
-5. For each written file run the Write rule. The file is valid `add --file` input; do not edit it. For a change, fix the meetings file and run `suggest` again with a new `--out`.
+5. Descriptions are German (see the Teamwoche rules). `suggest` writes English titles, so write a new file with the same rows and only the `description` values translated to German, and run the Write rule on that file. Never edit the file `suggest` wrote. For any other change, fix the meetings file and run `suggest` again with a new `--out`.
 
 ## Internal hours and workshops (Teamwoche rules)
 
@@ -98,6 +98,7 @@ Source: the user's internal booking guide (section 4.2/4.3), confirmed 2026-11-1
 - During an event, customer topics go on the customer's project; internal topics on "No-Dev & Workshops".
 - Booked on No-Dev & Workshops: kick-off, blockers, workshops, event travel, the Christmas party.
 - Ask before booking a one-to-one talk with the lead (Mitarbeitergespräch); not confirmed yet.
+- Always write descriptions in German, for every booking (agent-log work, meetings, workshops, EON tickets). Keep ticket IDs, product and tool names, and meeting titles that are already German unchanged, for example "EDGWEB-5652, EDGWEB-5599" or "GE Webshop Daily".
 - Descriptions use ", " as separator, never ";".
 - EON is pre-filled with 8:00 "TBD" per day. If TBD entries exist in the range, say so first and do not book EON on top. A double booking needs the user's explicit "yes" to the doubled total.
 - Placeholder flow: (1) run `suggest` and read the real EON hours from its "already booked" lines; (2) run `delete --from D --to D` for the range and follow the write rule; (3) run `suggest` again with a new `--out`; (4) book with `add`. The script cannot edit entries; replace a placeholder by deleting it and adding the real rows.
