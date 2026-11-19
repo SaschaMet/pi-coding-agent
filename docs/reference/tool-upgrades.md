@@ -71,6 +71,7 @@ Traps:
 
 - **curl.** Since 2.2.366 the images no longer ship `curl` (release notes: "Container images no longer ship curl"), so a `RUN curl …` fails the build. The Dockerfile downloads with Python's `urllib` and keeps `sha256sum -c`. The image healthcheck uses Python too.
 - **Variant.** Do not use the `-distroless` variant: it has no shell and no pip, so the `RUN` cannot run. Analyzer images keep pip (only the anonymizer lost it).
+- **Project name.** `presidio-compose.yml` runs as project `pi-presidio`, `headroom-compose.yml` as `pi-coding-agent`. Never add `--remove-orphans`: under a shared project each file would delete the other's container. A container created under the old shared project name blocks `up` with "container name already in use"; `docker rm -f presidio-analyzer` once, then `up -d` (the image stays, no rebuild).
 - **spaCy.** The German model must match the image's spaCy minor line: `de_core_news_lg-3.8.0` needs spaCy 3.8.x, and 2.2.366 locks spaCy 3.8.16. A new spaCy minor (3.9) needs a new model wheel and a new `DE_SHA256` (`shasum -a 256 <wheel>`); keep `--no-deps`.
 
 Steps:
@@ -79,7 +80,7 @@ Steps:
 2. Bump both pins (and the wheel and `DE_SHA256` if spaCy moved a minor).
 3. (you) `docker compose -f presidio-compose.yml build` → the log shows `…de_core_news_lg-3.8.0-py3-none-any.whl: OK`.
 4. (you) Check the spaCy match: `docker run --rm --entrypoint python pi-presidio-analyzer:2.2.366-de -c "import spacy, de_core_news_lg; print(spacy.__version__, de_core_news_lg.__version__)"` → `3.8.16 3.8.0`.
-5. (you) `npm run presidio:up` → `analyzer healthy at http://127.0.0.1:5002/health`; `docker ps` → `healthy`.
+5. (you) `docker compose -f presidio-compose.yml up -d`, then `docker inspect --format '{{.Config.Image}}' presidio-analyzer` → the new tag; `docker ps` → `healthy`. Not `npm run presidio:up`: it returns "already healthy" while the old container still runs.
 6. (you) German analyze: `curl -fsS -X POST http://127.0.0.1:5002/analyze -H 'Content-Type: application/json' -d '{"text":"Mein Name ist Hans Müller","language":"de"}'` → a `PERSON` entity. This curl runs on the host, which still has curl.
-7. `lsof -nP -iTCP:5002 -sTCP:LISTEN` → only Docker, bound to 127.0.0.1.
+7. (you) `lsof -nP -iTCP:5002 -sTCP:LISTEN` → only Docker, bound to 127.0.0.1.
 8. Undo: pin both old values back and `docker compose -f presidio-compose.yml up -d`. The old `pi-presidio-analyzer:<old>-de` image stays on disk, so no rebuild.

@@ -9,6 +9,11 @@
 # Bound to 127.0.0.1 only: the analyzer sees full conversation text. The
 # image's gunicorn binds 0.0.0.0 inside the container; only the host publish
 # is narrowed.
+#
+# Own project name: with the default (the folder name) this file and
+# headroom-compose.yml share one project, so each `up` calls the other's
+# container an orphan and `--remove-orphans` would delete it.
+name: pi-presidio
 services:
   presidio-analyzer:
     build: ./presidio

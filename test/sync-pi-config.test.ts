@@ -859,6 +859,20 @@ describe("sync-pi-config", () => {
 		).toBe(true);
 	});
 
+	it("does not delete target-only claude-bridge sessions and the MCP upgrade marker during push", () => {
+		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-runtime-state-");
+		fs.mkdirSync(path.join(globalAgentDir, "claude-bridge", "sessions"), { recursive: true });
+		fs.writeFileSync(path.join(globalAgentDir, "claude-bridge", "sessions", "s-1.json"), "{}\n", "utf-8");
+		fs.writeFileSync(path.join(globalAgentDir, "mcp-last-seen-version.json"), "{}\n", "utf-8");
+		fs.writeFileSync(path.join(localPiDir, "settings.json"), "{}\n", "utf-8");
+
+		const result = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+
+		expect(result.deleted).toEqual([]);
+		expect(fs.existsSync(path.join(globalAgentDir, "claude-bridge", "sessions", "s-1.json"))).toBe(true);
+		expect(fs.existsSync(path.join(globalAgentDir, "mcp-last-seen-version.json"))).toBe(true);
+	});
+
 	it("does not delete target-only zentui config and custom themes during push", () => {
 		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-ui-config-");
 		fs.mkdirSync(path.join(globalAgentDir, "themes"), { recursive: true });

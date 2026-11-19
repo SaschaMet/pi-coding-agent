@@ -31,7 +31,11 @@
 # - Container listens on 8787 (the image default) internally; only the host-side publish
 #   is remapped to 8788. Leave HEADROOM_PORT unset: there is no reason to
 #   move the internal port.
+# - Project name pinned to the one the container already runs under.
+#   Changing it orphans the anonymous /home/nonroot/.headroom volume
+#   (proxy.log, caches): compose carries it over only within a project.
 
+name: pi-coding-agent
 services:
   headroom:
     # Pinned to a tagged release, never :main or :latest. The image's

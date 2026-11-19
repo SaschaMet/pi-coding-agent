@@ -25,6 +25,9 @@ const EXCLUDED_TOP_LEVEL_PATHS = new Set([
 	// claude-bridge provider state — written by the global runtime, never mirrored.
 	"claude-bridge.json",
 	"claude-bridge-diag.log",
+	"claude-bridge",
+	// pi-mcp-adapter upgrade-notice marker — runtime state, a push must not delete it.
+	"mcp-last-seen-version.json",
 	// Per-machine UI preferences — never mirrored, a push must not delete them.
 	"zentui.json",
 	"themes",
