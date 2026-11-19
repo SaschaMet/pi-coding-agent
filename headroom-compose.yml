@@ -39,10 +39,10 @@ services:
     # ${HEADROOM_PORT:-8787}/readyz, and its state volume is
     # /home/nonroot/.headroom; the command, env, and log path below rely
     # on all three. The Docker tag drops the `v` of the GitHub release tag:
-    # release v0.42.0 == image 0.42.0.
+    # release v0.44.0 == image 0.44.0.
     # Do not switch back to ghcr.io/chopratejas/headroom: the repo moved
     # orgs and that package is frozen at v0.27.0.
-    image: ghcr.io/headroomlabs-ai/headroom:0.42.0
+    image: ghcr.io/headroomlabs-ai/headroom:0.44.0
     container_name: headroom
     restart: unless-stopped
     ports:
