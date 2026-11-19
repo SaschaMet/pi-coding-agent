@@ -1,5 +1,5 @@
-// MOCO timesheet CLI: read your own hours, book time, and delete your own TBD placeholders, each after a confirmed preview.
-// Usage: node --use-env-proxy moco.ts <projects|list|sum|add|suggest|delete> [options]
+// MOCO timesheet CLI: read your own hours, book time, change descriptions, and delete your own TBD placeholders, each write after a confirmed preview.
+// Usage: node --use-env-proxy moco.ts <projects|list|sum|add|suggest|delete|update> [options]
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import type { Dirent } from "node:fs";
@@ -124,6 +124,11 @@ class Moco {
 
 	async post<T>(path: string, body: unknown): Promise<T> {
 		const res = await this.request(this.url(path), { method: "POST", body: JSON.stringify(body) });
+		return (await res.json()) as T;
+	}
+
+	async put<T>(path: string, body: unknown): Promise<T> {
+		const res = await this.request(this.url(path), { method: "PUT", body: JSON.stringify(body) });
 		return (await res.json()) as T;
 	}
 
@@ -330,6 +335,7 @@ const COMMANDS = {
 	add: { file: { type: "string" }, confirm: { type: "string" } },
 	suggest: { from: { type: "string" }, to: { type: "string" }, out: { type: "string" }, meetings: { type: "string" } },
 	delete: { from: { type: "string" }, to: { type: "string" }, confirm: { type: "string" } },
+	update: { file: { type: "string" }, confirm: { type: "string" } },
 } as const;
 
 type Command = keyof typeof COMMANDS;
@@ -433,6 +439,86 @@ async function addCommand(moco: Moco, deps: Deps, values: Values, rows: Row[]): 
 			deps.err(`Error: stopped at row ${i + 1}: ${why}`);
 			deps.err(`Landed: ${rows(0, i)}`);
 			deps.err(`Unwritten: ${rows(i + 1, entries.length)}`);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+interface DescriptionUpdate {
+	id: number;
+	description: string;
+}
+
+// Only id and description are accepted, so an update can never change hours, date, project or task.
+function parseUpdates(text: string): DescriptionUpdate[] {
+	let data: unknown;
+	try {
+		data = JSON.parse(text);
+	} catch {
+		throw new UsageError("file is not valid JSON");
+	}
+	if (!Array.isArray(data) || data.length === 0 || data.length > MAX_ROWS) {
+		throw new UsageError(`file must be a JSON array of 1 to ${MAX_ROWS} entries`);
+	}
+	const seen = new Set<number>();
+	return data.map((raw: unknown, i): DescriptionUpdate => {
+		const label = `row ${i + 1}`;
+		if (typeof raw !== "object" || raw === null || Array.isArray(raw)) throw new UsageError(`${label} must be an object`);
+		if (Object.keys(raw).some((k) => k !== "id" && k !== "description")) throw new UsageError(`${label} may only have id and description`);
+		const { id, description } = raw as Record<string, unknown>;
+		if (typeof id !== "number" || !Number.isSafeInteger(id)) throw new UsageError(`${label}: id must be a whole number`);
+		if (typeof description !== "string" || description.trim() === "") throw new UsageError(`${label}: description must be text`);
+		if (seen.has(id)) throw new UsageError(`${label}: id ${id} appears twice`);
+		seen.add(id);
+		return { id, description: description.trim() };
+	});
+}
+
+function updateCode(items: { entry: Activity; description: string }[]): string {
+	const canonical = JSON.stringify(
+		items.map(({ entry: a, description }) => [a.id, a.date, a.project.id, a.worked_seconds ?? a.seconds, (a.description ?? "").trim(), description]),
+	);
+	return createHash("sha256").update(canonical).digest("hex").slice(0, 8);
+}
+
+async function updateCommand(moco: Moco, deps: Deps, values: Values, rows: DescriptionUpdate[]): Promise<number> {
+	const profile = await moco.get<{ id: number }>("/profile");
+	const items: { entry: Activity; description: string }[] = [];
+	for (const row of rows) {
+		let entry: Activity;
+		try {
+			entry = await moco.get<Activity>(`/activities/${row.id}`);
+		} catch (error) {
+			if (error instanceof HttpError && error.status === 404) throw new UsageError(`entry ${row.id} not found`);
+			throw error;
+		}
+		// Checked here as well as by MOCO: a foreign entry must never reach the write.
+		if (entry.user?.id !== profile.id) throw new UsageError(`entry ${row.id} is not yours`);
+		if ((entry.description ?? "").trim() === row.description) throw new UsageError(`entry ${row.id}: description is unchanged`);
+		items.push({ entry, description: row.description });
+	}
+	const code = updateCode(items);
+	if (values.confirm === undefined) {
+		for (const { entry, description } of items) {
+			deps.out(formatActivity(entry));
+			deps.out(`   -> "${description}"`);
+		}
+		deps.out(`confirm: ${code}`);
+		deps.out("Nothing changed yet.");
+		return 0;
+	}
+	if (values.confirm !== code) throw new UsageError("confirm code does not match these entries. Preview again.");
+	const ids = (list: typeof items) => list.map((x) => x.entry.id).join(", ") || "none";
+	for (const [i, { entry, description }] of items.entries()) {
+		try {
+			deps.out(`Updated: ${formatActivity(await moco.put<Activity>(`/activities/${entry.id}`, { description }))}`);
+		} catch (error) {
+			const why = error instanceof HttpError ? `failed: ${error.status} ${error.message}` : "unknown — may have been updated (no answer from MOCO)";
+			deps.err(`Error: stopped at entry ${entry.id}: ${why}`);
+			deps.err(`Updated: ${ids(items.slice(0, i))}`);
+			deps.err(`${error instanceof HttpError ? "Failed" : "Unknown"}: ${entry.id}`);
+			deps.err(`Unwritten: ${ids(items.slice(i + 1))}`);
 			return 1;
 		}
 	}
@@ -717,7 +803,7 @@ export async function run(argv: string[], unsafeDeps: Deps): Promise<number> {
 	try {
 		const [command, ...rest] = argv;
 		if (!command || !Object.hasOwn(COMMANDS, command)) {
-			throw new UsageError(`unknown command "${command ?? ""}". Use: projects | list | sum | add | suggest | delete`);
+			throw new UsageError(`unknown command "${command ?? ""}". Use: projects | list | sum | add | suggest | delete | update`);
 		}
 		const options = COMMANDS[command as Command];
 		const values = parseArgs({ args: rest, options, strict: true, allowPositionals: false }).values as Values;
@@ -726,6 +812,11 @@ export async function run(argv: string[], unsafeDeps: Deps): Promise<number> {
 			if (typeof values.file !== "string") throw new UsageError("add needs --file <json>");
 			// Validate the file before any request, so a bad file never costs a call.
 			rows = parseRows(await deps.readFile(values.file));
+		}
+		let updates: DescriptionUpdate[] = [];
+		if (command === "update") {
+			if (typeof values.file !== "string") throw new UsageError("update needs --file <json>");
+			updates = parseUpdates(await deps.readFile(values.file));
 		}
 		if (command === "suggest") {
 			return await suggestCommand(deps, values, async () => {
@@ -742,6 +833,7 @@ export async function run(argv: string[], unsafeDeps: Deps): Promise<number> {
 			list: () => listCommand(moco, deps, values),
 			sum: () => sumCommand(moco, deps, values),
 			delete: () => deleteCommand(moco, deps, values),
+			update: () => updateCommand(moco, deps, values, updates),
 			add: () => addCommand(moco, deps, values, rows),
 		};
 		return await handlers[command]();

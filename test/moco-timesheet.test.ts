@@ -601,3 +601,134 @@ describe("moco-timesheet delete (TBD placeholders)", () => {
 		expect(t.stdout() + t.stderr()).not.toContain(KEY);
 	});
 });
+
+describe("moco-timesheet update (descriptions)", () => {
+	type Mine = Activity & { user: { id: number } };
+	const mine = (id: number, description: string, user = 42): Mine => ({ ...activity(id, "2026-11-09", 100, 3600, 3600, description), user: { id: user } });
+	const FILE = "/t/u.json";
+	const ROWS = [
+		{ id: 501, description: "Code-Review geprüft" },
+		{ id: 502, description: "Nosto-Suchregeln verbessert" },
+	];
+	const put = (t: ReturnType<typeof setup>) => t.calls.filter((c) => c.method === "PUT");
+	const routesFor = (store: () => Record<number, Mine | undefined>, fail: Record<number, number | "timeout"> = {}) => {
+		const routes: Record<string, Handler> = {};
+		for (const id of [501, 502, 503, 504]) {
+			routes[`GET /api/v1/activities/${id}`] = () => {
+				const a = store()[id];
+				return a ? json(a) : json({ message: "not found" }, 404);
+			};
+			routes[`PUT /api/v1/activities/${id}`] = (_url, init) => {
+				if (fail[id] === "timeout") throw new Error("timeout");
+				if (fail[id]) return json({ message: "locked" }, fail[id] as number);
+				return json({ ...store()[id], ...(JSON.parse(String(init.body)) as object) });
+			};
+		}
+		return routes;
+	};
+	const world = (): Record<number, Mine | undefined> => ({ 501: mine(501, "Verify code review"), 502: mine(502, "Improve Nosto search rules") });
+	const start = (rows: unknown = ROWS, store: () => Record<number, Mine | undefined> = world, fail = {}) =>
+		setup({ files: { [FILE]: JSON.stringify(rows) }, routes: routesFor(store, fail) });
+	const args = ["update", "--file", FILE];
+
+	it("preview shows old and new text with a code and changes nothing", async () => {
+		const t = start();
+		expect(await run(args, t.deps)).toBe(0);
+		expect(t.stdout()).toMatch(/501/);
+		expect(t.stdout()).toContain("Verify code review");
+		expect(t.stdout()).toContain("Code-Review geprüft");
+		expect(t.stdout()).toMatch(/confirm: [0-9a-f]{8}/);
+		expect(put(t)).toHaveLength(0);
+	});
+
+	it("confirm sends only the description, in file order, and prints the stored entries", async () => {
+		const t = start();
+		expect(await run(args, t.deps)).toBe(0);
+		expect(await run([...args, "--confirm", codeFrom(t.stdout())], t.deps)).toBe(0);
+		expect(put(t).map((c) => c.url.pathname)).toEqual(["/api/v1/activities/501", "/api/v1/activities/502"]);
+		expect(put(t).map((c) => JSON.parse(String(c.init.body)))).toEqual([{ description: "Code-Review geprüft" }, { description: "Nosto-Suchregeln verbessert" }]);
+		expect(t.stdout()).toMatch(/Updated.*501/);
+	});
+
+	it("refuses an entry that belongs to another user", async () => {
+		const t = start(ROWS, () => ({ 501: mine(501, "x", 7), 502: mine(502, "y") }));
+		expect(await run(args, t.deps)).toBe(1);
+		expect(t.stderr()).toMatch(/501.*not yours/);
+		expect(t.stdout()).not.toMatch(/confirm:/);
+		expect(put(t)).toHaveLength(0);
+	});
+
+	it("refuses an unknown id", async () => {
+		const t = start([{ id: 503, description: "neu" }]);
+		expect(await run(args, t.deps)).toBe(1);
+		expect(t.stderr()).toMatch(/503/);
+		expect(put(t)).toHaveLength(0);
+	});
+
+	it("refuses a row that would not change the text", async () => {
+		const t = start([{ id: 501, description: "  Verify code review " }]);
+		expect(await run(args, t.deps)).toBe(1);
+		expect(t.stderr()).toMatch(/501.*unchanged/);
+	});
+
+	it.each([
+		["extra keys", [{ id: 501, description: "neu", hours: 2 }]],
+		["a missing description", [{ id: 501 }]],
+		["an empty description", [{ id: 501, description: "  " }]],
+		["a non-integer id", [{ id: "501", description: "neu" }]],
+		["a duplicate id", [{ id: 501, description: "a" }, { id: 501, description: "b" }]],
+		["not a list", { id: 501, description: "a" }],
+		["more than 20 rows", Array.from({ length: 21 }, (_, i) => ({ id: 600 + i, description: "a" }))],
+	])("rejects a file with %s before any request", async (_label, rows) => {
+		const t = start(rows);
+		expect(await run(args, t.deps)).toBe(1);
+		expect(t.calls).toHaveLength(0);
+	});
+
+	it("refuses the whole run when MOCO changed an entry after the preview", async () => {
+		let state = world();
+		const t = start(ROWS, () => state);
+		expect(await run(args, t.deps)).toBe(0);
+		const code = codeFrom(t.stdout());
+		state = { ...state, 501: mine(501, "Someone edited this") };
+		expect(await run([...args, "--confirm", code], t.deps)).toBe(1);
+		expect(t.stderr()).toMatch(/confirm code does not match/);
+		expect(put(t)).toHaveLength(0);
+	});
+
+	it("refuses when the file changed after the preview", async () => {
+		const t = start();
+		expect(await run(args, t.deps)).toBe(0);
+		const code = codeFrom(t.stdout());
+		t.files.set(FILE, JSON.stringify([{ id: 501, description: "Etwas anderes" }, ROWS[1]]));
+		expect(await run([...args, "--confirm", code], t.deps)).toBe(1);
+		expect(put(t)).toHaveLength(0);
+	});
+
+	it("stops at the first failure and reports updated, failed and unwritten ids", async () => {
+		const three = [...ROWS, { id: 503, description: "dritte" }];
+		const t = start(three, () => ({ ...world(), 503: mine(503, "third") }), { 502: 403 });
+		expect(await run(args, t.deps)).toBe(0);
+		expect(await run([...args, "--confirm", codeFrom(t.stdout())], t.deps)).toBe(1);
+		expect(put(t).map((c) => c.url.pathname)).toEqual(["/api/v1/activities/501", "/api/v1/activities/502"]);
+		expect(t.stderr()).toMatch(/403/);
+		expect(t.stderr()).toMatch(/Updated: 501/);
+		expect(t.stderr()).toMatch(/Failed: 502/);
+		expect(t.stderr()).toMatch(/Unwritten: 503/);
+	});
+
+	it("reports a timeout as unknown", async () => {
+		const t = start(ROWS, world, { 501: "timeout" });
+		expect(await run(args, t.deps)).toBe(0);
+		expect(await run([...args, "--confirm", codeFrom(t.stdout())], t.deps)).toBe(1);
+		expect(t.stderr()).toMatch(/Unknown: 501/);
+		expect(t.stderr()).toMatch(/Unwritten: 502/);
+	});
+
+	it("never prints the API key", async () => {
+		const t = start();
+		expect(await run(args, t.deps)).toBe(0);
+		expect(await run([...args, "--confirm", codeFrom(t.stdout())], t.deps)).toBe(0);
+		expect(t.stdout() + t.stderr()).not.toContain(KEY);
+	});
+});
