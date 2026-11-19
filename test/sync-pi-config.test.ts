@@ -198,6 +198,20 @@ describe("sync-pi-config", () => {
 		expect(read(localFile).lastChangelogVersion).toBe("0.99.2");
 	});
 
+	it("does not report merged JSON files as changed when only their layout differs", () => {
+		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-json-layout-");
+		// Pi or an editor may save these files with 4-space indentation and no final newline.
+		const settings = { defaultProvider: "p", packages: ["npm:pi-lens"], theme: "dark" };
+		const mcp = { mcpServers: { docs: { command: "docs-mcp" } } };
+		fs.writeFileSync(path.join(localPiDir, "settings.json"), JSON.stringify(settings, null, 4));
+		fs.writeFileSync(path.join(localPiDir, "mcp.json"), JSON.stringify(mcp, null, 4));
+
+		const first = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+		expect(first.updated).toEqual(expect.arrayContaining(["settings.json", "mcp.json"]));
+		const second = syncManagedPiDirectory("push", localPiDir, globalAgentDir);
+		expect(second.updated).toEqual([]);
+	});
+
 	it("falls back to byte-copy semantics when settings JSON is invalid", () => {
 		const { localPiDir, globalAgentDir } = setupRoots("pi-sync-invalid-json-");
 

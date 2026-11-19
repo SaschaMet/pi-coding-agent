@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 
 export type Mode = "pull" | "push";
 type JsonObject = Record<string, unknown>;
@@ -301,6 +302,12 @@ function mergeMcpServers(
 	return Buffer.from(`${JSON.stringify(sourceJson, null, 2)}\n`, "utf-8");
 }
 
+function sameJson(a: Buffer, b: Buffer): boolean {
+	const left = parseObjectJson(a.toString("utf-8"));
+	const right = parseObjectJson(b.toString("utf-8"));
+	return left !== undefined && right !== undefined && isDeepStrictEqual(left, right);
+}
+
 function fileMode(filePath: string): number {
 	return fs.statSync(filePath).mode & 0o777;
 }
@@ -317,15 +324,17 @@ function copyFileIfChanged(
 
 	if (fs.existsSync(target)) {
 		const targetBuf = fs.readFileSync(target);
+		let merged: Buffer | undefined;
 		if (relativePath === SETTINGS_RELATIVE_PATH) {
-			const mergedSettings = mergeSettingsPackages(sourceBuf, targetBuf);
-			if (mergedSettings) outputBuf = mergedSettings;
+			merged = mergeSettingsPackages(sourceBuf, targetBuf);
 		}
 		if (relativePath === MCP_RELATIVE_PATH) {
-			const mergedMcp = mergeMcpServers(sourceBuf, targetBuf);
-			if (mergedMcp) outputBuf = mergedMcp;
+			merged = mergeMcpServers(sourceBuf, targetBuf);
 		}
+		if (merged) outputBuf = merged;
 		const sameMode = !keepMode || fileMode(source) === fileMode(target);
+		// A merge reformats JSON; equal content in a different layout is not a change.
+		if (merged && sameMode && sameJson(merged, targetBuf)) return false;
 		if (outputBuf.equals(targetBuf) && sameMode) return false;
 	}
 
