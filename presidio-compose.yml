@@ -12,7 +12,7 @@
 services:
   presidio-analyzer:
     build: ./presidio
-    image: pi-presidio-analyzer:2.2.364-de
+    image: pi-presidio-analyzer:2.2.366-de
     container_name: presidio-analyzer
     restart: unless-stopped
     ports:
