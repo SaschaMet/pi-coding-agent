@@ -34,6 +34,7 @@ type EventName =
     | "ui_prompt_end"
     | "agent_end"
     | "session_info_changed"
+    | "input"
     | "session_shutdown";
 const ALL_EVENTS: EventName[] = [
     "session_start",
@@ -42,6 +43,7 @@ const ALL_EVENTS: EventName[] = [
     "ui_prompt_end",
     "agent_end",
     "session_info_changed",
+    "input",
     "session_shutdown",
 ];
 
@@ -272,7 +274,7 @@ describe("cmux sidebar pills", () => {
             const pi = register();
             const execSpy = mockExec(pi, () => treeJson([["a", "b"], ["c"]]));
             await fire(pi, "session_start");
-            await pi.tools.get("set_pane_title")!.execute("id", { title: "a" }, undefined, undefined, { mode: "tui" });
+            await pi.tools.get("set_pane_title")!.execute("id", { title: "a b" }, undefined, undefined, { mode: "tui" });
             await flush();
             expect(tabCalls(execSpy)).toEqual([tabsArgs("a · b · c")]);
         });
@@ -380,6 +382,8 @@ describe("cmux sidebar pills", () => {
                 ["Integrate mate-cli into pi coding agent as optional extension", "Integrate mate-cli"],
                 ["Review iqRouter model session log for improvements", "Review iqRouter model session"],
                 ["For loop bug", "For loop bug"],
+                ["Plan for cmux tab naming", "Plan cmux tab naming"],
+                ["Review of the login flow", "Review the login flow"],
                 ["Fix the flaky test.", "Fix the flaky test"],
                 [
                     "Refactor authentication middleware configuration loader",
@@ -416,7 +420,7 @@ describe("cmux sidebar pills", () => {
             const pi = register();
             const execSpy = mockExec(pi, () => treeJson([["a"]]));
             await fire(pi, "session_start");
-            await pi.tools.get("set_pane_title")!.execute("id", { title: "mine" }, undefined, undefined, { mode: "tui" });
+            await pi.tools.get("set_pane_title")!.execute("id", { title: "my title" }, undefined, undefined, { mode: "tui" });
             await flush();
             execSpy.mockClear();
             await fire(pi, "session_info_changed", "tui", { name: LONG_NAME });
@@ -430,6 +434,183 @@ describe("cmux sidebar pills", () => {
             await fire(pi, "session_info_changed", "tui", { name: undefined });
             await fire(pi, "session_info_changed", "print", { name: LONG_NAME });
             expect(execSpy).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("ticket IDs in titles", () => {
+        const renameCalls = (spy: { mock: { calls: unknown[][] } }): string[][] =>
+            argsOf(spy).filter((a) => a[0] === "rename-tab");
+        const renamedTo = (title: string): string[] => ["rename-tab", "--surface", SURFACE_ID, "--title", title];
+        const GIT_ARGS = ["rev-parse", "--abbrev-ref", "HEAD"];
+
+        /** exec mock: `git` answers with the branch (or fails), cmux `tree` with two panes. */
+        const mockBranch = (pi: Fake, branch: string | { code: number } | Error = "main") =>
+            vi.spyOn(pi, "exec").mockImplementation(async (cmd: any, args: any) => {
+                if (cmd === "git") {
+                    if (branch instanceof Error) throw branch;
+                    if (typeof branch !== "string") return { ...OK_EXEC, code: branch.code };
+                    return { ...OK_EXEC, stdout: `${branch}\n` };
+                }
+                return { ...OK_EXEC, stdout: args[0] === "tree" ? treeJson([["a"], ["b"]]) : "" };
+            });
+        const prompt = (pi: Fake, text: string, source = "interactive") => fire(pi, "input", "tui", { text, source });
+        const named = (pi: Fake, name: string) => fire(pi, "session_info_changed", "tui", { name });
+        const setTitle = async (pi: Fake, title: string) => {
+            await pi.tools.get("set_pane_title")!.execute("id", { title }, undefined, undefined, { mode: "tui" });
+            await flush();
+        };
+
+        it("puts a prompt's ticket ID in front of the subject once a subject exists", async () => {
+            enterCmux();
+            const pi = register();
+            const execSpy = mockBranch(pi);
+            await fire(pi, "session_start");
+            await prompt(pi, "Fix ABC-123 please");
+            expect(renameCalls(execSpy)).toEqual([]);
+            await named(pi, "Fix login redirect");
+            expect(renameCalls(execSpy)).toEqual([renamedTo("ABC-123 Fix login redirect")]);
+        });
+
+        it("takes the ID from the session name without repeating it", async () => {
+            enterCmux();
+            const pi = register();
+            const execSpy = mockBranch(pi);
+            await fire(pi, "session_start");
+            await named(pi, "Fix ABC-123 login redirect");
+            expect(renameCalls(execSpy)).toEqual([renamedTo("ABC-123 Fix login redirect")]);
+        });
+
+        it("reads the branch ID in the session folder, and a prompt ID wins over it", async () => {
+            enterCmux();
+            const pi = register();
+            const execSpy = mockBranch(pi, "feature/XYZ-9-foo");
+            await handlerFor(pi, "session_start")({ type: "session_start" }, { mode: "tui", hasUI: false, cwd: "/repo" });
+            await flush();
+            expect(execSpy).toHaveBeenCalledWith("git", GIT_ARGS, { timeout: 3000, cwd: "/repo" });
+            await named(pi, "Fix login redirect");
+            await prompt(pi, "see ABC-1");
+            expect(renameCalls(execSpy)).toEqual([
+                renamedTo("XYZ-9 Fix login redirect"),
+                renamedTo("ABC-1 Fix login redirect"),
+            ]);
+        });
+
+        it("keeps the first prompt ID and sends an unchanged title only once", async () => {
+            enterCmux();
+            const pi = register();
+            const execSpy = mockBranch(pi);
+            await fire(pi, "session_start");
+            await prompt(pi, "Fix ABC-123");
+            await named(pi, "Fix login redirect");
+            await prompt(pi, "like ABC-99 did");
+            await named(pi, "Fix login redirect");
+            expect(renameCalls(execSpy)).toEqual([renamedTo("ABC-123 Fix login redirect")]);
+        });
+
+        it("keeps ID plus subject within 40 chars by dropping whole words", async () => {
+            enterCmux();
+            const pi = register();
+            const execSpy = mockBranch(pi);
+            await fire(pi, "session_start");
+            await prompt(pi, "PROJ-12345");
+            await named(pi, "Refactor authentication middleware configuration");
+            expect(renameCalls(execSpy)).toEqual([renamedTo("PROJ-12345 Refactor authentication")]);
+        });
+
+        it("ignores version names, UUIDs, and messages from extensions", async () => {
+            enterCmux();
+            const pi = register();
+            const execSpy = mockBranch(pi);
+            await fire(pi, "session_start");
+            await prompt(pi, "use UTF-8 and SHA-256");
+            await prompt(pi, "surface DEADBEEF-0000-4000-8000-000000000001");
+            await prompt(pi, "ABC-1", "extension");
+            await named(pi, "Fix login redirect");
+            expect(renameCalls(execSpy)).toEqual([renamedTo("Fix login redirect")]);
+        });
+
+        it("after a reload, renames nothing until a subject arrives", async () => {
+            enterCmux();
+            const pi = register();
+            pi.getSessionName = () => "Fix login redirect";
+            const execSpy = mockBranch(pi, "feature/XYZ-9-foo");
+            await fire(pi, "session_start", "tui", { reason: "reload" });
+            await prompt(pi, "Fix ABC-1");
+            expect(renameCalls(execSpy)).toEqual([]);
+        });
+
+        it("set_pane_title refuses a one-word subject and sets or switches the ID", async () => {
+            enterCmux();
+            const pi = register();
+            const execSpy = mockBranch(pi);
+            await fire(pi, "session_start");
+            execSpy.mockClear();
+            await expect(setTitle(pi, "Plan")).rejects.toThrow(/2 words/);
+            await expect(setTitle(pi, "ABC-123 Plan")).rejects.toThrow(/2 words/);
+            expect(execSpy).not.toHaveBeenCalled();
+            await setTitle(pi, "ABC-123 Fix login");
+            await setTitle(pi, "XYZ-9 Fix login");
+            expect(renameCalls(execSpy)).toEqual([renamedTo("ABC-123 Fix login"), renamedTo("XYZ-9 Fix login")]);
+        });
+
+        it("strips brackets and a colon around the ID", async () => {
+            enterCmux();
+            const pi = register();
+            const execSpy = mockBranch(pi);
+            await fire(pi, "session_start");
+            await named(pi, "[ABC-123] Fix login redirect");
+            await expect(setTitle(pi, "ABC-123: Plan")).rejects.toThrow(/2 words/);
+            await setTitle(pi, "(ABC-123): Fix login");
+            expect(renameCalls(execSpy)).toEqual([
+                renamedTo("ABC-123 Fix login redirect"),
+                renamedTo("ABC-123 Fix login"),
+            ]);
+        });
+
+        it("treats an over-long number as no ID", async () => {
+            enterCmux();
+            const pi = register();
+            const execSpy = mockBranch(pi);
+            await fire(pi, "session_start");
+            await prompt(pi, "see ABC-1234567890123456789");
+            await named(pi, "Fix login redirect");
+            expect(renameCalls(execSpy)).toEqual([renamedTo("Fix login redirect")]);
+        });
+
+        it("a new session drops the previous branch ID before its own git read returns", async () => {
+            enterCmux();
+            const pi = register();
+            let answerGit: (branch: string) => void = () => {};
+            let gitCalls = 0;
+            const execSpy = vi.spyOn(pi, "exec").mockImplementation(async (cmd: any, args: any) => {
+                if (cmd === "git") {
+                    gitCalls++;
+                    if (gitCalls === 1) return { ...OK_EXEC, stdout: "feature/XYZ-9-foo\n" };
+                    return new Promise((resolve) => {
+                        answerGit = (branch) => resolve({ ...OK_EXEC, stdout: `${branch}\n` });
+                    });
+                }
+                return { ...OK_EXEC, stdout: args[0] === "tree" ? treeJson([["a"], ["b"]]) : "" };
+            });
+            await fire(pi, "session_start");
+            pi.getSessionName = () => "Fix login redirect";
+            execSpy.mockClear();
+            await fire(pi, "session_start", "tui", { reason: "resume" });
+            await prompt(pi, "hello");
+            answerGit("main");
+            await flush();
+            expect(renameCalls(execSpy)).toEqual([renamedTo("Fix login redirect")]);
+        });
+
+        it("a failing git call gives no ID and still applies the subject", async () => {
+            for (const failure of [{ code: 128 }, new Error("git missing")]) {
+                enterCmux();
+                const pi = register();
+                pi.getSessionName = () => "Fix login redirect";
+                const execSpy = mockBranch(pi, failure);
+                await expect(fire(pi, "session_start")).resolves.toBeUndefined();
+                expect(renameCalls(execSpy)).toEqual([renamedTo("Fix login redirect")]);
+            }
         });
     });
 

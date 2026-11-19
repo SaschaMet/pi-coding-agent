@@ -352,7 +352,7 @@ describe("cmux-status extension", () => {
             setupEnv();
             const pi = register();
             const execSpy = mockExec(pi, treeJson([1, 1]));
-            await call((await start(pi))!, "title");
+            await call((await start(pi))!, "fix title");
             expect(execSpy.mock.calls.some(([, a]) => (a as string[])[0] === "workspace")).toBe(false);
             expect(execSpy.mock.calls.some(([, a]) => (a as string[])[0] === "rename-tab")).toBe(true);
         });
@@ -362,13 +362,13 @@ describe("cmux-status extension", () => {
             delete process.env.CMUX_WORKSPACE_ID;
             let pi = register();
             let execSpy = mockExec(pi, treeJson([1]));
-            await call((await start(pi))!, "title");
+            await call((await start(pi))!, "fix title");
             expect(execSpy.mock.calls.some(([, a]) => (a as string[])[0] === "workspace")).toBe(false);
 
             process.env.CMUX_WORKSPACE_ID = WORKSPACE_ID;
             pi = register();
             execSpy = mockExec(pi, "not json");
-            await call((await start(pi))!, "title");
+            await call((await start(pi))!, "fix title");
             expect(execSpy.mock.calls.some(([, a]) => (a as string[])[0] === "workspace")).toBe(false);
         });
 
@@ -385,7 +385,7 @@ describe("cmux-status extension", () => {
             expect(tabTitle()).toBe("surface surface:3 x");
             await call(tool, "a\u202Eb\u0007c\n  d");
             expect(tabTitle()).toBe("ab c d");
-            await call(tool, "😀".repeat(60));
+            await call(tool, "😀x ".repeat(40));
             expect(Array.from(tabTitle())).toHaveLength(40);
         });
 
