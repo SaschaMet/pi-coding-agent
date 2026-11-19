@@ -29,9 +29,17 @@ export interface ProjectEntry {
 	keywords: string[];
 }
 
+// A whole-title rule for a meeting keywords cannot place: it books to one configured project, or is skipped.
+export interface MeetingRule {
+	title: string;
+	project?: string;
+	skip?: boolean;
+}
+
 export interface ProjectMap {
 	gitEmails: string[];
 	projects: ProjectEntry[];
+	meetingRules: MeetingRule[];
 }
 
 export interface DayRow {
@@ -141,7 +149,41 @@ export function parseConfig(text: string, home: string): ProjectMap {
 			keywords,
 		};
 	});
-	return { gitEmails: stringList(data.gitEmails, "gitEmails", false), projects };
+	return { gitEmails: stringList(data.gitEmails, "gitEmails", false), projects, meetingRules: parseMeetingRules(data.meetingRules, projects) };
+}
+
+const titleKey = (title: string) => nfc(title).replace(/\s+/g, " ").trim().toLowerCase();
+
+function parseMeetingRules(value: unknown, projects: ProjectEntry[]): MeetingRule[] {
+	if (value === undefined) return [];
+	if (!Array.isArray(value)) throw new Error("meetingRules must be a list");
+	const seen = new Set<string>();
+	return value.map((raw: unknown, i): MeetingRule => {
+		const label = `meetingRules[${i}]`;
+		if (!isObject(raw)) throw new Error(`${label} must be an object`);
+		const unknown = Object.keys(raw).filter((k) => !(["title", "project", "skip"] as string[]).includes(k));
+		if (unknown.length > 0) throw new Error(`${label} has unknown keys: ${unknown.join(", ")}`);
+		if (!isText(raw.title)) throw new Error(`${label}.title must be text`);
+		const key = titleKey(raw.title);
+		if (seen.has(key)) throw new Error(`${label}.title "${raw.title}" is a duplicate`);
+		seen.add(key);
+		const skip = raw.skip === true;
+		if (raw.skip !== undefined && typeof raw.skip !== "boolean") throw new Error(`${label}.skip must be true or false`);
+		if (skip === (raw.project !== undefined)) throw new Error(`${label} needs exactly one of project or skip: true`);
+		if (skip) return { title: raw.title.trim(), skip: true };
+		const same = isText(raw.project) ? projects.filter((p) => nfc(p.project) === nfc((raw.project as string).trim())) : [];
+		if (same.length !== 1) throw new Error(`${label}.project must be the project of exactly one configured entry`);
+		return { title: raw.title.trim(), project: same[0].project };
+	});
+}
+
+function meetingRule(title: string, map: ProjectMap): MeetingRule | undefined {
+	const key = titleKey(title);
+	return map.meetingRules.find((r) => titleKey(r.title) === key);
+}
+
+export function meetingSkipped(title: string, map: ProjectMap): boolean {
+	return meetingRule(title, map)?.skip === true;
 }
 
 function parseTime(value: unknown): number | undefined {
@@ -385,6 +427,8 @@ const WORD_CHAR = "[\\p{L}\\p{N}_]";
 
 // Whole words only, so a keyword such as "GE" never matches "Change". A title matching two projects is unassigned.
 export function meetingProject(title: string, map: ProjectMap): ProjectEntry | undefined {
+	const rule = meetingRule(title, map);
+	if (rule) return rule.project === undefined ? undefined : map.projects.find((p) => p.project === rule.project);
 	title = nfc(title);
 	const matches = (keyword: string) => {
 		const escaped = nfc(keyword).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -531,7 +575,8 @@ export function buildDays(input: BuildInput): DayReport {
 
 	const spans = new Map<number, [number, number][]>();
 	for (const [party, events] of byParty) spans.set(party, windows(events.map((e) => e.at)));
-	const meetings = (input.meetings ?? []).filter((m) => inRange(m.date)).sort((a, b) => a.start - b.start);
+	// A skipped meeting is ignored whole: it books nothing, is not reported, and takes no log time away.
+	const meetings = (input.meetings ?? []).filter((m) => inRange(m.date) && !meetingSkipped(m.title, map)).sort((a, b) => a.start - b.start);
 	const cuts = cutMeetings(spans, meetings, map);
 	const { raw, lost } = share(spans);
 

@@ -43,6 +43,7 @@ If the script prints `Keychain item ... not found` or cannot reach MOCO, give th
 ```
 
 - `folders`: every folder of the project; a log counts for the longest matching folder. `keywords`: whole words in a meeting title that mean this project. A project needs `folders` or `keywords`; an internal project such as No-Dev & Workshops can have keywords only (`"folders": []` or no key). `meetingTask` is optional. `gitEmails`: your commit author addresses.
+- `meetingRules` (optional) places meetings the keywords cannot: `{ "title": "Abstimmung", "project": "<project of a configured entry>" }` books a meeting with exactly that title to that project; `{ "title": "Weekly: eCommerce", "skip": true }` ignores the meeting entirely (not booked, not reported, takes no log time). Titles match whole and case-insensitive, a rule wins over keywords, and a title may appear once.
 - Time is only ever attributed through this file, never guessed from names.
 
 ## Commands
@@ -84,6 +85,8 @@ Use when the user says "log hours". `suggest` only writes files; booking still g
 3. Run `suggest [--from D --to D] [--meetings F] --out $TMPDIR/moco-<timestamp>`. Without dates the script picks the range and prints it.
 4. Show the report verbatim: range, unmapped folders and the minutes they took, meetings that removed log time, already booked days, agent-only flags, rows without a description, skipped lines.
    If a day is reported as already booked by a "TBD" entry (EON), use the placeholder flow below before step 5.
+   **Meetings no project claims: always ask, never book them silently and never leave them unmentioned.** Ask the user with `ask_user_question`, one question per meeting, in batches of at most 4 per call, with the options: a configured project, internal (No-Dev & Workshops), skip. Then show the config lines that make the answer permanent (a keyword on the project, or a `meetingRules` entry for a generic title such as "Abstimmung") for the user to add, rerun `suggest` with a new `--out`, and book the answered meetings. A meeting claimed by two projects is listed here too: ask which one.
+   Known answers (2026-11-19) are already in the user's config as rules. If one of these meetings is listed as unclaimed again, the rule is missing: still ask. The answers were: Weekly: eCommerce is skipped; Taschenrechner is KI Gremium (Mate project); Nosto topics are Grüne Erde; a bare "Abstimmung" is internal (No-Dev & Workshops); Blocker: Mate CLI / Agentic Workflow is skipped.
 5. For each written file run the Write rule. The file is valid `add --file` input; do not edit it. For a change, fix the meetings file and run `suggest` again with a new `--out`.
 
 ## Internal hours and workshops (Teamwoche rules)

@@ -1206,3 +1206,73 @@ describe("suggest: projects without folders", () => {
 		expect(t.rows().map((r) => `${r.project}/${r.task}/${minutes(r)}`)).toEqual(["Website Support/Support/90"]);
 	});
 });
+
+describe("suggest: meeting rules", () => {
+	const RULE_CONFIG = (rules: unknown) => ({
+		gitEmails: [],
+		meetingRules: rules,
+		projects: [
+			{ project: "Website Relaunch", task: "Development", folders: ["~/work/relaunch"], keywords: ["Nosto"] },
+			{ project: "Website Support", task: "Support", folders: [], keywords: ["Workshop"] },
+		],
+	});
+	const meet = (title: string, start = "10:00", end = "11:00") => ({ date: D, start, end, title });
+	const book = async (rules: unknown, meetings: unknown[], sessions: SessionFile[] = []) => {
+		const t = setup({ config: RULE_CONFIG(rules), meetings, sessions });
+		expect(await t.suggest()).toBe(0);
+		return t;
+	};
+	const SUPPORT = [{ title: "Abstimmung", project: "Website Support" }];
+
+	it("an exact title rule books the meeting to its project", async () => {
+		const t = await book(SUPPORT, [meet("Abstimmung")]);
+		expect(t.rows().map((r) => `${r.project}/${minutes(r)}`)).toEqual(["Website Support/60"]);
+	});
+
+	it("matches the whole title only, ignoring case and surrounding spaces", async () => {
+		const t = await book(SUPPORT, [meet("  abstimmung ", "10:00", "10:30"), meet("Abstimmung Release", "11:00", "11:30")]);
+		expect(t.rows().map((r) => `${r.project}/${minutes(r)}`)).toEqual(["Website Support/30"]);
+		expect(t.stdout()).toContain("Abstimmung Release");
+	});
+
+	it("a rule wins over a keyword clash, and other titles still use keywords", async () => {
+		const t = await book([{ title: "Nosto Workshop", project: "Website Support" }], [meet("Nosto Workshop", "10:00", "10:30"), meet("Nosto sync", "11:00", "11:30")]);
+		expect(t.rows().map((r) => `${r.project}/${minutes(r)}`).sort()).toEqual(["Website Relaunch/30", "Website Support/30"]);
+	});
+
+	it("a skip rule books nothing, reports nothing as unclaimed, and keeps the log time", async () => {
+		const t = await book([{ title: "Weekly: eCommerce", skip: true }], [meet("Weekly: eCommerce")], [pi("a", piSession(A, everyFifteen("10:00", "11:00")))]);
+		expect(t.rows().map((r) => `${r.project}/${minutes(r)}`)).toEqual(["Website Relaunch/60"]);
+		expect(t.stdout()).not.toContain("Weekly: eCommerce");
+	});
+
+	it("rejects a rule whose project is configured twice, since the task would be a guess", async () => {
+		const config = {
+			gitEmails: [],
+			meetingRules: [{ title: "Abstimmung", project: "Website Support" }],
+			projects: [
+				{ project: "Website Support", task: "Support", folders: ["~/work/support"] },
+				{ project: "Website Support", task: "Other", folders: [], keywords: ["Workshop"] },
+			],
+		};
+		const t = setup({ config, meetings: [meet("Abstimmung")] });
+		expect(await t.suggest()).toBe(1);
+		expect(t.stderr()).toMatch(/meetingRules/);
+		expect(t.writes).toHaveLength(0);
+	});
+
+	it.each([
+		["not a list", {}],
+		["an empty title", [{ title: " ", project: "Website Support" }]],
+		["an unknown project", [{ title: "Abstimmung", project: "Nope" }]],
+		["both project and skip", [{ title: "Abstimmung", project: "Website Support", skip: true }]],
+		["neither project nor skip", [{ title: "Abstimmung" }]],
+		["a duplicate title", [{ title: "Abstimmung", skip: true }, { title: "ABSTIMMUNG", project: "Website Support" }]],
+		["an unknown key", [{ title: "Abstimmung", skip: true, extra: 1 }]],
+	])("exits 1 and writes nothing for %s", async (_label, rules) => {
+		const t = setup({ config: RULE_CONFIG(rules), meetings: [meet("Abstimmung")] });
+		expect(await t.suggest()).toBe(1);
+		expect(t.stderr()).toMatch(/meetingRules/);
+		expect(t.writes).toHaveLength(0);
+	});
+});
