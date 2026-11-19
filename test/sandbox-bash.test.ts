@@ -1168,14 +1168,19 @@ describe("sandbox-bash extension", () => {
 		const echoGitConfig =
 			'echo "count=$GIT_CONFIG_COUNT $GIT_CONFIG_KEY_0=$GIT_CONFIG_VALUE_0 $GIT_CONFIG_KEY_1=$GIT_CONFIG_VALUE_1"';
 		// The test process must not already carry git config pairs, or the asserted count would shift.
-		let savedCount: string | undefined;
+		const gitConfigEnvKeys = () =>
+			Object.keys(process.env).filter((k) => k === "GIT_CONFIG_COUNT" || /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k));
+		let savedGitConfigEnv: Record<string, string | undefined> = {};
 		beforeEach(() => {
-			savedCount = process.env.GIT_CONFIG_COUNT;
-			delete process.env.GIT_CONFIG_COUNT;
+			savedGitConfigEnv = {};
+			for (const k of gitConfigEnvKeys()) {
+				savedGitConfigEnv[k] = process.env[k];
+				delete process.env[k];
+			}
 		});
 		afterEach(() => {
-			if (savedCount === undefined) delete process.env.GIT_CONFIG_COUNT;
-			else process.env.GIT_CONFIG_COUNT = savedCount;
+			for (const k of gitConfigEnvKeys()) delete process.env[k];
+			for (const [k, v] of Object.entries(savedGitConfigEnv)) if (v !== undefined) process.env[k] = v;
 		});
 
 		it("turns off git auto maintenance for sandboxed bash in a linked worktree", async () => {
