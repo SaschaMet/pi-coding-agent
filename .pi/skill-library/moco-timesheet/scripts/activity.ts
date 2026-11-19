@@ -129,12 +129,16 @@ export function parseConfig(text: string, home: string): ProjectMap {
 		if (!isObject(raw)) throw new Error(`${label} must be an object`);
 		if (!isText(raw.project) || !isText(raw.task)) throw new Error(`${label} needs text for project and task`);
 		if (raw.meetingTask !== undefined && !isText(raw.meetingTask)) throw new Error(`${label}.meetingTask must be text`);
+		const folders = stringList(raw.folders, `${label}.folders`, false).map((f) => expandHome(f, home));
+		const keywords = stringList(raw.keywords, `${label}.keywords`, false);
+		// An internal project has no code folder and is reached by meeting keywords alone; with neither it can never match.
+		if (folders.length === 0 && keywords.length === 0) throw new Error(`${label} needs folders or keywords`);
 		return {
 			project: raw.project.trim(),
 			task: raw.task.trim(),
 			meetingTask: raw.meetingTask?.trim(),
-			folders: stringList(raw.folders, `${label}.folders`, true).map((f) => expandHome(f, home)),
-			keywords: stringList(raw.keywords, `${label}.keywords`, false),
+			folders,
+			keywords,
 		};
 	});
 	return { gitEmails: stringList(data.gitEmails, "gitEmails", false), projects };
@@ -367,7 +371,7 @@ function joinTitles(all: string[]): string {
 	const titles = [...new Set(all)];
 	let text = "";
 	for (const title of titles) {
-		const next = text === "" ? title : `${text}; ${title}`;
+		const next = text === "" ? title : `${text}, ${title}`;
 		if (next.length > DESCRIPTION_MAX) {
 			if (text === "") text = title.slice(0, DESCRIPTION_MAX).trimEnd();
 			break;

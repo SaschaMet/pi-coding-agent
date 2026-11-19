@@ -567,6 +567,7 @@ describe("suggest: config", () => {
 		["not JSON", { rawConfig: "{nope" }],
 		["without projects", { config: { gitEmails: [] } }],
 		["with a project lacking folders", { config: { gitEmails: [], projects: [{ project: "Website Relaunch", task: "Development" }] } }],
+		["with a project that has neither folders nor keywords", { config: { gitEmails: [], projects: [{ project: "Website Relaunch", task: "Development", folders: [], keywords: [] }] } }],
 	])("exits 1 with a template hint and writes nothing when the file is %s", async (_label, opts) => {
 		const t = setup({ ...(opts as object), sessions: [pi("a", piSession(A, [at("09:00"), at("09:15"), at("09:30")]))] });
 		expect(await t.suggest()).toBe(1);
@@ -1171,5 +1172,37 @@ describe("suggest: Unicode forms of folder names and titles", () => {
 		const { parseConfig, meetingProject } = await import("../.pi/skill-library/moco-timesheet/scripts/activity.ts");
 		const map = parseConfig(JSON.stringify({ projects: [{ project: "GE", task: "Dev", folders: ["/h/ge"], keywords: ["Grüne Erde"] }] }), "/h");
 		expect(meetingProject("Grüne Erde Weekly", map)?.project).toBe("GE");
+	});
+});
+
+describe("suggest: comma separator in descriptions", () => {
+	it("joins several titles of one project-day with a comma, never a semicolon", async () => {
+		const t = setup({
+			sessions: [
+				pi("a", piSession(A, [at("09:00"), at("09:15"), at("09:30")], { title: "Fix cart bug" })),
+				claude("c", claudeSession(A, [at("10:00"), at("10:15"), at("10:30")], { title: "Refactor checkout" })),
+			],
+		});
+		expect(await t.suggest()).toBe(0);
+		const [row] = t.rows();
+		expect(row.description).toBe("Fix cart bug, Refactor checkout");
+		expect(row.description).not.toContain(";");
+	});
+});
+
+describe("suggest: projects without folders", () => {
+	const WORKSHOP_CONFIG = (project: Record<string, unknown>) => ({
+		gitEmails: [],
+		projects: [{ project: "Website Relaunch", task: "Development", folders: ["~/work/relaunch"], keywords: ["Relaunch"] }, project],
+	});
+	const meeting = [{ date: D, start: "15:30", end: "17:00", title: "Update / Workshop" }];
+
+	it.each([
+		["an empty folders list", { project: "Website Support", task: "Support", folders: [], keywords: ["Workshop"] }],
+		["no folders key", { project: "Website Support", task: "Support", keywords: ["Workshop"] }],
+	])("books a keyword-matched meeting to a project with %s", async (_label, project) => {
+		const t = setup({ config: WORKSHOP_CONFIG(project), meetings: meeting });
+		expect(await t.suggest()).toBe(0);
+		expect(t.rows().map((r) => `${r.project}/${r.task}/${minutes(r)}`)).toEqual(["Website Support/Support/90"]);
 	});
 });

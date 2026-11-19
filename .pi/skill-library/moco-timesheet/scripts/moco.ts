@@ -1,5 +1,5 @@
-// MOCO timesheet CLI: read your own hours and book time after a confirmed preview.
-// Usage: node --use-env-proxy moco.ts <projects|list|sum|add|suggest> [options]
+// MOCO timesheet CLI: read your own hours, book time, and delete your own TBD placeholders, each after a confirmed preview.
+// Usage: node --use-env-proxy moco.ts <projects|list|sum|add|suggest|delete> [options]
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import type { Dirent } from "node:fs";
@@ -56,6 +56,7 @@ interface Activity {
 	seconds: number;
 	worked_seconds?: number;
 	description: string | null;
+	user?: { id: number };
 	project: { id: number; name: string };
 	task: { id: number; name: string };
 }
@@ -126,6 +127,11 @@ class Moco {
 		return (await res.json()) as T;
 	}
 
+	// A DELETE answers with an empty body, so none is parsed: parsing would throw after a delete that worked.
+	async remove(path: string): Promise<void> {
+		await this.request(this.url(path), { method: "DELETE" });
+	}
+
 	private url(path: string, query: Record<string, string> = {}): string {
 		const url = URL.parse(this.base + path);
 		if (!url) throw new UsageError(`invalid request path ${path}`);
@@ -165,6 +171,16 @@ function nextLink(header: string | null, current: string): string | undefined {
 
 export function confirmCode(entries: ActivityPayload[]): string {
 	const canonical = JSON.stringify(entries.map((e) => [e.date, e.project_id, e.task_id, e.seconds, e.description]));
+	return createHash("sha256").update(canonical).digest("hex").slice(0, 8);
+}
+
+// Over everything the user sees in the preview, in id order, so any change after it voids the code.
+function deleteCode(entries: Activity[]): string {
+	const canonical = JSON.stringify(
+		[...entries]
+			.sort((a, b) => a.id - b.id)
+			.map((a) => [a.id, a.date, a.project.id, a.worked_seconds ?? a.seconds, (a.description ?? "").trim()]),
+	);
 	return createHash("sha256").update(canonical).digest("hex").slice(0, 8);
 }
 
@@ -313,6 +329,7 @@ const COMMANDS = {
 	},
 	add: { file: { type: "string" }, confirm: { type: "string" } },
 	suggest: { from: { type: "string" }, to: { type: "string" }, out: { type: "string" }, meetings: { type: "string" } },
+	delete: { from: { type: "string" }, to: { type: "string" }, confirm: { type: "string" } },
 } as const;
 
 type Command = keyof typeof COMMANDS;
@@ -416,6 +433,46 @@ async function addCommand(moco: Moco, deps: Deps, values: Values, rows: Row[]): 
 			deps.err(`Error: stopped at row ${i + 1}: ${why}`);
 			deps.err(`Landed: ${rows(0, i)}`);
 			deps.err(`Unwritten: ${rows(i + 1, entries.length)}`);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+// The one placeholder text this command may remove. A fixed constant, never an option: the filter is the main guard.
+const PLACEHOLDER = "TBD";
+
+async function deleteCommand(moco: Moco, deps: Deps, values: Values): Promise<number> {
+	const from = parseDate(values.from, "--from");
+	const to = parseDate(values.to, "--to");
+	if (from > to) throw new UsageError("--from must not be after --to");
+	const profile = await moco.get<{ id: number }>("/profile");
+	const all = await moco.getAll<Activity>("/activities", { from, to, user_id: String(profile.id) });
+	// The user filter is asked of MOCO and checked again here: a foreign entry must never reach the delete.
+	const found = all.filter((a) => a.user?.id === profile.id && (a.description ?? "").trim() === PLACEHOLDER);
+	if (found.length === 0) throw new UsageError(`no ${PLACEHOLDER} entries between ${from} and ${to}`);
+	if (found.length > MAX_ROWS) throw new UsageError(`${found.length} ${PLACEHOLDER} entries match; use a narrower range (at most ${MAX_ROWS})`);
+	const code = deleteCode(found);
+	if (values.confirm === undefined) {
+		found.forEach((a) => deps.out(formatActivity(a)));
+		deps.out(`Total: ${hm(found.reduce((s, a) => s + (a.worked_seconds ?? a.seconds), 0))} in ${found.length} entries`);
+		deps.out(`confirm: ${code}`);
+		deps.out("Nothing deleted yet.");
+		return 0;
+	}
+	if (values.confirm !== code) throw new UsageError("confirm code does not match these entries. Preview again.");
+	const ids = (list: Activity[]) => list.map((a) => a.id).join(", ") || "none";
+	for (const [i, entry] of found.entries()) {
+		try {
+			await moco.remove(`/activities/${entry.id}`);
+			deps.out(`Deleted: ${formatActivity(entry)}`);
+		} catch (error) {
+			const why = error instanceof HttpError ? `failed: ${error.status} ${error.message}` : "unknown — may have been deleted (no answer from MOCO)";
+			deps.err(`Error: stopped at entry ${entry.id}: ${why}`);
+			deps.err(`Deleted: ${ids(found.slice(0, i))}`);
+			// A timeout may still have deleted the entry, so it is not reported as failed.
+			deps.err(`${error instanceof HttpError ? "Failed" : "Unknown"}: ${entry.id}`);
+			deps.err(`Unwritten: ${ids(found.slice(i + 1))}`);
 			return 1;
 		}
 	}
@@ -660,7 +717,7 @@ export async function run(argv: string[], unsafeDeps: Deps): Promise<number> {
 	try {
 		const [command, ...rest] = argv;
 		if (!command || !Object.hasOwn(COMMANDS, command)) {
-			throw new UsageError(`unknown command "${command ?? ""}". Use: projects | list | sum | add | suggest`);
+			throw new UsageError(`unknown command "${command ?? ""}". Use: projects | list | sum | add | suggest | delete`);
 		}
 		const options = COMMANDS[command as Command];
 		const values = parseArgs({ args: rest, options, strict: true, allowPositionals: false }).values as Values;
@@ -680,10 +737,14 @@ export async function run(argv: string[], unsafeDeps: Deps): Promise<number> {
 		const connection = await connect(deps);
 		key = connection.key;
 		const { moco } = connection;
-		if (command === "projects") return await projectsCommand(moco, deps);
-		if (command === "list") return await listCommand(moco, deps, values);
-		if (command === "sum") return await sumCommand(moco, deps, values);
-		return await addCommand(moco, deps, values, rows);
+		const handlers: Record<string, () => Promise<number>> = {
+			projects: () => projectsCommand(moco, deps),
+			list: () => listCommand(moco, deps, values),
+			sum: () => sumCommand(moco, deps, values),
+			delete: () => deleteCommand(moco, deps, values),
+			add: () => addCommand(moco, deps, values, rows),
+		};
+		return await handlers[command]();
 	} catch (error) {
 		if (error instanceof HttpError) deps.err(`Error: ${error.status} ${error.message}`);
 		else if (error instanceof Error) deps.err(`Error: ${error.message}`);

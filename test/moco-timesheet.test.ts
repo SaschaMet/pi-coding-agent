@@ -455,3 +455,149 @@ describe("moco-timesheet safety", () => {
 		expect(t.calls).toHaveLength(0);
 	});
 });
+
+describe("moco-timesheet delete (TBD placeholders)", () => {
+	const mine = (id: number, date: string, description: string, user = 42): Activity & { user: { id: number } } => ({
+		...activity(id, date, 100, 28800, 28800, description),
+		user: { id: user },
+	});
+	const TBD = [mine(501, "2026-11-09", "TBD"), mine(502, "2026-11-10", "TBD")];
+	const gone = (t: ReturnType<typeof setup>) => t.calls.filter((c) => c.method === "DELETE").map((c) => c.url.pathname);
+	const deleteRoutes = (ids: number[], fail: Record<number, number> = {}) =>
+		Object.fromEntries(
+			ids.map((id) => [
+				`DELETE /api/v1/activities/${id}`,
+				() => (fail[id] ? json({ message: "locked" }, fail[id]) : new Response(null, { status: 204 })),
+			]),
+		);
+	const args = ["delete", "--from", "2026-11-09", "--to", "2026-11-12"];
+
+	it("preview lists the TBD entries with a code and deletes nothing", async () => {
+		const t = setup({ existing: TBD, routes: deleteRoutes([501, 502]) });
+		expect(await run(args, t.deps)).toBe(0);
+		expect(t.stdout()).toMatch(/501/);
+		expect(t.stdout()).toMatch(/502/);
+		expect(t.stdout()).toMatch(/Website Relaunch/);
+		expect(t.stdout()).toMatch(/2026-11-09 {2}8:00/);
+		expect(t.stdout()).toMatch(/2026-11-10 {2}8:00/);
+		expect(t.stdout()).toMatch(/confirm: [0-9a-f]{8}/);
+		expect(gone(t)).toHaveLength(0);
+	});
+
+	it("asks MOCO only for the user's own entries in the range", async () => {
+		const t = setup({ existing: TBD });
+		await run(args, t.deps);
+		const read = t.calls.find((c) => c.url.pathname === "/api/v1/activities")!;
+		expect(read.url.searchParams.get("user_id")).toBe("42");
+		expect(read.url.searchParams.get("from")).toBe("2026-11-09");
+		expect(read.url.searchParams.get("to")).toBe("2026-11-12");
+	});
+
+	it("confirm deletes exactly the previewed ids and prints them", async () => {
+		const t = setup({ existing: TBD, routes: deleteRoutes([501, 502]) });
+		expect(await run(args, t.deps)).toBe(0);
+		expect(await run([...args, "--confirm", codeFrom(t.stdout())], t.deps)).toBe(0);
+		expect(gone(t)).toEqual(["/api/v1/activities/501", "/api/v1/activities/502"]);
+		expect(t.stdout()).toMatch(/deleted.*501/i);
+	});
+
+	it("matches TBD after trimming, case-sensitive, and never lists other text or other users", async () => {
+		const existing = [
+			mine(501, "2026-11-09", " TBD "),
+			mine(502, "2026-11-09", "tbd"),
+			mine(503, "2026-11-09", "TBD Workshop"),
+			mine(504, "2026-11-09", "EDGWEB-5652"),
+			mine(505, "2026-11-09", "TBD", 7),
+			{ ...activity(506, "2026-11-09", 100, 3600), description: null as unknown as string, user: { id: 42 } },
+			{ ...activity(507, "2026-11-09", 100, 3600, 3600, "TBD") },
+		];
+		const t = setup({ existing, routes: deleteRoutes([501]) });
+		expect(await run(args, t.deps)).toBe(0);
+		const shown = t.stdout();
+		expect(shown).toMatch(/501/);
+		for (const id of [502, 503, 504, 505, 506, 507]) expect(shown).not.toContain(String(id));
+		expect(await run([...args, "--confirm", codeFrom(shown)], t.deps)).toBe(0);
+		expect(gone(t)).toEqual(["/api/v1/activities/501"]);
+	});
+
+	it("exits 1 when the range holds no TBD entries", async () => {
+		const t = setup({ existing: [mine(504, "2026-11-09", "EDGWEB-5652")] });
+		expect(await run(args, t.deps)).toBe(1);
+		expect(t.stderr()).toMatch(/no TBD entries/);
+		expect(t.stdout()).not.toMatch(/confirm:/);
+	});
+
+	it("refuses more than 20 matches", async () => {
+		const many = Array.from({ length: 21 }, (_, i) => mine(600 + i, "2026-11-09", "TBD"));
+		const t = setup({ existing: many });
+		expect(await run(args, t.deps)).toBe(1);
+		expect(t.stderr()).toMatch(/narrower range/);
+		expect(t.stdout()).not.toMatch(/confirm:/);
+	});
+
+	it("refuses the whole run when the set changed after the preview", async () => {
+		let existing = [...TBD];
+		const t = setup({ routes: { "GET /api/v1/activities": () => json(existing), ...deleteRoutes([501, 502, 503]) } });
+		expect(await run(args, t.deps)).toBe(0);
+		const code = codeFrom(t.stdout());
+		existing = [...TBD, mine(503, "2026-11-11", "TBD")];
+		expect(await run([...args, "--confirm", code], t.deps)).toBe(1);
+		expect(t.stderr()).toMatch(/confirm code does not match/);
+		expect(gone(t)).toHaveLength(0);
+	});
+
+	it("refuses when an entry changed hours after the preview", async () => {
+		let existing = [...TBD];
+		const t = setup({ routes: { "GET /api/v1/activities": () => json(existing), ...deleteRoutes([501, 502]) } });
+		expect(await run(args, t.deps)).toBe(0);
+		const code = codeFrom(t.stdout());
+		existing = [{ ...TBD[0], worked_seconds: 14400, seconds: 14400 }, TBD[1]];
+		expect(await run([...args, "--confirm", code], t.deps)).toBe(1);
+		expect(gone(t)).toHaveLength(0);
+	});
+
+	it("stops at the first failure and reports deleted, failed and unwritten ids", async () => {
+		const three = [...TBD, mine(503, "2026-11-11", "TBD")];
+		const t = setup({ existing: three, routes: deleteRoutes([501, 502, 503], { 502: 403 }) });
+		expect(await run(args, t.deps)).toBe(0);
+		expect(await run([...args, "--confirm", codeFrom(t.stdout())], t.deps)).toBe(1);
+		expect(gone(t)).toEqual(["/api/v1/activities/501", "/api/v1/activities/502"]);
+		expect(t.stderr()).toMatch(/403/);
+		expect(t.stderr()).toMatch(/Deleted: 501/);
+		expect(t.stderr()).toMatch(/Failed: 502/);
+		expect(t.stderr()).toMatch(/Unwritten: 503/);
+	});
+
+	it("reports a timeout as unknown, not failed, and stops", async () => {
+		const t = setup({
+			existing: TBD,
+			routes: {
+				...deleteRoutes([501, 502]),
+				"DELETE /api/v1/activities/501": () => {
+					throw new Error("timeout");
+				},
+			},
+		});
+		expect(await run(args, t.deps)).toBe(0);
+		expect(await run([...args, "--confirm", codeFrom(t.stdout())], t.deps)).toBe(1);
+		expect(t.stderr()).toMatch(/may have been deleted/);
+		expect(t.stderr()).toMatch(/Unknown: 501/);
+		expect(t.stderr()).not.toMatch(/Failed: 501/);
+		expect(t.stderr()).toMatch(/Unwritten: 502/);
+		expect(gone(t)).toEqual(["/api/v1/activities/501"]);
+	});
+
+	it("needs --from and --to", async () => {
+		const t = setup({ existing: TBD });
+		expect(await run(["delete", "--from", "2026-11-09"], t.deps)).toBe(1);
+		expect(t.stderr()).toMatch(/--to/);
+		expect(gone(t)).toHaveLength(0);
+	});
+
+	it("never prints the API key", async () => {
+		const t = setup({ existing: TBD, routes: deleteRoutes([501, 502]) });
+		expect(await run(args, t.deps)).toBe(0);
+		expect(await run([...args, "--confirm", codeFrom(t.stdout())], t.deps)).toBe(0);
+		expect(t.stdout() + t.stderr()).not.toContain(KEY);
+	});
+});
