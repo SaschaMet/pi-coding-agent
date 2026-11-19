@@ -45,9 +45,11 @@ function fakeParent(answer?: string) {
 describe.skipIf(!installed)("subagent prompt forwarding", () => {
 	let promptOnlyUI: PromptOnlyUI;
 
+	// The first import transforms the whole pi-subagents source tree; under a loaded full run it can
+	// exceed the 10 s default hook timeout although the module itself is fine.
 	beforeAll(async () => {
 		promptOnlyUI = (await import(runnerPath)).promptOnlyUI;
-	});
+	}, 60_000);
 
 	it("is exported by the patched package", () => {
 		expect(typeof promptOnlyUI).toBe("function");

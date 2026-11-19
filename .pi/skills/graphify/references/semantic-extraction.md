@@ -30,7 +30,8 @@ detect = json.loads(Path('graphify-out/.graphify_detect.json').read_text(encodin
 # every source file (#1392). Video is transcribed to a document in Step 2.5 first.
 all_files = [f for cat in ('document', 'paper', 'image') for f in detect['files'].get(cat, [])]
 
-cached_nodes, cached_edges, cached_hyperedges, uncached = check_semantic_cache(all_files, root='INPUT_PATH', prompt_file='SPEC_PATH')
+INPUT_PATH = Path('graphify-out/.graphify_root').read_text(encoding=\"utf-8-sig\").strip()
+cached_nodes, cached_edges, cached_hyperedges, uncached = check_semantic_cache(all_files, root=INPUT_PATH, prompt_file='SPEC_PATH')
 
 # Always (re)write the cache file: write hits, else DELETE any leftover from a prior
 # run so Part C never merges a stale .graphify_cached.json (#1392).
@@ -99,7 +100,9 @@ A subagent that only read the first Read call's worth of a long file still write
 $(cat graphify-out/.graphify_python) -c "
 import json, glob
 from pathlib import Path
+from graphify.cache import drop_unreported_chunk_sources
 
+INPUT_PATH = Path('graphify-out/.graphify_root').read_text(encoding=\"utf-8-sig\").strip()
 covered = {}
 for c in sorted(glob.glob('graphify-out/.graphify_chunk_*.json')):
     d = json.loads(Path(c).read_text(encoding=\"utf-8\"))
@@ -110,24 +113,27 @@ partial = []
 for src, n in sorted(covered.items()):
     p = Path(src)
     if not p.is_absolute():
-        p = Path('INPUT_PATH') / src
+        p = Path(INPUT_PATH) / src
     if not p.is_file():
         continue
     total = sum(1 for _ in p.open(encoding='utf-8', errors='replace'))
     if total and n < total:
         partial.append((src, n, total))
 
-Path('graphify-out/.graphify_partial.txt').write_text('\n'.join(s for s, _, _ in partial), encoding=\"utf-8\")
+unread, dropped = drop_unreported_chunk_sources(Path('graphify-out'), Path(INPUT_PATH))
+Path('graphify-out/.graphify_partial.txt').write_text('\n'.join(dict.fromkeys([s for s, _, _ in partial] + unread)), encoding=\"utf-8\")
+if unread:
+    print(f'WARNING: {len(unread)} file(s) reported no coverage, so they were never read. Dropped {dropped} item(s) guessed for them; retried on the next --update:', *unread, sep='\n  ')
 if partial:
     print(f'WARNING: {len(partial)} file(s) were only partly read. They are cached as partial and retried on the next --update:')
     for src, n, total in partial:
         print(f'  {src}: read {n} of {total} lines')
-else:
+elif not unread:
     print('Coverage OK - every file a subagent reported was read to its last line')
 "
 ```
 
-Tell the user which files came up short and what was lost (the line counts are printed above). The nodes already extracted for those files are kept - they are still true - but the file is cached as partial and left unstamped in the manifest below, so the next `--update` re-dispatches it and replace-on-re-extract swaps the partial node set for a complete one. This is the same mechanism the library path uses for a truncated LLM response (#933, #1950), so both paths now recover instead of silently keeping a half-read file forever. A file a subagent did not report at all is not counted as partial - there is nothing to compare against - which is why the prompt rule in `references/extraction-spec.md` asks for the count in the first place.
+Tell the user which files came up short and what was lost (the line counts are printed above). The nodes already extracted for those files are kept - they are still true - but the file is cached as partial and left unstamped in the manifest below, so the next `--update` re-dispatches it and replace-on-re-extract swaps the partial node set for a complete one. This is the same mechanism the library path uses for a truncated LLM response (#933, #1950), so both paths now recover instead of silently keeping a half-read file forever. A dispatched file with no coverage entry, or 0, was never opened, so whatever its chunk holds for it was guessed from its name: those items are dropped and the file is flagged the same way (#2225).
 
 Merge all chunk files into `.graphify_semantic_new.json`. **After each Agent call completes, read the real token counts from the Agent tool result's `usage` field and write them back into the chunk JSON before merging** — the chunk JSON itself always has placeholder zeros. Then run:
 ```bash
@@ -166,7 +172,8 @@ uncached = [line for line in Path('graphify-out/.graphify_uncached.txt').read_te
 # so the next --update re-dispatches it instead of serving a truncated extraction forever
 # (#2225). Same contract the library path uses for a truncated LLM response (#933/#1950).
 partial = [line for line in Path('graphify-out/.graphify_partial.txt').read_text(encoding=\"utf-8\").splitlines() if line] if Path('graphify-out/.graphify_partial.txt').exists() else []
-saved = save_semantic_cache(new.get('nodes', []), new.get('edges', []), new.get('hyperedges', []), root='INPUT_PATH', allowed_source_files=uncached, prompt_file='SPEC_PATH', partial_source_files=partial)
+INPUT_PATH = Path('graphify-out/.graphify_root').read_text(encoding=\"utf-8-sig\").strip()
+saved = save_semantic_cache(new.get('nodes', []), new.get('edges', []), new.get('hyperedges', []), root=INPUT_PATH, allowed_source_files=uncached, prompt_file='SPEC_PATH', partial_source_files=partial)
 note = f' ({len(partial)} left partial for retry)' if partial else ''
 print(f'Cached {saved} files' + note)
 "
