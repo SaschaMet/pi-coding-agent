@@ -21,12 +21,13 @@ Release notes: read GitHub release pages through the fetch MCP. PyPI's robots.tx
 
 1. **Save the old upstream skill before upgrading.** The upgrade replaces it, and it is the merge base. Copy `<site-packages>/graphify/skill-pi.md` and `skills/pi/references/` into the plan folder. `<site-packages>` is `~/.local/share/uv/tools/graphifyy/lib/python3.*/site-packages`.
 2. (you) `uv tool upgrade graphifyy && graphify --version`. Stale-skill warnings on stderr are expected until step 6. The auto-refresh skips `~/.pi/agent/skills/graphify`, because `~/.claude`, `~/.codex`, and `~/.copilot` symlink to it; check for a `SKILL.md.bak` there anyway.
-3. Merge per file: `git merge-file <ours> <old upstream> <new upstream>`. `references/extraction-spec.md` follows upstream's `skills/claude/references/` variant. `references/semantic-extraction.md` has no upstream file: it is Part B of upstream's SKILL.md, so slice that section out of both versions first.
+3. Merge per file: `git merge-file <ours> <old upstream> <new upstream>`. `references/extraction-spec.md` is upstream's `skills/pi/references/` variant, copied verbatim. `references/semantic-extraction.md` has no upstream file: it is Part B of upstream's SKILL.md, so slice that section out of both versions first.
 4. Keep these local deviations:
    - Step B2 dispatches with the `Agent` tool and `subagent_type="general-purpose"`. Upstream's pi skill targets `npm:pi-subagents` (`delegate` agent), which this repo does not run.
    - The interpreter guard lives in `references/interpreter-guard.md`, and the update, add/watch, and hook pointers are one "Other subcommands" list. Both keep SKILL.md under the 580-line cap in `test/graphify-skill.test.ts`.
    - `references/hooks.md` keeps the `GIT_CONFIG_GLOBAL` prefix; `test/guard-check-skill-text.test.ts` requires it.
    - Our frontmatter `description`.
+   - No "Graphify Cloud (hosted)" section (added upstream in 0.9.112): it only advertises the hosted product.
 5. Set `.graphify_version` to the new version (no trailing newline) and run `npx vitest run test/graphify-skill.test.ts`.
 6. (you) `graphify hook install`. From 0.9.102 it prints `refusing hooks path … (#3869)` and writes `.git/hooks`; that line is expected. Check: `grep -l graphify .git/hooks/post-*` lists four hooks and `~/.pi/agent/security/git-hooks/*` has none.
 7. `graphify update .` (the agent can run it). Cache-schema bumps make it re-extract.
