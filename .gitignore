@@ -20,3 +20,5 @@ test/.fixtures/
 .pi/trust.json
 graphify-out/*
 .pi/mcp-adapter.json
+.pi/skills/work-dashboard/
+.pi/skills/software-factory/
