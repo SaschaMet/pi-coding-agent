@@ -1,11 +1,12 @@
 import { execFile, execFileSync } from "node:child_process";
 import fs from "node:fs";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import sandboxBashExtension from "../.pi/extensions/sandbox-bash.ts";
 import { checkGitPointers } from "../.pi/extensions/lib/git-worktree.ts";
-import { SRT_VERSION } from "../.pi/extensions/lib/sandbox-bash.ts";
+import { DEFAULT_CONFIG, SRT_VERSION, applyGrants, buildSrtSettings } from "../.pi/extensions/lib/sandbox-bash.ts";
 import { asExtensionAPI, createFakePi, createFakeUi } from "./helpers/fake-pi.ts";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
@@ -569,4 +570,57 @@ describe("bash tool ownership", () => {
 		expect(offenders).toContain(path.join(repoRoot, ".pi/extensions/sandbox-bash.ts"));
 		// Walking every installed package is slow under full-suite load (under 1s alone, over 30s seen).
 	}, 120_000);
+});
+
+describe.skipIf(skipReason !== undefined)("unix socket grant against real srt", () => {
+	let dir: string;
+	let server: net.Server;
+	let sock: string;
+	const client = (settingsFile: string) =>
+		new Promise<string>((resolve) => {
+			const script = `require('net').connect(${JSON.stringify(sock)}).on('connect',()=>{console.log('connected');process.exit(0)}).on('error',e=>{console.log('failed '+e.code);process.exit(1)})`;
+			execFile("srt", ["--settings", settingsFile, "--", "/bin/bash", "-c", `node -e ${JSON.stringify(script)}; true`], { cwd: dir, encoding: "utf8", timeout: 60_000 }, (_e, stdout, stderr) =>
+				resolve(stdout + stderr),
+			);
+		});
+
+	beforeAll(async () => {
+		dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "sg-")));
+		fs.mkdirSync(path.join(dir, "work"));
+		sock = path.join(dir, "d.sock");
+		server = net.createServer((c) => c.end());
+		await new Promise<void>((resolve) => server.listen(sock, () => resolve()));
+	});
+
+	afterAll(async () => {
+		await new Promise((resolve) => server.close(resolve));
+		fs.rmSync(dir, { recursive: true, force: true });
+	});
+
+	const settingsFor = (granted: boolean) => {
+		const base = buildSrtSettings(DEFAULT_CONFIG, {
+			cwd: path.join(dir, "work"),
+			home: os.homedir(),
+			tmpdir: path.join(dir, "work"),
+			settingsDir: path.join(dir, "run"),
+			uid: process.getuid?.() ?? 0,
+			cmuxSocket: undefined,
+			envNames: [],
+		});
+		const settings = applyGrants(base, granted ? [{ name: "t", allowedDomains: [], allowUnixSockets: [sock], missingSockets: [] }] : []);
+		const file = path.join(dir, granted ? "granted.json" : "plain.json");
+		fs.writeFileSync(file, JSON.stringify(settings));
+		return file;
+	};
+
+	it("connects with the grant", async () => {
+		expect(await client(settingsFor(true))).toContain("connected");
+	});
+
+	it("fails without the grant", async () => {
+		const out = await client(settingsFor(false));
+		// The client's own error line proves srt and node started and only the connect was refused.
+		expect(out).toMatch(/failed E[A-Z]+/);
+		expect(out).not.toContain("connected");
+	});
 });

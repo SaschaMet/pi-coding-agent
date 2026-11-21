@@ -18,7 +18,8 @@ Check first: `echo $SANDBOX_RUNTIME` prints `1` → your bash is sandboxed. Empt
 | `Failed to connect to 127.0.0.1 port …` | Local ports (e.g. the Headroom proxy on 8788, Docker services) are not reachable | Hand the `curl` / `docker exec` check to the human with the expected output |
 | `uv`/`pipx` fails on `~/.cache/uv` or `~/.local` | Tool installs write outside the writable paths | Hand `uv tool upgrade` / `pipx upgrade` to the human; a `!` shell inside PI is sandboxed too |
 | Host blocked: `CONNECT tunnel failed, response 403` (macOS proxy) or `ENOTFOUND` / "could not resolve host" | Only `registry.npmjs.org` is allowed | Ask the human to add the domain to `~/.pi/agent/sandbox.json`. Never edit it yourself, never go unsandboxed for it |
-| Docker, `gh`, `git push/fetch/pull`, `npm publish`, a listening port | No socket, no tokens, no binding — by design | Unsandboxed one-shot (below) |
+| Docker, `git push/fetch/pull` | No Docker socket and no `github.com` unless a grant is active | `echo $SANDBOX_GRANTS`: a listed preset means go ahead. Otherwise ask the human to restart with `pi -c --sandbox-grant <preset>`, or use the unsandboxed one-shot (below) |
+| `gh`, `npm publish`, a listening port | No tokens, no binding — by design | Unsandboxed one-shot (below) |
 | `bash blocked: sandbox unavailable (<reason>)` | srt missing or wrong version, config, cwd, tool override, settings file | Stop. Tell the human the reason and the fix. Read and edit tools still work |
 
 At start, the sandbox sets `diff.ignoreSubmodules = all` and `status.submoduleSummary = false` in the repo's git config (an info notice shows old and new values), so `git status` never enters a nested repo a session staged as a gitlink.
@@ -33,6 +34,7 @@ Still open: a git repo a session builds outside the repo tree (under `$TMPDIR` o
 
 ## Never
 
+- Add `--sandbox-grant` to a boot line yourself unless the human approved that preset for that session (handsoff: the gate's Grants slot).
 - Retry a blocked command, or re-run it through another interpreter, `eval`, a script file, or a different path.
 - Edit `~/.pi/agent/sandbox.json` or the sandbox extension files to get past a block.
 - Type commands into a bare cmux shell; only a pi run started with `--no-sandbox` runs unsandboxed work.

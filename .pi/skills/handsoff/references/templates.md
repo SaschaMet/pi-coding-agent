@@ -23,6 +23,8 @@ One message, this order, plain words. Fill every slot; a slot you cannot fill is
 
 **Budget.** <rounds> rounds × plateau <n> per package, 1 to 5 workers per round, wall clock <N> s (estimate <E> s × 1.5). On clock-out every lead finishes its round, runs review and preflight, and signals.
 
+**Grants.** <lead grants: preset names | "none" | "n/a: this repo has no sandbox">. A `docker` grant gives each lead full host access. `github` is never granted to leads.
+
 **Done per package.** Every acceptance criterion done, every test and check green, no HIGH or security review finding, preflight with no open agent item. MEDIUM and lower findings are accepted and listed.
 
 **Will not happen.** push, merge into <working branch>, edits outside the worktrees, worktree removal, grill marked done, lowered targets, questions to you before the report.

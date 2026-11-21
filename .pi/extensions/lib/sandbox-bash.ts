@@ -14,7 +14,16 @@ export interface SandboxConfig {
 		allowWrite: string[];
 		denyWrite: string[];
 	};
+	grants: Record<string, Record<string, unknown>>;
 }
+
+// Extra permissions a human names in sandbox.json; a session gets one only when started with the flag.
+export interface GrantPreset {
+	allowedDomains: string[];
+	allowUnixSockets: string[];
+}
+const GRANT_NAME = /^[a-z][a-z0-9-]{0,31}$/;
+const GRANT_KEYS = new Set(["allowedDomains", "allowUnixSockets"]);
 
 // Paths use ".", "~" and "$TMPDIR"; resolvePaths makes them absolute per session.
 export const DEFAULT_CONFIG: SandboxConfig = {
@@ -41,6 +50,7 @@ export const DEFAULT_CONFIG: SandboxConfig = {
 		// npx runs the unpacked trees in _npx later, outside the sandbox, without an integrity check.
 		denyWrite: [".env", ".env.*", ".pi/", ".git/hooks", "~/.npm/_npx"],
 	},
+	grants: {},
 };
 
 // Files here are run or loaded later by tools outside the sandbox.
@@ -553,6 +563,147 @@ function mergeConfig(base: SandboxConfig, raw: unknown, source: string): Sandbox
 			denyRead: union(base.filesystem.denyRead, filesystem.denyRead, "denyRead"),
 			allowWrite: union(base.filesystem.allowWrite, filesystem.allowWrite, "allowWrite"),
 			denyWrite: union(base.filesystem.denyWrite, filesystem.denyWrite, "denyWrite"),
+		},
+		grants: parseGrantsShape(extra.grants, source),
+	};
+}
+
+// Only the shape blocks every session; a preset nobody requested can never widen a sandbox.
+export function parseGrantsShape(raw: unknown, source: string): Record<string, Record<string, unknown>> {
+	if (raw === undefined) return {};
+	const grants = asRecord(raw, `${source} grants`);
+	const out: Record<string, Record<string, unknown>> = {};
+	for (const [name, preset] of Object.entries(grants)) {
+		out[name] = asRecord(preset, `${source} grants.${name}`);
+	}
+	return out;
+}
+
+// Fail-closed for a requested preset: unknown key, bad name, empty, or unsafe socket spelling throws.
+export function checkGrantPreset(name: string, raw: unknown, source: string): GrantPreset {
+	const label = `${source} grants.${name}`;
+	if (!GRANT_NAME.test(name)) throw new Error(`${label}: name must match ${GRANT_NAME}`);
+	const preset = asRecord(raw, label);
+	for (const key of Object.keys(preset)) {
+		if (!GRANT_KEYS.has(key)) throw new Error(`${label}: unknown key ${key}`);
+	}
+	const allowedDomains = asStrings(preset.allowedDomains, `${label}.allowedDomains`);
+	const allowUnixSockets = asStrings(preset.allowUnixSockets, `${label}.allowUnixSockets`);
+	if (allowedDomains.length === 0 && allowUnixSockets.length === 0) {
+		throw new Error(`${label}: needs at least one entry in allowedDomains or allowUnixSockets`);
+	}
+	for (const socket of allowUnixSockets) {
+		// "~user/" and relative paths would resolve differently per session; globs could match more than one socket.
+		if (!(socket.startsWith("/") || socket.startsWith("~/")) || /[*?[\]{}]/.test(socket)) {
+			throw new Error(`${label}.allowUnixSockets: ${socket} must be an absolute or ~/ path without glob characters`);
+		}
+	}
+	return { allowedDomains, allowUnixSockets };
+}
+
+export interface ActiveGrant extends GrantPreset {
+	name: string;
+	missingSockets: string[];
+}
+
+// pi keeps only the last value of a repeated flag, so several grants share one comma list.
+// A passed flag that names nothing is a request gone wrong, not "no grants".
+export function parseGrantNames(value: boolean | string | undefined): string[] | { blocked: string } {
+	if (value === undefined || value === false) return [];
+	const names = typeof value === "string" ? [...new Set(value.split(",").map((name) => name.trim()).filter(Boolean))] : [];
+	if (names.length === 0) return { blocked: "--sandbox-grant needs preset names, e.g. --sandbox-grant docker" };
+	return names;
+}
+
+// macOS disks ignore letter case, so a prefix test there must too, or ~/projects slips past ~/Projects.
+function inside(target: string, root: string): boolean {
+	const fold = (p: string) => (process.platform === "darwin" ? p.toLowerCase() : p);
+	const t = fold(target);
+	const r = fold(root);
+	return t === r || t.startsWith(r.endsWith("/") ? r : `${r}/`);
+}
+
+// A writable root may hold a glob; everything below its fixed part counts as writable then.
+function writableBase(root: string): string {
+	const parts = root.split(path.sep);
+	const glob = parts.findIndex((part) => GLOB_CHARS.test(part));
+	const fixed = glob === -1 ? root : parts.slice(0, glob).join(path.sep) || path.sep;
+	return canonicalPath(fixed);
+}
+
+// srt allows everything below a socket entry, so the entry must be the socket file itself.
+// A missing socket is allowed when its canonical parent exists outside every writable root:
+// the session then cannot create or swap it, and Docker Desktop may simply not be up yet.
+export function checkGrantSocket(
+	entry: string,
+	writableRoots: readonly string[],
+	home: string,
+): { path: string; missing: boolean } | { blocked: string } {
+	const absolute = entry.startsWith("~/") ? path.join(home, entry.slice(2)) : entry;
+	let canonical: string;
+	let missing = false;
+	try {
+		canonical = fs.realpathSync.native(absolute);
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+			return { blocked: `${entry}: cannot resolve (${(error as Error).message})` };
+		}
+		// A dangling symlink is not "missing": its target could be created inside the sandbox.
+		if (fs.lstatSync(absolute, { throwIfNoEntry: false })) return { blocked: `${entry}: is a dangling symlink` };
+		let parent: string;
+		try {
+			parent = fs.realpathSync.native(path.dirname(absolute));
+		} catch {
+			return { blocked: `${entry}: parent folder does not exist` };
+		}
+		canonical = path.join(parent, path.basename(absolute));
+		missing = true;
+	}
+	if (!missing && !fs.lstatSync(canonical).isSocket()) return { blocked: `${entry}: ${canonical} is not a socket` };
+	if (writableRoots.some((root) => inside(canonical, writableBase(root)))) {
+		return { blocked: `${entry}: ${canonical} lies inside a writable folder, so the session could replace it` };
+	}
+	return { path: canonical, missing };
+}
+
+export function resolveGrants(
+	names: readonly string[],
+	presets: Record<string, Record<string, unknown>>,
+	writableRoots: readonly string[],
+	home: string,
+	source: string,
+): ActiveGrant[] | { blocked: string } {
+	const active: ActiveGrant[] = [];
+	for (const name of names) {
+		if (!Object.hasOwn(presets, name)) return { blocked: `grant ${name} is not defined in ~/.pi/agent/sandbox.json` };
+		let preset: GrantPreset;
+		try {
+			preset = checkGrantPreset(name, presets[name], source);
+		} catch (error) {
+			return { blocked: error instanceof Error ? error.message : String(error) };
+		}
+		const allowUnixSockets: string[] = [];
+		const missingSockets: string[] = [];
+		for (const entry of preset.allowUnixSockets) {
+			const result = checkGrantSocket(entry, writableRoots, home);
+			if ("blocked" in result) return { blocked: `grant ${name}: ${result.blocked}` };
+			allowUnixSockets.push(result.path);
+			if (result.missing) missingSockets.push(result.path);
+		}
+		active.push({ name, allowedDomains: preset.allowedDomains, allowUnixSockets, missingSockets });
+	}
+	return active;
+}
+
+// Returns a new object; the base settings stay untouched.
+export function applyGrants(settings: SrtSettings, grants: readonly ActiveGrant[]): SrtSettings {
+	const union = (base: string[], extra: string[]) => [...new Set([...base, ...extra])];
+	return {
+		...settings,
+		network: {
+			...settings.network,
+			allowedDomains: union(settings.network.allowedDomains, grants.flatMap((g) => g.allowedDomains)),
+			allowUnixSockets: union(settings.network.allowUnixSockets, grants.flatMap((g) => g.allowUnixSockets)),
 		},
 	};
 }

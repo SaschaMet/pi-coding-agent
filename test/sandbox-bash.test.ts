@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,8 +8,11 @@ import sandboxBashExtension from "../.pi/extensions/sandbox-bash.ts";
 import {
 	DEFAULT_CONFIG,
 	anyCase,
+	applyGrants,
 	buildSrtSettings,
 	checkCwd,
+	checkGrantPreset,
+	checkGrantSocket,
 	findSrt,
 	gitMaintenanceOff,
 	globalGitConfigDenies,
@@ -17,6 +21,8 @@ import {
 	linkedWorktreeGitWrites,
 	loadSandboxConfig,
 	nonRepoDenies,
+	parseGrantNames,
+	resolveGrants,
 	resolvePaths,
 	secretEnvNames,
 	shellQuote,
@@ -708,6 +714,65 @@ describe("loadSandboxConfig", () => {
 	});
 });
 
+describe("grant presets", () => {
+	const file = () => path.join(scratch, "sandbox.json");
+	const writeGrants = (grants: unknown) => fs.writeFileSync(file(), JSON.stringify({ grants }));
+
+	it("defaults to no presets when the file has no grants key", () => {
+		fs.writeFileSync(file(), JSON.stringify({ network: { allowedDomains: ["github.com"] } }));
+		expect(loadSandboxConfig(scratch).grants).toEqual({});
+	});
+
+	it.each([[["docker"]], ["docker"]])("throws when grants is not an object (%j)", (value) => {
+		writeGrants(value);
+		expect(() => loadSandboxConfig(scratch)).toThrow(/sandbox\.json.*grants|grants.*sandbox\.json/s);
+	});
+
+	it("throws when a preset value is not an object", () => {
+		writeGrants({ docker: "x" });
+		expect(() => loadSandboxConfig(scratch)).toThrow(/sandbox\.json.*docker|docker.*sandbox\.json/s);
+	});
+
+	it("loads a preset with an unknown key (shape only) and the full check names file, preset, and key", () => {
+		writeGrants({ github: { allowedDomain: ["github.com"] } });
+		const config = loadSandboxConfig(scratch);
+		expect(() => checkGrantPreset("github", config.grants.github, file())).toThrow(/sandbox\.json/);
+		expect(() => checkGrantPreset("github", config.grants.github, file())).toThrow(/github/);
+		expect(() => checkGrantPreset("github", config.grants.github, file())).toThrow(/allowedDomain/);
+	});
+
+	const bad: Array<[string, string, unknown]> = [
+		["uppercase name", "Docker", { allowedDomains: ["a.com"] }],
+		["name starting with a digit", "1x", { allowedDomains: ["a.com"] }],
+		["33-char name", "a".repeat(33), { allowedDomains: ["a.com"] }],
+		["empty preset", "docker", {}],
+		["both lists empty", "docker", { allowedDomains: [], allowUnixSockets: [] }],
+		["non-string item", "docker", { allowedDomains: [1] }],
+		["empty-string item", "docker", { allowedDomains: [""] }],
+		["relative socket", "docker", { allowUnixSockets: ["run/docker.sock"] }],
+		["~user socket", "docker", { allowUnixSockets: ["~other/x"] }],
+		["glob socket", "docker", { allowUnixSockets: ["/tmp/*.sock"] }],
+	];
+	it.each(bad)("checkGrantPreset throws for %s", (_label, name, raw) => {
+		expect(() => checkGrantPreset(name, raw, file())).toThrow(/sandbox\.json/);
+		expect(() => checkGrantPreset(name, raw, file())).toThrow(new RegExp(name.slice(0, 32)));
+	});
+
+	it("accepts a valid domain preset", () => {
+		expect(checkGrantPreset("github", { allowedDomains: ["github.com"] }, file())).toEqual({
+			allowedDomains: ["github.com"],
+			allowUnixSockets: [],
+		});
+	});
+
+	it("accepts a ~/ socket and returns it unexpanded", () => {
+		expect(checkGrantPreset("docker", { allowUnixSockets: ["~/.docker/run/docker.sock"] }, file())).toEqual({
+			allowedDomains: [],
+			allowUnixSockets: ["~/.docker/run/docker.sock"],
+		});
+	});
+});
+
 describe("DEFAULT_CONFIG", () => {
 	it("allows only the npm registry", () => {
 		expect(DEFAULT_CONFIG.network.allowedDomains).toEqual(["registry.npmjs.org"]);
@@ -808,7 +873,7 @@ const extensionPath = path.resolve(import.meta.dirname, "../.pi/extensions/sandb
 
 function setup(
 	options: {
-		flags?: Record<string, boolean>;
+		flags?: Record<string, boolean | string>;
 		version?: string;
 		probeCode?: number;
 		bashSource?: string;
@@ -963,6 +1028,62 @@ describe("sandbox-bash extension", () => {
 		expect(message).toContain("registry.npmjs.org");
 	});
 
+	it("no grants key keeps settings unchanged", async () => {
+		installFakeSrt();
+		fs.mkdirSync(path.join(scratch, "agent"), { recursive: true });
+		fs.writeFileSync(path.join(scratch, "agent", "sandbox.json"), JSON.stringify({ network: { allowedDomains: ["github.com"] } }));
+		const s = setup();
+		await s.start();
+		const settingsDir = path.join(scratch, "agent", "sandbox-run");
+		const [file] = fs.readdirSync(settingsDir);
+		const settings = JSON.parse(fs.readFileSync(path.join(settingsDir, file), "utf8"));
+		expect(Object.keys(settings).sort()).toEqual(["credentials", "filesystem", "network"]);
+		for (const entry of settings.network.allowUnixSockets as string[]) {
+			expect(entry.endsWith("cmux.sock") || /tsx-\d+$/.test(entry)).toBe(true);
+		}
+		await s.fake.commands.get("sandbox")!.handler("", { cwd: projectDir, hasUI: true, ui: s.ui });
+		const shown = [
+			...s.ui.notify.mock.calls.map((c: unknown[]) => String(c[0])),
+			...s.ui.setStatus.mock.calls.map((c: unknown[]) => String(c[1])),
+		];
+		expect(shown.some((m) => m.includes("grants:"))).toBe(false);
+	});
+
+	it("/sandbox lists presets", async () => {
+		installFakeSrt();
+		fs.mkdirSync(path.join(scratch, "agent"), { recursive: true });
+		fs.writeFileSync(
+			path.join(scratch, "agent", "sandbox.json"),
+			JSON.stringify({ grants: { docker: { allowUnixSockets: ["~/.docker/run/docker.sock"] } } }),
+		);
+		const s = setup();
+		await s.start();
+		await s.fake.commands.get("sandbox")!.handler("", { cwd: projectDir, hasUI: true, ui: s.ui });
+		expect(s.ui.notify.mock.calls.at(-1)?.[0] as string).toContain("Grant presets: docker");
+		const settingsDir = path.join(scratch, "agent", "sandbox-run");
+		const [file] = fs.readdirSync(settingsDir);
+		const raw = fs.readFileSync(path.join(settingsDir, file), "utf8");
+		expect(raw).not.toContain("docker.sock");
+	});
+
+	it("an unrequested bad preset only shows as invalid", async () => {
+		installFakeSrt();
+		fs.mkdirSync(path.join(scratch, "agent"), { recursive: true });
+		fs.writeFileSync(
+			path.join(scratch, "agent", "sandbox.json"),
+			JSON.stringify({
+				grants: { docker: { allowUnixSockets: ["~/.docker/run/docker.sock"] }, bad: { allowedDomain: ["github.com"] } },
+			}),
+		);
+		const s = setup();
+		await s.start();
+		expect(s.text(await s.run("echo hi"))).toContain("SRT-WRAPPED");
+		await s.fake.commands.get("sandbox")!.handler("", { cwd: projectDir, hasUI: true, ui: s.ui });
+		const message = s.ui.notify.mock.calls.at(-1)?.[0] as string;
+		expect(message).toContain("invalid: bad:");
+		expect(message).toContain("docker");
+	});
+
 	it("runs unsandboxed only with --no-sandbox, and says so", async () => {
 		installFakeSrt();
 		const s = setup({ flags: { "no-sandbox": true } });
@@ -972,6 +1093,18 @@ describe("sandbox-bash extension", () => {
 		expect(out).toContain("hi");
 		expect(s.lastStatus()).toMatch(/sandbox OFF/);
 		expect(await s.userBash("echo hi")).toBeUndefined();
+	});
+
+	it("drops an inherited SANDBOX_GRANTS in a --no-sandbox session", async () => {
+		installFakeSrt();
+		vi.stubEnv("SANDBOX_GRANTS", "docker");
+		try {
+			const s = setup({ flags: { "no-sandbox": true } });
+			await s.start();
+			expect(s.text(await s.run("echo SG=[$SANDBOX_GRANTS]"))).toContain("SG=[]");
+		} finally {
+			vi.unstubAllEnvs();
+		}
 	});
 
 	// A --print run has no footer; the orchestrator verifies the one-shot pane by this line.
@@ -1481,6 +1614,349 @@ describe("sandbox-bash extension", () => {
 			await s.start();
 			expect(settings().filesystem.allowWrite).toEqual(defaults());
 			expect(s.text(await s.run("echo hi"))).toContain("SRT-WRAPPED");
+		});
+	});
+});
+
+const REAL_TMPDIR = os.tmpdir();
+
+describe("grants", () => {
+	const servers: net.Server[] = [];
+	const dirs: string[] = [];
+	// The sandbox lets a process bind Unix sockets only under <tmpdir>/tsx-<uid>/, so test sockets live there.
+	// The real tmpdir is read at import, before any test points TMPDIR at its scratch folder.
+	const sockDir = () => {
+		const base = path.join(REAL_TMPDIR, `tsx-${process.getuid?.() ?? 0}`);
+		fs.mkdirSync(base, { recursive: true });
+		const dir = fs.realpathSync(fs.mkdtempSync(path.join(base, "sg-")));
+		dirs.push(dir);
+		return dir;
+	};
+	const listen = (file: string) =>
+		new Promise<void>((resolve, reject) => {
+			const server = net.createServer();
+			servers.push(server);
+			server.once("error", reject);
+			server.listen(file, () => resolve());
+		});
+
+	afterEach(async () => {
+		await Promise.all(servers.splice(0).map((server) => new Promise((resolve) => server.close(resolve))));
+		for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+	});
+
+	describe("parseGrantNames", () => {
+		it("asks for names when the flag has no value", () => {
+			const result = parseGrantNames(true) as { blocked: string };
+			expect(result.blocked).toContain("needs preset names");
+		});
+
+		it("returns no names when the flag was not passed", () => {
+			expect(parseGrantNames(undefined)).toEqual([]);
+		});
+
+		it("asks for names when the flag was passed empty", () => {
+			for (const value of ["", ",,", " , "]) {
+				expect((parseGrantNames(value) as { blocked: string }).blocked).toContain("needs preset names");
+			}
+		});
+
+		it("trims, drops empties, and dedupes", () => {
+			expect(parseGrantNames(" docker, github,docker")).toEqual(["docker", "github"]);
+		});
+	});
+
+	describe("checkGrantSocket", () => {
+		it("returns the canonical path of an existing socket", async () => {
+			const dir = sockDir();
+			const sock = path.join(dir, "d.sock");
+			await listen(sock);
+			expect(checkGrantSocket(sock, [scratch], "/home/x")).toEqual({ path: fs.realpathSync(sock), missing: false });
+		});
+
+		it("allows a missing socket whose parent exists outside the writable roots", () => {
+			const dir = sockDir();
+			expect(checkGrantSocket(path.join(dir, "gone.sock"), [scratch], "/home/x")).toEqual({
+				path: path.join(dir, "gone.sock"),
+				missing: true,
+			});
+		});
+
+		it("blocks when the parent is missing", () => {
+			const dir = sockDir();
+			const entry = path.join(dir, "nope", "x.sock");
+			expect((checkGrantSocket(entry, [scratch], "/home/x") as { blocked: string }).blocked).toContain(entry);
+		});
+
+		// macOS disks ignore letter case, so a root spelled in other case is still the same folder.
+		it.skipIf(process.platform !== "darwin")("blocks a socket inside a writable root spelled in other letter case", async () => {
+			const dir = sockDir();
+			const sock = path.join(dir, "d.sock");
+			await listen(sock);
+			const swapped = path.join(
+				path.dirname(dir),
+				[...path.basename(dir)].map((c) => (c === c.toLowerCase() ? c.toUpperCase() : c.toLowerCase())).join(""),
+			);
+			expect(checkGrantSocket(sock, [swapped], "/home/x")).toHaveProperty("blocked");
+			const lowerEntry = path.join(path.dirname(dir), path.basename(dir).toUpperCase(), "d.sock");
+			expect(checkGrantSocket(lowerEntry, [dir], "/home/x")).toHaveProperty("blocked");
+		});
+
+		it("blocks a socket below a writable root that holds a glob", async () => {
+			const dir = sockDir();
+			const sock = path.join(dir, "d.sock");
+			await listen(sock);
+			expect(checkGrantSocket(sock, [path.join(path.dirname(dir), "*")], "/home/x")).toHaveProperty("blocked");
+		});
+
+		it("blocks a regular file", () => {
+			const dir = sockDir();
+			const file = path.join(dir, "plain.sock");
+			fs.writeFileSync(file, "x");
+			expect(checkGrantSocket(file, [scratch], "/home/x")).toHaveProperty("blocked");
+		});
+
+		it("blocks a socket inside a writable root", async () => {
+			const dir = sockDir();
+			const sock = path.join(dir, "d.sock");
+			await listen(sock);
+			expect((checkGrantSocket(sock, [dir], "/home/x") as { blocked: string }).blocked).toContain(sock);
+		});
+
+		it("expands ~/ with the given home", async () => {
+			const dir = sockDir();
+			await listen(path.join(dir, "d.sock"));
+			expect(checkGrantSocket("~/d.sock", [scratch], dir)).toEqual({ path: path.join(dir, "d.sock"), missing: false });
+		});
+	});
+
+	describe("resolveGrants", () => {
+		const file = "/h/.pi/agent/sandbox.json";
+
+		it("blocks an unknown name", () => {
+			const result = resolveGrants(["nope"], {}, [scratch], "/home/x", file) as { blocked: string };
+			expect(result.blocked).toContain("grant nope is not defined in ~/.pi/agent/sandbox.json");
+		});
+
+		it("blocks a requested invalid preset, naming file, preset, and key", () => {
+			const result = resolveGrants(["bad"], { bad: { allowedDomain: ["a.com"] } }, [scratch], "/home/x", file) as {
+				blocked: string;
+			};
+			expect(result.blocked).toContain(file);
+			expect(result.blocked).toContain("bad");
+			expect(result.blocked).toContain("allowedDomain");
+		});
+
+		it("returns canonical grants for a valid request", async () => {
+			const dir = sockDir();
+			const sock = path.join(dir, "d.sock");
+			await listen(sock);
+			const result = resolveGrants(
+				["docker", "gh"],
+				{ docker: { allowUnixSockets: [sock] }, gh: { allowedDomains: ["github.com"] } },
+				[scratch],
+				"/home/x",
+				file,
+			);
+			expect(result).toEqual([
+				{ name: "docker", allowedDomains: [], allowUnixSockets: [fs.realpathSync(sock)], missingSockets: [] },
+				{ name: "gh", allowedDomains: ["github.com"], allowUnixSockets: [], missingSockets: [] },
+			]);
+		});
+	});
+
+	describe("applyGrants", () => {
+		const base = () =>
+			buildSrtSettings(DEFAULT_CONFIG, {
+				cwd: scratch,
+				home: "/Users/h",
+				tmpdir: scratch,
+				settingsDir: "/Users/h/.pi/agent/sandbox-run",
+				uid: 501,
+				cmuxSocket: "/Users/h/.local/state/cmux/cmux.sock",
+				envNames: [],
+			});
+
+		it("unions domains and sockets without duplicates", () => {
+			const input = base();
+			const out = applyGrants(input, [
+				{ name: "a", allowedDomains: ["github.com", "registry.npmjs.org"], allowUnixSockets: ["/s/d.sock"], missingSockets: [] },
+				{ name: "b", allowedDomains: ["github.com"], allowUnixSockets: ["/s/d.sock"], missingSockets: [] },
+			]);
+			expect(out.network.allowedDomains.filter((d: string) => d === "registry.npmjs.org")).toHaveLength(1);
+			expect(out.network.allowedDomains.filter((d: string) => d === "github.com")).toHaveLength(1);
+			expect(out.network.allowUnixSockets.filter((d: string) => d === "/s/d.sock")).toHaveLength(1);
+		});
+
+		it("does not mutate its input", () => {
+			const input = base();
+			const before = structuredClone(input);
+			applyGrants(input, [{ name: "a", allowedDomains: ["x.com"], allowUnixSockets: ["/s/d.sock"], missingSockets: [] }]);
+			expect(input).toEqual(before);
+		});
+
+		it("returns byte-identical settings for no grants", () => {
+			const input = base();
+			expect(JSON.stringify(applyGrants(input, []), null, 2)).toBe(JSON.stringify(input, null, 2));
+		});
+	});
+
+	describe("extension", () => {
+		const writeJson = (grants: unknown, allowWrite: string[] = []) => {
+			fs.mkdirSync(path.join(scratch, "agent"), { recursive: true });
+			fs.writeFileSync(
+				path.join(scratch, "agent", "sandbox.json"),
+				JSON.stringify({ grants, filesystem: { allowWrite } }),
+			);
+		};
+		const readSettings = () => {
+			const dir = path.join(scratch, "agent", "sandbox-run");
+			return JSON.parse(fs.readFileSync(path.join(dir, fs.readdirSync(dir)[0]), "utf8"));
+		};
+		const notices = (s: ReturnType<typeof setup>) => s.ui.notify.mock.calls.map((c: unknown[]) => String(c[0]));
+		const liveSocket = async (name = "d.sock") => {
+			const sock = path.join(sockDir(), name);
+			await listen(sock);
+			return sock;
+		};
+
+		it("applies a requested grant, reports it, and exports SANDBOX_GRANTS", async () => {
+			installFakeSrt();
+			const sock = await liveSocket();
+			writeJson({ docker: { allowUnixSockets: [sock] } });
+			const s = setup({ flags: { "sandbox-grant": "docker" } });
+			await s.start();
+			expect(readSettings().network.allowUnixSockets).toContain(fs.realpathSync(sock));
+			await s.fake.commands.get("sandbox")!.handler("", { cwd: projectDir, hasUI: true, ui: s.ui });
+			const message = s.ui.notify.mock.calls.at(-1)?.[0] as string;
+			expect(message).toMatch(new RegExp(`Unix sockets:.*${fs.realpathSync(sock).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+			expect(s.lastStatus()).toMatch(/grants: docker$/);
+			const warning = s.ui.notify.mock.calls.find((c: unknown[]) => c[1] === "warning" && String(c[0]).includes("outside the sandbox"));
+			expect(warning?.[0]).toContain(fs.realpathSync(sock));
+			expect(s.text(await s.run("echo SG=$SANDBOX_GRANTS"))).toContain("SG=docker");
+		});
+
+		it("applies a grant whose socket is not there yet and says so", async () => {
+			installFakeSrt();
+			const sock = path.join(sockDir(), "later.sock");
+			writeJson({ docker: { allowUnixSockets: [sock] } });
+			const s = setup({ flags: { "sandbox-grant": "docker" } });
+			await s.start();
+			expect(s.text(await s.run("echo hi"))).toContain("SRT-WRAPPED");
+			expect(readSettings().network.allowUnixSockets).toContain(sock);
+			expect(notices(s).some((m) => m.includes("socket not present yet; start Docker Desktop"))).toBe(true);
+		});
+
+		describe("blocks bash", () => {
+			it("for a grant that is not defined", async () => {
+				installFakeSrt();
+				writeJson({ docker: { allowedDomains: ["a.com"] } });
+				const s = setup({ flags: { "sandbox-grant": "nope" } });
+				await s.start();
+				await expect(s.run("echo hi")).rejects.toThrow("grant nope is not defined in ~/.pi/agent/sandbox.json");
+			});
+
+			it("for a socket path that is a regular file", async () => {
+				installFakeSrt();
+				const file = path.join(sockDir(), "plain.sock");
+				fs.writeFileSync(file, "x");
+				writeJson({ docker: { allowUnixSockets: [file] } });
+				const s = setup({ flags: { "sandbox-grant": "docker" } });
+				await s.start();
+				await expect(s.run("echo hi")).rejects.toThrow(file);
+			});
+
+			it("for a socket whose parent is missing", async () => {
+				installFakeSrt();
+				const file = path.join(sockDir(), "nope", "x.sock");
+				writeJson({ docker: { allowUnixSockets: [file] } });
+				const s = setup({ flags: { "sandbox-grant": "docker" } });
+				await s.start();
+				await expect(s.run("echo hi")).rejects.toThrow("docker");
+				await expect(s.run("echo hi")).rejects.toThrow(file);
+			});
+
+			it("for a socket inside a writable root", async () => {
+				installFakeSrt();
+				const sock = await liveSocket();
+				writeJson({ docker: { allowUnixSockets: [sock] } }, [path.dirname(sock)]);
+				const s = setup({ flags: { "sandbox-grant": "docker" } });
+				await s.start();
+				await expect(s.run("echo hi")).rejects.toThrow("docker");
+				await expect(s.run("echo hi")).rejects.toThrow(sock);
+			});
+
+			it("for a flag passed with an empty value", async () => {
+				installFakeSrt();
+				writeJson({ docker: { allowedDomains: ["a.com"] } });
+				const s = setup({ flags: { "sandbox-grant": "" } });
+				await s.start();
+				await expect(s.run("echo hi")).rejects.toThrow("needs preset names");
+			});
+
+			it("for --no-sandbox together with an empty --sandbox-grant", async () => {
+				installFakeSrt();
+				const s = setup({ flags: { "no-sandbox": true, "sandbox-grant": "" } });
+				await s.start();
+				await expect(s.run("echo hi")).rejects.toThrow("--no-sandbox and --sandbox-grant conflict; pass one");
+			});
+
+			it("for --no-sandbox together with --sandbox-grant", async () => {
+				installFakeSrt();
+				writeJson({ docker: { allowedDomains: ["a.com"] } });
+				const s = setup({ flags: { "no-sandbox": true, "sandbox-grant": "docker" } });
+				await s.start();
+				await expect(s.run("echo hi")).rejects.toThrow("--no-sandbox and --sandbox-grant conflict; pass one");
+			});
+
+			it("for a flag without a value", async () => {
+				installFakeSrt();
+				writeJson({ docker: { allowedDomains: ["a.com"] } });
+				const s = setup({ flags: { "sandbox-grant": true } });
+				await s.start();
+				await expect(s.run("echo hi")).rejects.toThrow("needs preset names");
+			});
+		});
+
+		it("merges two grants once and warns about stored credentials", async () => {
+			installFakeSrt();
+			const sock = await liveSocket();
+			writeJson({
+				docker: { allowUnixSockets: [sock] },
+				github: { allowedDomains: ["github.com", "registry.npmjs.org"] },
+			});
+			const s = setup({ flags: { "sandbox-grant": "docker,github" } });
+			await s.start();
+			const { network } = readSettings();
+			for (const list of [network.allowedDomains, network.allowUnixSockets] as string[][]) {
+				expect(new Set(list).size).toBe(list.length);
+			}
+			expect(network.allowedDomains).toEqual(expect.arrayContaining(["github.com", "registry.npmjs.org"]));
+			expect(network.allowUnixSockets).toContain(fs.realpathSync(sock));
+			expect(notices(s).some((m) => m.includes("stored credentials") && m.includes("github.com"))).toBe(true);
+		});
+
+		it("keeps the grant when the pointer files are refreshed", async () => {
+			installFakeSrt();
+			const sock = await liveSocket();
+			writeJson({ docker: { allowUnixSockets: [sock] } });
+			const top = mainCheckout(projectDir);
+			gitIn(top, "worktree", "add", "-q", "-b", "one", path.join(scratch, "wt-one"), "HEAD");
+			const s = setup({ flags: { "sandbox-grant": "docker" }, git: { stdout: gitIn(top, ...REV_PARSE), code: 0 } });
+			await s.start();
+			const newRecord = path.join(top, ".git", "worktrees", "wt-two", "commondir");
+			gitIn(top, "worktree", "add", "-q", "-b", "two", path.join(scratch, "wt-two"), "HEAD");
+			expect(s.text(await s.run("echo hi"))).toContain("SRT-WRAPPED");
+			const settings = readSettings();
+			expect(settings.filesystem.denyWrite).toContain(newRecord);
+			expect(settings.network.allowUnixSockets).toContain(fs.realpathSync(sock));
+		});
+
+		it("has no switch for grants besides the flag", () => {
+			const s = setup();
+			expect(s.fake.registerFlag).toHaveBeenCalledWith("sandbox-grant", expect.objectContaining({ type: "string" }));
+			expect([...s.fake.commands.keys()].filter((name) => name.includes("grant"))).toEqual([]);
+			expect([...s.fake.tools.keys()].filter((name) => name.includes("grant"))).toEqual([]);
 		});
 	});
 });

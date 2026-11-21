@@ -17,6 +17,8 @@ import {
 import { isShadowedProjectCopy } from "./lib/extension-helpers.ts";
 import { runGitWorktree } from "./lib/git-worktree.ts";
 import {
+	type ActiveGrant,
+	applyGrants,
 	buildSrtSettings,
 	canonicalPath,
 	checkCwd,
@@ -26,9 +28,12 @@ import {
 	gitPointerLiterals,
 	gitTreeDenies,
 	globalGitConfigDenies,
+	checkGrantPreset,
 	linkedWorktreeGitWrites,
 	loadSandboxConfig,
 	nonRepoDenies,
+	parseGrantNames,
+	resolveGrants,
 	resolvePaths,
 	SRT_VERSION,
 	sameRealPath,
@@ -62,7 +67,23 @@ type State =
 			common: string | undefined;
 			literals: string[];
 			linkedWorktree: boolean;
+			presets: Record<string, Record<string, unknown>>;
+			grants: ActiveGrant[];
 	  };
+
+// A preset nobody requested is only listed; a broken one shows its reason instead of blocking bash.
+function presetLines(presets: Record<string, Record<string, unknown>>): string[] {
+	const file = path.join(getAgentDir(), "sandbox.json");
+	const lines = [`Grant presets: ${Object.keys(presets).join(", ") || "(none)"}`];
+	for (const [name, raw] of Object.entries(presets)) {
+		try {
+			checkGrantPreset(name, raw, file);
+		} catch (error) {
+			lines.push(`invalid: ${name}: ${errorMessage(error)}`);
+		}
+	}
+	return lines;
+}
 
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
@@ -72,7 +93,29 @@ function blockedMessage(reason: string): string {
 	return `bash blocked: sandbox unavailable (${reason})`;
 }
 
-type Report = { status: string; notice?: string; level: "warning" | "error" };
+type Report = {
+	status: string;
+	notice?: string;
+	level: "warning" | "error";
+	extraNotices?: string[];
+};
+
+// Grants widen the sandbox, so each one is announced where the human sees it.
+function grantNotices(grants: readonly ActiveGrant[]): string[] {
+	const notices: string[] = [];
+	for (const grant of grants) {
+		for (const socket of grant.allowUnixSockets) {
+			notices.push(`Unix socket ${socket}: a process behind it can act outside the sandbox`);
+		}
+		for (const socket of grant.missingSockets) {
+			notices.push(`Unix socket ${socket}: socket not present yet; start Docker Desktop`);
+		}
+		if (grant.allowedDomains.length > 0) {
+			notices.push(`grant ${grant.name}: the session can use stored credentials for ${grant.allowedDomains.join(", ")}`);
+		}
+	}
+	return notices;
+}
 
 function describeState(state: State): Report | undefined {
 	if (state.kind === "off") return { status: "sandbox OFF", notice: OFF_MESSAGE, level: "warning" };
@@ -80,16 +123,26 @@ function describeState(state: State): Report | undefined {
 		return { status: "bash blocked: sandbox unavailable", notice: blockedMessage(state.reason), level: "error" };
 	}
 	if (state.kind !== "active") return undefined;
-	const { network, filesystem } = state.settings;
+	const { network, filesystem } = applyGrants(state.settings, state.grants);
+	const suffix = state.grants.length > 0 ? `, grants: ${state.grants.map((g) => g.name).join(", ")}` : "";
 	return {
-		status: `sandbox: ${network.allowedDomains.length} domains, ${filesystem.allowWrite.length} write paths, ${state.envNames.length} env removed`,
+		status: `sandbox: ${network.allowedDomains.length} domains, ${filesystem.allowWrite.length} write paths, ${state.envNames.length} env removed${suffix}`,
 		level: "warning",
+		extraNotices: grantNotices(state.grants),
 	};
 }
 
 // CLAUDE_CODE_TMPDIR keeps $TMPDIR the same path inside and outside srt.
-function sandboxEnv(env: NodeJS.ProcessEnv | undefined, linkedWorktree: boolean): NodeJS.ProcessEnv {
-	const base = { ...(env ?? process.env), CLAUDE_CODE_TMPDIR: os.tmpdir() };
+// SANDBOX_GRANTS lets a sandboxed agent see what this session may do; srt enforces the real rules.
+// An inherited value is dropped so a child session never claims grants its own flag did not give.
+function sandboxEnv(
+	env: NodeJS.ProcessEnv | undefined,
+	linkedWorktree: boolean,
+	grants: readonly ActiveGrant[],
+): NodeJS.ProcessEnv {
+	const base: NodeJS.ProcessEnv = { ...(env ?? process.env), CLAUDE_CODE_TMPDIR: os.tmpdir() };
+	delete base.SANDBOX_GRANTS;
+	if (grants.length > 0) base.SANDBOX_GRANTS = grants.map((g) => g.name).join(",");
 	return linkedWorktree ? gitMaintenanceOff(base) : base;
 }
 
@@ -103,6 +156,11 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 		description: "Run bash without the OS sandbox for this session",
 		type: "boolean",
 		default: false,
+	});
+	pi.registerFlag("sandbox-grant", {
+		description: "Comma-separated grant presets from ~/.pi/agent/sandbox.json for this session",
+		// No default: "not passed" must stay distinguishable from "passed empty".
+		type: "string",
 	});
 
 	let state: State = { kind: "pending" };
@@ -129,7 +187,7 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 		return {
 			...context,
 			command: wrapCommand(context.command, state.settingsPath, state.srtPath),
-			env: sandboxEnv(context.env, state.linkedWorktree),
+			env: sandboxEnv(context.env, state.linkedWorktree, state.grants),
 		};
 	};
 
@@ -197,7 +255,7 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 				counted(() =>
 					local.exec(wrapCommand(command, active.settingsPath, active.srtPath), cwd, {
 						...options,
-						env: sandboxEnv(options.env, active.linkedWorktree),
+						env: sandboxEnv(options.env, active.linkedWorktree, active.grants),
 					}),
 				),
 		};
@@ -214,7 +272,13 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 	});
 
 	async function start(ctx: ExtensionContext): Promise<State> {
-		if (pi.getFlag("no-sandbox") === true) return { kind: "off" };
+		// Only this process's own flag may name grants; a value inherited from a parent pi must not leak into bash.
+		delete process.env.SANDBOX_GRANTS;
+		const grantFlag = pi.getFlag("sandbox-grant");
+		if (pi.getFlag("no-sandbox") === true) {
+			if (grantFlag !== undefined) return { kind: "blocked", reason: "--no-sandbox and --sandbox-grant conflict; pass one" };
+			return { kind: "off" };
+		}
 		const home = os.homedir();
 		const cwdProblem = checkCwd(ctx.cwd, home);
 		if (cwdProblem) return { kind: "blocked", reason: cwdProblem };
@@ -291,6 +355,12 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 			if (problem) return { kind: "blocked", reason: problem };
 		}
 
+		// allowWrite is final here, so a granted socket is checked against every writable root.
+		const names = parseGrantNames(grantFlag as boolean | string | undefined);
+		if ("blocked" in names) return { kind: "blocked", reason: names.blocked };
+		const grants = resolveGrants(names, config.grants, settings.filesystem.allowWrite, home, path.join(getAgentDir(), "sandbox.json"));
+		if ("blocked" in grants) return { kind: "blocked", reason: grants.blocked };
+
 		const srtPath = findSrt(process.env.PATH ?? "", settings.filesystem.allowWrite);
 		if (!srtPath) {
 			return {
@@ -305,7 +375,7 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 		}
 
 		const settingsPath = path.join(settingsDir, `${process.pid}-${randomBytes(6).toString("hex")}.json`);
-		fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), { mode: 0o600 });
+		fs.writeFileSync(settingsPath, JSON.stringify(applyGrants(settings, grants), null, 2), { mode: 0o600 });
 
 		const probe = await pi.exec("/bin/bash", ["-c", wrapCommand("true", settingsPath, srtPath)], {
 			cwd: ctx.cwd,
@@ -315,7 +385,7 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 			fs.rmSync(settingsPath, { force: true });
 			return { kind: "blocked", reason: `srt probe failed (exit ${probe.code}): ${probe.stderr.trim().slice(0, 200)}` };
 		}
-		return { kind: "active", srtPath, settingsPath, settings, envNames, common, literals, linkedWorktree: git.allowWrite.length > 0 };
+		return { kind: "active", srtPath, settingsPath, settings, envNames, common, literals, linkedWorktree: git.allowWrite.length > 0, presets: config.grants, grants };
 	}
 
 	function setSubmoduleConfig(common: string, writableRoots: readonly string[], ctx: ExtensionContext): string | undefined {
@@ -392,7 +462,7 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 				},
 			};
 			const temp = `${current.settingsPath}.tmp`;
-			fs.writeFileSync(temp, JSON.stringify(settings, null, 2), { mode: 0o600 });
+			fs.writeFileSync(temp, JSON.stringify(applyGrants(settings, current.grants), null, 2), { mode: 0o600 });
 			fs.renameSync(temp, current.settingsPath);
 			state = { ...current, settings, literals: next };
 			return state;
@@ -423,9 +493,11 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 		const line = describeState(state);
 		if (!line) return;
 		ctx.ui?.setStatus(STATUS_KEY, line.status);
-		if (!line.notice) return;
-		ctx.ui?.notify(line.notice, line.level);
-		if (!ctx.hasUI) process.stderr.write(`${line.notice}\n`);
+		const notices = [...(line.notice ? [line.notice] : []), ...(line.extraNotices ?? [])];
+		for (const notice of notices) {
+			ctx.ui?.notify(notice, line.level);
+			if (!ctx.hasUI) process.stderr.write(`${notice}\n`);
+		}
 	}
 
 	pi.on("session_start", async (_event, ctx) => {
@@ -460,7 +532,7 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 				ctx.ui.notify(line, "info");
 				return;
 			}
-			const { network, filesystem } = state.settings;
+			const { network, filesystem } = applyGrants(state.settings, state.grants);
 			const lines = [
 				`Sandbox active (srt ${SRT_VERSION}: ${state.srtPath})`,
 				`Settings: ${state.settingsPath}`,
@@ -470,6 +542,7 @@ export default function sandboxBashExtension(pi: ExtensionAPI): void {
 				`Allow write: ${filesystem.allowWrite.join(", ")}`,
 				`Deny write: ${filesystem.denyWrite.join(", ")}`,
 				`Env removed: ${state.envNames.join(", ") || "(none)"}`,
+				...presetLines(state.presets),
 			];
 			ctx.ui.notify(lines.join("\n"), "info");
 		},

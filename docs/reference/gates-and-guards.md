@@ -191,13 +191,28 @@ Default policy:
 | Write | Project, `$TMPDIR`, `/tmp`, `~/.npm` | Project `.pi/`, `.env*`, `.git/hooks`, `.git/config` (srt default), shell rc files (srt default), the settings folder `~/.pi/agent/sandbox-run/` |
 | Env vars | Everything else | Names matching `TOKEN`, `SECRET`, `PASSWORD`, `PASSWD`, `API_KEY`, `_KEY`, `CREDENTIAL`, `AUTH` (except `CMUX_*`, `SSH_AUTH_SOCK`) |
 | Unix sockets | `$CMUX_SOCKET_PATH`, `$TMPDIR/tsx-<uid>/` (tsx IPC for tests) | All others, including Docker |
-| Other | — | App launches (`open`), AppleScript, keychain lookups, binding network ports |
+| Other | — | App launches (`open`), AppleScript, keychain writes, binding network ports. Keychain reads work: a session with `github.com` allowed can read the git credential |
 
 Add a domain or path for every repo: create `~/.pi/agent/sandbox.json`. Lists are added to the defaults, never replace them. A file that does not parse blocks bash.
 
 ```json
 { "network": { "allowedDomains": ["github.com"] }, "filesystem": { "allowWrite": ["~/.cache/some-tool"] } }
 ```
+
+### Grants (per-session extras)
+
+A grant is a named set of extra permissions that one pi process gets only when started with `--sandbox-grant`. Define presets in `~/.pi/agent/sandbox.json`; the agent cannot edit that file.
+
+```json
+{ "grants": { "docker": { "allowUnixSockets": ["~/.docker/run/docker.sock"] }, "github": { "allowedDomains": ["github.com"] } } }
+```
+
+- Start: `pi --sandbox-grant docker,github`. Mid-session: quit, then `pi -c --sandbox-grant <name>`. There is no slash command, so an agent cannot switch grants on by typing into its pane.
+- A preset holds only `allowedDomains` and `allowUnixSockets`. A socket entry must be the socket file itself (absolute or `~/`, no glob), outside every writable folder. A missing socket is allowed when its parent folder exists, with the notice "socket not present yet; start Docker Desktop".
+- The file's shape is checked at every start (a bad shape blocks bash). A preset is fully checked only when requested; a broken unrequested preset shows as `invalid:` in `/sandbox` and blocks nothing. An unknown or broken requested preset, or `--no-sandbox` with `--sandbox-grant`, blocks bash.
+- Grants live in memory and end with the process. The footer shows `grants: <names>`, `/sandbox` shows the effective rules, and sandboxed commands see `$SANDBOX_GRANTS`.
+- Risks: a `docker` grant gives full host access (`docker run -v /:/host`). A `github` grant exposes the keychain GitHub token (`git credential fill`) and allows a push to any repo that token can write. Use a fine-grained token and GitHub rulesets; the security guard's push rules are a client-side text check only.
+- Inside cmux, any agent can boot a pane with the flag, the same accepted escape as `--no-sandbox`.
 
 Fails closed. Bash is blocked for the session, with the reason in the notice, when:
 
