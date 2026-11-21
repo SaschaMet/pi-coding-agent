@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 
 export type Mode = "pull" | "push";
+type SyncOptions = { dryRun?: boolean };
 type JsonObject = Record<string, unknown>;
 
 const EXCLUDED_TOP_LEVEL_PATHS = new Set([
@@ -62,31 +63,55 @@ function resolveClaudeConfigDir(): string {
 const SYSTEM_MD_RELATIVE_PATH = ".pi/SYSTEM.md";
 const CLAUDE_MD_FILENAME = "CLAUDE.md";
 
-export function copySystemMdToClaudeMd(projectRoot: string): boolean {
+export function copySystemMdToClaudeMd(
+	projectRoot: string,
+	{ dryRun = false }: SyncOptions = {},
+): boolean {
 	const sourcePath = path.join(projectRoot, SYSTEM_MD_RELATIVE_PATH);
 	if (!fs.existsSync(sourcePath)) return false;
 
 	const claudeDir = resolveClaudeConfigDir();
-	ensureDir(claudeDir);
 	const targetPath = path.join(claudeDir, CLAUDE_MD_FILENAME);
 
 	const sourceBuf = fs.readFileSync(sourcePath);
 
+	let wouldCopy = true;
 	if (fs.existsSync(targetPath)) {
 		const targetBuf = fs.readFileSync(targetPath);
-		if (sourceBuf.equals(targetBuf)) return false;
+		wouldCopy = !sourceBuf.equals(targetBuf);
 	}
+	if (!wouldCopy) return false;
+	if (dryRun) return true;
 
+	ensureDir(claudeDir);
 	fs.writeFileSync(targetPath, sourceBuf);
 	return true;
 }
 
-function parseMode(argv: string[]): Mode {
+function parseArgs(
+	argv: string[],
+): { mode: Mode; dryRun: boolean; allowDelete: boolean } {
+	const usage =
+		"Usage: tsx scripts/sync-pi-config.ts <pull|push> [--dry-run] [--allow-delete]";
 	const mode = argv[2] as Mode | undefined;
 	if (!mode || (mode !== "pull" && mode !== "push")) {
-		throw new Error("Usage: tsx scripts/sync-pi-config.ts <pull|push>");
+		throw new Error(usage);
 	}
-	return mode;
+	const extra = argv.slice(3);
+	for (const arg of extra) {
+		if (arg !== "--dry-run" && arg !== "--allow-delete") {
+			throw new Error(usage);
+		}
+	}
+	// The delete check only guards global files, which only a push can delete.
+	if (extra.includes("--allow-delete") && mode !== "push") {
+		throw new Error(usage);
+	}
+	return {
+		mode,
+		dryRun: extra.includes("--dry-run"),
+		allowDelete: extra.includes("--allow-delete"),
+	};
 }
 
 function ensureDir(dirPath: string): void {
@@ -321,6 +346,7 @@ function copyFileIfChanged(
 	target: string,
 	relativePath: string,
 	keepMode: boolean,
+	dryRun: boolean,
 ): boolean {
 	const sourceBuf = fs.readFileSync(source);
 	let outputBuf: Buffer<ArrayBufferLike> = sourceBuf;
@@ -341,20 +367,24 @@ function copyFileIfChanged(
 		if (outputBuf.equals(targetBuf) && sameMode) return false;
 	}
 
+	if (dryRun) return true;
+
 	ensureDir(path.dirname(target));
 	fs.writeFileSync(target, outputBuf);
 	if (keepMode) fs.chmodSync(target, fileMode(source));
 	return true;
 }
 
-function removeFileIfExists(filePath: string): boolean {
+function removeFileIfExists(filePath: string, dryRun: boolean): boolean {
 	if (!fs.existsSync(filePath)) return false;
+	if (dryRun) return true;
 	fs.rmSync(filePath);
 	return true;
 }
 
-function removeDirectoryIfExists(dirPath: string): boolean {
+function removeDirectoryIfExists(dirPath: string, dryRun: boolean): boolean {
 	if (!fs.existsSync(dirPath)) return false;
+	if (dryRun) return true;
 	fs.rmSync(dirPath, { recursive: true, force: true });
 	return true;
 }
@@ -376,6 +406,7 @@ function isManagedExtensionDir(dirPath: string): boolean {
 function pruneLocalExtensionDirectoriesThatExistGlobally(
 	localPiDir: string,
 	globalAgentDir: string,
+	dryRun: boolean,
 ): string[] {
 	const globalExtensionDirectories = listExtensionDirectoryNames(globalAgentDir);
 	if (globalExtensionDirectories.size === 0) return [];
@@ -397,10 +428,10 @@ function pruneLocalExtensionDirectoriesThatExistGlobally(
 		// Sync never widens what it deletes: a project-only file outlives any global twin folder.
 		if (holdsProjectOnlyFile(localExtensionDir, extensionName)) continue;
 		const relativeDir = `${EXTENSIONS_RELATIVE_PATH}/${extensionName}`;
-		if (removeDirectoryIfExists(localExtensionDir)) removed.push(relativeDir);
+		if (removeDirectoryIfExists(localExtensionDir, dryRun)) removed.push(relativeDir);
 	}
 
-	pruneEmptyManagedDirectories(localPiDir);
+	if (!dryRun) pruneEmptyManagedDirectories(localPiDir);
 	return removed;
 }
 
@@ -430,6 +461,7 @@ export function syncManagedPiDirectory(
 	mode: Mode,
 	localPiDir: string,
 	globalAgentDir: string,
+	{ dryRun = false }: SyncOptions = {},
 ): {
 	updated: string[];
 	deleted: string[];
@@ -437,38 +469,49 @@ export function syncManagedPiDirectory(
 } {
 	const sourceRoot = mode === "push" ? localPiDir : globalAgentDir;
 	const targetRoot = mode === "push" ? globalAgentDir : localPiDir;
-	ensureDir(targetRoot);
+	if (!dryRun) ensureDir(targetRoot);
 	const directoriesRemoved = pruneLocalExtensionDirectoriesThatExistGlobally(
 		localPiDir,
 		globalAgentDir,
+		dryRun,
 	);
 
-	const sourceFiles =
+	// A real run deletes these local folders before listing, so a dry run drops their files too.
+	const prunedPrefixes = directoriesRemoved.map((dir) => `${dir}/`);
+	const underPruned = (relativePath: string) =>
+		prunedPrefixes.some((prefix) => relativePath.startsWith(prefix));
+
+	const listedSourceFiles =
 		mode === "pull"
 			? removePulledGlobalExtensionDirectories(
 					listRelativeFilesRecursive(sourceRoot),
 					globalAgentDir,
 				)
 			: listRelativeFilesRecursive(sourceRoot);
+	const sourceFiles = listedSourceFiles.filter((file) => !underPruned(file));
 	const sourceSet = new Set(sourceFiles);
 
 	const updated: string[] = [];
 	for (const relativePath of sourceFiles) {
 		const sourcePath = path.join(sourceRoot, relativePath);
 		const targetPath = path.join(targetRoot, relativePath);
-		if (copyFileIfChanged(sourcePath, targetPath, relativePath, mode === "push"))
+		if (
+			copyFileIfChanged(sourcePath, targetPath, relativePath, mode === "push", dryRun)
+		) {
 			updated.push(relativePath);
+		}
 	}
 
 	const deleted: string[] = [];
 	for (const targetRelativePath of listRelativeFilesRecursive(targetRoot)) {
 		if (sourceSet.has(targetRelativePath)) continue;
+		if (underPruned(targetRelativePath)) continue;
 		if (isPreservedTargetOnlyRelativePath(mode, targetRelativePath)) continue;
 		const targetPath = path.join(targetRoot, targetRelativePath);
-		if (removeFileIfExists(targetPath)) deleted.push(targetRelativePath);
+		if (removeFileIfExists(targetPath, dryRun)) deleted.push(targetRelativePath);
 	}
 
-	pruneEmptyManagedDirectories(targetRoot);
+	if (!dryRun) pruneEmptyManagedDirectories(targetRoot);
 
 	return { updated, deleted, directoriesRemoved };
 }
@@ -493,7 +536,7 @@ export async function checkSecurityPolicy(localPiDir: string): Promise<void> {
 }
 
 export async function main(): Promise<void> {
-	const mode = parseMode(process.argv);
+	const { mode, dryRun, allowDelete } = parseArgs(process.argv);
 	const projectRoot = process.cwd();
 	const localPiDir = path.join(projectRoot, ".pi");
 	const globalAgentDir = resolveGlobalAgentDir();
@@ -503,33 +546,50 @@ export async function main(): Promise<void> {
 	}
 	if (mode === "push") await checkSecurityPolicy(localPiDir);
 
-	ensureDir(globalAgentDir);
+	// Fail-closed: a push that would delete global files stops until it is rerun with --allow-delete.
+	if (mode === "push" && !dryRun && !allowDelete) {
+		const preview = syncManagedPiDirectory(mode, localPiDir, globalAgentDir, {
+			dryRun: true,
+		});
+		if (preview.deleted.length > 0) {
+			console.log(`\nPush would delete ${preview.deleted.length} global file(s):`);
+			for (const file of preview.deleted) console.log(`  - ${file}`);
+			throw new Error(
+				"push would delete global files; rerun with --allow-delete, or preview with --dry-run",
+			);
+		}
+	}
+
+	if (!dryRun) ensureDir(globalAgentDir);
 
 	console.log(
-		`Sync start: mode=${mode} local=${localPiDir} global=${globalAgentDir}`,
+		`Sync start: mode=${mode}${dryRun ? " dryRun" : ""} local=${localPiDir} global=${globalAgentDir}`,
 	);
-	const result = syncManagedPiDirectory(mode, localPiDir, globalAgentDir);
+	if (dryRun) console.log("DRY RUN: nothing written");
+	const result = syncManagedPiDirectory(mode, localPiDir, globalAgentDir, { dryRun });
 
 	console.log(`Mode: ${mode}`);
 	console.log(`Local: ${localPiDir}`);
 	console.log(`Global: ${globalAgentDir}`);
 
 	if (result.directoriesRemoved.length > 0) {
-		console.log(`\nDirectories removed (${result.directoriesRemoved.length}):`);
+		console.log(
+			`\n${dryRun ? "Would remove" : "Directories removed"} (${result.directoriesRemoved.length}):`,
+		);
 		for (const dir of result.directoriesRemoved) {
 			console.log(`  - ${dir}`);
 		}
 	}
 
 	if (result.updated.length > 0) {
-		console.log(`\nUpdated files (${result.updated.length}):`);
+		console.log(`\n${dryRun ? "Would update" : "Updated"} files (${result.updated.length}):`);
 		for (const file of result.updated) {
 			console.log(`  - ${file}`);
 		}
 	}
 
 	if (result.deleted.length > 0) {
-		console.log(`\nDeleted files (${result.deleted.length}):`);
+		console.log(`\n${dryRun ? "Would delete" : "Deleted"} files (${result.deleted.length}):`);
 		for (const file of result.deleted) {
 			console.log(`  - ${file}`);
 		}
@@ -543,9 +603,9 @@ export async function main(): Promise<void> {
 		console.log("No changes.");
 	}
 
-	if (copySystemMdToClaudeMd(projectRoot)) {
+	if (copySystemMdToClaudeMd(projectRoot, { dryRun })) {
 		console.log(
-			`Copied SYSTEM.md -> ${resolveClaudeConfigDir()}/${CLAUDE_MD_FILENAME}`,
+			`${dryRun ? "Would copy" : "Copied"} SYSTEM.md -> ${resolveClaudeConfigDir()}/${CLAUDE_MD_FILENAME}`,
 		);
 	} else {
 		console.log("SYSTEM.md -> CLAUDE.md: no changes.");

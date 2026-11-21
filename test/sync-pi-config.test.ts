@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -14,8 +15,13 @@ const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 const TSX = path.join(REPO_ROOT, "node_modules/.bin/tsx");
 const SYNC_SCRIPT = path.join(REPO_ROOT, "scripts/sync-pi-config.ts");
 
-function runSyncScript(cwd: string, home: string, agentDir: string) {
-	return spawnSync(TSX, [SYNC_SCRIPT, "push"], {
+function runSyncScript(
+	cwd: string,
+	home: string,
+	agentDir: string,
+	args: string[] = ["push"],
+) {
+	return spawnSync(TSX, [SYNC_SCRIPT, ...args], {
 		cwd,
 		env: { ...process.env, HOME: home, PI_CODING_AGENT_DIR: agentDir },
 		encoding: "utf8",
@@ -1344,6 +1350,212 @@ describe("sync-pi-config", () => {
 			} finally {
 				os.homedir = originalHomeDir;
 			}
+		});
+	});
+	describe("dry run", () => {
+		function treeSnapshot(root: string): string[] {
+			if (!fs.existsSync(root)) return [];
+			return listFiles(root)
+				.map((rel) => {
+					const hash = crypto
+						.createHash("sha256")
+						.update(fs.readFileSync(path.join(root, rel)))
+						.digest("hex");
+					return `${rel}:${hash}`;
+				})
+				.sort();
+		}
+
+		function dirSnapshot(root: string): string[] {
+			if (!fs.existsSync(root)) return [];
+			const dirs: string[] = [];
+			const walk = (dir: string) => {
+				for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+					if (!entry.isDirectory()) continue;
+					const abs = path.join(dir, entry.name);
+					dirs.push(path.relative(root, abs));
+					walk(abs);
+				}
+			};
+			walk(root);
+			return dirs.sort();
+		}
+
+		// A fixture where push would: update SYSTEM.md, delete a global-only skill,
+		// merge settings.json, and prune a managed local extension directory.
+		function setupFixture(prefix: string) {
+			const { localPiDir, globalAgentDir } = setupRoots(prefix);
+			fs.writeFileSync(path.join(localPiDir, "SYSTEM.md"), "local\n");
+			fs.writeFileSync(path.join(globalAgentDir, "SYSTEM.md"), "global\n");
+			fs.mkdirSync(path.join(globalAgentDir, "skills", "only-global"), { recursive: true });
+			fs.writeFileSync(path.join(globalAgentDir, "skills", "only-global", "SKILL.md"), "global only\n");
+			writeJson(path.join(localPiDir, "settings.json"), { packages: ["npm:a@1.0.0"] });
+			writeJson(path.join(globalAgentDir, "settings.json"), { packages: ["npm:b@1.0.0"] });
+			fs.mkdirSync(path.join(localPiDir, "extensions", "old-ext"), { recursive: true });
+			fs.writeFileSync(path.join(localPiDir, "extensions", "old-ext", "index.ts"), "local ext\n");
+			fs.mkdirSync(path.join(globalAgentDir, "extensions", "old-ext"), { recursive: true });
+			fs.writeFileSync(path.join(globalAgentDir, "extensions", "old-ext", ".pi-managed"), "");
+			fs.writeFileSync(path.join(globalAgentDir, "extensions", "old-ext", "index.ts"), "global ext\n");
+			fs.writeFileSync(path.join(localPiDir, "local-only.md"), "local only\n");
+			return { localPiDir, globalAgentDir };
+		}
+
+		function setupCliFixture(prefix: string) {
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+			tmpRoots.push(root);
+			const cwd = path.join(root, "project");
+			const piDir = path.join(cwd, ".pi");
+			fs.mkdirSync(piDir, { recursive: true });
+			fs.writeFileSync(path.join(piDir, "SYSTEM.md"), "local\n");
+			const home = path.join(root, "home");
+			const agentDir = path.join(root, "agent");
+			fs.mkdirSync(home);
+			fs.mkdirSync(agentDir);
+			fs.writeFileSync(path.join(agentDir, "SYSTEM.md"), "global\n");
+			fs.mkdirSync(path.join(agentDir, "skills", "only-global"), { recursive: true });
+			fs.writeFileSync(path.join(agentDir, "skills", "only-global", "SKILL.md"), "x\n");
+			return { cwd, home, agentDir };
+		}
+
+		it("writes nothing: file hashes and folders are unchanged after a dry push", () => {
+			const { localPiDir, globalAgentDir } = setupFixture("pi-sync-dry-nowrite-");
+			const home = fs.mkdtempSync(path.join(os.tmpdir(), "pi-sync-dry-nowrite-home-"));
+			tmpRoots.push(home);
+			const beforeLocal = treeSnapshot(localPiDir);
+			const beforeGlobal = treeSnapshot(globalAgentDir);
+			const beforeHome = treeSnapshot(home);
+			const beforeLocalDirs = dirSnapshot(localPiDir);
+			const beforeGlobalDirs = dirSnapshot(globalAgentDir);
+
+			const originalHomeDir = os.homedir;
+			os.homedir = () => home;
+			let result;
+			try {
+				result = syncManagedPiDirectory("push", localPiDir, globalAgentDir, {
+					dryRun: true,
+				});
+			} finally {
+				os.homedir = originalHomeDir;
+			}
+
+			expect(treeSnapshot(localPiDir)).toEqual(beforeLocal);
+			expect(treeSnapshot(globalAgentDir)).toEqual(beforeGlobal);
+			expect(treeSnapshot(home)).toEqual(beforeHome);
+			expect(dirSnapshot(localPiDir)).toEqual(beforeLocalDirs);
+			expect(dirSnapshot(globalAgentDir)).toEqual(beforeGlobalDirs);
+			// and it still reports what a real run would do
+			expect(result.deleted).toEqual(["skills/only-global/SKILL.md"]);
+			expect(result.directoriesRemoved).toEqual(["extensions/old-ext"]);
+			expect(result.updated).toContain("SYSTEM.md");
+			expect(result.updated).toContain("settings.json");
+		});
+
+		it("reports the same lists as a real run, for push and pull", () => {
+			const pushA = setupFixture("pi-sync-dry-push-");
+			const pushB = setupFixture("pi-sync-dry-push-real-");
+			const pushDry = syncManagedPiDirectory("push", pushA.localPiDir, pushA.globalAgentDir, {
+				dryRun: true,
+			});
+			const pushReal = syncManagedPiDirectory("push", pushB.localPiDir, pushB.globalAgentDir);
+			expect({
+				updated: pushDry.updated,
+				deleted: pushDry.deleted,
+				directoriesRemoved: pushDry.directoriesRemoved,
+			}).toEqual({
+				updated: pushReal.updated,
+				deleted: pushReal.deleted,
+				directoriesRemoved: pushReal.directoriesRemoved,
+			});
+
+			const pullA = setupFixture("pi-sync-dry-pull-");
+			const pullB = setupFixture("pi-sync-dry-pull-real-");
+			const pullDry = syncManagedPiDirectory("pull", pullA.localPiDir, pullA.globalAgentDir, {
+				dryRun: true,
+			});
+			const pullReal = syncManagedPiDirectory("pull", pullB.localPiDir, pullB.globalAgentDir);
+			expect({
+				updated: pullDry.updated,
+				deleted: pullDry.deleted,
+				directoriesRemoved: pullDry.directoriesRemoved,
+			}).toEqual({
+				updated: pullReal.updated,
+				deleted: pullReal.deleted,
+				directoriesRemoved: pullReal.directoriesRemoved,
+			});
+			// the pruned local extension files are reported as a directory removal, not per-file deletes
+			expect(pullDry.deleted).toContain("local-only.md");
+			expect(pullDry.deleted).not.toContain("extensions/old-ext/index.ts");
+			expect(pullDry.directoriesRemoved).toEqual(["extensions/old-ext"]);
+		});
+
+		it("copySystemMdToClaudeMd dry run reports a copy without writing", () => {
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-sync-dry-claude-"));
+			tmpRoots.push(root);
+			fs.mkdirSync(path.join(root, ".pi"), { recursive: true });
+			fs.writeFileSync(path.join(root, ".pi", "SYSTEM.md"), "# Test\n");
+
+			const originalHomeDir = os.homedir;
+			os.homedir = () => root;
+			try {
+				expect(copySystemMdToClaudeMd(root, { dryRun: true })).toBe(true);
+				expect(fs.existsSync(path.join(root, ".claude"))).toBe(false);
+				expect(copySystemMdToClaudeMd(root)).toBe(true);
+				expect(fs.readFileSync(path.join(root, ".claude", "CLAUDE.md"), "utf-8")).toBe("# Test\n");
+				expect(copySystemMdToClaudeMd(root, { dryRun: true })).toBe(false);
+			} finally {
+				os.homedir = originalHomeDir;
+			}
+		});
+
+		it("push --dry-run exits 0, prints the banner and lists, and writes nothing", () => {
+			const { cwd, home, agentDir } = setupCliFixture("pi-sync-dry-cli-");
+			const beforeAgent = treeSnapshot(agentDir);
+			const beforeHome = treeSnapshot(home);
+
+			const result = runSyncScript(cwd, home, agentDir, ["push", "--dry-run"]);
+
+			expect(result.status).toBe(0);
+			expect(result.stdout).toContain("DRY RUN: nothing written");
+			expect(result.stdout).toContain("Would update files");
+			expect(result.stdout).toContain("Would delete files");
+			expect(result.stdout).toContain("skills/only-global/SKILL.md");
+			expect(result.stdout).toContain("Would copy SYSTEM.md");
+			expect(treeSnapshot(agentDir)).toEqual(beforeAgent);
+			expect(treeSnapshot(home)).toEqual(beforeHome);
+			expect(fs.existsSync(path.join(home, ".claude"))).toBe(false);
+		});
+
+		it("push with pending global deletes exits 1 and writes nothing until --allow-delete", () => {
+			const { cwd, home, agentDir } = setupCliFixture("pi-sync-dry-delete-");
+			const beforeAgent = treeSnapshot(agentDir);
+			const beforeHome = treeSnapshot(home);
+
+			const blocked = runSyncScript(cwd, home, agentDir, ["push"]);
+
+			expect(blocked.status).toBe(1);
+			expect(blocked.stdout).toContain("skills/only-global/SKILL.md");
+			expect(blocked.stderr).toContain("--allow-delete");
+			expect(blocked.stderr).toContain("--dry-run");
+			expect(treeSnapshot(agentDir)).toEqual(beforeAgent);
+			expect(treeSnapshot(home)).toEqual(beforeHome);
+
+			const allowed = runSyncScript(cwd, home, agentDir, ["push", "--allow-delete"]);
+			expect(allowed.status).toBe(0);
+			expect(fs.existsSync(path.join(agentDir, "skills", "only-global", "SKILL.md"))).toBe(false);
+			expect(fs.readFileSync(path.join(agentDir, "SYSTEM.md"), "utf-8")).toBe("local\n");
+
+			const usage = runSyncScript(cwd, home, agentDir, ["pull", "--allow-delete"]);
+			expect(usage.status).toBe(1);
+			expect(usage.stderr).toContain("Usage:");
+		});
+
+		it("rejects unknown flags and --allow-delete on pull with the usage text", () => {
+			const { cwd, home, agentDir } = setupCliFixture("pi-sync-dry-usage-");
+
+			const result = runSyncScript(cwd, home, agentDir, ["push", "--force"]);
+
+			expect(result.status).toBe(1);
+			expect(result.stderr).toContain("Usage: tsx scripts/sync-pi-config.ts <pull|push> [--dry-run] [--allow-delete]");
 		});
 	});
 });

@@ -7,6 +7,8 @@ Syncs the `.pi` directory between the project-local copy and the global `~/.pi/a
 ```bash
 npx tsx scripts/sync-pi-config.ts pull   # Global → Local
 npx tsx scripts/sync-pi-config.ts push   # Local → Global
+npx tsx scripts/sync-pi-config.ts push --dry-run   # print what push would update/delete; writes nothing (works in the sandbox)
+npx tsx scripts/sync-pi-config.ts push --allow-delete   # proceed even with pending global deletes
 ```
 
 ## What Gets Synced
