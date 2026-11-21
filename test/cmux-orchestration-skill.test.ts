@@ -141,10 +141,13 @@ describe("cmux-orchestration skill", () => {
             return text.slice(start, text.indexOf("\n## ", start));
         };
 
-        it("runs only the bash tool, once, and only when the sandbox is loaded", () => {
+        // A bash-only session is read-only, so a one-shot that writes files needs edit as well.
+        it("runs bash (plus edit only for writing commands), once, and only when the sandbox is loaded", () => {
             const body = section();
             expect(body).toContain("$SANDBOX_RUNTIME");
-            expect(body).toContain("--no-sandbox --tools bash");
+            expect(body).toContain("--no-sandbox --tools <tools>");
+            expect(body).toMatch(/`<tools>` is `bash` for checks that write nothing/);
+            expect(body).toMatch(/`bash,edit` when the commands write files/);
             expect(body).toContain("--print @$TMPDIR/pi-reports/<task>.task.md");
             expect(body).toContain("sandbox OFF");
         });
