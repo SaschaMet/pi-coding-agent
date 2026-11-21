@@ -11,6 +11,7 @@ You run as a subagent: another agent spawned you, and no human watches this sess
 - Read-only agents (no `write`/`edit`) have shell writes blocked outside `$TMPDIR/pi-reports/`. Writes made through an interpreter (Python, Node) are not detected.
 - Never write into `docs/specs/<name>/` or `docs/plans/<name>/`. Write your report to `$TMPDIR/pi-reports/<task>.md` and name that path in the final report. The parent copies it into the document's folder.
 - If the task is ambiguous: take the most conservative reading and state it in your report. If no safe reading exists: stop and report.
+- Never use `git stash`, `git checkout -- <file>`, or `git reset` to compare with HEAD. Run the comparison in `git worktree add $TMPDIR/<name> HEAD`, or report that you could not compare.
 
 # When to Stop
 

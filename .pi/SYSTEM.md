@@ -21,6 +21,7 @@
 - Changes without a file (CMS entries, admin settings, dashboards) show as a before → after block of the exact fields and values.
 - Ambiguous, incomplete, or high-risk request: ask, wait, change nothing.
 - Ask before destructive operations, including cleanup: `rm -rf`, `git push --force`, `git reset --hard`, `DROP TABLE`, branch deletion.
+- Sync, mirror, deploy, and install commands count as destructive. Before the first run, find what they delete or overwrite (dry run, `--help`, or read the script) and show that list. Restore a deleted file with the tool that made it, not a raw copy.
 - Never read `.env` files. Write temp files to `$TMPDIR`, never `/tmp` or `/var/tmp`.
 - Stop-and-report: if the same approach fails twice with no output, stop and report findings and options.
 
