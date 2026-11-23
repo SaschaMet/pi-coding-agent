@@ -28,7 +28,7 @@ Write the config before the install; without it, the installer may pick the vend
    - LLM key: the iqRouter key already in `~/.pi/agent/models.json` (provider `iqRouter`, a literal `apiKey`, a `baseUrl` ending in `/v1`). The server uses it to turn text into facts with model `grunt`.
    - API token: generated once with `openssl rand -hex 32`. It lives only in `~/.hindsight/coding-agent.json`.
    - The start script reads both and exports them for compose. It never writes or prints them.
-2. **Config.** Write `~/.hindsight/coding-agent.json` from the reference copy with the real token, then `chmod 600` it. It must not set `optInPaths`, `mapPathToBank`, `bankId`, `bankIdTemplate` or `dynamicBankId`: a value in the file overrides the wrapper.
+2. **Config.** Write `~/.hindsight/coding-agent.json` from the reference copy with the real token, then `chmod 600` it. It must not set `optInPaths`, `mapPathToBank`, `bankId`, `bankIdTemplate` or `dynamicBankId`: a value in the file overrides the wrapper. Keep `"autoInject": "recall"` and `recallOptions.types` `["world", "experience", "observation"]` from the reference copy: the first prompt then gets stored facts directly instead of waiting for an LLM summary (see "Known limits").
 3. **Server.** Run `npm run hindsight:up` and wait for `curl -fsS -m 5 http://127.0.0.1:8888/health` to succeed. `npm run dev` and `npm run agent` also start it, without waiting.
 4. **Runtime.**
    - Run `npx @vectorize-io/hindsight-coding-agents@0.8.8 install pi --server self-hosted --api-url http://127.0.0.1:8888`.
@@ -104,8 +104,9 @@ Extraction and profile refreshes call `grunt` on iqRouter, the same link pi alre
 | `gitIngest` | `"message"` (commit messages seed a new bank) | `"none"` |
 | `seedLimit` | `300` commits | a smaller number |
 | `retainExtractionMode` | `"concise"` | keep `"concise"` |
-| `autoInject` | `"reflect"` (one lookup on the first prompt, up to 20 s) | `"pages"` or `"none"` |
-| `reflectTimeoutMs` | `20000` (the first-prompt lookup gives up after this) | a smaller number; a larger one only delays the first prompt further |
+| `autoInject` | runtime default `"reflect"` (an LLM summary on the first prompt, up to 20 s); this setup uses `"recall"` (stored facts, no LLM call) | `"recall"`, `"pages"` or `"none"` |
+| `recallOptions.types` | runtime default `["observation"]`; this setup uses `["world", "experience", "observation"]` | fewer types |
+| `reflectTimeoutMs` | `20000` (the `reflect` lookup gives up after this; unused with `"recall"`) | a smaller number |
 | `retainSessions` | `true` (each session's transcript is stored) | `false` |
 | mental model `min_refresh_interval_seconds` | `3600` | larger |
 
@@ -136,13 +137,13 @@ Extraction and profile refreshes call `grunt` on iqRouter, the same link pi alre
 
 - **Smoke loads the runtime.** `npm run smoke` runs every extension in this repo, and this repo opts in. After the install, smoke loads the official runtime. Its start-up call seeds this repo's bank, the same call a pi start here makes. `"disabled": true` switches it off.
 - **Smoke before the first push:** smoke fails with "Extension copy drift" for `hindsight-repo.ts` and `hindsight-personal.ts` until `npm run pi:sync-global` creates their global copies.
-- **First prompt:** the runtime's lookup can add up to 20 s to the first prompt of a session.
+- **First prompt:** with `"autoInject": "recall"` the lookup took about 2 s on 2026-11-23. With the runtime default `"reflect"` it can add up to 20 s.
 - **Recalled memory reaches the session's model**, which may be a cloud model. That model already sees the session text.
 - **Model downloads on re-create:** a re-created container fetches its local models again. On 2026-11-23 the logs showed `Fetching 12 files` and `Fetching 10 files`, each done in under 2 seconds.
 
 ## Known limits found on 2026-11-23
 
-- **The first-prompt lookup times out under `grunt` load.** The runtime's `reflect` gave up at 20 s five times and fell back to the page list, which was still empty. Memory still answers through the `hindsight_reflect` tool and a server-side recall. Knobs: `autoInject` (`"pages"` or `"none"` skips the lookup) and `reflectTimeoutMs`.
+- **The first-prompt `reflect` timed out under `grunt` load; `recall` avoids it.** With the default `"autoInject": "reflect"` the runtime gave up at 20 s five times and fell back to the page list, which was still empty. The user switched to `"autoInject": "recall"` with `recallOptions.types` `["world", "experience", "observation"]`. A fresh session then answered the test codename from the injected memory with no tool call, in a 2 s turn. The cost: recall injects raw stored facts with no summary. The model sees more, less ordered text, and no LLM sorts out duplicates or contradictions. `hindsight_reflect` still gives a summary on demand.
 - **The git seed is pending.** `hindsight_sync_status` reported `synced: false` and `gitlogPresent: false`. The server log showed LLM connection timeouts and one fact-extraction task scheduled for retry. Knobs: `seedLimit` and `gitIngest`.
 - **The installer's config backup holds the token.** `install pi` also writes `~/.hindsight/coding-agent.json.hindsight-backup`. Keep it at mode 600 or delete it; rollback removes it with `~/.hindsight/`.
 - **The confirm dialog defaults to Yes.** `personal_remember`'s "Remember about you?" dialog waits for input, but a stray Enter stores the fact. Read it before you press Enter; delete a wrong fact in the web UI.
