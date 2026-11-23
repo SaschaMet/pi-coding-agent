@@ -26,6 +26,7 @@ Structural overview of the system. Read before any change to understand componen
 | Config Sync | `scripts/sync-pi-config.ts` | Bidirectional sync of `.pi/` ↔ `~/.pi/agent/` with exclusions, managed-extension pruning, and `SYSTEM.md → CLAUDE.md` copy |
 | Headroom | `headroom-compose.yml`, `scripts/headroom-up.sh` | Docker-based token-optimization service started before agent runs |
 | PII redaction | `.pi/local-packages/pii-redaction.ts`, `presidio-compose.yml`, `scripts/presidio-up.sh` | Reversible PII tags on every model request via a local Presidio analyzer (en + de); see `docs/reference/pii-redaction.md` |
+| Hindsight | `hindsight-compose.yml`, `scripts/hindsight-up.sh`, `.pi/extensions/hindsight-repo.ts`, `.pi/extensions/hindsight-personal.ts` | Memory server in Docker (`127.0.0.1:8888`, API token); per-repo banks via the official package, personal bank via `hindsight-personal.ts`; see `docs/reference/hindsight.md` |
 | Smoke Check | `scripts/smoke.ts` | Extension/resource discovery smoke check (`npm run smoke`) |
 | Tests | `test/` | Unit and integration tests covering guards, secrets, sync, delegation, and quality gates; `helpers/fake-pi.ts` fake runtime |
 | Documentation | `docs/` | Architecture overview and reference docs (implementation workflow, startup perf, trust.json) |

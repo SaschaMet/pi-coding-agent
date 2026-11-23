@@ -259,6 +259,7 @@ These are intended. Do not work around them. Full rules, decision order, and how
 - `npm run pi:sync-global`: copy this repo's `.pi/` into `~/.pi/agent`. Overwrites global state.
 - `npm run headroom:up` / `npm run headroom:down`: start or stop the Headroom container.
 - `npm run presidio:up` / `npm run presidio:down`: start or stop the PII analyzer container.
+- `npm run hindsight:up` / `npm run hindsight:down`: start or stop the Hindsight memory server on `127.0.0.1:8888`. See [`docs/reference/hindsight.md`](docs/reference/hindsight.md).
 
 Both sync commands honor `PI_CODING_AGENT_DIR` if set. Default: `~/.pi/agent`.
 

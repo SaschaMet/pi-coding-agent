@@ -13,6 +13,7 @@ Dev utilities outside the runtime: bidirectional config sync (`.pi/` ↔ `~/.pi/
 - `sync-pi-config.ts` (+ `sync-pi-config.md`) — managed sync of the `.pi/` tree: exclusions, extension pruning, settings/mcp merge, `SYSTEM.md → CLAUDE.md` copy, file modes on push, and the security policy check before push.
 - `smoke.ts` — extension/resource discovery smoke check.
 - `headroom-up.sh` — brings up the Docker headroom service (`headroom-compose.yml`).
+- `hindsight-up.sh` — start the Hindsight memory server without waiting for health; exits 0 when Docker, the iqRouter key, or the API token is missing.
 - `headroom-log-rotate.sh` — rotates the proxy log inside the headroom container (weekly cron); accepts a local directory argument for deterministic tests (`test/headroom-log-rotate.test.ts`).
 
 ## Local Contracts

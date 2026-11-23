@@ -5,9 +5,9 @@
     "main": "src/main.ts",
     "scripts": {
         "postinstall": "tsx scripts/patch-retry.ts",
-        "predev": "bash scripts/headroom-up.sh --quiet",
+        "predev": "bash scripts/headroom-up.sh --quiet && bash scripts/hindsight-up.sh --quiet",
         "dev": "tsx watch src/main.ts",
-        "preagent": "bash scripts/headroom-up.sh --quiet",
+        "preagent": "bash scripts/headroom-up.sh --quiet && bash scripts/hindsight-up.sh --quiet",
         "agent": "tsx src/main.ts",
         "agent:private": "bash scripts/headroom-up.sh --quiet && bash scripts/presidio-up.sh --quiet && tsx src/main.ts --private",
         "smoke": "tsx scripts/smoke.ts",
@@ -21,7 +21,9 @@
         "headroom:up": "bash scripts/headroom-up.sh",
         "headroom:down": "docker compose -f headroom-compose.yml down",
         "presidio:up": "bash scripts/presidio-up.sh",
-        "presidio:down": "docker compose -f presidio-compose.yml down"
+        "presidio:down": "docker compose -f presidio-compose.yml down",
+        "hindsight:up": "bash scripts/hindsight-up.sh",
+        "hindsight:down": "HINDSIGHT_LLM_BASE_URL=unused HINDSIGHT_LLM_API_KEY=unused HINDSIGHT_API_TOKEN=unused docker compose -f hindsight-compose.yml down"
     },
     "keywords": [],
     "author": "",

@@ -1,0 +1,7 @@
+{
+  "serverMode": "self-hosted",
+  "apiUrl": "http://127.0.0.1:8888",
+  "apiToken": "<generate with: openssl rand -hex 32 — never commit the real value>",
+  "autoUpdate": false,
+  "optInOnly": true
+}

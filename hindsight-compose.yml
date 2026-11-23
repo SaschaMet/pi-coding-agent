@@ -1,0 +1,45 @@
+# Hindsight memory server for pi (per-repo banks and the personal bank).
+#
+#   npm run hindsight:up
+#   docker logs -f hindsight
+#   npm run hindsight:down
+#
+# Use these, not a bare `docker compose -f hindsight-compose.yml ...`:
+# compose refuses to read this file without the three secret variables.
+# scripts/hindsight-up.sh reads the LLM endpoint and key from pi's
+# models.json and the API token from ~/.hindsight/coding-agent.json, and
+# exports them; hindsight:down passes placeholders, as `down` needs none.
+# A bare command stops with "... is missing a value: unset".
+# Setup, upgrade and rollback: docs/reference/hindsight.md.
+
+services:
+  hindsight:
+    # Pinned to a release tag, never :latest. GitHub release v1.2.3;
+    # whether the image tag keeps the `v` is checked with
+    # `docker manifest inspect` before first use.
+    image: ghcr.io/vectorize-io/hindsight:1.2.3
+    container_name: hindsight
+    restart: unless-stopped
+    shm_size: "1g"
+    # The bundled database needs time to shut down cleanly.
+    stop_grace_period: 75s
+    ports:
+      # Loopback only: the server holds session text.
+      # A bare "8888:8888" publishes on every interface.
+      - "127.0.0.1:8888:8888"
+      - "127.0.0.1:9999:9999"
+    environment:
+      HINDSIGHT_API_LLM_PROVIDER: "openai"
+      HINDSIGHT_API_LLM_BASE_URL: "${HINDSIGHT_LLM_BASE_URL:?unset}"
+      HINDSIGHT_API_LLM_API_KEY: "${HINDSIGHT_LLM_API_KEY:?unset}"
+      HINDSIGHT_API_LLM_MODEL: "grunt"
+      # A local process or web page could otherwise write text that
+      # reaches every prompt.
+      HINDSIGHT_API_TENANT_EXTENSION: >-
+        hindsight_api.extensions.builtin.tenant:ApiKeyTenantExtension
+      HINDSIGHT_API_TENANT_API_KEY: "${HINDSIGHT_API_TOKEN:?unset}"
+    volumes:
+      - hindsight-data:/home/hindsight/.pg0
+
+volumes:
+  hindsight-data:
