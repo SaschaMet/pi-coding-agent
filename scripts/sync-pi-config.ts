@@ -37,6 +37,9 @@ const EXCLUDED_TOP_LEVEL_PATHS = new Set([
 	// A push that deletes them kills bash in every running sandboxed session.
 	"sandbox-run",
 	"sandbox.json",
+	// /skill-import config: holds a per-machine absolute repo path.
+	// A push must not delete it; a pull must not copy it into the project.
+	"skill-import.json",
 ]);
 // Extension directories containing this marker file are considered
 // system-managed and will be pruned from local during sync.
@@ -359,13 +362,27 @@ function removeDirectoryIfExists(dirPath: string): boolean {
 	return true;
 }
 
+const SKILL_IMPORT_RECORD_FILE = ".skill-import.json";
+const SKILL_FOLDER_PARENTS = ["skill-library", "skills"];
+
+// True when relativePath sits inside a skill folder that holds a /skill-import record.
+function isImportedSkillPath(root: string, relativePath: string): boolean {
+	const parts = relativePath.split(path.sep).join("/").split("/");
+	if (parts.length < 3 || !SKILL_FOLDER_PARENTS.includes(parts[0])) return false;
+	const skillDir = path.join(root, parts[0], parts[1]);
+	return fs.existsSync(path.join(skillDir, SKILL_IMPORT_RECORD_FILE));
+}
+
 function isPreservedTargetOnlyRelativePath(
 	mode: Mode,
 	relativePath: string,
+	targetRoot: string,
 ): boolean {
 	if (mode === "pull" && isExtensionsRelativePath(relativePath)) return true;
 	if (mode === "push" && getExtensionDirectoryName(relativePath) !== undefined)
 		return true;
+	// A skill installed by /skill-import may not exist globally yet; a pull must not delete it.
+	if (mode === "pull" && isImportedSkillPath(targetRoot, relativePath)) return true;
 	return relativePath === MCP_RELATIVE_PATH;
 }
 
@@ -463,7 +480,7 @@ export function syncManagedPiDirectory(
 	const deleted: string[] = [];
 	for (const targetRelativePath of listRelativeFilesRecursive(targetRoot)) {
 		if (sourceSet.has(targetRelativePath)) continue;
-		if (isPreservedTargetOnlyRelativePath(mode, targetRelativePath)) continue;
+		if (isPreservedTargetOnlyRelativePath(mode, targetRelativePath, targetRoot)) continue;
 		const targetPath = path.join(targetRoot, targetRelativePath);
 		if (removeFileIfExists(targetPath)) deleted.push(targetRelativePath);
 	}
