@@ -95,6 +95,33 @@ The wrapper sets `HINDSIGHT_OPT_IN_ONLY`, `HINDSIGHT_OPT_IN_PATHS` and `HINDSIGH
 - One bank: in the web UI, or `curl -X DELETE -H "Authorization: Bearer $TOKEN" 'http://127.0.0.1:8888/v1/default/banks/<bank id>'`. Write `::` in a bank id as `%3A%3A`.
 - Everything: delete the `hindsight-data` volume. Nothing expires on its own, and nothing backs the volume up.
 
+## Housekeeping
+
+The server has no retention or expiry setting; only deletes remove data. No pruning schedule is needed, but check a few times a year and after moving or deleting a repo.
+
+- **What grows:** one bank per opted-in repo plus `personal`. Each bank holds session transcripts (`retainSessions: true`), the facts extracted from them, commit messages and survey findings.
+- **Expected size:** a transcript is roughly 0.1–1 MB of text, so about 1,000 sessions make about 1 GB. This is an estimate, not a measurement. Junk hurts recall quality long before it hurts disk space.
+- **What already limits junk:**
+  - Consolidation merges overlapping facts into observations.
+  - Storing a document under an existing `document_id` replaces the old version.
+  - A `Correction: <topic>` document outranks the stale fact in recall.
+  - One wrong fact can be retired without deleting it: `PATCH /v1/default/banks/<bank id>/memories/<memory id>` with `{"state":"invalidated"}`. It leaves recall, stays in the bank, and can be restored.
+
+| Junk | Cause | Fix |
+| --- | --- | --- |
+| Orphan bank | Repo moved or deleted | Delete the bank (see "Deleting memory") |
+| Throwaway bank | A short-lived repo was opted in | Don't opt in short-lived repos; delete the bank when done |
+| Noisy transcripts | Every session is stored | `"retainSessions": false` in `~/.hindsight/coding-agent.json` |
+| Leftover files from failed stores | Failed retains leave attachments behind | `hindsight-admin repair-bank --all --attachments --dry-run`, then again without `--dry-run` |
+
+Routine, about 5 minutes:
+
+1. **Size:** `docker system df -v | grep hindsight-data`. Hundreds of MB to a few GB is normal. Act only if it keeps climbing.
+2. **Banks:** open the web UI, or run `curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8888/v1/default/banks`. Bank names are `<folder>-<hash>`; delete each bank whose repo no longer exists at its old path.
+3. **Export before you delete** anything you might want back: `curl --fail-with-body -X POST -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8888/v1/default/banks/<bank id>/transfer/export`. It runs in the background and returns an operation id.
+
+These are human steps: sandboxed bash reaches neither Docker nor `127.0.0.1`.
+
 ## Load knobs
 
 Extraction and profile refreshes call `grunt` on iqRouter, the same link pi already uses for prompts. If interactive use stalls, lower the load in `~/.hindsight/coding-agent.json` and restart pi:

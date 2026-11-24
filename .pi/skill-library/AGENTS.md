@@ -61,6 +61,7 @@ Pillar 8 → `taste-skill/local/preset-premium.md`). Do not re-copy any of them.
 | Evidence, sample size, no-peeking, ICE, the 10x screen | `cro-methodology` |
 | Persuasion principles **and the ethics/regulatory layer** | `influence-psychology` |
 | Motive-based copy audits after Niggehoff (buyer motive, comparability, hook) | `sales-psychology-audit` |
+| Cognitive biases in copy and page design (Codex four problems, framing, anchoring, labor illusion, fluency) | `cognitive-bias-web` |
 | Comprehension, memory, the Curse of Knowledge | `made-to-stick` |
 | Page order, the protagonist, the wireframe, email sequences | `storybrand-messaging` |
 | Web performance and transport | `high-perf-browser` |
@@ -97,6 +98,7 @@ Local deviations to re-apply after a re-copy: the `web-typography` description (
 | `influence-psychology`     | Cialdini's seven principles of ethical persuasion applied to copy, product, and sales, with explicit ethical limits.                              |
 | `microinteractions`        | Triggers, rules, feedback, loops, and modes — the small details of interaction design.                                                            |
 | `sales-psychology-audit`   | Audit a site's copy against Matthias Niggehoff's sales psychology: buyer motive (Motivkompass), 8 scored lenses with quotes, ranked before/after recommendations. Written locally 2026-11-07, not part of the wondelai copy; standalone, no `improve-website` phase. |
+| `cognitive-bias-web`       | Write or audit page copy and design with cognitive biases: Codex four-problem check, bias selector, honesty gate for anchors, urgency and defaults. Written locally 2026-11-23, not part of the wondelai copy; standalone, no `improve-website` phase. |
 
 #### Orchestration map for `improve-website`
 
