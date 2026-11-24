@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -13,6 +13,24 @@ const FIXTURE_RULES = [
 ].join("\n");
 
 const FIXTURE_AGENTS = ["# AGENTS.md — fixture", "", "- Use the fixture agents line."].join("\n");
+
+const FIXTURE_SUBAGENT = ["# Subagent Rules", "", "- Use the fixture subagent line."].join("\n");
+
+// Isolates every case from the real ~/.pi/agent: its SUBAGENT.md would leak in as the fallback.
+let agentDir: string;
+beforeEach(() => {
+    agentDir = mkdtempSync(join(tmpdir(), "subagent-rules-agentdir-"));
+    vi.stubEnv("PI_CODING_AGENT_DIR", agentDir);
+});
+afterEach(() => {
+    vi.unstubAllEnvs();
+    rmSync(agentDir, { recursive: true, force: true });
+});
+
+function writeProjectSubagent(cwd: string, content: string): void {
+    mkdirSync(join(cwd, ".pi"), { recursive: true });
+    writeFileSync(join(cwd, ".pi", "SUBAGENT.md"), content);
+}
 
 // Replace-mode subagent system prompt shape (pi-subagents buildAgentPrompt):
 // active_agent tag, no parent prompt, no rules file content.
@@ -164,4 +182,62 @@ describe("subagent rules injection extension", () => {
         });
     });
 
+    describe("SUBAGENT.md", () => {
+        function fixture(rules?: string, agents?: string): string {
+            const cwd = makeFixtureCwd(rules, agents);
+            cleanup.push(() => rmSync(cwd, { recursive: true, force: true }));
+            return cwd;
+        }
+
+        it("injects .pi/SUBAGENT.md last, after SYSTEM.md and AGENTS.md", async () => {
+            const cwd = fixture(FIXTURE_RULES, FIXTURE_AGENTS);
+            writeProjectSubagent(cwd, FIXTURE_SUBAGENT);
+            const content = String((await runHandler(cwd, SUBAGENT_PROMPT))?.message?.content);
+            expect(content).toContain(FIXTURE_SUBAGENT);
+            expect(content).toContain("override");
+            expect(content.indexOf(FIXTURE_AGENTS)).toBeLessThan(content.indexOf(FIXTURE_SUBAGENT));
+        });
+
+        it("injects only SUBAGENT.md into an append-mode subagent that already holds SYSTEM.md and AGENTS.md", async () => {
+            const cwd = fixture(FIXTURE_RULES, FIXTURE_AGENTS);
+            writeProjectSubagent(cwd, FIXTURE_SUBAGENT);
+            const appendPrompt = `You are a pi coding agent.\n\n${FIXTURE_RULES}\n\n${FIXTURE_AGENTS}\n\n${SUBAGENT_PROMPT}`;
+            const content = String((await runHandler(cwd, appendPrompt))?.message?.content);
+            expect(content).toContain(FIXTURE_SUBAGENT);
+            expect(content).not.toContain(FIXTURE_RULES);
+            expect(content).not.toContain(FIXTURE_AGENTS);
+        });
+
+        it("falls back to <agentDir>/SUBAGENT.md when the project has none", async () => {
+            writeFileSync(join(agentDir, "SUBAGENT.md"), FIXTURE_SUBAGENT);
+            const content = String((await runHandler(fixture(FIXTURE_RULES), SUBAGENT_PROMPT))?.message?.content);
+            expect(content).toContain(FIXTURE_SUBAGENT);
+        });
+
+        it("falls back to <agentDir>/SUBAGENT.md when the project file is empty", async () => {
+            writeFileSync(join(agentDir, "SUBAGENT.md"), FIXTURE_SUBAGENT);
+            const cwd = fixture(FIXTURE_RULES);
+            writeProjectSubagent(cwd, "  \n");
+            const content = String((await runHandler(cwd, SUBAGENT_PROMPT))?.message?.content);
+            expect(content).toContain(FIXTURE_SUBAGENT);
+        });
+
+        it("prefers the project SUBAGENT.md over the global one", async () => {
+            writeFileSync(join(agentDir, "SUBAGENT.md"), "# global subagent rules");
+            const cwd = fixture(FIXTURE_RULES);
+            writeProjectSubagent(cwd, FIXTURE_SUBAGENT);
+            const content = String((await runHandler(cwd, SUBAGENT_PROMPT))?.message?.content);
+            expect(content).toContain(FIXTURE_SUBAGENT);
+            expect(content).not.toContain("global subagent rules");
+        });
+
+        it("injects nothing when the prompt already holds SUBAGENT.md and the other files", async () => {
+            const cwd = fixture(FIXTURE_RULES, FIXTURE_AGENTS);
+            writeProjectSubagent(cwd, FIXTURE_SUBAGENT);
+            const prompt = `${FIXTURE_RULES}\n\n${FIXTURE_AGENTS}\n\n${FIXTURE_SUBAGENT}\n\n${SUBAGENT_PROMPT}`;
+            const result = await runHandler(cwd, prompt);
+            expect(result?.action).toBe("continue");
+            expect(result?.message).toBeUndefined();
+        });
+    });
 });
